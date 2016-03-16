@@ -5,6 +5,7 @@ import Orange.data
 from Orange.widgets import widget
 import sys
 from PyQt4 import QtGui
+from PyQt4.QtGui import QWidget
 import gc
 from PyQt4.QtCore import Qt
 
@@ -38,14 +39,10 @@ def distancetocurve(array, x, y, xpixel, ypixel, r=5):
     return distancepx[mini], xmin + mini
 
 
-class OWCurves(widget.OWWidget):
-    name = "Curves"
-    inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    icon = "icons/mywidget.svg"
+class CurvePlot(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.controlArea.hide()
         self.plotview = pg.PlotWidget(background="w")
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
@@ -54,33 +51,44 @@ class OWCurves(widget.OWWidget):
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
-        self.mainArea.layout().addWidget(self.plotview)
         self.pen_black = pg.mkPen(color=(0 ,0 ,0) )
         self.pen_blue = pg.mkPen(color=(0, 0, 255))
         self.label = pg.TextItem("test")
         self.label.setText("Blabla")
-        self.resize(900, 700)
+        self.snap = False
+        layout = QtGui.QGridLayout()
+        self.setLayout(layout)
+        self.layout().addWidget(self.plotview)
 
     def mouseMoved(self, evt):
         pos = evt[0]
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
-            xpixel, ypixel = self.plot.vb.viewPixelSize()
-            R = 20
-            distances = [ distancetocurve(c, mousePoint.x(), mousePoint.y(), xpixel, ypixel, r=R) for c in self.curves ]
-            bd = min(enumerate(distances), key= lambda x: x[1][0])
-            for i,curve in enumerate(self.curvespg):
-                if bd[1][0] < R and i == bd[0]:
-                    curve.setPen(self.pen_blue)
-                else:
-                    curve.setPen(self.pen_black)
-                
-            if bd[1][0] < R:
-                self.vLine.setPos(self.curves[bd[0]][0][bd[1][1]])
-                self.hLine.setPos(self.curves[bd[0]][1][bd[1][1]])
-            else:
-                self.vLine.setPos(mousePoint.x())
-                self.hLine.setPos(mousePoint.y())
+            posx, posy = mousePoint.x(), mousePoint.y()
+
+            if self.snap:
+                R = 20
+                xpixel, ypixel = self.plot.vb.viewPixelSize()
+                distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R) for c in self.curves ]
+                bd = min(enumerate(distances), key= lambda x: x[1][0])
+                for i,curve in enumerate(self.curvespg):
+                    if bd[1][0] < R and i == bd[0]:
+                        curve.setPen(self.pen_blue)
+                    else:
+                        curve.setPen(self.pen_black)
+                if bd[1][0] < R:
+                    posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
+
+            self.vLine.setPos(posx)
+            self.hLine.setPos(posy)
+
+    def clear(self):
+        self.plotview.clear()
+        self.plotview.addItem(self.label)
+        self.curves = []
+        self.curvespg = []
+        self.plot.addItem(self.vLine, ignoreBounds=True)
+        self.plot.addItem(self.hLine, ignoreBounds=True)
 
     def add_curve(self,x,y):
         self.curves.append((x,y))
@@ -89,13 +97,21 @@ class OWCurves(widget.OWWidget):
         self.plot.addItem(c)
 
 
+class OWCurves(widget.OWWidget):
+    name = "Curves"
+    inputs = [("Data", Orange.data.Table, 'set_data', Default)]
+    icon = "icons/mywidget.svg"
+
+    def __init__(self):
+        super().__init__()
+        self.controlArea.hide()
+        self.plotview = CurvePlot()
+        self.mainArea.layout().addWidget(self.plotview)
+        self.resize(900, 700)
+
     def set_data(self, data):
         self.plotview.clear()
-        self.plotview.addItem(self.label)
-        self.curves = []
         if data is not None:
-            self.plot.addItem(self.vLine, ignoreBounds=True)
-            self.plot.addItem(self.hLine, ignoreBounds=True)
             x = np.arange(len(data.domain.attributes))
             #try:
             #    x = np.array([ float(a.name) for a in data.domain.attributes ])
@@ -103,8 +119,8 @@ class OWCurves(widget.OWWidget):
             #    pass
             for row in data.X:
                 for i in range(2):
-                    self.add_curve(x, row+i*0.01)
-        #self.plotview.replot()
+                    self.plotview.add_curve(x, row+i*0.01)
+
 
 def read_dpt(fn):
     """
