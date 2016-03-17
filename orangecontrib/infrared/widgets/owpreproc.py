@@ -33,17 +33,88 @@ from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.data.owpreprocess import (
     SequenceFlow, Controller, StandardItemModel, 
     PreprocessAction, Description, icon_path, DiscretizeEditor, 
-    DescriptionRole, ParametersRole
+    DescriptionRole, ParametersRole, BaseEditor, blocked
 )
+
+import numpy as np
+
+from scipy.ndimage.filters import gaussian_filter1d
+
+import copy
+
+class GaussianSmoothing():
+
+    def __init__(self, sd=10.):
+        #super().__init__(variable)
+        self.sd = sd
+
+    def __call__(self, data):
+        #FIXME this filted does not do automatic domain conversions!
+        #FIXME we need need data about frequencies:
+        #what if frequencies are not sampled on equal intervals
+        x = np.arange(len(data.domain.attributes))
+        newd = gaussian_filter1d(data.X, sigma=self.sd, mode="nearest")
+        data = copy.copy(data)
+        data.X = newd
+        return data
+
+
+class GaussianSmoothingEditor(BaseEditor):
+    """
+    Editor for preprocess.Discretize.
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        self.__sd = 10.
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.__sdspin = sdspin = QDoubleSpinBox(
+           minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__sd)
+        layout.addWidget(sdspin)
+        
+        sdspin.valueChanged[float].connect(self.setSd)
+        sdspin.editingFinished.connect(self.edited)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def setSd(self, sd):
+        if self.__sd != sd:
+            self.__sd = sd
+            with blocked(self.__sdspin):
+                self.__sdspin.setValue(sd)
+            self.changed.emit()
+
+    def sd(self):
+        return self.__sd
+
+    def intervals(self):
+        return self.__nintervals
+
+    def setParameters(self, params):
+        self.setSd(params.get("sd", 10.))
+
+    def parameters(self):
+        return {"sd": self.__sd}
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        sd = params.get("sd", 10.)
+        return GaussianSmoothing(sd=sd)
+
+
 
 PREPROCESSORS = [ 
     PreprocessAction(
-        "Discretize", "orange.preprocess.discretize", "Discretization",
-        Description("Discretize Continuous Variables",
+        "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
+        Description("Smooth spectra (gaussian)",
         icon_path("Discretize.svg")),
-        DiscretizeEditor
+        GaussianSmoothingEditor
     ),
 ]
+
 
 
 class OWPreprocess(widget.OWWidget):
