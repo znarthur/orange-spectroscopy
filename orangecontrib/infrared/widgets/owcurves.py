@@ -50,20 +50,30 @@ class CurvePlot(QWidget):
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
+        self.plot.vb.sigRangeChanged.connect(self.resized)
         self.pen_black = pg.mkPen(color=(0 ,0 ,0) )
         self.pen_blue = pg.mkPen(color=(0, 0, 255))
-        self.label = pg.TextItem("test")
-        self.label.setText("Blabla")
+        self.label = pg.TextItem("", anchor=(1,0))
+        self.label.setText("", color=(0,0,0))
         self.snap = True
+        self.location = True
         layout = QtGui.QGridLayout()
         self.setLayout(layout)
         self.layout().addWidget(self.plotview)
+
+    def resized(self):
+        self.label.setPos(self.plot.vb.viewRect().bottomLeft())
 
     def mouseMoved(self, evt):
         pos = evt[0]
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
+
+            if self.location:
+                self.label.setText("%g, %g" % (posx, posy), color=(0,0,0))
+            else:
+                self.label.setText("")
 
             if self.snap:
                 R = 20
