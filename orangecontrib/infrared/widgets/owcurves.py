@@ -10,8 +10,6 @@ import gc
 from PyQt4.QtCore import Qt
 
 
-#FIXME different order of values!
-
 def closestindex(array, v):
     """
     Return index of a 1d sorted array closest to value v.
@@ -46,6 +44,7 @@ class CurvePlot(QWidget):
         self.plotview = pg.PlotWidget(background="w")
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
+        self.plot.invertX(True)
         self.curves = []
         self.curvespg = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
@@ -55,7 +54,7 @@ class CurvePlot(QWidget):
         self.pen_blue = pg.mkPen(color=(0, 0, 255))
         self.label = pg.TextItem("test")
         self.label.setText("Blabla")
-        self.snap = False
+        self.snap = True
         layout = QtGui.QGridLayout()
         self.setLayout(layout)
         self.layout().addWidget(self.plotview)
@@ -91,6 +90,9 @@ class CurvePlot(QWidget):
         self.plot.addItem(self.hLine, ignoreBounds=True)
 
     def add_curve(self,x,y):
+        xsind = np.argsort(x)
+        x = x[xsind]
+        y = y[xsind]
         self.curves.append((x,y))
         c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.5))
         self.curvespg.append(c)
@@ -113,10 +115,10 @@ class OWCurves(widget.OWWidget):
         self.plotview.clear()
         if data is not None:
             x = np.arange(len(data.domain.attributes))
-            #try:
-            #    x = np.array([ float(a.name) for a in data.domain.attributes ])
-            #except:
-            #    pass
+            try:
+                x = np.array([ float(a.name) for a in data.domain.attributes ])
+            except:
+                pass
             for row in data.X:
                 for i in range(2):
                     self.plotview.add_curve(x, row+i*0.01)
