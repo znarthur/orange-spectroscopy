@@ -130,8 +130,7 @@ class OWCurves(widget.OWWidget):
             except:
                 pass
             for row in data.X:
-                for i in range(2):
-                    self.plotview.add_curve(x, row+i*0.01)
+                self.plotview.add_curve(x, row)
 
 
 def read_dpt(fn):
