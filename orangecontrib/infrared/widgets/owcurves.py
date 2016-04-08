@@ -65,6 +65,7 @@ class CurvePlot(QWidget):
         layout = QtGui.QGridLayout()
         self.setLayout(layout)
         self.layout().addWidget(self.plotview)
+        self.highlighted = None
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -74,8 +75,6 @@ class CurvePlot(QWidget):
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
-            self.vLine.setPos(posx)
-            self.hLine.setPos(posy)
 
             if self.location:
                 self.label.setText("%g, %g" % (posx, posy), color=(0,0,0))
@@ -88,14 +87,15 @@ class CurvePlot(QWidget):
                 xpixel, ypixel = self.plot.vb.viewPixelSize()
                 distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                 bd = min(enumerate(distances), key= lambda x: x[1][0])
-                for i,curve in enumerate(self.curvespg):
-                    if bd[1][0] < R and i == bd[0]:
-                        curve.setPen(self.pen_blue)
-                    else:
-                        curve.setPen(self.pen_black)
+                if self.highlighted is not None and self.highlighted < len(self.curvespg):
+                    self.curvespg[self.highlighted].setPen(self.pen_black)
+                    self.highlighted = None
                 if bd[1][0] < R:
+                    self.curvespg[bd[0]].setPen(self.pen_blue)
+                    self.highlighted = bd[0]
                     posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
-
+                self.vLine.setPos(posx)
+                self.hLine.setPos(posy)
 
     def clear(self):
         self.plot.vb.disableAutoRange()
@@ -112,7 +112,7 @@ class CurvePlot(QWidget):
         x = x[xsind]
         y = y[xsind]
         self.curves.append((x,y))
-        c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.5))
+        c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.))
         self.curvespg.append(c)
         self.plot.addItem(c)
 
@@ -123,7 +123,7 @@ class CurvePlot(QWidget):
         for y in ys:
             y = y[xsind]
             self.curves.append((x,y))
-            c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.5))
+            c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.))
             self.curvespg.append(c)
             self.plot.addItem(c)
 
