@@ -92,12 +92,14 @@ class CurvePlot(QWidget):
             self.hLine.setPos(posy)
 
     def clear(self):
+        self.plot.vb.disableAutoRange()
         self.plotview.clear()
         self.plotview.addItem(self.label)
         self.curves = []
         self.curvespg = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
+        self.plot.vb.enableAutoRange()
 
     def add_curve(self,x,y):
         xsind = np.argsort(x)
@@ -124,6 +126,7 @@ class OWCurves(widget.OWWidget):
     def set_data(self, data):
         self.plotview.clear()
         if data is not None:
+            self.plotview.plot.vb.disableAutoRange()
             x = np.arange(len(data.domain.attributes))
             try:
                 x = np.array([ float(a.name) for a in data.domain.attributes ])
@@ -131,6 +134,7 @@ class OWCurves(widget.OWWidget):
                 pass
             for row in data.X:
                 self.plotview.add_curve(x, row)
+            self.plotview.plot.vb.enableAutoRange()
 
 
 def read_dpt(fn):
@@ -151,8 +155,8 @@ def main(argv=None):
     app = QtGui.QApplication(argv)
     w = OWCurves()
     w.show()
-    data = Orange.data.Table("iris.tab")
     data = read_dpt("/home/marko/orange-infrared/orangecontrib/infrared/datasets/2012.11.09-11.45_Peach juice colorful spot.dpt")
+    data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
