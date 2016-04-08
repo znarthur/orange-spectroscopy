@@ -75,7 +75,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.snap:
+            if self.snap and self.curves:
                 R = 20
                 xpixel, ypixel = self.plot.vb.viewPixelSize()
                 distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R) for c in self.curves ]
