@@ -22,9 +22,14 @@ def closestindex(array, v):
     else:
         return fi-1 if v - array[fi-1] < array[fi] - v else fi
 
-def distancetocurve(array, x, y, xpixel, ypixel, r=5):
-    xmin = closestindex(array[0], x-r*xpixel)
-    xmax = closestindex(array[0], x+r*xpixel)
+def distancetocurve(array, x, y, xpixel, ypixel, r=5, cache=None):
+    if cache is not None and x in cache:
+        xmin,xmax = cache[x]
+    else:
+        xmin = closestindex(array[0], x-r*xpixel)
+        xmax = closestindex(array[0], x+r*xpixel)
+        if cache is not None: 
+            cache[x] = xmin,xmax
     xp = array[0][xmin:xmax+1]
     yp = array[1][xmin:xmax+1]
     
@@ -69,6 +74,8 @@ class CurvePlot(QWidget):
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
+            self.vLine.setPos(posx)
+            self.hLine.setPos(posy)
 
             if self.location:
                 self.label.setText("%g, %g" % (posx, posy), color=(0,0,0))
@@ -76,9 +83,10 @@ class CurvePlot(QWidget):
                 self.label.setText("")
 
             if self.snap and self.curves:
+                cache = {}
                 R = 20
                 xpixel, ypixel = self.plot.vb.viewPixelSize()
-                distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R) for c in self.curves ]
+                distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                 bd = min(enumerate(distances), key= lambda x: x[1][0])
                 for i,curve in enumerate(self.curvespg):
                     if bd[1][0] < R and i == bd[0]:
@@ -88,8 +96,6 @@ class CurvePlot(QWidget):
                 if bd[1][0] < R:
                     posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
 
-            self.vLine.setPos(posx)
-            self.hLine.setPos(posy)
 
     def clear(self):
         self.plot.vb.disableAutoRange()
@@ -109,6 +115,17 @@ class CurvePlot(QWidget):
         c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.5))
         self.curvespg.append(c)
         self.plot.addItem(c)
+
+    def add_curves(self,x,ys):
+        """ Add multiple curves with the same x domain. """
+        xsind = np.argsort(x)
+        x = x[xsind]
+        for y in ys:
+            y = y[xsind]
+            self.curves.append((x,y))
+            c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.5))
+            self.curvespg.append(c)
+            self.plot.addItem(c)
 
 
 class OWCurves(widget.OWWidget):
@@ -132,8 +149,7 @@ class OWCurves(widget.OWWidget):
                 x = np.array([ float(a.name) for a in data.domain.attributes ])
             except:
                 pass
-            for row in data.X:
-                self.plotview.add_curve(x, row)
+            self.plotview.add_curves(x, data.X)
             self.plotview.plot.vb.enableAutoRange()
 
 
