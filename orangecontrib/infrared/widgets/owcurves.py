@@ -5,9 +5,8 @@ import Orange.data
 from Orange.widgets import widget
 import sys
 from PyQt4 import QtGui
-from PyQt4.QtGui import QWidget
+from PyQt4.QtGui import QWidget, QColor
 import gc
-from PyQt4.QtCore import Qt
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
 from Orange.widgets.utils.plot import \
@@ -109,6 +108,17 @@ class InteractiveViewBox(ViewBox):
                 self.scaleBy((1 / scale, 1 / scale), center)
         return True
 
+class SelectRegion(pg.LinearRegionItem):
+
+    def __init__(self, *args, **kwargs):
+        pg.LinearRegionItem.__init__(self, *args, **kwargs)
+        for l in self.lines:
+            l.setCursor(Qt.SizeHorCursor)
+        self.setZValue(10)
+        color = QColor(Qt.red)
+        color.setAlphaF(0.05)
+        self.setBrush(pg.mkBrush(color))
+
 class CurvePlot(QWidget):
 
     def __init__(self, state=PANNING):
@@ -123,8 +133,8 @@ class CurvePlot(QWidget):
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
         self.plot.vb.sigRangeChanged.connect(self.resized)
-        self.pen_black = pg.mkPen(color=(0 ,0 ,0) )
-        self.pen_blue = pg.mkPen(color=(0, 0, 255))
+        self.normal_pen = pg.mkPen(color=(0, 0, 0))
+        self.pen_blue = pg.mkPen(color=(0, 0, 255), width=2)
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
         self.snap = True
@@ -134,6 +144,7 @@ class CurvePlot(QWidget):
         self.layout().addWidget(self.plotview)
         self.highlighted = None
         self.state = PANNING
+        self.markings = []
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -149,21 +160,26 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.snap and self.curves:
+            if self.snap or self.curves:
                 cache = {}
                 R = 20
                 xpixel, ypixel = self.plot.vb.viewPixelSize()
                 distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                 bd = min(enumerate(distances), key= lambda x: x[1][0])
                 if self.highlighted is not None and self.highlighted < len(self.curvespg):
-                    self.curvespg[self.highlighted].setPen(self.pen_black)
+                    self.curvespg[self.highlighted].setPen(self.normal_pen)
+                    self.curvespg[self.highlighted].setZValue(0)
                     self.highlighted = None
                 if bd[1][0] < R:
                     self.curvespg[bd[0]].setPen(self.pen_blue)
+                    self.curvespg[bd[0]].setZValue(5)
                     self.highlighted = bd[0]
                     posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
-                self.vLine.setPos(posx)
-                self.hLine.setPos(posy)
+
+                if self.snap:
+                    self.vLine.setPos(posx)
+                    self.hLine.setPos(posy)
+
 
     def clear(self):
         self.plot.vb.disableAutoRange()
@@ -173,7 +189,13 @@ class CurvePlot(QWidget):
         self.curvespg = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
+        for m in self.markings:
+            self.plot.addItem(m, ignoreBounds=True)
         self.plot.vb.enableAutoRange()
+
+    def add_marking(self, item):
+        self.markings.append(item)
+        self.plot.addItem(item, ignoreBounds=True)
 
     def add_curve(self,x,y):
         xsind = np.argsort(x)
@@ -243,6 +265,12 @@ def main(argv=None):
     data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
     w.set_data(data)
     w.handleNewSignals()
+    region = SelectRegion()
+    def update():
+        minX, maxX = region.getRegion()
+        print(minX, maxX)
+    region.sigRegionChanged.connect(update)
+    w.plotview.add_marking(region)
     rval = app.exec_()
     w.set_data(None)
     w.handleNewSignals()
