@@ -160,7 +160,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.snap or self.curves:
+            if self.curves:
                 cache = {}
                 R = 20
                 xpixel, ypixel = self.plot.vb.viewPixelSize()
@@ -217,6 +217,18 @@ class CurvePlot(QWidget):
             self.curvespg.append(c)
             self.plot.addItem(c)
 
+    def set_data(self, data):
+        self.clear()
+        if data is not None:
+            self.plot.vb.disableAutoRange()
+            x = np.arange(len(data.domain.attributes))
+            try:
+                x = np.array([ float(a.name) for a in data.domain.attributes ])
+            except:
+                pass
+            self.add_curves(x, data.X)
+            self.plot.vb.enableAutoRange()
+
 
 class OWCurves(widget.OWWidget):
     name = "Curves"
@@ -231,16 +243,7 @@ class OWCurves(widget.OWWidget):
         self.resize(900, 700)
 
     def set_data(self, data):
-        self.plotview.clear()
-        if data is not None:
-            self.plotview.plot.vb.disableAutoRange()
-            x = np.arange(len(data.domain.attributes))
-            try:
-                x = np.array([ float(a.name) for a in data.domain.attributes ])
-            except:
-                pass
-            self.plotview.add_curves(x, data.X)
-            self.plotview.plot.vb.enableAutoRange()
+        self.plotview.set_data(data)
 
 
 def read_dpt(fn):
