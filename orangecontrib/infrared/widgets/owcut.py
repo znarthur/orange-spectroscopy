@@ -26,11 +26,14 @@ class OWCut(widget.OWWidget):
         self.limit2 = 0
         self.data = None
         self.plotview = CurvePlot()
+        self.inversecut = False
         self.mainArea.layout().addWidget(self.plotview)
         gui.lineEdit(self.box, self, "limit1", valueType=float,
             validator=QDoubleValidator(), callback=self.submit)
         gui.lineEdit(self.box, self, "limit2", valueType=float,
             validator=QDoubleValidator(), callback=self.submit)
+        gui.checkBox(self.box, self, "inversecut", "Reverse selection",
+            callback=self.submit)
         self.resize(900, 700)
         self.region = SelectRegion()
         self.region.sigRegionChanged.connect(self.regionChanged)
@@ -62,7 +65,10 @@ class OWCut(widget.OWWidget):
                 x = np.array([ float(a.name) for a in data.domain.attributes ])
             except:
                 x = np.arange(len(data.domain.attributes))
-            okattrs = [ at for at, v in zip(data.domain.attributes, x) if minX <= v <= maxX ]
+            if not self.inversecut:
+                okattrs = [ at for at, v in zip(data.domain.attributes, x) if minX <= v <= maxX ]
+            else:
+                okattrs = [ at for at, v in zip(data.domain.attributes, x) if v <= minX or v >= maxX ]
             domain = Orange.data.Domain(okattrs, data.domain.class_vars, metas=data.domain.metas)
             self.send("Cut spectra", Orange.data.Table(domain, data))
 
