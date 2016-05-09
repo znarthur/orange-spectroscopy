@@ -233,7 +233,7 @@ class CurvePlot(QWidget):
 class OWCurves(widget.OWWidget):
     name = "Curves"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    icon = "icons/mywidget.svg"
+    icon = "icons/curves.svg"
 
     def __init__(self):
         super().__init__()

@@ -120,7 +120,7 @@ PREPROCESSORS = [
 class OWPreprocess(widget.OWWidget):
     name = "Preprocess"
     description = "Construct a data preprocessing pipeline."
-    icon = "icons/Preprocess.svg"
+    icon = "icons/preprocess.svg"
     priority = 2105
 
     inputs = [("Data", Orange.data.Table, "set_data")]

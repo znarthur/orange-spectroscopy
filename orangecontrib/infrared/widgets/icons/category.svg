@@ -1,9 +1,85 @@
-<?xml version="1.0"?>
-<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg">
- <!-- Created with SVG-edit - http://svg-edit.googlecode.com/ -->
- <title>Category Icon</title>
- <g>
-  <title>Layer 1</title>
-  <text transform="matrix(2.1520881448613944,0,0,1.827148799789029,-27.0810469525093,-19.479205367873945) " xml:space="preserve" text-anchor="middle" font-family="serif" font-size="24" id="svg_1" y="31.557737" x="24.102223" stroke-width="0" stroke="#000000" fill="#000000">X</text>
- </g>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="48"
+   height="48"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="category.svg">
+  <metadata
+     id="metadata15">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs13" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="2558"
+     inkscape:window-height="1580"
+     id="namedview11"
+     showgrid="false"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:snap-global="true"
+     inkscape:snap-bbox="true"
+     inkscape:snap-bbox-midpoints="true"
+     inkscape:zoom="13.906433"
+     inkscape:cx="34.535935"
+     inkscape:cy="24.735945"
+     inkscape:window-x="0"
+     inkscape:window-y="18"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg2">
+    <sodipodi:guide
+       orientation="1,0"
+       position="24.233388,58.893606"
+       id="guide3019" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="46.381411,23.873843"
+       id="guide3021" />
+  </sodipodi:namedview>
+  <!-- Created with SVG-edit - http://svg-edit.googlecode.com/ -->
+  <title
+     id="title4">Category Icon</title>
+  <g
+     id="g3879"
+     transform="translate(0,10)">
+    <path
+       id="path2999-8-8"
+       d="M 24.21875,1.34375 C 11.65605,1.34375 1.4375,11.5623 1.4375,24.125 l 4.96875,0 c 0,-9.8605 7.952,-17.8125 17.8125,-17.8125 9.8605,0 17.84375,7.952 17.84375,17.8125 l 4.96875,0 c 0,-12.5627 -10.2498,-22.78125 -22.8125,-22.78125 z"
+       style="font-size:medium;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-indent:0;text-align:start;text-decoration:none;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;text-anchor:start;baseline-shift:baseline;color:#000000;fill:#333333;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4.33322048;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Sans;-inkscape-font-specification:Sans"
+       inkscape:connector-curvature="0" />
+    <path
+       id="path2999-8-8-8"
+       d="m 24.21875,8.40625 c -8.650838,0 -15.6875,7.067912 -15.6875,15.71875 l 4.96875,0 c 0,-5.948637 4.770113,-10.71875 10.71875,-10.71875 5.948638,0 10.71875,4.770113 10.71875,10.71875 l 5,0 c 0,-8.650838 -7.067911,-15.71875 -15.71875,-15.71875 z"
+       style="font-size:medium;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-indent:0;text-align:start;text-decoration:none;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;text-anchor:start;baseline-shift:baseline;color:#000000;fill:#333333;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:6.65535307;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Sans;-inkscape-font-specification:Sans"
+       inkscape:connector-curvature="0" />
+    <path
+       id="path2999-8-8-8-2"
+       d="m 24.21875,15.5625 c -4.70919,0 -8.5625,3.85331 -8.5625,8.5625 l 5,0 c 0,-2.00699 1.55551,-3.5625 3.5625,-3.5625 2.00699,0 3.59375,1.55551 3.59375,3.5625 l 5,0 c 0,-4.70919 -3.88456,-8.5625 -8.59375,-8.5625 z"
+       style="font-size:medium;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-indent:0;text-align:start;text-decoration:none;line-height:normal;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;text-anchor:start;baseline-shift:baseline;color:#000000;fill:#333333;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:14.46725082;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Sans;-inkscape-font-specification:Sans"
+       inkscape:connector-curvature="0" />
+  </g>
 </svg>
