@@ -129,12 +129,14 @@ class CurvePlot(QWidget):
         self.plot.invertX(True)
         self.curves = []
         self.curvespg = []
+        self.ids = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
         self.plot.vb.sigRangeChanged.connect(self.resized)
-        self.normal_pen = pg.mkPen(color=(0, 0, 0))
-        self.pen_blue = pg.mkPen(color=(0, 0, 255), width=2)
+        self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
+        self.pen_normal = pg.mkPen(color=(200, 200, 200, 127), width=1)
+        self.pen_subset = pg.mkPen(color=(0, 0, 0, 127), width=1)
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
         self.snap = True
@@ -145,6 +147,7 @@ class CurvePlot(QWidget):
         self.highlighted = None
         self.state = PANNING
         self.markings = []
+        self.subset_ids = None
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -167,11 +170,10 @@ class CurvePlot(QWidget):
                 distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                 bd = min(enumerate(distances), key= lambda x: x[1][0])
                 if self.highlighted is not None and self.highlighted < len(self.curvespg):
-                    self.curvespg[self.highlighted].setPen(self.normal_pen)
-                    self.curvespg[self.highlighted].setZValue(0)
+                    self.set_curve_pen(self.highlighted)
                     self.highlighted = None
                 if bd[1][0] < R:
-                    self.curvespg[bd[0]].setPen(self.pen_blue)
+                    self.curvespg[bd[0]].setPen(self.pen_mouse)
                     self.curvespg[bd[0]].setZValue(5)
                     self.highlighted = bd[0]
                     posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
@@ -180,6 +182,16 @@ class CurvePlot(QWidget):
                     self.vLine.setPos(posx)
                     self.hLine.setPos(posy)
 
+    def set_curve_pen(self, idc):
+        insubset = not self.subset_ids or self.ids[idc] in self.subset_ids
+        thispen = self.pen_subset if insubset else self.pen_normal
+        self.curvespg[idc].setPen(thispen)
+        self.curvespg[idc].setZValue(int(insubset))
+
+    def set_curves_type(self):
+        if self.curves:
+            for i,c in enumerate(self.curves):
+                self.set_curve_pen(i)
 
     def clear(self):
         self.plot.vb.disableAutoRange()
@@ -187,6 +199,7 @@ class CurvePlot(QWidget):
         self.plotview.addItem(self.label)
         self.curves = []
         self.curvespg = []
+        self.ids = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
         for m in self.markings:
@@ -197,24 +210,16 @@ class CurvePlot(QWidget):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
-    def add_curve(self,x,y):
-        xsind = np.argsort(x)
-        x = x[xsind]
-        y = y[xsind]
-        self.curves.append((x,y))
-        c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.))
-        self.curvespg.append(c)
-        self.plot.addItem(c)
-
-    def add_curves(self,x,ys):
+    def add_curves(self,x,ys, ids):
         """ Add multiple curves with the same x domain. """
         xsind = np.argsort(x)
         x = x[xsind]
-        for y in ys:
+        for y,i in zip(ys, ids):
             y = y[xsind]
             self.curves.append((x,y))
-            c = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(0.))
+            c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal)
             self.curvespg.append(c)
+            self.ids.append(i)
             self.plot.addItem(c)
 
     def set_data(self, data):
@@ -226,13 +231,19 @@ class CurvePlot(QWidget):
                 x = np.array([ float(a.name) for a in data.domain.attributes ])
             except:
                 pass
-            self.add_curves(x, data.X)
+            self.add_curves(x, data.X, data.ids)
+            self.set_curves_type()
             self.plot.vb.enableAutoRange()
+
+    def set_data_subset(self, ids):
+        self.subset_ids = set(ids)
+        self.set_curves_type()
 
 
 class OWCurves(widget.OWWidget):
     name = "Curves"
-    inputs = [("Data", Orange.data.Table, 'set_data', Default)]
+    inputs = [("Data", Orange.data.Table, 'set_data', Default),
+              ("Data subset", Orange.data.Table, 'set_subset', Default)]
     icon = "icons/curves.svg"
 
     def __init__(self):
@@ -245,6 +256,8 @@ class OWCurves(widget.OWWidget):
     def set_data(self, data):
         self.plotview.set_data(data)
 
+    def set_subset(self, data):
+        self.plotview.set_data_subset(data.ids)
 
 def read_dpt(fn):
     """
@@ -267,6 +280,7 @@ def main(argv=None):
     data = read_dpt("/home/marko/orange-infrared/orangecontrib/infrared/datasets/2012.11.09-11.45_Peach juice colorful spot.dpt")
     data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
     w.set_data(data)
+    w.set_subset(data[:10])
     w.handleNewSignals()
     region = SelectRegion()
     def update():
