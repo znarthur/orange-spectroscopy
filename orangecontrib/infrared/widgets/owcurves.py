@@ -88,6 +88,23 @@ class InteractiveViewBox(ViewBox):
         if ev.button() ==  Qt.RightButton:
             ev.accept()
             self.autoRange()
+        if ev.button() == Qt.LeftButton:
+            add = True if ev.modifiers() & Qt.ControlModifier else False
+            clicked_curve = self.graph.highlighted
+            if clicked_curve:
+                if add:
+                    self.graph.selected_ids.add(clicked_curve)
+                    self.graph.set_curve_pen(clicked_curve)
+                else:
+                    oldids = self.graph.selected_ids
+                    self.graph.selected_ids = set([clicked_curve])
+                    self.graph.set_curve_pens(oldids)
+            else:
+                oldids = self.graph.selected_ids
+                self.graph.selected_ids = set()
+                self.graph.set_curve_pens(oldids)
+            self.graph.selection_changed()
+            ev.accept()
 
     def sceneEvent(self, event):
         if event.type() == QEvent.Gesture:
@@ -121,8 +138,9 @@ class SelectRegion(pg.LinearRegionItem):
 
 class CurvePlot(QWidget):
 
-    def __init__(self, state=PANNING):
+    def __init__(self, parent=None, state=PANNING):
         super().__init__()
+        self.parent = parent
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
@@ -137,6 +155,7 @@ class CurvePlot(QWidget):
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
         self.pen_normal = pg.mkPen(color=(200, 200, 200, 127), width=1)
         self.pen_subset = pg.mkPen(color=(0, 0, 0, 127), width=1)
+        self.pen_selected = pg.mkPen(color=(255, 0, 0, 127), width=1)
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
         self.snap = True
@@ -149,9 +168,14 @@ class CurvePlot(QWidget):
         self.markings = []
         self.subset_ids = set()
         self.selected_ids = set()
+        self.data = None
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
+
+    def selection_changed(self):
+        if self.parent:
+            self.parent.selection_changed()
 
     def mouseMoved(self, evt):
         pos = evt[0]
@@ -185,25 +209,32 @@ class CurvePlot(QWidget):
 
     def set_curve_pen(self, idc):
         insubset = not self.subset_ids or self.ids[idc] in self.subset_ids
+        inselected = idc in self.selected_ids
         thispen = self.pen_subset if insubset else self.pen_normal
+        if inselected:
+            thispen = self.pen_selected
         self.curvespg[idc].setPen(thispen)
-        self.curvespg[idc].setZValue(int(insubset))
+        self.curvespg[idc].setZValue(int(insubset) + int(inselected))
 
-    def set_curves_type(self):
+    def set_curve_pens(self, curves=None):
         if self.curves:
-            for i,c in enumerate(self.curves):
+            curves = range(len(self.curves)) if curves is None else curves
+            for i in curves:
                 self.set_curve_pen(i)
 
     def clear(self):
         self.plot.vb.disableAutoRange()
         self.plotview.clear()
         self.plotview.addItem(self.label)
+        self.data = None
         self.curves = []
         self.curvespg = []
         self.ids = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
         self.subset_ids = set()
+        self.selected_ids = set()
+        self.selection_changed()
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
         self.plot.vb.enableAutoRange()
@@ -227,6 +258,7 @@ class CurvePlot(QWidget):
     def set_data(self, data):
         self.clear()
         if data is not None:
+            self.data = data
             self.plot.vb.disableAutoRange()
             x = np.arange(len(data.domain.attributes))
             try:
@@ -234,24 +266,25 @@ class CurvePlot(QWidget):
             except:
                 pass
             self.add_curves(x, data.X, data.ids)
-            self.set_curves_type()
+            self.set_curve_pens()
             self.plot.vb.enableAutoRange()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
-        self.set_curves_type()
+        self.set_curve_pens()
 
 
 class OWCurves(widget.OWWidget):
     name = "Curves"
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
+    outputs = [("Selection", Orange.data.Table)]
     icon = "icons/curves.svg"
 
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
-        self.plotview = CurvePlot()
+        self.plotview = CurvePlot(self)
         self.mainArea.layout().addWidget(self.plotview)
         self.resize(900, 700)
 
@@ -260,6 +293,12 @@ class OWCurves(widget.OWWidget):
 
     def set_subset(self, data):
         self.plotview.set_data_subset(data.ids if data else None)
+
+    def selection_changed(self):
+        if self.plotview.selected_ids:
+            self.send("Selection", self.plotview.data[sorted(self.plotview.selected_ids)])
+        else:
+            self.send("Selection", None)
 
 
 def read_dpt(fn):
