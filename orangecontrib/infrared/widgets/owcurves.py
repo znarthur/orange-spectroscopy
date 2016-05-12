@@ -147,7 +147,8 @@ class CurvePlot(QWidget):
         self.highlighted = None
         self.state = PANNING
         self.markings = []
-        self.subset_ids = None
+        self.subset_ids = set()
+        self.selected_ids = set()
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -202,6 +203,7 @@ class CurvePlot(QWidget):
         self.ids = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
+        self.subset_ids = set()
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
         self.plot.vb.enableAutoRange()
@@ -236,7 +238,7 @@ class CurvePlot(QWidget):
             self.plot.vb.enableAutoRange()
 
     def set_data_subset(self, ids):
-        self.subset_ids = set(ids)
+        self.subset_ids = set(ids) if ids is not None else set()
         self.set_curves_type()
 
 
@@ -257,7 +259,8 @@ class OWCurves(widget.OWWidget):
         self.plotview.set_data(data)
 
     def set_subset(self, data):
-        self.plotview.set_data_subset(data.ids)
+        self.plotview.set_data_subset(data.ids if data else None)
+
 
 def read_dpt(fn):
     """
@@ -281,6 +284,7 @@ def main(argv=None):
     data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
     w.set_data(data)
     w.set_subset(data[:10])
+    #w.set_subset(None)
     w.handleNewSignals()
     region = SelectRegion()
     def update():
