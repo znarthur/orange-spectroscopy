@@ -31,14 +31,15 @@ from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.sql import check_sql_input
 
 from Orange.widgets.data.owpreprocess import (
-    SequenceFlow, Controller, StandardItemModel, 
-    PreprocessAction, Description, icon_path, DiscretizeEditor, 
+    SequenceFlow, Controller, StandardItemModel,
+    PreprocessAction, Description, icon_path, DiscretizeEditor,
     DescriptionRole, ParametersRole, BaseEditor, blocked
 )
 
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter1d
+from scipy.signal import savgol_filter
 
 import copy
 
@@ -74,7 +75,7 @@ class GaussianSmoothingEditor(BaseEditor):
         self.__sdspin = sdspin = QDoubleSpinBox(
            minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__sd)
         layout.addWidget(sdspin)
-        
+
         sdspin.valueChanged[float].connect(self.setSd)
         sdspin.editingFinished.connect(self.edited)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
@@ -104,14 +105,113 @@ class GaussianSmoothingEditor(BaseEditor):
         sd = params.get("sd", 10.)
         return GaussianSmoothing(sd=sd)
 
+class SavitzkyGolayFiltering():
+    """
+    Apply a Savitzky-Golay[1] Filter to the data using SciPy Library.
+    """
+    def __init__(self, window=5,polyorder=2,deriv=0):
+        #super().__init__(variable)
+        self.window = window
+        self.polyorder = polyorder
+        self.deriv = deriv
+
+    def __call__(self, data):
+        x = np.arange(len(data.domain.attributes))
+
+        #savgol_filter(x, window_length, polyorder, deriv=0, delta=1.0, axis=-1, mode='interp', cval=0.0)
+        newd = savgol_filter(data.X, window_length=self.window, polyorder=self.polyorder, deriv=self.deriv, mode="nearest")
+
+        data = copy.copy(data)
+        data.X = newd
+        return data
 
 
-PREPROCESSORS = [ 
+class SavitzkyGolayFilteringEditor(BaseEditor):
+    """
+    Editor for preprocess.savitzkygolayfiltering.
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setLayout(QVBoxLayout())
+
+        self.window = 5
+        self.polyorder = 2
+        self.deriv = 0
+
+        form = QFormLayout()
+
+        self.wspin = QDoubleSpinBox(
+            minimum=3, maximum=100, singleStep=2,
+            value=self.polyorder)
+        self.wspin.valueChanged[float].connect(self.setW)
+        self.wspin.editingFinished.connect(self.edited)
+
+        self.pspin = QDoubleSpinBox(
+            minimum=2, maximum=self.window, singleStep=1,
+            value=self.polyorder)
+        self.pspin.valueChanged[float].connect(self.setP)
+        self.pspin.editingFinished.connect(self.edited)
+
+        self.dspin = QDoubleSpinBox(
+            minimum=0, maximum=3, singleStep=1,
+            value=self.deriv)
+        self.dspin.valueChanged[float].connect(self.setD)
+        self.dspin.editingFinished.connect(self.edited)
+
+        form.addRow("Window", self.wspin)
+        form.addRow("Polynomial Order", self.pspin)
+        form.addRow("Derivative Order", self.dspin)
+        self.layout().addLayout(form)
+
+    def setParameters(self, params):
+        self.setW(params.get("window", 5))
+        self.setP(params.get("polyorder", 2))
+        self.setD(params.get("deriv", 0))
+
+    def parameters(self):
+        return {"window": self.window, "polyorder": self.polyorder, "deriv": self.deriv}
+
+    def setW(self, window):
+        if self.window != window:
+            self.window = window
+            self.wspin.setValue(window)
+            self.changed.emit()
+
+    def setP(self, polyorder):
+        if self.polyorder != polyorder:
+            self.polyorder = polyorder
+            self.pspin.setValue(polyorder)
+            self.changed.emit()
+
+    def setD(self, deriv):
+        if self.deriv != deriv:
+            self.deriv = deriv
+            self.dspin.setValue(deriv)
+            self.changed.emit()
+
+    @staticmethod
+    def createinstance(params):
+        window = params.get("window", 5)
+        polyorder = params.get("polyorder",2)
+        deriv = params.get("deriv", 0)
+        return SavitzkyGolayFiltering(window=window,polyorder=polyorder,deriv=deriv)
+
+
+
+
+PREPROCESSORS = [
     PreprocessAction(
         "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
         Description("Smooth spectra (gaussian)",
         icon_path("Discretize.svg")),
         GaussianSmoothingEditor
+    ),
+    PreprocessAction(
+        "Savitzky-Golay Filter", "orangecontrib.infrared.savitzkygolay", "Smoothing",
+        Description("Savitzky-Golay Filter (smoothing and differentiation)",
+        icon_path("Discretize.svg")),
+        SavitzkyGolayFilteringEditor
     ),
 ]
 
