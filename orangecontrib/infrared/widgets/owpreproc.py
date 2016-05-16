@@ -39,7 +39,6 @@ from Orange.widgets.data.owpreprocess import (
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter1d
-from scipy.signal import savgol_filter
 
 import copy
 
@@ -117,6 +116,7 @@ class SavitzkyGolayFiltering():
 
     def __call__(self, data):
         x = np.arange(len(data.domain.attributes))
+        from scipy.signal import savgol_filter
 
         #savgol_filter(x, window_length, polyorder, deriv=0, delta=1.0, axis=-1, mode='interp', cval=0.0)
         newd = savgol_filter(data.X, window_length=self.window, polyorder=self.polyorder, deriv=self.deriv, mode="nearest")
