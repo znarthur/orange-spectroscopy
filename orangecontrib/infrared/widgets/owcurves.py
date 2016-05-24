@@ -5,7 +5,7 @@ import Orange.data
 from Orange.widgets import widget
 import sys
 from PyQt4 import QtGui
-from PyQt4.QtGui import QWidget, QColor
+from PyQt4.QtGui import QWidget, QColor, QPinchGesture
 import gc
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
