@@ -150,7 +150,7 @@ class CurvePlot(QWidget):
         self.ids = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
-        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
+        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved, delay=0.1)
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
         self.pen_normal = pg.mkPen(color=(200, 200, 200, 127), width=1)
@@ -158,8 +158,12 @@ class CurvePlot(QWidget):
         self.pen_selected = pg.mkPen(color=(255, 0, 0, 127), width=1)
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
-        self.snap = True
-        self.location = True
+
+        #interface settings
+        self.snap = True #snap to closest point on curve
+        self.location = True #show current position
+        self.markclosest = True #mark
+
         layout = QtGui.QGridLayout()
         self.setLayout(layout)
         self.layout().addWidget(self.plotview)
@@ -191,13 +195,15 @@ class CurvePlot(QWidget):
             if self.curves:
                 cache = {}
                 R = 20
-                xpixel, ypixel = self.plot.vb.viewPixelSize()
-                distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
-                bd = min(enumerate(distances), key= lambda x: x[1][0])
+                bd = None
+                if self.markclosest:
+                    xpixel, ypixel = self.plot.vb.viewPixelSize()
+                    distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
+                    bd = min(enumerate(distances), key= lambda x: x[1][0])
                 if self.highlighted is not None and self.highlighted < len(self.curvespg):
                     self.set_curve_pen(self.highlighted)
                     self.highlighted = None
-                if bd[1][0] < R:
+                if bd and bd[1][0] < R:
                     self.curvespg[bd[0]].setPen(self.pen_mouse)
                     self.curvespg[bd[0]].setZValue(5)
                     self.highlighted = bd[0]
