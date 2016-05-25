@@ -4,10 +4,11 @@ from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets import widget
 import sys
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from PyQt4.QtGui import QWidget, QColor, QPinchGesture
 import gc
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
+from pyqtgraph import Point
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
@@ -51,7 +52,7 @@ class InteractiveViewBox(ViewBox):
         ViewBox.__init__(self, enableMenu=False)
         self.graph = graph
         self.setMouseMode(self.PanMode)
-        self.grabGesture(Qt.PinchGesture)
+        self.zoomstartpoint = None
 
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
@@ -63,19 +64,12 @@ class InteractiveViewBox(ViewBox):
 
     # noinspection PyPep8Naming,PyMethodOverriding
     def mouseDragEvent(self, ev, axis=None):
-        if self.graph.state == SELECT and axis is None:
+        if ev.button() & QtCore.Qt.RightButton:
             ev.accept()
-            pos = ev.pos()
-            if ev.button() == Qt.LeftButton:
-                self.safe_update_scale_box(ev.buttonDownPos(), ev.pos())
-                if ev.isFinish():
-                    self.rbScaleBox.hide()
-                    pixel_rect = QRectF(ev.buttonDownPos(ev.button()), pos)
-                    value_rect = self.childGroup.mapRectFromParent(pixel_rect)
-                    self.graph.select_by_rectangle(value_rect)
-                else:
-                    self.safe_update_scale_box(ev.buttonDownPos(), ev.pos())
-        elif self.graph.state == ZOOMING or self.graph.state == PANNING:
+        if self.graph.state == ZOOMING:
+            ev.ignore()
+            super().mouseDragEvent(ev, axis=axis)
+        elif self.graph.state == PANNING:
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
         else:
@@ -83,12 +77,21 @@ class InteractiveViewBox(ViewBox):
 
     def suggestPadding(self, axis):
         return 0.
-    
+
+    def mouseMovedEvent(self, ev): #not a Qt event!
+        if self.graph.state == ZOOMING and self.zoomstartpoint:
+            pos = self.mapFromView(self.mapSceneToView(ev))
+            self.updateScaleBox(self.zoomstartpoint, pos)
+
+    def wheelEvent(self, ev, axis=None):
+        ev.accept() #ignore wheel zoom
+
     def mouseClickEvent(self, ev):
         if ev.button() ==  Qt.RightButton:
             ev.accept()
             self.autoRange()
-        if ev.button() == Qt.LeftButton:
+            self.graph.set_mode_panning()
+        if self.graph.state != ZOOMING and ev.button() == Qt.LeftButton:
             add = True if ev.modifiers() & Qt.ControlModifier else False
             clicked_curve = self.graph.highlighted
             if clicked_curve:
@@ -105,25 +108,24 @@ class InteractiveViewBox(ViewBox):
                 self.graph.set_curve_pens(oldids)
             self.graph.selection_changed()
             ev.accept()
+        if self.graph.state == ZOOMING and ev.button() == Qt.LeftButton:
+            if self.zoomstartpoint == None:
+                self.zoomstartpoint = ev.pos()
+            else:
+                self.updateScaleBox(self.zoomstartpoint, ev.pos())
+                self.rbScaleBox.hide()
+                ax = QtCore.QRectF(Point(self.zoomstartpoint), Point(ev.pos()))
+                ax = self.childGroup.mapRectFromParent(ax)
+                self.showAxRect(ax)
+                self.axHistoryPointer += 1
+                self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
+                self.zoomstartpoint = None
+            ev.accept()
 
-    def sceneEvent(self, event):
-        if event.type() == QEvent.Gesture:
-            return self.gestureEvent(event)
-        return super().sceneEvent(event)
-
-    def gestureEvent(self, event):
-        gesture = event.gesture(Qt.PinchGesture)
-        if gesture.state() == Qt.GestureStarted:
-            event.accept(gesture)
-        elif gesture.changeFlags() & QPinchGesture.ScaleFactorChanged:
-            center = self.mapSceneToView(gesture.centerPoint())
-            scale_prev = gesture.lastScaleFactor()
-            scale = gesture.scaleFactor()
-            if scale_prev != 0:
-                scale = scale / scale_prev
-            if scale > 0:
-                self.scaleBy((1 / scale, 1 / scale), center)
-        return True
+    def showAxRect(self, ax):
+        super().showAxRect(ax)
+        if self.graph.state == ZOOMING:
+            self.graph.set_mode_panning()
 
 class SelectRegion(pg.LinearRegionItem):
 
@@ -138,7 +140,7 @@ class SelectRegion(pg.LinearRegionItem):
 
 class CurvePlot(QWidget):
 
-    def __init__(self, parent=None, state=PANNING):
+    def __init__(self, parent=None):
         super().__init__()
         self.parent = parent
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
@@ -151,6 +153,7 @@ class CurvePlot(QWidget):
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved, delay=0.1)
+        self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
         self.pen_normal = pg.mkPen(color=(200, 200, 200, 127), width=1)
@@ -168,11 +171,24 @@ class CurvePlot(QWidget):
         self.setLayout(layout)
         self.layout().addWidget(self.plotview)
         self.highlighted = None
-        self.state = PANNING
         self.markings = []
         self.subset_ids = set()
         self.selected_ids = set()
         self.data = None
+
+        zoom_in = QtGui.QAction(
+            "Zoom in", self, triggered=self.set_mode_zooming
+        )
+        zoom_in.setShortcuts([QtGui.QKeySequence(QtGui.QKeySequence.ZoomIn), Qt.Key_Z])
+
+        zoom_fit = QtGui.QAction(
+            "Fit in view", self,
+            triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
+        )
+        zoom_fit.setShortcuts([QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0), Qt.Key_Backspace])
+
+        self.set_mode_panning()
+        self.addActions([zoom_in, zoom_fit])
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -231,7 +247,7 @@ class CurvePlot(QWidget):
     def clear(self):
         self.plot.vb.disableAutoRange()
         self.plotview.clear()
-        self.plotview.addItem(self.label)
+        self.plotview.addItem(self.label, ignoreBounds=True)
         self.data = None
         self.curves = []
         self.curvespg = []
@@ -243,7 +259,6 @@ class CurvePlot(QWidget):
         self.selection_changed()
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
-        self.plot.vb.enableAutoRange()
 
     def add_marking(self, item):
         self.markings.append(item)
@@ -265,7 +280,6 @@ class CurvePlot(QWidget):
         self.clear()
         if data is not None:
             self.data = data
-            self.plot.vb.disableAutoRange()
             x = np.arange(len(data.domain.attributes))
             try:
                 x = np.array([ float(a.name) for a in data.domain.attributes ])
@@ -273,11 +287,23 @@ class CurvePlot(QWidget):
                 pass
             self.add_curves(x, data.X, data.ids)
             self.set_curve_pens()
-            self.plot.vb.enableAutoRange()
+            self.plot.vb.autoRange()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
+
+    def set_mode_zooming(self):
+        self.plot.vb.setMouseMode(self.plot.vb.RectMode)
+        self.state = ZOOMING
+        self.plot.vb.zoomstartpoint = None
+        self.setCursor(Qt.CrossCursor)
+
+    def set_mode_panning(self):
+        self.plot.vb.setMouseMode(self.plot.vb.PanMode)
+        self.state = PANNING
+        self.plot.vb.zoomstartpoint = None
+        self.unsetCursor()
 
 
 class OWCurves(widget.OWWidget):
