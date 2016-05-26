@@ -5,13 +5,39 @@ import Orange.data
 from Orange.widgets import widget
 import sys
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QWidget, QColor, QPinchGesture
+from PyQt4.QtGui import QWidget, QColor, QPixmapCache, QGraphicsItem
 import gc
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
-from pyqtgraph import Point
+from pyqtgraph import Point, GraphicsObject
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+
+
+class PlotCurvesItem(GraphicsObject):
+    """ Multiple curves on a single plot that can be cached together. """
+
+    def __init__(self):
+        pg.GraphicsObject.__init__(self)
+        self.clear()
+
+    def clear(self):
+        self.bounds = QtCore.QRectF(0, 0, 1, 1)
+        self.subobj = []
+
+    def paint(self, p, *args):
+        for o in sorted(self.subobj, key=lambda x: x.zValue()):
+            o.paint(p, *args)
+
+    def add_curve(self, c):
+        if not self.subobj:
+            self.bounds = c.boundingRect()
+        else:
+            self.bounds = self.bounds.united(c.boundingRect())
+        self.subobj.append(c)
+
+    def boundingRect(self):
+        return self.bounds
 
 
 def closestindex(array, v):
@@ -98,10 +124,11 @@ class InteractiveViewBox(ViewBox):
                 if add:
                     self.graph.selected_ids.add(clicked_curve)
                     self.graph.set_curve_pen(clicked_curve)
+                    self.graph.curves_cont.update()
                 else:
                     oldids = self.graph.selected_ids
                     self.graph.selected_ids = set([clicked_curve])
-                    self.graph.set_curve_pens(oldids)
+                    self.graph.set_curve_pens(oldids | self.graph.selected_ids)
             else:
                 oldids = self.graph.selected_ids
                 self.graph.selected_ids = set()
@@ -152,7 +179,7 @@ class CurvePlot(QWidget):
         self.ids = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
-        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved, delay=0.1)
+        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
         self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
@@ -161,6 +188,10 @@ class CurvePlot(QWidget):
         self.pen_selected = pg.mkPen(color=(255, 0, 0, 127), width=1)
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
+
+        QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
+        self.curves_cont = PlotCurvesItem()
+        self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
 
         #interface settings
         self.snap = True #snap to closest point on curve
@@ -175,6 +206,8 @@ class CurvePlot(QWidget):
         self.subset_ids = set()
         self.selected_ids = set()
         self.data = None
+
+        #self.clear()
 
         zoom_in = QtGui.QAction(
             "Zoom in", self, triggered=self.set_mode_zooming
@@ -217,14 +250,14 @@ class CurvePlot(QWidget):
                     distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                     bd = min(enumerate(distances), key= lambda x: x[1][0])
                 if self.highlighted is not None and self.highlighted < len(self.curvespg):
-                    self.set_curve_pen(self.highlighted)
                     self.highlighted = None
+                    self.highlighted_curve.hide()
                 if bd and bd[1][0] < R:
-                    self.curvespg[bd[0]].setPen(self.pen_mouse)
-                    self.curvespg[bd[0]].setZValue(5)
                     self.highlighted = bd[0]
+                    x,y = self.curves[self.highlighted]
+                    self.highlighted_curve.setData(x=x,y=y)
+                    self.highlighted_curve.show()
                     posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
-
                 if self.snap:
                     self.vLine.setPos(posx)
                     self.hLine.setPos(posy)
@@ -243,12 +276,17 @@ class CurvePlot(QWidget):
             curves = range(len(self.curves)) if curves is None else curves
             for i in curves:
                 self.set_curve_pen(i)
+        self.curves_cont.update()
 
     def clear(self):
         self.plot.vb.disableAutoRange()
         self.plotview.clear()
         self.plotview.addItem(self.label, ignoreBounds=True)
         self.data = None
+        self.curves_cont.clear()
+        self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
+        self.highlighted_curve.setZValue(10)
+        self.plot.addItem(self.highlighted_curve)
         self.curves = []
         self.curvespg = []
         self.ids = []
@@ -257,6 +295,7 @@ class CurvePlot(QWidget):
         self.subset_ids = set()
         self.selected_ids = set()
         self.selection_changed()
+        self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
 
@@ -274,7 +313,7 @@ class CurvePlot(QWidget):
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal)
             self.curvespg.append(c)
             self.ids.append(i)
-            self.plot.addItem(c)
+            self.curves_cont.add_curve(c)
 
     def set_data(self, data):
         self.clear()
