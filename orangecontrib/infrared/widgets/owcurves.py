@@ -14,6 +14,22 @@ from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 
 
+#view types
+INDIVIDUAL = 0
+AVERAGE = 1
+
+
+def getx(data):
+    """ Return x of the data. Put attributes if order or
+    use their values as x, if they all are convertable to floating point numbers."""
+    x = np.arange(len(data.domain.attributes))
+    try:
+        x = np.array([float(a.name) for a in data.domain.attributes])
+    except:
+        pass
+    return x
+
+
 class PlotCurvesItem(GraphicsObject):
     """ Multiple curves on a single plot that can be cached together. """
 
@@ -23,18 +39,18 @@ class PlotCurvesItem(GraphicsObject):
 
     def clear(self):
         self.bounds = QtCore.QRectF(0, 0, 1, 1)
-        self.subobj = []
+        self.objs = []
 
     def paint(self, p, *args):
-        for o in sorted(self.subobj, key=lambda x: x.zValue()):
+        for o in sorted(self.objs, key=lambda x: x.zValue()):
             o.paint(p, *args)
 
     def add_curve(self, c):
-        if not self.subobj:
+        if not self.objs:
             self.bounds = c.boundingRect()
         else:
             self.bounds = self.bounds.united(c.boundingRect())
-        self.subobj.append(c)
+        self.objs.append(c)
 
     def boundingRect(self):
         return self.bounds
@@ -51,6 +67,7 @@ def closestindex(array, v):
         return len(array) - 1
     else:
         return fi-1 if v - array[fi-1] < array[fi] - v else fi
+
 
 def distancetocurve(array, x, y, xpixel, ypixel, r=5, cache=None):
     if cache is not None and x in cache:
@@ -122,16 +139,16 @@ class InteractiveViewBox(ViewBox):
             clicked_curve = self.graph.highlighted
             if clicked_curve:
                 if add:
-                    self.graph.selected_ids.add(clicked_curve)
+                    self.graph.selected_indices.add(clicked_curve)
                     self.graph.set_curve_pen(clicked_curve)
                     self.graph.curves_cont.update()
                 else:
-                    oldids = self.graph.selected_ids
-                    self.graph.selected_ids = set([clicked_curve])
-                    self.graph.set_curve_pens(oldids | self.graph.selected_ids)
+                    oldids = self.graph.selected_indices
+                    self.graph.selected_indices = set([clicked_curve])
+                    self.graph.set_curve_pens(oldids | self.graph.selected_indices)
             else:
-                oldids = self.graph.selected_ids
-                self.graph.selected_ids = set()
+                oldids = self.graph.selected_indices
+                self.graph.selected_indices = set()
                 self.graph.set_curve_pens(oldids)
             self.graph.selection_changed()
             ev.accept()
@@ -154,6 +171,7 @@ class InteractiveViewBox(ViewBox):
         if self.graph.state == ZOOMING:
             self.graph.set_mode_panning()
 
+
 class SelectRegion(pg.LinearRegionItem):
 
     def __init__(self, *args, **kwargs):
@@ -164,6 +182,7 @@ class SelectRegion(pg.LinearRegionItem):
         color = QColor(Qt.red)
         color.setAlphaF(0.05)
         self.setBrush(pg.mkBrush(color))
+
 
 class CurvePlot(QWidget):
 
@@ -176,7 +195,6 @@ class CurvePlot(QWidget):
         self.plot.invertX(True)
         self.curves = []
         self.curvespg = []
-        self.ids = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
@@ -204,8 +222,10 @@ class CurvePlot(QWidget):
         self.highlighted = None
         self.markings = []
         self.subset_ids = set()
-        self.selected_ids = set()
+        self.selected_indices = set()
         self.data = None
+
+        self.viewtype = INDIVIDUAL
 
         #self.clear()
 
@@ -220,8 +240,18 @@ class CurvePlot(QWidget):
         )
         zoom_fit.setShortcuts([QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0), Qt.Key_Backspace])
 
+        view_individual = QtGui.QAction(
+            "Show individual", self, shortcut=Qt.Key_I,
+            triggered=lambda x: self.show_individual()
+        )
+
+        view_average = QtGui.QAction(
+            "Show individual", self, shortcut=Qt.Key_A,
+            triggered=lambda x: self.show_average()
+        )
+
         self.set_mode_panning()
-        self.addActions([zoom_in, zoom_fit])
+        self.addActions([zoom_in, zoom_fit, view_individual, view_average])
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -241,7 +271,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.curves:
+            if self.curves and self.viewtype == INDIVIDUAL:
                 cache = {}
                 R = 20
                 bd = None
@@ -257,19 +287,20 @@ class CurvePlot(QWidget):
                     x,y = self.curves[self.highlighted]
                     self.highlighted_curve.setData(x=x,y=y)
                     self.highlighted_curve.show()
-                    posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
-                if self.snap:
-                    self.vLine.setPos(posx)
-                    self.hLine.setPos(posy)
+                    if self.snap:
+                        posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
+
+            self.vLine.setPos(posx)
+            self.hLine.setPos(posy)
 
     def set_curve_pen(self, idc):
-        insubset = not self.subset_ids or self.ids[idc] in self.subset_ids
-        inselected = idc in self.selected_ids
+        insubset = not self.subset_ids or self.data[idc].id in self.subset_ids
+        inselected = idc in self.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
-        self.curvespg[idc].setPen(thispen)
-        self.curvespg[idc].setZValue(int(insubset) + int(inselected))
+        self.curves_cont.objs[idc].setPen(thispen)
+        self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
     def set_curve_pens(self, curves=None):
         if self.curves:
@@ -278,23 +309,23 @@ class CurvePlot(QWidget):
                 self.set_curve_pen(i)
         self.curves_cont.update()
 
-    def clear(self):
+    def clear_data(self):
+        self.subset_ids = set()
+        self.selected_indices = set()
+        self.curves = []
+        self.selection_changed()
+
+    def clear_graph(self):
         self.plot.vb.disableAutoRange()
         self.plotview.clear()
         self.plotview.addItem(self.label, ignoreBounds=True)
-        self.data = None
         self.curves_cont.clear()
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
+        self.highlighted_curve.hide()
         self.plot.addItem(self.highlighted_curve)
-        self.curves = []
-        self.curvespg = []
-        self.ids = []
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
-        self.subset_ids = set()
-        self.selected_ids = set()
-        self.selection_changed()
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
@@ -303,30 +334,71 @@ class CurvePlot(QWidget):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
-    def add_curves(self,x,ys, ids):
+    def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
         xsind = np.argsort(x)
         x = x[xsind]
-        for y,i in zip(ys, ids):
+        for y in ys:
             y = y[xsind]
-            self.curves.append((x,y))
+            if addc:
+                self.curves.append((x,y))
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal)
-            self.curvespg.append(c)
-            self.ids.append(i)
             self.curves_cont.add_curve(c)
 
+    def add_curve(self, x, y, pen=None):
+        xsind = np.argsort(x)
+        x = x[xsind]
+        c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal)
+        self.curves_cont.add_curve(c)
+
+    def show_individual(self):
+        self.viewtype = INDIVIDUAL
+        self.clear_graph()
+        x = getx(self.data)
+        self.add_curves(x, self.data.X, addc=not self.curves)
+        self.set_curve_pens()
+        self.plot.vb.autoRange()
+
+    def show_average(self):
+        self.viewtype = AVERAGE
+        self.clear_graph()
+        x = getx(self.data)
+        xsind = np.argsort(x)
+        x = x[xsind]
+        if self.data:
+            subset_indices = [i for i, id in enumerate(self.data.ids) if id in self.subset_ids]
+            for part in ["everything", "subset", "selection"]:
+                if part == "everything":
+                    ys = self.data.X
+                    pen = self.pen_normal if subset_indices else self.pen_subset
+                elif part == "selection":
+                    if not self.selected_indices:
+                        continue
+                    ys = self.data.X[sorted(self.selected_indices)]
+                    pen = self.pen_selected
+                elif part == "subset":
+                    if not subset_indices:
+                        continue
+                    ys = self.data.X[subset_indices]
+                    pen = self.pen_subset
+                std = np.std(ys, axis=0)
+                mean = np.mean(ys, axis=0)
+                std = std[xsind]
+                mean = mean[xsind]
+                self.add_curve(x, mean, pen=pen)
+                self.add_curve(x, mean+std, pen=pen)
+                self.add_curve(x, mean-std, pen=pen)
+                self.plot.vb.autoRange()
+
     def set_data(self, data):
-        self.clear()
+        self.clear_graph()
+        self.clear_data()
         if data is not None:
             self.data = data
-            x = np.arange(len(data.domain.attributes))
-            try:
-                x = np.array([ float(a.name) for a in data.domain.attributes ])
-            except:
-                pass
-            self.add_curves(x, data.X, data.ids)
-            self.set_curve_pens()
-            self.plot.vb.autoRange()
+            if self.viewtype == INDIVIDUAL:
+                self.show_individual()
+            elif self.viewtype == AVERAGE:
+                self.show_average()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
@@ -366,8 +438,8 @@ class OWCurves(widget.OWWidget):
         self.plotview.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if self.plotview.selected_ids:
-            self.send("Selection", self.plotview.data[sorted(self.plotview.selected_ids)])
+        if self.plotview.selected_indices:
+            self.send("Selection", self.plotview.data[sorted(self.plotview.selected_indices)])
         else:
             self.send("Selection", None)
 
@@ -393,8 +465,8 @@ def main(argv=None):
     data = read_dpt("/home/marko/orange-infrared/orangecontrib/infrared/datasets/2012.11.09-11.45_Peach juice colorful spot.dpt")
     data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
     w.set_data(data)
-    w.set_subset(data[:10])
-    #w.set_subset(None)
+    #w.set_subset(data[:10])
+    w.set_subset(None)
     w.handleNewSignals()
     region = SelectRegion()
     def update():
