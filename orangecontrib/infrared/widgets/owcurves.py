@@ -198,7 +198,6 @@ class CurvePlot(QWidget):
         self.plot.setDownsampling(auto=True, mode="peak")
         self.plot.invertX(True)
         self.curves = []
-        self.curvespg = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
@@ -283,7 +282,7 @@ class CurvePlot(QWidget):
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
                     distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                     bd = min(enumerate(distances), key= lambda x: x[1][0])
-                if self.highlighted is not None and self.highlighted < len(self.curvespg):
+                if self.highlighted is not None:
                     self.highlighted = None
                     self.highlighted_curve.hide()
                 if bd and bd[1][0] < R:
