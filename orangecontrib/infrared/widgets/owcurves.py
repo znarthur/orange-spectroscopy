@@ -303,11 +303,11 @@ class CurvePlot(QWidget):
         self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
     def set_curve_pens(self, curves=None):
-        if self.curves:
+        if self.viewtype == INDIVIDUAL and self.curves:
             curves = range(len(self.curves)) if curves is None else curves
             for i in curves:
                 self.set_curve_pen(i)
-        self.curves_cont.update()
+            self.curves_cont.update()
 
     def clear_data(self):
         self.subset_ids = set()
@@ -403,6 +403,8 @@ class CurvePlot(QWidget):
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
+        if self.viewtype == AVERAGE:
+            self.show_average()
 
     def set_mode_zooming(self):
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
