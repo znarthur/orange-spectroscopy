@@ -139,7 +139,10 @@ class InteractiveViewBox(ViewBox):
             clicked_curve = self.graph.highlighted
             if clicked_curve:
                 if add:
-                    self.graph.selected_indices.add(clicked_curve)
+                    if clicked_curve not in self.graph.selected_indices:
+                        self.graph.selected_indices.add(clicked_curve)
+                    else:
+                        self.graph.selected_indices.remove(clicked_curve)
                     self.graph.set_curve_pen(clicked_curve)
                     self.graph.curves_cont.update()
                 else:
@@ -147,9 +150,10 @@ class InteractiveViewBox(ViewBox):
                     self.graph.selected_indices = set([clicked_curve])
                     self.graph.set_curve_pens(oldids | self.graph.selected_indices)
             else:
-                oldids = self.graph.selected_indices
-                self.graph.selected_indices = set()
-                self.graph.set_curve_pens(oldids)
+                if not add:
+                    oldids = self.graph.selected_indices
+                    self.graph.selected_indices = set()
+                    self.graph.set_curve_pens(oldids)
             self.graph.selection_changed()
             ev.accept()
         if self.graph.state == ZOOMING and ev.button() == Qt.LeftButton:
