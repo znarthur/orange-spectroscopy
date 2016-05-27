@@ -278,7 +278,7 @@ class CurvePlot(QWidget):
                 cache = {}
                 R = 20
                 bd = None
-                if self.markclosest:
+                if self.markclosest and self.state != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
                     distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
                     bd = min(enumerate(distances), key= lambda x: x[1][0])
