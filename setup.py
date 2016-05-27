@@ -31,6 +31,7 @@ if __name__ == '__main__':
         description='',
         author='',
         author_email='',
+        version="0.0.1",
         packages=find_packages(),
         install_requires=[
             'Orange',
