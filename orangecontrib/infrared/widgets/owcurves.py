@@ -12,6 +12,8 @@ from pyqtgraph import Point, GraphicsObject
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+from Orange.widgets.settings import (Setting, ContextSetting,
+                                     DomainContextHandler)
 
 
 #view types
@@ -137,22 +139,24 @@ class InteractiveViewBox(ViewBox):
         if self.graph.state != ZOOMING and ev.button() == Qt.LeftButton:
             add = True if ev.modifiers() & Qt.ControlModifier else False
             clicked_curve = self.graph.highlighted
+            selected_indices = self.graph.parent.selected_indices
             if clicked_curve:
                 if add:
-                    if clicked_curve not in self.graph.selected_indices:
-                        self.graph.selected_indices.add(clicked_curve)
+                    if clicked_curve not in selected_indices:
+                        selected_indices.add(clicked_curve)
                     else:
-                        self.graph.selected_indices.remove(clicked_curve)
+                        selected_indices.remove(clicked_curve)
                     self.graph.set_curve_pen(clicked_curve)
                     self.graph.curves_cont.update()
                 else:
-                    oldids = self.graph.selected_indices
-                    self.graph.selected_indices = set([clicked_curve])
-                    self.graph.set_curve_pens(oldids | self.graph.selected_indices)
+                    oldids = selected_indices.copy()
+                    selected_indices.clear()
+                    selected_indices.add(clicked_curve)
+                    self.graph.set_curve_pens(oldids | selected_indices)
             else:
                 if not add:
-                    oldids = self.graph.selected_indices
-                    self.graph.selected_indices = set()
+                    oldids = selected_indices.copy()
+                    selected_indices.clear()
                     self.graph.set_curve_pens(oldids)
             self.graph.selection_changed()
             ev.accept()
@@ -225,7 +229,6 @@ class CurvePlot(QWidget):
         self.highlighted = None
         self.markings = []
         self.subset_ids = set()
-        self.selected_indices = set()
         self.data = None
 
         self.viewtype = INDIVIDUAL
@@ -298,7 +301,7 @@ class CurvePlot(QWidget):
 
     def set_curve_pen(self, idc):
         insubset = not self.subset_ids or self.data[idc].id in self.subset_ids
-        inselected = idc in self.selected_indices
+        inselected = idc in self.parent.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
@@ -314,7 +317,7 @@ class CurvePlot(QWidget):
 
     def clear_data(self):
         self.subset_ids = set()
-        self.selected_indices = set()
+        self.parent.selected_indices.clear()
         self.curves = []
         self.selection_changed()
 
@@ -364,6 +367,7 @@ class CurvePlot(QWidget):
         x = getx(self.data)
         self.add_curves(x, self.data.X, addc=not self.curves)
         self.set_curve_pens()
+        self.curves_cont.update()
 
     def show_average(self):
         self.viewtype = AVERAGE
@@ -378,9 +382,9 @@ class CurvePlot(QWidget):
                     ys = self.data.X
                     pen = self.pen_normal if subset_indices else self.pen_subset
                 elif part == "selection":
-                    if not self.selected_indices:
+                    if not self.parent.selected_indices:
                         continue
-                    ys = self.data.X[sorted(self.selected_indices)]
+                    ys = self.data.X[sorted(self.parent.selected_indices)]
                     pen = self.pen_selected
                 elif part == "subset":
                     if not subset_indices:
@@ -394,6 +398,7 @@ class CurvePlot(QWidget):
                 self.add_curve(x, mean, pen=pen)
                 self.add_curve(x, mean+std, pen=pen)
                 self.add_curve(x, mean-std, pen=pen)
+        self.curves_cont.update()
 
     def set_data(self, data):
         self.clear_graph()
@@ -406,6 +411,9 @@ class CurvePlot(QWidget):
             elif self.viewtype == AVERAGE:
                 self.show_average()
                 self.plot.vb.autoRange()
+
+    def update_display(self):
+        self.curves_cont.update()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
@@ -433,6 +441,10 @@ class OWCurves(widget.OWWidget):
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/curves.svg"
 
+    settingsHandler = DomainContextHandler(
+        match_values=DomainContextHandler.MATCH_VALUES_ALL)
+    selected_indices = ContextSetting(set())
+
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
@@ -441,14 +453,21 @@ class OWCurves(widget.OWWidget):
         self.resize(900, 700)
 
     def set_data(self, data):
+        self.closeContext()
         self.plotview.set_data(data)
+        self.openContext(data)
+        self.plotview.set_curve_pens() #mark the selection
+        self.selection_changed()
 
     def set_subset(self, data):
         self.plotview.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if self.plotview.selected_indices:
-            self.send("Selection", self.plotview.data[sorted(self.plotview.selected_indices)])
+        if self.selected_indices and self.plotview.data:
+            # discard selected indices if they do not fit to data
+            if any(a for a in self.selected_indices if a >= len(self.plotview.data)):
+                self.selected_indices.clear()
+            self.send("Selection", self.plotview.data[sorted(self.selected_indices)])
         else:
             self.send("Selection", None)
 

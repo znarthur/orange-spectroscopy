@@ -18,14 +18,16 @@ class OWCut(widget.OWWidget):
     priority = 300
     icon = "icons/unknown.svg"
 
+
     def __init__(self):
         super().__init__()
         self.box = gui.hBox(self.mainArea)
+        self.selected_indices = set() #parents of CurvePlot need this property
         self.controlArea.hide()
         self.limit1 = 0
         self.limit2 = 0
         self.data = None
-        self.plotview = CurvePlot()
+        self.plotview = CurvePlot(parent=self)
         self.inversecut = False
         self.mainArea.layout().addWidget(self.plotview)
         gui.lineEdit(self.box, self, "limit1", valueType=float,
@@ -39,6 +41,9 @@ class OWCut(widget.OWWidget):
         self.region.sigRegionChanged.connect(self.regionChanged)
         self.plotview.add_marking(self.region)
         self.blockchanges = False
+
+    def selection_changed(self):
+        pass
 
     def regionChanged(self):
         if not self.blockchanges:
