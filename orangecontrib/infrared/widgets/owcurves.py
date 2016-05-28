@@ -251,13 +251,18 @@ class CurvePlot(QWidget):
             triggered=lambda x: self.show_individual()
         )
 
+        development_key = QtGui.QAction(
+            "Rescale Y", self, shortcut=Qt.Key_D,
+            triggered=self.rescale_current_view_y
+        )
+
         view_average = QtGui.QAction(
             "Show individual", self, shortcut=Qt.Key_A,
             triggered=lambda x: self.show_average()
         )
 
         self.set_mode_panning()
-        self.addActions([zoom_in, zoom_fit, view_individual, view_average])
+        self.addActions([zoom_in, zoom_fit, view_individual, view_average, development_key])
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -368,6 +373,21 @@ class CurvePlot(QWidget):
         self.add_curves(x, self.data.X, addc=not self.curves)
         self.set_curve_pens()
         self.curves_cont.update()
+
+    def rescale_current_view_y(self):
+        if self.curves:
+            qrect = self.plot.vb.targetRect()
+            bleft =  qrect.left()
+            bright = qrect.right()
+
+            ymax = max(np.max(y[np.searchsorted(x, bleft):
+                                np.searchsorted(x, bright, side="right")])
+                       for x,y in self.curves)
+            ymin = min(np.min(y[np.searchsorted(x, bleft):
+                                np.searchsorted(x, bright, side="right")])
+                       for x,y in self.curves)
+
+            self.plot.vb.setYRange(ymin, ymax, padding=0.0)
 
     def show_average(self):
         self.viewtype = AVERAGE
