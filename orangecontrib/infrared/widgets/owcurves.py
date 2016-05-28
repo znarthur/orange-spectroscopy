@@ -319,10 +319,14 @@ class CurvePlot(QWidget):
         self.selection_changed()
 
     def clear_graph(self):
+        # reset caching. if not, it is not cleared when view changing when zoomed
+        self.curves_cont.setCacheMode(QGraphicsItem.NoCache)
+        self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
         self.plot.vb.disableAutoRange()
+        self.curves_cont.clear()
+        self.curves_cont.update()
         self.plotview.clear()
         self.plotview.addItem(self.label, ignoreBounds=True)
-        self.curves_cont.clear()
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
@@ -360,7 +364,6 @@ class CurvePlot(QWidget):
         x = getx(self.data)
         self.add_curves(x, self.data.X, addc=not self.curves)
         self.set_curve_pens()
-        self.plot.vb.autoRange()
 
     def show_average(self):
         self.viewtype = AVERAGE
@@ -391,7 +394,6 @@ class CurvePlot(QWidget):
                 self.add_curve(x, mean, pen=pen)
                 self.add_curve(x, mean+std, pen=pen)
                 self.add_curve(x, mean-std, pen=pen)
-                self.plot.vb.autoRange()
 
     def set_data(self, data):
         self.clear_graph()
@@ -400,8 +402,10 @@ class CurvePlot(QWidget):
             self.data = data
             if self.viewtype == INDIVIDUAL:
                 self.show_individual()
+                self.plot.vb.autoRange()
             elif self.viewtype == AVERAGE:
                 self.show_average()
+                self.plot.vb.autoRange()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
