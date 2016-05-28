@@ -388,6 +388,11 @@ class CurvePlot(QWidget):
                        for x,y in self.curves)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
+            self.pad_current_view_y()
+
+    def pad_current_view_y(self):
+        qrect = self.plot.vb.targetRect()
+        self.plot.vb.setYRange(qrect.bottom(), qrect.top(), padding=0.02)
 
     def show_average(self):
         self.viewtype = AVERAGE
@@ -428,9 +433,11 @@ class CurvePlot(QWidget):
             if self.viewtype == INDIVIDUAL:
                 self.show_individual()
                 self.plot.vb.autoRange()
+                self.pad_current_view_y()
             elif self.viewtype == AVERAGE:
                 self.show_average()
                 self.plot.vb.autoRange()
+                self.pad_current_view_y()
 
     def update_display(self):
         self.curves_cont.update()
