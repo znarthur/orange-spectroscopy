@@ -71,14 +71,19 @@ def closestindex(array, v):
         return fi-1 if v - array[fi-1] < array[fi] - v else fi
 
 
+def searchsorted_cached(cache, arr, v, side="left"):
+    key = (id(arr),v,side)
+    if key in cache:
+        return cache
+
 def distancetocurve(array, x, y, xpixel, ypixel, r=5, cache=None):
-    if cache is not None and x in cache:
-        xmin,xmax = cache[x]
+    if cache is not None and id(x) in cache:
+        xmin,xmax = cache[id(x)]
     else:
         xmin = closestindex(array[0], x-r*xpixel)
         xmax = closestindex(array[0], x+r*xpixel)
         if cache is not None: 
-            cache[x] = xmin,xmax
+            cache[id(x)] = xmin,xmax
     xp = array[0][xmin:xmax+1]
     yp = array[1][xmin:xmax+1]
     
