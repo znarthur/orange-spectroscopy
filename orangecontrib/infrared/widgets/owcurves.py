@@ -14,7 +14,7 @@ from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.settings import (Setting, ContextSetting,
                                      DomainContextHandler)
-
+import orangecontrib.infrared
 
 #view types
 INDIVIDUAL = 0
@@ -508,6 +508,7 @@ def read_dpt(fn):
     """
     Temporary file reading.
     """
+    print(fn)
     tbl = np.loadtxt(fn)
     domvals = tbl.T[0] #first column is attribute name
     domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
@@ -522,8 +523,12 @@ def main(argv=None):
     app = QtGui.QApplication(argv)
     w = OWCurves()
     w.show()
-    data = read_dpt("/home/marko/orange-infrared/orangecontrib/infrared/datasets/2012.11.09-11.45_Peach juice colorful spot.dpt")
-    data = Orange.data.Table("/home/marko/Downloads/testdata.csv")
+    import os.path
+    data = read_dpt(os.path.join(
+        orangecontrib.infrared.get_sample_datasets_dir(),
+        "2012.11.09-11.45_Peach juice colorful spot.dpt"
+        ))
+    data = Orange.data.Table("testdata.csv")
     w.set_data(data)
     #w.set_subset(data[:10])
     w.set_subset(None)
