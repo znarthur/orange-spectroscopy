@@ -208,7 +208,8 @@ class CurvePlot(QWidget):
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
         self.plot.invertX(True)
-        self.curves = []
+        self.curves = [] #currently loaded curves
+        self.curves_plotted = [] #currently plotted curves (different than loaded for averages)
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
@@ -342,6 +343,7 @@ class CurvePlot(QWidget):
         self.curves_cont.clear()
         self.curves_cont.update()
         self.plotview.clear()
+        self.curves_plotted = []
         self.plotview.addItem(self.label, ignoreBounds=True)
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
@@ -367,12 +369,14 @@ class CurvePlot(QWidget):
                 self.curves.append((x,y))
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal)
             self.curves_cont.add_curve(c)
+        self.curves_plotted = self.curves
 
     def add_curve(self, x, y, pen=None):
         xsind = np.argsort(x)
         x = x[xsind]
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal)
         self.curves_cont.add_curve(c)
+        self.curves_plotted.append((x, y))
 
     def show_individual(self):
         self.viewtype = INDIVIDUAL
@@ -391,10 +395,10 @@ class CurvePlot(QWidget):
 
             ymax = max(np.max(y[searchsorted_cached(cache, x, bleft):
                                 searchsorted_cached(cache, x, bright, side="right")])
-                       for x,y in self.curves)
+                       for x,y in self.curves_plotted)
             ymin = min(np.min(y[searchsorted_cached(cache, x, bleft):
                                 searchsorted_cached(cache, x, bright, side="right")])
-                       for x,y in self.curves)
+                       for x,y in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
             self.pad_current_view_y()
