@@ -73,8 +73,10 @@ def closestindex(array, v):
 
 def searchsorted_cached(cache, arr, v, side="left"):
     key = (id(arr),v,side)
-    if key in cache:
-        return cache
+    if key not in cache:
+        cache[key] = np.searchsorted(arr, v, side=side)
+    return cache[key]
+        
 
 def distancetocurve(array, x, y, xpixel, ypixel, r=5, cache=None):
     if cache is not None and id(x) in cache:
@@ -278,6 +280,7 @@ class CurvePlot(QWidget):
 
     def mouseMoved(self, evt):
         pos = evt[0]
+
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
@@ -381,15 +384,16 @@ class CurvePlot(QWidget):
 
     def rescale_current_view_y(self):
         if self.curves:
+            cache = {}
             qrect = self.plot.vb.targetRect()
             bleft =  qrect.left()
             bright = qrect.right()
 
-            ymax = max(np.max(y[np.searchsorted(x, bleft):
-                                np.searchsorted(x, bright, side="right")])
+            ymax = max(np.max(y[searchsorted_cached(cache, x, bleft):
+                                searchsorted_cached(cache, x, bright, side="right")])
                        for x,y in self.curves)
-            ymin = min(np.min(y[np.searchsorted(x, bleft):
-                                np.searchsorted(x, bright, side="right")])
+            ymin = min(np.min(y[searchsorted_cached(cache, x, bleft):
+                                searchsorted_cached(cache, x, bright, side="right")])
                        for x,y in self.curves)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
@@ -508,7 +512,6 @@ def read_dpt(fn):
     """
     Temporary file reading.
     """
-    print(fn)
     tbl = np.loadtxt(fn)
     domvals = tbl.T[0] #first column is attribute name
     domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
