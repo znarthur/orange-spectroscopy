@@ -123,6 +123,45 @@ class OmnicMapReader(FileFormat):
         pass #not implemented
 
 
+class OPUS2DReader(FileFormat):
+    """Reader for 2D OPUS files"""
+    EXTENSIONS = ('.0', '.1')
+    DESCRIPTION = 'OPUS 2D Spectra'
+
+    @property
+    def sheets(self):
+        import opusFC
+        dbs = []
+        for db in opusFC.listContents(self.filename):
+            dbs.append(db[0] + " " + db[1] + " " + db[2])
+        return dbs
+
+    def read(self):
+        import opusFC
+
+        if self.sheet:
+            db = self.sheet
+        else:
+            db = self.sheets[0]
+
+        db, dim, deriv = db.split(" ")
+
+        try:
+            data = opusFC.getOpusData(self.filename, db, dim, deriv)
+        except Exception:
+            raise IOError("Couldn't load spectrum from " + self.filename)
+
+        attrs, clses, metas = [], [], []
+
+        attrs = [Orange.data.ContinuousVariable.make(repr(data.x[i]))
+                    for i in range(data.x.shape[0])]
+
+        domain = Orange.data.Domain(attrs, clses, metas)
+
+        return Orange.data.Table.from_numpy(domain,
+                                 data.y[None,:].astype(float, order='C'))
+
+
 def build_spec_table(wavenumbers, intensities):
     """
     Converts numpy arrays of wavenumber and intensity into an
