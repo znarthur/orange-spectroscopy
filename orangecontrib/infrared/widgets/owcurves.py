@@ -508,17 +508,6 @@ class OWCurves(widget.OWWidget):
             self.send("Selection", None)
 
 
-def read_dpt(fn):
-    """
-    Temporary file reading.
-    """
-    tbl = np.loadtxt(fn)
-    domvals = tbl.T[0] #first column is attribute name
-    domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
-    datavals = tbl.T[1:]
-    return Orange.data.Table(domain, datavals)
-
-
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -527,11 +516,7 @@ def main(argv=None):
     w = OWCurves()
     w.show()
     import os.path
-    data = read_dpt(os.path.join(
-        orangecontrib.infrared.get_sample_datasets_dir(),
-        "2012.11.09-11.45_Peach juice colorful spot.dpt"
-        ))
-    data = Orange.data.Table("testdata.csv")
+    data = Orange.data.Table("2012.11.09-11.45_Peach juice colorful spot.dpt")
     w.set_data(data)
     #w.set_subset(data[:10])
     w.set_subset(None)
