@@ -5,7 +5,7 @@ import Orange
 
 class DptReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
-    EXTENSIONS = ('.dpt')
+    EXTENSIONS = ('.dpt',)
     DESCRIPTION = 'X-Y pairs'
 
     def read(self):
