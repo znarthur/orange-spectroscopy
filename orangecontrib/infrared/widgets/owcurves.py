@@ -192,6 +192,13 @@ class InteractiveViewBox(ViewBox):
         if self.graph.state == ZOOMING:
             self.graph.set_mode_panning()
 
+    def pad_current_view_y(self):
+        qrect = self.targetRect()
+        self.setYRange(qrect.bottom(), qrect.top(), padding=0.02)
+
+    def autoRange(self):
+        super().autoRange()
+        self.pad_current_view_y()
 
 class SelectRegion(pg.LinearRegionItem):
 
@@ -442,11 +449,8 @@ class CurvePlot(QWidget):
                        for x,y in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
-            self.pad_current_view_y()
+            self.plot.vb.pad_current_view_y()
 
-    def pad_current_view_y(self):
-        qrect = self.plot.vb.targetRect()
-        self.plot.vb.setYRange(qrect.bottom(), qrect.top(), padding=0.02)
 
     def _split_by_color_value(self, data):
         color_var = self._current_color_var()
@@ -505,7 +509,6 @@ class CurvePlot(QWidget):
             self.data = data
             self.update_view()
             self.plot.vb.autoRange()
-            self.pad_current_view_y()
 
     def update_display(self):
         self.curves_cont.update()
