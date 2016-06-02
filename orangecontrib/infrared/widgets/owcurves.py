@@ -1,12 +1,15 @@
+from itertools import chain
+import sys
+from collections import defaultdict
+import gc
+
 import numpy as np
 import pyqtgraph as pg
 from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets import widget
-import sys
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtGui import QWidget, QColor, QPixmapCache, QGraphicsItem
-import gc
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
@@ -14,7 +17,10 @@ from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.settings import (Setting, ContextSetting,
                                      DomainContextHandler)
-import orangecontrib.infrared
+from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets import gui
+from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
+
 
 #view types
 INDIVIDUAL = 0
@@ -216,11 +222,12 @@ class CurvePlot(QWidget):
         self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
-        self.pen_normal = pg.mkPen(color=(200, 200, 200, 127), width=1)
-        self.pen_subset = pg.mkPen(color=(0, 0, 0, 127), width=1)
-        self.pen_selected = pg.mkPen(color=(255, 0, 0, 127), width=1)
+        self.pen_normal = defaultdict(lambda: pg.mkPen(color=(200, 200, 200, 127), width=1))
+        self.pen_subset = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=1))
+        self.pen_selected = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=2, style=QtCore.Qt.DotLine))
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
+        self.discrete_palette = None
 
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
@@ -231,8 +238,11 @@ class CurvePlot(QWidget):
         self.location = True #show current position
         self.markclosest = True #mark
 
-        layout = QtGui.QGridLayout()
+        layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
+
+        self.layout().setContentsMargins(0, 0, 0, 0)
+
         self.layout().addWidget(self.plotview)
         self.highlighted = None
         self.markings = []
@@ -319,7 +329,9 @@ class CurvePlot(QWidget):
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
-        self.curves_cont.objs[idc].setPen(thispen)
+        color_var = self._current_color_var()
+        value = None if isinstance(color_var, str) else str(self.data[idc][color_var])
+        self.curves_cont.objs[idc].setPen(thispen[value])
         self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
     def set_curve_pens(self, curves=None):
@@ -334,6 +346,7 @@ class CurvePlot(QWidget):
         self.parent.selected_indices.clear()
         self.curves = []
         self.selection_changed()
+        self.discrete_palette = None
 
     def clear_graph(self):
         # reset caching. if not, it is not cleared when view changing when zoomed
@@ -367,16 +380,44 @@ class CurvePlot(QWidget):
             y = y[xsind]
             if addc:
                 self.curves.append((x,y))
-            c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal)
+            c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
             self.curves_cont.add_curve(c)
         self.curves_plotted = self.curves
 
     def add_curve(self, x, y, pen=None):
         xsind = np.argsort(x)
         x = x[xsind]
-        c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal)
+        c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
         self.curves_cont.add_curve(c)
         self.curves_plotted.append((x, y))
+
+    def _current_color_var(self):
+        color_var = "(Same color)"
+        if hasattr(self.parent, "attrs"):
+            try:
+                color_var = self.parent.attrs[self.parent.color_attr]
+            except IndexError:
+                pass
+        return color_var
+
+    def set_pen_colors(self):
+        self.pen_normal.clear()
+        self.pen_subset.clear()
+        self.pen_selected.clear()
+        color_var = self._current_color_var()
+        if color_var != "(Same color)":
+            colors = color_var.colors
+            discrete_palette = ColorPaletteGenerator(
+                number_of_colors=len(colors), rgb_colors=colors)
+            for v in color_var.values:
+                basecolor = discrete_palette[color_var.to_val(v)]
+                basecolor = QColor(basecolor)
+                basecolor.setAlphaF(0.9)
+                self.pen_subset[v] = pg.mkPen(color=basecolor, width=1)
+                self.pen_selected[v] = pg.mkPen(color=basecolor, width=2, style=QtCore.Qt.DotLine)
+                notselcolor = basecolor.lighter(150)
+                notselcolor.setAlphaF(0.5)
+                self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
 
     def show_individual(self):
         self.viewtype = INDIVIDUAL
@@ -407,6 +448,14 @@ class CurvePlot(QWidget):
         qrect = self.plot.vb.targetRect()
         self.plot.vb.setYRange(qrect.bottom(), qrect.top(), padding=0.02)
 
+    def _split_by_color_value(self, data):
+        color_var = self._current_color_var()
+        rd = defaultdict(list)
+        for i,inst in enumerate(data):
+            value = None if isinstance(color_var, str) else str(inst[color_var])
+            rd[value].append(i)
+        return rd
+
     def show_average(self):
         self.viewtype = AVERAGE
         self.clear_graph()
@@ -415,42 +464,48 @@ class CurvePlot(QWidget):
         x = x[xsind]
         if self.data:
             subset_indices = [i for i, id in enumerate(self.data.ids) if id in self.subset_ids]
-            for part in ["everything", "subset", "selection"]:
-                if part == "everything":
-                    ys = self.data.X
-                    pen = self.pen_normal if subset_indices else self.pen_subset
-                elif part == "selection":
-                    if not self.parent.selected_indices:
-                        continue
-                    ys = self.data.X[sorted(self.parent.selected_indices)]
-                    pen = self.pen_selected
-                elif part == "subset":
-                    if not subset_indices:
-                        continue
-                    ys = self.data.X[subset_indices]
-                    pen = self.pen_subset
-                std = np.std(ys, axis=0)
-                mean = np.mean(ys, axis=0)
-                std = std[xsind]
-                mean = mean[xsind]
-                self.add_curve(x, mean, pen=pen)
-                self.add_curve(x, mean+std, pen=pen)
-                self.add_curve(x, mean-std, pen=pen)
+            dsplit = self._split_by_color_value(self.data)
+            for colorv, indices in dsplit.items():
+                for part in ["everything", "subset", "selection"]:
+                    if part == "everything":
+                        ys = self.data.X[indices]
+                        pen = self.pen_normal if subset_indices else self.pen_subset
+                    elif part == "selection":
+                        current_selected = sorted(set(self.parent.selected_indices) & set(indices))
+                        if not current_selected:
+                            continue
+                        ys = self.data.X[current_selected]
+                        pen = self.pen_selected
+                    elif part == "subset":
+                        current_subset = sorted(set(subset_indices) & set(indices))
+                        if not current_subset:
+                            continue
+                        ys = self.data.X[current_subset]
+                        pen = self.pen_subset
+                    std = np.std(ys, axis=0)
+                    mean = np.mean(ys, axis=0)
+                    std = std[xsind]
+                    mean = mean[xsind]
+                    self.add_curve(x, mean, pen=pen[colorv])
+                    self.add_curve(x, mean+std, pen=pen[colorv])
+                    self.add_curve(x, mean-std, pen=pen[colorv])
         self.curves_cont.update()
+
+    def update_view(self):
+        if self.viewtype == INDIVIDUAL:
+            self.show_individual()
+        elif self.viewtype == AVERAGE:
+            self.show_average()
 
     def set_data(self, data):
         self.clear_graph()
         self.clear_data()
+        self.set_pen_colors()
         if data is not None:
             self.data = data
-            if self.viewtype == INDIVIDUAL:
-                self.show_individual()
-                self.plot.vb.autoRange()
-                self.pad_current_view_y()
-            elif self.viewtype == AVERAGE:
-                self.show_average()
-                self.plot.vb.autoRange()
-                self.pad_current_view_y()
+            self.update_view()
+            self.plot.vb.autoRange()
+            self.pad_current_view_y()
 
     def update_display(self):
         self.curves_cont.update()
@@ -458,8 +513,7 @@ class CurvePlot(QWidget):
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
-        if self.viewtype == AVERAGE:
-            self.show_average()
+        self.update_view()
 
     def set_mode_zooming(self):
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
@@ -484,18 +538,44 @@ class OWCurves(widget.OWWidget):
     settingsHandler = DomainContextHandler(
         match_values=DomainContextHandler.MATCH_VALUES_ALL)
     selected_indices = ContextSetting(set())
+    color_attr = ContextSetting(0)
 
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
         self.plotview = CurvePlot(self)
+
+        self.attrs = []
+        self.topbox = gui.hBox(self)
+        self.mainArea.layout().addWidget(self.topbox)
+        model = VariableListModel()
+        model.wrap(self.attrs)
+        label = gui.label(self.topbox, self, "Color by")
+        label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.attrCombo = gui.comboBox(
+            self.topbox, self, value="color_attr", contentsLength=12,
+            callback=self.change_color_attr)
+        self.attrCombo.setModel(model)
+
         self.mainArea.layout().addWidget(self.plotview)
         self.resize(900, 700)
 
+    def change_color_attr(self):
+        self.plotview.set_pen_colors()
+        self.plotview.update_view()
+
     def set_data(self, data):
         self.closeContext()
+        self.attrs[:] = []
+        if data is not None:
+            self.attrs[:] = ["(Same color)"] + [
+                var for var in chain(data.domain,
+                                     data.domain.metas)
+                if isinstance(var, str) or var.is_discrete]
+            self.color_attr = 0
         self.plotview.set_data(data)
         self.openContext(data)
+        self.plotview.set_pen_colors()
         self.plotview.set_curve_pens() #mark the selection
         self.selection_changed()
 
@@ -521,9 +601,10 @@ def main(argv=None):
     w.show()
     import os.path
     data = Orange.data.Table("2012.11.09-11.45_Peach juice colorful spot.dpt")
+    data = Orange.data.Table("/home/marko/uiris.tab")
     w.set_data(data)
-    #w.set_subset(data[:10])
-    w.set_subset(None)
+    w.set_subset(data[:40])
+    #w.set_subset(None)
     w.handleNewSignals()
     region = SelectRegion()
     def update():
