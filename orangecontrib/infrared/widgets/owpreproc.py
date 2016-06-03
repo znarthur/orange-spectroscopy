@@ -145,7 +145,7 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
 
         self.wspin = QDoubleSpinBox(
             minimum=3, maximum=100, singleStep=2,
-            value=self.polyorder)
+            value=self.window)
         self.wspin.valueChanged[float].connect(self.setW)
         self.wspin.editingFinished.connect(self.edited)
 
