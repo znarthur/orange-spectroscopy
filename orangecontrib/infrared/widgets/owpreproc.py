@@ -40,6 +40,7 @@ import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter1d
 from scipy.spatial import ConvexHull
+from scipy.interpolate import interp1d
 
 import copy
 
@@ -220,7 +221,7 @@ class RubberbandBaseline():
             elif self.peak_dir == 1:
                 v = np.roll(v, -v.argmin())
                 v = v[:v.argmax()+1]
-            baseline = np.interp(x, x[v], row[v])
+            baseline = interp1d(x[v], row[v])(x)
             if newd is not None and self.sub == 0:
                 newd = np.vstack((newd, (row - baseline)))
             elif newd is not None and self.sub == 1:
