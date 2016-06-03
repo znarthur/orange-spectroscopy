@@ -272,6 +272,107 @@ class RubberbandBaselineEditor(BaseEditor):
         sub = params.get("sub", 0)
         return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
+class Normalize():
+
+    def __init__(self, lower=float, upper=float, limits=0):
+        self.lower = lower
+        self.upper = upper
+        self.limits = limits
+
+    def __call__(self, data):
+        x = getx(data)
+
+        if self.limits == 1:
+            x_sorter = np.argsort(x)
+            limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
+            y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+            data.X /= np.max(np.abs(y_s),axis=1, keepdims=True)
+        else:
+            data.X /= np.max(np.abs(data.X),axis=1, keepdims=True)
+
+        #data = copy.copy(data)
+        #data.X = newd
+        return data
+
+class NormalizeEditor(BaseEditor):
+    """
+    Normalize spectra using simple min-max scaling.
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setLayout(QVBoxLayout())
+
+        self.lower = 0
+        self.upper = 4000
+        self.limits = 0
+
+        form = QFormLayout()
+
+        self.limitcb = QComboBox()
+        self.limitcb.addItems(["Full Range", "Within Limits"])
+
+        self.lspin = QDoubleSpinBox(
+            minimum=0, maximum=16000, singleStep=50,
+            value=self.lower)
+        self.lspin.valueChanged[float].connect(self.setW)
+        self.lspin.editingFinished.connect(self.edited)
+
+        self.uspin = QDoubleSpinBox(
+            minimum=0, maximum=16000, singleStep=50,
+            value=self.upper)
+        self.uspin.valueChanged[float].connect(self.setP)
+        self.uspin.editingFinished.connect(self.edited)
+
+        form.addRow("Normalize", self.limitcb)
+        form.addRow("Lower limit", self.lspin)
+        form.addRow("Upper limit", self.uspin)
+        self.layout().addLayout(form)
+        self.limitcb.currentIndexChanged.connect(self.setlimittype)
+        self.limitcb.activated.connect(self.edited)
+
+    def setParameters(self, params):
+        lower = params.get("lower", 0)
+        upper = params.get("upper", 4000)
+        limits = params.get("limits", 0)
+        self.limitcb.setCurrentIndex(limits)
+        self.setW(lower)
+        self.setP(upper)
+
+    def parameters(self):
+        return {"lower": self.lower, "upper": self.upper, "limits": self.limits}
+
+    def setW(self, lower):
+        if self.lower != lower:
+            self.lower = lower
+            self.lspin.setValue(lower)
+            self.changed.emit()
+
+    def setP(self, upper):
+        if self.upper != upper:
+            self.upper = upper
+            self.uspin.setValue(upper)
+            self.changed.emit()
+
+    def setlimittype(self):
+        if self.limits != self.limitcb.currentIndex():
+            self.limits = self.limitcb.currentIndex()
+            if self.limits == 1:
+                self.lspin.setDisabled(False)
+                self.uspin.setDisabled(False)
+            else:
+                self.lspin.setDisabled(True)
+                self.uspin.setDisabled(True)
+            self.changed.emit()
+
+
+    @staticmethod
+    def createinstance(params):
+        lower = params.get("lower", 0)
+        upper = params.get("upper", 4000)
+        limits = params.get("limits", 0)
+        return Normalize(lower=lower,upper=upper,limits=limits)
+
 PREPROCESSORS = [
     PreprocessAction(
         "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
@@ -290,6 +391,12 @@ PREPROCESSORS = [
         Description("Rubberband Baseline Subtraction (convex hull)",
         icon_path("Discretize.svg")),
         RubberbandBaselineEditor
+    ),
+    PreprocessAction(
+        "Normalization", "orangecontrib.infrared.normalize", "Normalization",
+        Description("Normalization (min-max)",
+        icon_path("Discretize.svg")),
+        NormalizeEditor
     ),
 ]
 
