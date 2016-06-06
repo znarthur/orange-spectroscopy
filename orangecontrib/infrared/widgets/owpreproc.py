@@ -39,8 +39,12 @@ from Orange.widgets.data.owpreprocess import (
 import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter1d
+from scipy.spatial import ConvexHull
+from scipy.interpolate import interp1d
 
 import copy
+
+from orangecontrib.infrared.widgets.owcurves import getx
 
 class GaussianSmoothing():
 
@@ -197,8 +201,78 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
         deriv = params.get("deriv", 0)
         return SavitzkyGolayFiltering(window=window,polyorder=polyorder,deriv=deriv)
 
+class RubberbandBaseline():
 
+    def __init__(self, peak_dir=0, sub=0):
+        self.peak_dir = peak_dir
+        self.sub = sub
 
+    def __call__(self, data):
+        x = getx(data)
+        if self.sub == 0:
+            newd = None
+        elif self.sub == 1:
+            newd = data.X
+        for row in data.X:
+            v = ConvexHull(np.column_stack((x, row))).vertices
+            if self.peak_dir == 0:
+                v = np.roll(v, -v.argmax())
+                v = v[:v.argmin()+1]
+            elif self.peak_dir == 1:
+                v = np.roll(v, -v.argmin())
+                v = v[:v.argmax()+1]
+            baseline = interp1d(x[v], row[v])(x)
+            if newd is not None and self.sub == 0:
+                newd = np.vstack((newd, (row - baseline)))
+            elif newd is not None and self.sub == 1:
+                newd = np.vstack((newd, baseline))
+            else:
+                newd = row - baseline
+                newd = newd[None,:]
+        data = copy.copy(data)
+        data.X = newd
+        return data
+
+class RubberbandBaselineEditor(BaseEditor):
+    """
+    Apply a rubberband baseline subtraction via convex hull calculation.
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setLayout(QVBoxLayout())
+
+        form = QFormLayout()
+
+        self.peakcb = QComboBox()
+        self.peakcb.addItems(["Positive", "Negative"])
+
+        self.subcb = QComboBox()
+        self.subcb.addItems(["Subtract", "Calculate"])
+
+        form.addRow("Peak Direction", self.peakcb)
+        form.addRow("Background Action", self.subcb)
+        self.layout().addLayout(form)
+        self.peakcb.currentIndexChanged.connect(self.changed)
+        self.peakcb.activated.connect(self.edited)
+        self.subcb.currentIndexChanged.connect(self.changed)
+        self.subcb.activated.connect(self.edited)
+
+    def setParameters(self, params):
+        peak_dir = params.get("peak_dir", 0)
+        sub = params.get("sub", 0)
+        self.peakcb.setCurrentIndex(peak_dir)
+        self.subcb.setCurrentIndex(sub)
+
+    def parameters(self):
+        return {"peak_dir": self.peakcb.currentIndex(),
+                "sub": self.subcb.currentIndex()}
+
+    @staticmethod
+    def createinstance(params):
+        peak_dir = params.get("peak_dir", 0)
+        sub = params.get("sub", 0)
+        return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -212,6 +286,12 @@ PREPROCESSORS = [
         Description("Savitzky-Golay Filter (smoothing and differentiation)",
         icon_path("Discretize.svg")),
         SavitzkyGolayFilteringEditor
+    ),
+    PreprocessAction(
+        "Rubberband Baseline Subtraction", "orangecontrib.infrared.rubberband", "Baseline Subtraction",
+        Description("Rubberband Baseline Subtraction (convex hull)",
+        icon_path("Discretize.svg")),
+        RubberbandBaselineEditor
     ),
 ]
 
