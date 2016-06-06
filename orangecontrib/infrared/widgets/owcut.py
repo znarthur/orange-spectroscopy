@@ -10,6 +10,7 @@ from PyQt4.QtGui import QDoubleValidator
 from .owcurves import CurvePlot, SelectRegion
 import gc
 
+from orangecontrib.infrared.data import getx
 
 class OWCut(widget.OWWidget):
     name = "Cut"
@@ -66,10 +67,7 @@ class OWCut(widget.OWWidget):
         self.blockchanges = False
         if self.data:
             data = self.data
-            try:
-                x = np.array([ float(a.name) for a in data.domain.attributes ])
-            except:
-                x = np.arange(len(data.domain.attributes))
+            x = getx(data)
             if not self.inversecut:
                 okattrs = [ at for at, v in zip(data.domain.attributes, x) if minX <= v <= maxX ]
             else:

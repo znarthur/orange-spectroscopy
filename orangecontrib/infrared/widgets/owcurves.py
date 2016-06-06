@@ -21,21 +21,11 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets import gui
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 
+from orangecontrib.infrared.data import getx
 
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
-
-
-def getx(data):
-    """ Return x of the data. Put attributes if order or
-    use their values as x, if they all are convertable to floating point numbers."""
-    x = np.arange(len(data.domain.attributes))
-    try:
-        x = np.array([float(a.name) for a in data.domain.attributes])
-    except:
-        pass
-    return x
 
 
 class PlotCurvesItem(GraphicsObject):
@@ -604,7 +594,7 @@ def main(argv=None):
     w.show()
     import os.path
     data = Orange.data.Table("2012.11.09-11.45_Peach juice colorful spot.dpt")
-    data = Orange.data.Table("/home/marko/uiris.tab")
+    data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.set_subset(data[:40])
     #w.set_subset(None)

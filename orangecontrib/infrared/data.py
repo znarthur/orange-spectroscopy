@@ -48,3 +48,18 @@ def build_spec_table(wavenumbers, intensities):
     # Finally, build the table using the damain and intensity arrays:
     table = Orange.data.Table.from_numpy(domain, intensities)
     return table
+
+
+
+def getx(data):
+    """
+    Return x of the data. If all attribute names are numbers,
+    return their values. If not, return indices.
+    """
+    x = np.arange(len(data.domain.attributes))
+    try:
+        x = np.array([float(a.name) for a in data.domain.attributes])
+    except:
+        pass
+    return x
+

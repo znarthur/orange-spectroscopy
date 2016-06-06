@@ -44,7 +44,7 @@ from scipy.interpolate import interp1d
 
 import copy
 
-from orangecontrib.infrared.widgets.owcurves import getx
+from orangecontrib.infrared.data import getx
 
 class GaussianSmoothing():
 
