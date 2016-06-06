@@ -2,6 +2,7 @@ from itertools import chain
 import sys
 from collections import defaultdict
 import gc
+import random
 
 import numpy as np
 import pyqtgraph as pg
@@ -26,7 +27,7 @@ from orangecontrib.infrared.data import getx
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
-
+MAXINST = 1000
 
 class PlotCurvesItem(GraphicsObject):
     """ Multiple curves on a single plot that can be cached together. """
@@ -201,7 +202,6 @@ class SelectRegion(pg.LinearRegionItem):
         color.setAlphaF(0.05)
         self.setBrush(pg.mkBrush(color))
 
-
 class CurvePlot(QWidget):
 
     def __init__(self, parent=None):
@@ -225,6 +225,7 @@ class CurvePlot(QWidget):
         self.label = pg.TextItem("", anchor=(1,0))
         self.label.setText("", color=(0,0,0))
         self.discrete_palette = None
+        self.sampled_indices = []
 
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
@@ -321,13 +322,14 @@ class CurvePlot(QWidget):
             self.hLine.setPos(posy)
 
     def set_curve_pen(self, idc):
-        insubset = not self.subset_ids or self.data[idc].id in self.subset_ids
-        inselected = idc in self.parent.selected_indices
+        idcdata = idc if not self.sampled_indices else self.sampled_indices[idc]
+        insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
+        inselected = not self.sampled_indices and idc in self.parent.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
         color_var = self._current_color_var()
-        value = None if isinstance(color_var, str) else str(self.data[idc][color_var])
+        value = None if isinstance(color_var, str) else str(self.data[idcdata][color_var])
         self.curves_cont.objs[idc].setPen(thispen[value])
         self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
@@ -342,6 +344,7 @@ class CurvePlot(QWidget):
         self.subset_ids = set()
         self.parent.selected_indices.clear()
         self.curves = []
+        self.sampled_indices = []
         self.selection_changed()
         self.discrete_palette = None
 
@@ -369,10 +372,13 @@ class CurvePlot(QWidget):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
-    def add_curves(self, x, ys, addc=True):
+    def add_curves(self, x, data, addc=True):
         """ Add multiple curves with the same x domain. """
         xsind = np.argsort(x)
         x = x[xsind]
+        if addc and len(data) > MAXINST:
+            self.sampled_indices = sorted(random.Random(0).sample(range(len(data)), MAXINST))
+        ys = data.X if not self.sampled_indices else data.X[self.sampled_indices]
         for y in ys:
             y = y[xsind]
             if addc:
@@ -420,7 +426,7 @@ class CurvePlot(QWidget):
         self.viewtype = INDIVIDUAL
         self.clear_graph()
         x = getx(self.data)
-        self.add_curves(x, self.data.X, addc=not self.curves)
+        self.add_curves(x, self.data, addc=not self.curves)
         self.set_curve_pens()
         self.curves_cont.update()
 
@@ -464,7 +470,7 @@ class CurvePlot(QWidget):
                     if part == "everything":
                         ys = self.data.X[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
-                    elif part == "selection":
+                    elif part == "selection" and not self.sampled_indices: #disable selection with sampled indices
                         current_selected = sorted(set(self.parent.selected_indices) & set(indices))
                         if not current_selected:
                             continue
@@ -558,6 +564,7 @@ class OWCurves(widget.OWWidget):
         self.plotview.update_view()
 
     def set_data(self, data):
+        self.information(0)
         self.closeContext()
         self.attrs[:] = []
         if data is not None:
@@ -567,6 +574,8 @@ class OWCurves(widget.OWWidget):
                 if isinstance(var, str) or var.is_discrete]
             self.color_attr = 0
         self.plotview.set_data(data)
+        if self.plotview.sampled_indices:
+            self.information(0, "Showing %d of %d curves." % (len(self.plotview.sampled_indices), len(data)))
         self.openContext(data)
         self.plotview.set_pen_colors()
         self.plotview.set_curve_pens() #mark the selection
@@ -576,7 +585,8 @@ class OWCurves(widget.OWWidget):
         self.plotview.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if self.selected_indices and self.plotview.data:
+        if not self.plotview.sampled_indices \
+                and self.selected_indices and self.plotview.data:
             # discard selected indices if they do not fit to data
             if any(a for a in self.selected_indices if a >= len(self.plotview.data)):
                 self.selected_indices.clear()
