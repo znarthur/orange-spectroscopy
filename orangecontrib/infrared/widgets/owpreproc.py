@@ -123,7 +123,7 @@ class SavitzkyGolayFiltering():
         #savgol_filter(x, window_length, polyorder, deriv=0, delta=1.0, axis=-1, mode='interp', cval=0.0)
         newd = savgol_filter(data.X, window_length=self.window, polyorder=self.polyorder, deriv=self.deriv, mode="nearest")
 
-        data = copy.copy(data)
+        data = data.copy()
         data.X = newd
         return data
 
