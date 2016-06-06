@@ -42,8 +42,6 @@ from scipy.ndimage.filters import gaussian_filter1d
 from scipy.spatial import ConvexHull
 from scipy.interpolate import interp1d
 
-import copy
-
 from orangecontrib.infrared.data import getx
 
 class GaussianSmoothing():
@@ -58,7 +56,7 @@ class GaussianSmoothing():
         #what if frequencies are not sampled on equal intervals
         x = np.arange(len(data.domain.attributes))
         newd = gaussian_filter1d(data.X, sigma=self.sd, mode="nearest")
-        data = copy.copy(data)
+        data = data.copy()
         data.X = newd
         return data
 
@@ -229,7 +227,7 @@ class RubberbandBaseline():
             else:
                 newd = row - baseline
                 newd = newd[None,:]
-        data = copy.copy(data)
+        data = data.copy()
         data.X = newd
         return data
 
