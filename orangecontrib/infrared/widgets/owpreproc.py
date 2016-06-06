@@ -282,6 +282,8 @@ class Normalize():
     def __call__(self, data):
         x = getx(data)
 
+        data = data.copy()
+
         if self.limits == 1:
             x_sorter = np.argsort(x)
             limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
@@ -290,8 +292,6 @@ class Normalize():
         else:
             data.X /= np.max(np.abs(data.X),axis=1, keepdims=True)
 
-        #data = copy.copy(data)
-        #data.X = newd
         return data
 
 class NormalizeEditor(BaseEditor):
