@@ -423,6 +423,8 @@ class CurvePlot(QWidget):
                 self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
 
     def show_individual(self):
+        if not self.data:
+            return
         self.viewtype = INDIVIDUAL
         self.clear_graph()
         x = getx(self.data)
@@ -431,7 +433,7 @@ class CurvePlot(QWidget):
         self.curves_cont.update()
 
     def rescale_current_view_y(self):
-        if self.curves:
+        if self.curves_plotted:
             cache = {}
             qrect = self.plot.vb.targetRect()
             bleft =  qrect.left()
@@ -457,6 +459,8 @@ class CurvePlot(QWidget):
         return rd
 
     def show_average(self):
+        if not self.data:
+            return
         self.viewtype = AVERAGE
         self.clear_graph()
         x = getx(self.data)
