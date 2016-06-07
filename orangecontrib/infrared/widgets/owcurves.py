@@ -144,7 +144,7 @@ class InteractiveViewBox(ViewBox):
             add = True if ev.modifiers() & Qt.ControlModifier else False
             clicked_curve = self.graph.highlighted
             selected_indices = self.graph.parent.selected_indices
-            if clicked_curve:
+            if clicked_curve is not None:
                 if add:
                     if clicked_curve not in selected_indices:
                         selected_indices.add(clicked_curve)
