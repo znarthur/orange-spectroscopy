@@ -20,7 +20,6 @@ from PyQt4.QtCore import (
 )
 from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-
 import Orange.data
 from Orange import preprocess
 from Orange.statistics import distribution
@@ -43,6 +42,7 @@ from scipy.spatial import ConvexHull
 from scipy.interpolate import interp1d
 
 from orangecontrib.infrared.data import getx
+from orangecontrib.infrared.widgets.owcurves import CurvePlot
 
 class GaussianSmoothing():
 
@@ -473,6 +473,7 @@ class OWPreprocess(widget.OWWidget):
 
     storedsettings = settings.Setting({})
     autocommit = settings.Setting(False)
+    preview_curves = settings.Setting(3)
 
     def __init__(self):
         super().__init__()
@@ -529,8 +530,20 @@ class OWPreprocess(widget.OWWidget):
         self.scroll_area.viewport().setAcceptDrops(True)
         self.scroll_area.setWidget(self.flow_view)
         self.scroll_area.setWidgetResizable(True)
-        self.mainArea.layout().addWidget(self.scroll_area)
+
+        self.curveplot = CurvePlot(self)
+
+        self.topbox = gui.hBox(self)
+        self.topbox.layout().addWidget(self.curveplot)
+        self.topbox.layout().addWidget(self.scroll_area)
+
+
+        self.mainArea.layout().addWidget(self.topbox)
         self.flow_view.installEventFilter(self)
+
+        box = gui.widgetBox(self.controlArea, "Preview")
+
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show curves")
 
         box = gui.widgetBox(self.controlArea, "Output")
         gui.auto_commit(box, self, "autocommit", "Commit", box=False)
