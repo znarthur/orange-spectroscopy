@@ -64,7 +64,7 @@ class GaussianSmoothing():
 
 class GaussianSmoothingEditor(BaseEditor):
     """
-    Editor for preprocess.Discretize.
+    Editor for GausianSmoothing
     """
 
     def __init__(self, parent=None, **kwargs):
@@ -106,6 +106,84 @@ class GaussianSmoothingEditor(BaseEditor):
         params = dict(params)
         sd = params.get("sd", 10.)
         return GaussianSmoothing(sd=sd)
+
+
+class Cut():
+
+    def __init__(self, lowlim=None, highlim=None):
+        self.lowlim = lowlim
+        self.highlim = highlim
+
+    def __call__(self, data):
+        x = getx(data)
+        okattrs = [at for at, v in zip(data.domain.attributes, x) if (self.lowlim is None or self.lowlim <= v) and (self.highlim is None or v <= self.highlim)]
+        domain = Orange.data.Domain(okattrs, data.domain.class_vars, metas=data.domain.metas)
+        return data.from_table(domain, data)
+
+
+class CutEditor(BaseEditor):
+    """
+    Editor for Cut
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        self.__lowlim = 0.
+        self.__highlim = 1.
+
+        layout = QFormLayout()
+
+        self.setLayout(layout)
+
+        self.__lowlime = QDoubleSpinBox(
+            minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__lowlim)
+
+        self.__highlime = QDoubleSpinBox(
+            minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__highlim)
+
+        layout.addRow("Low limit", self.__lowlime)
+        layout.addRow("High limit", self.__highlime)
+
+        self.__lowlime.valueChanged[float].connect(self.set_lowlim)
+        self.__highlime.valueChanged[float].connect(self.set_highlim)
+        self.__lowlime.editingFinished.connect(self.edited)
+        self.__highlime.editingFinished.connect(self.edited)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def set_lowlim(self, lowlim):
+        if self.__lowlim != lowlim:
+            self.__lowlim = lowlim
+            with blocked(self.__lowlime):
+                self.__lowlime.setValue(lowlim)
+            self.changed.emit()
+
+    def left(self):
+        return self.__lowlim
+
+    def set_highlim(self, highlim):
+        if self.__highlim != highlim:
+            self.__highlim = highlim
+            with blocked(self.__highlime):
+                self.__highlime.setValue(highlim)
+            self.changed.emit()
+
+    def right(self):
+        return self.__highlim
+
+    def setParameters(self, params):
+        self.set_lowlim(params.get("lowlim", 0.))
+        self.set_highlim(params.get("highlim", 1.))
+
+    def parameters(self):
+        return {"lowlim": self.__lowlim, "highlim": self.__highlim}
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        lowlim = params.get("lowlim", None)
+        highlim = params.get("highlim", None)
+        return Cut(lowlim=lowlim, highlim=highlim)
+
 
 class SavitzkyGolayFiltering():
     """
@@ -434,6 +512,12 @@ class NormalizeEditor(BaseEditor):
         return Normalize(method=method,lower=lower,upper=upper,limits=limits)
 
 PREPROCESSORS = [
+    PreprocessAction(
+        "Cut", "orangecontrib.infrared.cut", "Cut",
+        Description("Cut",
+                    icon_path("Discretize.svg")),
+        CutEditor
+    ),
     PreprocessAction(
         "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
         Description("Smooth spectra (gaussian)",
