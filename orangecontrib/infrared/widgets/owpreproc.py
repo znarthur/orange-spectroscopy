@@ -2,6 +2,7 @@ import sys
 import bisect
 import contextlib
 import warnings
+import random
 
 import pkg_resources
 
@@ -550,6 +551,18 @@ class OWPreprocess(widget.OWWidget):
 
         self._initialize()
 
+    def show_preview(self):
+        #self.storeSpecificSettings()
+        preprocessor = self.buildpreproc()
+
+        if self.data is not None:
+            data = self.data
+            if len(data) > self.preview_curves:
+                sampled_indices = sorted(random.Random(0).sample(range(len(data)), self.preview_curves))
+                data = data[sampled_indices]
+
+            self.curveplot.set_data(preprocessor(data))
+
     def _initialize(self):
         for pp_def in PREPROCESSORS:
             description = pp_def.description
@@ -699,6 +712,9 @@ class OWPreprocess(widget.OWWidget):
 
     def apply(self):
         # Sync the model into storedsettings on every apply.
+
+        self.show_preview()
+
         self.storeSpecificSettings()
         preprocessor = self.buildpreproc()
 
@@ -766,13 +782,8 @@ def test_main(argv=sys.argv):
     argv = list(argv)
     app = QtGui.QApplication(argv)
 
-    if len(argv) > 1:
-        filename = argv[1]
-    else:
-        filename = "brown-selected"
-
     w = OWPreprocess()
-    w.set_data(Orange.data.Table(filename))
+    w.set_data(Orange.data.Table("iris"))
     w.show()
     w.raise_()
     r = app.exec_()

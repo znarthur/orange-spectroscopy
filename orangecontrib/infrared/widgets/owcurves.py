@@ -140,9 +140,10 @@ class InteractiveViewBox(ViewBox):
             ev.accept()
             self.autoRange()
             self.graph.set_mode_panning()
-        if self.graph.state != ZOOMING and ev.button() == Qt.LeftButton:
+        if self.graph.state != ZOOMING and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
             add = True if ev.modifiers() & Qt.ControlModifier else False
             clicked_curve = self.graph.highlighted
+
             selected_indices = self.graph.parent.selected_indices
             if clicked_curve is not None:
                 if add:
@@ -207,6 +208,9 @@ class CurvePlot(QWidget):
     def __init__(self, parent=None):
         super().__init__()
         self.parent = parent
+
+        self.selection_enabled = hasattr(self.parent, "selected_indices")
+
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
@@ -284,7 +288,7 @@ class CurvePlot(QWidget):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
 
     def selection_changed(self):
-        if self.parent:
+        if self.parent and self.selection_enabled:
             self.parent.selection_changed()
 
     def mouseMoved(self, evt):
@@ -324,7 +328,7 @@ class CurvePlot(QWidget):
     def set_curve_pen(self, idc):
         idcdata = idc if not self.sampled_indices else self.sampled_indices[idc]
         insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
-        inselected = not self.sampled_indices and idc in self.parent.selected_indices
+        inselected = self.selection_enabled and not self.sampled_indices and idc in self.parent.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
@@ -342,7 +346,8 @@ class CurvePlot(QWidget):
 
     def clear_data(self):
         self.subset_ids = set()
-        self.parent.selected_indices.clear()
+        if self.selection_enabled:
+            self.parent.selected_indices.clear()
         self.curves = []
         self.sampled_indices = []
         self.selection_changed()
@@ -474,7 +479,7 @@ class CurvePlot(QWidget):
                     if part == "everything":
                         ys = self.data.X[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
-                    elif part == "selection" and not self.sampled_indices: #disable selection with sampled indices
+                    elif self.selection_enabled and part == "selection" and not self.sampled_indices: #disable selection with sampled indices
                         current_selected = sorted(set(self.parent.selected_indices) & set(indices))
                         if not current_selected:
                             continue
