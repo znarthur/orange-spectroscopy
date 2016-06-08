@@ -355,14 +355,14 @@ class NormalizeEditor(BaseEditor):
         self.lspin = QDoubleSpinBox(
             minimum=0, maximum=16000, singleStep=50,
             value=self.lower)
-        self.lspin.valueChanged[float].connect(self.setW)
-        self.lspin.editingFinished.connect(self.edited)
+        self.lspin.valueChanged[float].connect(self.setL)
+        self.lspin.editingFinished.connect(self.reorderLimits)
 
         self.uspin = QDoubleSpinBox(
             minimum=0, maximum=16000, singleStep=50,
             value=self.upper)
-        self.uspin.valueChanged[float].connect(self.setP)
-        self.uspin.editingFinished.connect(self.edited)
+        self.uspin.valueChanged[float].connect(self.setU)
+        self.uspin.editingFinished.connect(self.reorderLimits)
 
         form.addRow("Normalize region", self.limitcb)
         form.addRow("Lower limit", self.lspin)
@@ -378,8 +378,8 @@ class NormalizeEditor(BaseEditor):
         limits = params.get("limits", 0)
         self.setMethod(method)
         self.limitcb.setCurrentIndex(limits)
-        self.setW(lower)
-        self.setP(upper)
+        self.setL(lower)
+        self.setU(upper)
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
@@ -392,17 +392,24 @@ class NormalizeEditor(BaseEditor):
             b.setChecked(True)
             self.changed.emit()
 
-    def setW(self, lower):
+    def setL(self, lower):
         if self.lower != lower:
             self.lower = lower
             self.lspin.setValue(lower)
             self.changed.emit()
 
-    def setP(self, upper):
+    def setU(self, upper):
         if self.upper != upper:
             self.upper = upper
             self.uspin.setValue(upper)
             self.changed.emit()
+
+    def reorderLimits(self):
+        limits = [self.lower, self.upper]
+        self.lower, self.upper = min(limits), max(limits)
+        self.lspin.setValue(self.lower)
+        self.uspin.setValue(self.upper)
+        self.edited.emit()
 
     def setlimittype(self):
         if self.limits != self.limitcb.currentIndex():
