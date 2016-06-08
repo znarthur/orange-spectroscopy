@@ -273,8 +273,11 @@ class RubberbandBaselineEditor(BaseEditor):
         return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
 class Normalize():
+    # Normalization methods
+    MinMax, Vector, Offset, Attribute = 0, 1, 2, 3
 
-    def __init__(self, lower=float, upper=float, limits=0):
+    def __init__(self, method=MinMax, lower=float, upper=float, limits=0):
+        self.method = method
         self.lower = lower
         self.upper = upper
         self.limits = limits
@@ -288,24 +291,61 @@ class Normalize():
             x_sorter = np.argsort(x)
             limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
             y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-            data.X /= np.max(np.abs(y_s),axis=1, keepdims=True)
         else:
-            data.X /= np.max(np.abs(data.X),axis=1, keepdims=True)
+            y_s = data.X
+
+        if self.method == self.MinMax:
+            data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
+        elif self.method == self.Vector:
+            # zero offset correction applies to entire spectrum, regardless of limits
+            y_offsets = np.mean(data.X, axis=1, keepdims=True)
+            data.X -= y_offsets
+            y_s -= y_offsets
+            rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
+            data.X /= rssq
+        elif self.method == self.Offset:
+            data.X -= np.min(y_s, axis=1)
+        elif self.method == self.Attribute:
+            # Not implemented
+            pass
 
         return data
 
 class NormalizeEditor(BaseEditor):
     """
-    Normalize spectra using simple min-max scaling.
+    Normalize spectra.
     """
+    # Normalization methods
+    Normalizers = [
+        ("Min-Max Scaling", Normalize.MinMax),
+        ("Vector Normalization", Normalize.Vector),
+        ("Offset Correction", Normalize.Offset),
+        ("Attribute Normalization", Normalize.Attribute)]
+
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.setLayout(QVBoxLayout())
+        layout = QVBoxLayout()
+        self.setLayout(layout)
 
+        self.__method = Normalize.MinMax
         self.lower = 0
         self.upper = 4000
         self.limits = 0
+
+
+
+        self.__group = group = QButtonGroup(self)
+
+        for name, method in self.Normalizers:
+            rb = QRadioButton(
+                        self, text=name,
+                        checked=self.__method == method
+                        )
+            layout.addWidget(rb)
+            group.addButton(rb, method)
+
+        group.buttonClicked.connect(self.__on_buttonClicked)
 
         form = QFormLayout()
 
@@ -324,7 +364,7 @@ class NormalizeEditor(BaseEditor):
         self.uspin.valueChanged[float].connect(self.setP)
         self.uspin.editingFinished.connect(self.edited)
 
-        form.addRow("Normalize", self.limitcb)
+        form.addRow("Normalize region", self.limitcb)
         form.addRow("Lower limit", self.lspin)
         form.addRow("Upper limit", self.uspin)
         self.layout().addLayout(form)
@@ -332,15 +372,25 @@ class NormalizeEditor(BaseEditor):
         self.limitcb.activated.connect(self.edited)
 
     def setParameters(self, params):
+        method = params.get("method", Normalize.MinMax)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
+        self.setMethod(method)
         self.limitcb.setCurrentIndex(limits)
         self.setW(lower)
         self.setP(upper)
 
     def parameters(self):
-        return {"lower": self.lower, "upper": self.upper, "limits": self.limits}
+        return {"method": self.__method, "lower": self.lower,
+                "upper": self.upper, "limits": self.limits}
+
+    def setMethod(self, method):
+        if self.__method != method:
+            self.__method = method
+            b = self.__group.button(method)
+            b.setChecked(True)
+            self.changed.emit()
 
     def setW(self, lower):
         if self.lower != lower:
@@ -365,13 +415,19 @@ class NormalizeEditor(BaseEditor):
                 self.uspin.setDisabled(True)
             self.changed.emit()
 
+    def __on_buttonClicked(self):
+        method = self.__group.checkedId()
+        if method != self.__method:
+            self.setMethod(self.__group.checkedId())
+            self.edited.emit()
 
     @staticmethod
     def createinstance(params):
+        method = params.get("method", Normalize.MinMax)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
-        return Normalize(lower=lower,upper=upper,limits=limits)
+        return Normalize(method=method,lower=lower,upper=upper,limits=limits)
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -394,8 +450,8 @@ PREPROCESSORS = [
     ),
     PreprocessAction(
         "Normalization", "orangecontrib.infrared.normalize", "Normalization",
-        Description("Normalization (min-max)",
-        icon_path("Discretize.svg")),
+        Description("Normalization",
+        icon_path("Normalize.svg")),
         NormalizeEditor
     ),
 ]
