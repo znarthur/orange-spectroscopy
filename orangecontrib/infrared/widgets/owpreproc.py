@@ -354,13 +354,13 @@ class NormalizeEditor(BaseEditor):
 
         self.lspin = QDoubleSpinBox(
             minimum=0, maximum=16000, singleStep=50,
-            value=self.lower)
+            value=self.lower, enabled=self.limits)
         self.lspin.valueChanged[float].connect(self.setL)
         self.lspin.editingFinished.connect(self.reorderLimits)
 
         self.uspin = QDoubleSpinBox(
             minimum=0, maximum=16000, singleStep=50,
-            value=self.upper)
+            value=self.upper, enabled=self.limits)
         self.uspin.valueChanged[float].connect(self.setU)
         self.uspin.editingFinished.connect(self.reorderLimits)
 
@@ -414,12 +414,8 @@ class NormalizeEditor(BaseEditor):
     def setlimittype(self):
         if self.limits != self.limitcb.currentIndex():
             self.limits = self.limitcb.currentIndex()
-            if self.limits == 1:
-                self.lspin.setDisabled(False)
-                self.uspin.setDisabled(False)
-            else:
-                self.lspin.setDisabled(True)
-                self.uspin.setDisabled(True)
+            self.lspin.setEnabled(self.limits)
+            self.uspin.setEnabled(self.limits)
             self.changed.emit()
 
     def __on_buttonClicked(self):
