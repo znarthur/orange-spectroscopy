@@ -714,6 +714,8 @@ class OWPreprocess(widget.OWWidget):
 
         self.curveplot = CurvePlot(self)
 
+        self.scroll_area.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding))
+
         self.topbox = gui.hBox(self)
         self.topbox.layout().addWidget(self.curveplot)
         self.topbox.layout().addWidget(self.scroll_area)
