@@ -725,7 +725,7 @@ class OWPreprocess(widget.OWWidget):
 
         box = gui.widgetBox(self.controlArea, "Preview")
 
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show curves")
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show curves", callback=self.show_preview)
 
         box = gui.widgetBox(self.controlArea, "Output")
         gui.auto_commit(box, self, "autocommit", "Commit", box=False)
