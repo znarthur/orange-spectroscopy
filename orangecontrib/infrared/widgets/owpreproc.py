@@ -304,7 +304,7 @@ class Normalize():
             rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
             data.X /= rssq
         elif self.method == self.Offset:
-            data.X -= np.min(y_s, axis=1)
+            data.X -= np.min(y_s, axis=1, keepdims=True)
         elif self.method == self.Attribute:
             # Not implemented
             pass
