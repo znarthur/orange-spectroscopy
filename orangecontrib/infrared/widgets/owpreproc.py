@@ -3,10 +3,11 @@ import bisect
 import contextlib
 import warnings
 import random
+import math
 
-import pkg_resources
 
-import numpy
+import pyqtgraph as pg
+from PyQt4 import QtCore
 from PyQt4.QtGui import (
     QWidget, QButtonGroup, QGroupBox, QRadioButton, QSlider,
     QDoubleSpinBox, QComboBox, QSpinBox, QListView,
@@ -130,6 +131,74 @@ class Cut():
         return data.from_table(domain, data)
 
 
+class SetXDoubleSpinBox(QDoubleSpinBox):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def focusInEvent(self, *e):
+        self.focusIn()
+        return super().focusInEvent(*e)
+
+
+
+class MovableVlineWD(pg.UIGraphicsItem):
+
+    sigRegionChangeFinished = QtCore.Signal(object)
+    sigRegionChanged = QtCore.Signal(object)
+    Vertical = 0
+    Horizontal = 1
+
+    def __init__(self, position, label="", setvalfn=None, confirmfn=None):
+        pg.UIGraphicsItem.__init__(self)
+        self.moving = False
+        self.mouseHovering = False
+
+        self.line = pg.InfiniteLine(angle=90, movable=True)
+        self.line.setX(position)
+        self.line.setCursor(Qt.SizeHorCursor)
+
+        self.line.setParentItem(self)
+        self.line.sigPositionChangeFinished.connect(self.lineMoveFinished)
+        self.line.sigPositionChanged.connect(self.lineMoved)
+
+        self.label = pg.TextItem("", anchor=(0,0))
+        self.label.setText(label, color=(0, 0, 0))
+        self.label.setParentItem(self)
+
+        self.setvalfn = setvalfn
+        self.confirmfn = confirmfn
+
+    def value(self):
+        return self.line.value()
+
+    def setValue(self, val):
+        self.line.setX(val)
+        self._move_label()
+
+    def boundingRect(self):
+        br = pg.UIGraphicsItem.boundingRect(self)
+        val = self.value()
+        br.setLeft(val)
+        br.setRight(val)
+        return br.normalized()
+
+    def _move_label(self):
+        if self.getViewBox():
+            self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
+
+    def lineMoved(self):
+        self._move_label()
+        if self.setvalfn:
+            self.setvalfn(self.value())
+
+    def lineMoveFinished(self):
+        if self.setvalfn:
+            self.setvalfn(self.value())
+        if self.confirmfn:
+            self.confirmfn.emit()
+
+
 class CutEditor(BaseEditor):
     """
     Editor for Cut
@@ -144,14 +213,18 @@ class CutEditor(BaseEditor):
 
         self.setLayout(layout)
 
-        self.__lowlime = QDoubleSpinBox(
-            minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__lowlim)
+        minf,maxf = -sys.float_info.max, sys.float_info.max
 
-        self.__highlime = QDoubleSpinBox(
-            minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__highlim)
+        self.__lowlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__lowlim)
+        self.__highlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__highlim)
 
         layout.addRow("Low limit", self.__lowlime)
         layout.addRow("High limit", self.__highlime)
+
+        self.__lowlime.focusIn = self.activateOptions
+        self.__highlime.focusIn = self.activateOptions
 
         self.__lowlime.valueChanged[float].connect(self.set_lowlim)
         self.__highlime.valueChanged[float].connect(self.set_highlim)
@@ -159,11 +232,21 @@ class CutEditor(BaseEditor):
         self.__highlime.editingFinished.connect(self.edited)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
+        self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
+        self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
+
+    def activateOptions(self):
+        if self.line1 not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.line1)
+        if self.line2 not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.line2)
+
     def set_lowlim(self, lowlim):
         if self.__lowlim != lowlim:
             self.__lowlim = lowlim
             with blocked(self.__lowlime):
                 self.__lowlime.setValue(lowlim)
+                self.line1.setValue(lowlim)
             self.changed.emit()
 
     def left(self):
@@ -174,6 +257,7 @@ class CutEditor(BaseEditor):
             self.__highlim = highlim
             with blocked(self.__highlime):
                 self.__highlime.setValue(highlim)
+                self.line2.setValue(highlim)
             self.changed.emit()
 
     def right(self):
@@ -287,6 +371,7 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
         deriv = params.get("deriv", 0)
         return SavitzkyGolayFiltering(window=window,polyorder=polyorder,deriv=deriv)
 
+
 class RubberbandBaseline():
 
     def __init__(self, peak_dir=0, sub=0):
@@ -318,6 +403,7 @@ class RubberbandBaseline():
         data = data.copy()
         data.X = newd
         return data
+
 
 class RubberbandBaselineEditor(BaseEditor):
     """
@@ -359,6 +445,7 @@ class RubberbandBaselineEditor(BaseEditor):
         peak_dir = params.get("peak_dir", 0)
         sub = params.get("sub", 0)
         return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
+
 
 class Normalize():
     # Normalization methods
@@ -520,6 +607,7 @@ class NormalizeEditor(BaseEditor):
         limits = params.get("limits", 0)
         return Normalize(method=method,lower=lower,upper=upper,limits=limits)
 
+
 PREPROCESSORS = [
     PreprocessAction(
         "Cut", "orangecontrib.infrared.cut", "Cut",
@@ -552,7 +640,6 @@ PREPROCESSORS = [
         NormalizeEditor
     ),
 ]
-
 
 
 class OWPreprocess(widget.OWWidget):
@@ -630,7 +717,6 @@ class OWPreprocess(widget.OWWidget):
         self.topbox = gui.hBox(self)
         self.topbox.layout().addWidget(self.curveplot)
         self.topbox.layout().addWidget(self.scroll_area)
-
 
         self.mainArea.layout().addWidget(self.topbox)
         self.flow_view.installEventFilter(self)
@@ -766,12 +852,14 @@ class OWPreprocess(widget.OWWidget):
 
     def __on_modelchanged(self):
         self.__update_overlay()
+        self.show_preview()
         self.commit()
 
     @check_sql_input
     def set_data(self, data=None):
         """Set the input data set."""
         self.data = data
+        self.show_preview()
 
     def handleNewSignals(self):
         self.apply()
