@@ -45,6 +45,15 @@ from scipy.interpolate import interp1d
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.owcurves import CurvePlot
 
+
+class ViewController(Controller):
+
+    def createWidgetFor(self, index):
+        w = super().createWidgetFor(index)
+        w.parent_widget = self.parent()
+        return w
+
+
 class GaussianSmoothing():
 
     def __init__(self, sd=10.):
@@ -599,7 +608,7 @@ class OWPreprocess(widget.OWWidget):
         self.preprocessormodel = None
 
         self.flow_view = SequenceFlow()
-        self.controler = Controller(self.flow_view, parent=self)
+        self.controler = ViewController(self.flow_view, parent=self)
 
         self.overlay = OverlayWidget(self)
         self.overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
