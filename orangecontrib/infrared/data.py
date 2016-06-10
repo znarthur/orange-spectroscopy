@@ -126,7 +126,7 @@ class OmnicMapReader(FileFormat):
 class OPUS2DReader(FileFormat):
     """Reader for 2D OPUS files"""
     EXTENSIONS = ('.0', '.1')
-    DESCRIPTION = 'OPUS 2D Spectra'
+    DESCRIPTION = 'OPUS 3D Spectra'
 
     @property
     def sheets(self):
@@ -156,10 +156,27 @@ class OPUS2DReader(FileFormat):
         attrs = [Orange.data.ContinuousVariable.make(repr(data.x[i]))
                     for i in range(data.x.shape[0])]
 
+        metas = [Orange.data.ContinuousVariable.make('map_x'),
+                 Orange.data.ContinuousVariable.make('map_y')]
+
+        y_data = None
+        meta_data = None
+        for i in np.ndindex(data.spectra.shape[:2]):
+            coord = np.array((data.mapX[i[0]], data.mapY[i[1]]))
+            if y_data is None:
+                y_data = data.spectra[i]
+                meta_data = coord
+            else:
+                y_data = np.vstack((y_data, data.spectra[i]))
+                meta_data = np.vstack((meta_data, coord))
+
         domain = Orange.data.Domain(attrs, clses, metas)
 
-        return Orange.data.Table.from_numpy(domain,
-                                 data.y[None,:].astype(float, order='C'))
+        table = Orange.data.Table.from_numpy(domain,
+                                             y_data.astype(float, order='C'),
+                                             metas=meta_data)
+
+        return table
 
 
 def build_spec_table(wavenumbers, intensities):
