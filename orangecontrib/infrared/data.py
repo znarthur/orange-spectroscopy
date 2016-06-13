@@ -123,10 +123,10 @@ class OmnicMapReader(FileFormat):
         pass #not implemented
 
 
-class OPUS2DReader(FileFormat):
-    """Reader for 2D OPUS files"""
-    EXTENSIONS = ('.0', '.1')
-    DESCRIPTION = 'OPUS 3D Spectra'
+class OPUSReader(FileFormat):
+    """Reader for OPUS files"""
+    EXTENSIONS = ('.0', '.1', '.2', '.3', '.4')
+    DESCRIPTION = 'OPUS Spectrum'
 
     @property
     def sheets(self):
@@ -156,21 +156,24 @@ class OPUS2DReader(FileFormat):
         attrs = [Orange.data.ContinuousVariable.make(repr(data.x[i]))
                     for i in range(data.x.shape[0])]
 
-        metas = [Orange.data.ContinuousVariable.make('map_x'),
-                 Orange.data.ContinuousVariable.make('map_y')]
-
         y_data = None
         meta_data = None
 
-        for i in np.ndindex(data.spectra.shape[:1]):
-            map_y = np.full_like(data.mapX, data.mapY[i])
-            coord = np.column_stack((data.mapX, map_y))
-            if y_data is None:
-                y_data = data.spectra[i]
-                meta_data = coord
-            else:
-                y_data = np.vstack((y_data, data.spectra[i]))
-                meta_data = np.vstack((meta_data, coord))
+        if dim == '3D':
+            metas = [Orange.data.ContinuousVariable.make('map_x'),
+                     Orange.data.ContinuousVariable.make('map_y')]
+
+            for i in np.ndindex(data.spectra.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data.spectra[i]
+                    meta_data = coord
+                else:
+                    y_data = np.vstack((y_data, data.spectra[i]))
+                    meta_data = np.vstack((meta_data, coord))
+        elif dim == '2D':
+            y_data = data.y[None,:]
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
