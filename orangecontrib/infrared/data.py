@@ -161,8 +161,10 @@ class OPUS2DReader(FileFormat):
 
         y_data = None
         meta_data = None
-        for i in np.ndindex(data.spectra.shape[:2]):
-            coord = np.array((data.mapX[i[0]], data.mapY[i[1]]))
+
+        for i in np.ndindex(data.spectra.shape[:1]):
+            map_y = np.full_like(data.mapX, data.mapY[i])
+            coord = np.column_stack((data.mapX, map_y))
             if y_data is None:
                 y_data = data.spectra[i]
                 meta_data = coord
