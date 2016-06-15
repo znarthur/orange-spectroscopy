@@ -51,6 +51,10 @@ from orangecontrib.infrared.widgets.owcurves import CurvePlot
 
 class ViewController(Controller):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._insertIndexAt = self.view.insertIndexAt
+
     def createWidgetFor(self, index):
         w = super().createWidgetFor(index)
         w.parent_widget = self.parent()
@@ -185,6 +189,13 @@ class SequenceFlow(owpreprocess.SequenceFlow):
                 self.__dragstart = None, None, None
 
         return QWidget.eventFilter(self, obj, event)
+
+    def insertIndexAt(self, pos):
+        index = self.__insertIndexAt(pos)
+        ppos = self.__preview_position()
+        if index > ppos:
+            index = index - 1
+        return index
 
 
 class GaussianSmoothing():
