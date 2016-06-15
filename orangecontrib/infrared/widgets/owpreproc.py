@@ -72,6 +72,10 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
     """
+    def __init__(self, *args, preview_callback=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.preview_callback = preview_callback
+
     def clear(self):
         super().clear()
         self.__preview_widget = PreviewWidget()
@@ -142,6 +146,9 @@ class SequenceFlow(owpreprocess.SequenceFlow):
                         moveto = moveto - 1
                     if movefrom != moveto:
                         self.widgetMoved.emit(movefrom, moveto)
+                else:
+                    #preview was moved
+                    self.preview_callback()
                 event.accept()
 
             self.__dragstart = None, None, None
@@ -819,7 +826,7 @@ class OWPreprocess(widget.OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow()
+        self.flow_view = SequenceFlow(preview_callback=self.show_preview)
         self.controler = ViewController(self.flow_view, parent=self)
 
         self.overlay = OverlayWidget(self)
