@@ -67,6 +67,7 @@ class PreviewFrame(owpreprocess.SequenceFlow.Frame):
 class PreviewWidget(QWidget):
     pass
 
+
 class SequenceFlow(owpreprocess.SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
@@ -80,6 +81,10 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     def __preview_position(self):
         """ Return -1 if not fount """
         return self.__flowlayout.indexOf(self.__preview_frame)
+
+    def preview_n(self):
+        """How many preprocessors to apply for the preview?"""
+        return max(self.__preview_position(), 0)
 
     def __initPreview(self):
         if self.__preview_position() == -1:
@@ -854,7 +859,7 @@ class OWPreprocess(widget.OWWidget):
 
     def show_preview(self):
         #self.storeSpecificSettings()
-        preprocessor = self.buildpreproc()
+        preprocessor = self.buildpreproc(self.flow_view.preview_n())
 
         if self.data is not None:
             data = self.data
@@ -995,9 +1000,11 @@ class OWPreprocess(widget.OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
-    def buildpreproc(self):
+    def buildpreproc(self, limit=None):
         plist = []
-        for i in range(self.preprocessormodel.rowCount()):
+        if limit == None:
+            limit = self.preprocessormodel.rowCount()
+        for i in range(limit):
             item = self.preprocessormodel.item(i)
             desc = item.data(DescriptionRole)
             params = item.data(ParametersRole)
