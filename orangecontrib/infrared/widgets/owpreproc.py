@@ -61,6 +61,16 @@ class ViewController(Controller):
         return w
 
 
+class FocusFrame(owpreprocess.SequenceFlow.Frame):
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        try: #active selection on preview
+            self.widget().activateOptions()
+        except AttributeError:
+            pass
+
+
 class PreviewFrame(owpreprocess.SequenceFlow.Frame):
 
     def __init__(self, *args, **kwargs):
@@ -101,10 +111,32 @@ class SequenceFlow(owpreprocess.SequenceFlow):
             self.__preview_frame.show()
 
     def insertWidget(self, index, widget, title):
-        self.__initPreview()
-        if index > self.__preview_position():
-            index = index + 1
-        super().insertWidget(index, widget, title)
+        """ Mostly copied to get different kind of frame """
+
+        self.__initPreview() #added
+        if index > self.__preview_position(): #added
+            index = index + 1 #added
+
+        frame = FocusFrame(widget=widget, title=title) #changed
+        frame.closeRequested.connect(self.__closeRequested)
+
+        layout = self.__flowlayout
+
+        frames = [item.widget() for item in self.layout_iter(layout)
+                  if item.widget()]
+
+        if 0 < index < len(frames):
+            # find the layout index of a widget occupying the current
+            # index'th slot.
+            insert_index = layout.indexOf(frames[index])
+        elif index == 0:
+            insert_index = 0
+        elif index < 0 or index >= len(frames):
+            insert_index = layout.count()
+        else:
+            assert False
+
+        layout.insertWidget(insert_index, frame)
 
     def removeWidget(self, widget):
         """ Remove preview when empty. """
@@ -368,6 +400,7 @@ class CutEditor(BaseEditor):
 
         self.__lowlime.focusIn = self.activateOptions
         self.__highlime.focusIn = self.activateOptions
+        self.focusIn = self.activateOptions
 
         self.__lowlime.valueChanged[float].connect(self.set_lowlim)
         self.__highlime.valueChanged[float].connect(self.set_highlim)
