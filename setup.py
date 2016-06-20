@@ -34,7 +34,7 @@ if __name__ == '__main__':
         version="0.0.2",
         packages=find_packages(),
         install_requires=[
-            'Orange',
+            'Orange3',
             'scipy>=0.14.0',
         ],
         entry_points=ENTRY_POINTS,
