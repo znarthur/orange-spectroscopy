@@ -225,7 +225,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     def insertIndexAt(self, pos):
         index = self.__insertIndexAt(pos)
         ppos = self.__preview_position()
-        if index > ppos:
+        if ppos >= 0 and index > ppos:
             index = index - 1
         return index
 
