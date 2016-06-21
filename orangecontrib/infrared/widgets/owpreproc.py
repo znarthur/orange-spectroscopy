@@ -345,11 +345,13 @@ class MovableVlineWD(pg.UIGraphicsItem):
         self.setvalfn = setvalfn
         self.confirmfn = confirmfn
 
+        self.lastTransform = None
+
     def value(self):
         return self.line.value()
 
     def setValue(self, val):
-        self.line.setX(val)
+        self.line.setValue(val)
         self._move_label()
 
     def boundingRect(self):
@@ -364,7 +366,6 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
 
     def lineMoved(self):
-        self._move_label()
         if self.setvalfn:
             self.setvalfn(self.value())
 
@@ -373,6 +374,13 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.setvalfn(self.value())
         if self.confirmfn:
             self.confirmfn.emit()
+
+    def paint(self, p, *args):
+        tr = p.transform()
+        if self.lastTransform != tr:
+            self._move_label()
+        self.lastTransform = tr
+        super().paint(p, *args)
 
 
 class CutEditor(BaseEditor):
