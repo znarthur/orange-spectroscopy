@@ -137,6 +137,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
             assert False
 
         layout.insertWidget(insert_index, frame)
+        frame.installEventFilter(self)
 
     def removeWidget(self, widget):
         """ Remove preview when empty. """
