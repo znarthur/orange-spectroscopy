@@ -104,6 +104,19 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         """How many preprocessors to apply for the preview?"""
         return max(self.__preview_position(), 0)
 
+    def set_preview_n(self, n):
+        """Set the preview position"""
+        oldindex = self.__preview_position()
+        if oldindex >= 0:
+            layout = self.__flowlayout
+            n = max(min(n, layout.count() - 1), 0)
+            if n != oldindex:
+                insertindex = n
+                if n >= oldindex:
+                    insertindex = n - 1
+                item = layout.takeAt(oldindex)
+                layout.insertWidget(insertindex, item.widget())
+
     def __initPreview(self):
         if self.__preview_position() == -1:
             index = len(self.widgets())
@@ -840,6 +853,7 @@ class OWPreprocess(widget.OWWidget):
     storedsettings = settings.Setting({})
     autocommit = settings.Setting(False)
     preview_curves = settings.Setting(3)
+    preview_n = settings.Setting(0)
 
     def __init__(self):
         super().__init__()
@@ -949,6 +963,7 @@ class OWPreprocess(widget.OWWidget):
             model = self.load({})
 
         self.set_model(model)
+        self.flow_view.set_preview_n(self.preview_n)
 
         if not model.rowCount():
             # enforce default width constraint if no preprocessors
@@ -957,6 +972,7 @@ class OWPreprocess(widget.OWWidget):
             self.__update_size_constraint()
 
         self.apply()
+
 
     def load(self, saved):
         """Load a preprocessor list from a dict."""
@@ -1125,6 +1141,7 @@ class OWPreprocess(widget.OWWidget):
     def saveSettings(self):
         """Reimplemented."""
         self.storedsettings = self.save(self.preprocessormodel)
+        self.preview_n = self.flow_view.preview_n()
         super().saveSettings()
 
     def onDeleteWidget(self):
