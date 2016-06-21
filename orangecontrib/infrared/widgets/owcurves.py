@@ -506,14 +506,20 @@ class CurvePlot(QWidget):
         elif self.viewtype == AVERAGE:
             self.show_average()
 
-    def set_data(self, data):
+    def set_data(self, data, rescale="auto"):
         self.clear_graph()
         self.clear_data()
         self.set_pen_colors()
         if data is not None:
+            if rescale == "auto":
+                if self.data:
+                    rescale = not data.domain == self.data.domain
+                else:
+                    rescale = True
             self.data = data
             self.update_view()
-            self.plot.vb.autoRange()
+            if rescale == True:
+                self.plot.vb.autoRange()
 
     def update_display(self):
         self.curves_cont.update()
