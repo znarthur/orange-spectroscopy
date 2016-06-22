@@ -303,7 +303,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.curves and self.viewtype == INDIVIDUAL:
+            if self.curves and len(self.curves[0][0]) and self.viewtype == INDIVIDUAL:
                 cache = {}
                 R = 20
                 bd = None
