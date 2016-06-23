@@ -601,28 +601,29 @@ class RubberbandBaseline():
 
     def __call__(self, data):
         x = getx(data)
-        if self.sub == 0:
-            newd = None
-        elif self.sub == 1:
-            newd = data.X
-        for row in data.X:
-            v = ConvexHull(np.column_stack((x, row))).vertices
-            if self.peak_dir == 0:
-                v = np.roll(v, -v.argmax())
-                v = v[:v.argmin()+1]
-            elif self.peak_dir == 1:
-                v = np.roll(v, -v.argmin())
-                v = v[:v.argmax()+1]
-            baseline = interp1d(x[v], row[v])(x)
-            if newd is not None and self.sub == 0:
-                newd = np.vstack((newd, (row - baseline)))
-            elif newd is not None and self.sub == 1:
-                newd = np.vstack((newd, baseline))
-            else:
-                newd = row - baseline
-                newd = newd[None,:]
-        data = data.copy()
-        data.X = newd
+        if len(x) > 0 and data.X.size > 0:
+            if self.sub == 0:
+                newd = None
+            elif self.sub == 1:
+                newd = data.X
+            for row in data.X:
+                v = ConvexHull(np.column_stack((x, row))).vertices
+                if self.peak_dir == 0:
+                    v = np.roll(v, -v.argmax())
+                    v = v[:v.argmin()+1]
+                elif self.peak_dir == 1:
+                    v = np.roll(v, -v.argmin())
+                    v = v[:v.argmax()+1]
+                baseline = interp1d(x[v], row[v])(x)
+                if newd is not None and self.sub == 0:
+                    newd = np.vstack((newd, (row - baseline)))
+                elif newd is not None and self.sub == 1:
+                    newd = np.vstack((newd, baseline))
+                else:
+                    newd = row - baseline
+                    newd = newd[None,:]
+            data = data.copy()
+            data.X = newd
         return data
 
 
@@ -679,9 +680,9 @@ class Normalize():
         self.limits = limits
 
     def __call__(self, data):
-        if len(data.domain.attributes) > 0:
-            x = getx(data)
+        x = getx(data)
 
+        if len(x) > 0 and data.X.size > 0:
             data = data.copy()
 
             if self.limits == 1:
