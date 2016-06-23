@@ -390,7 +390,10 @@ class MovableVlineWD(pg.UIGraphicsItem):
         if self.setvalfn:
             self.setvalfn(self.value())
         if self.confirmfn:
-            self.confirmfn.emit()
+            if hasattr(self.confirmfn, "emit"):
+                self.confirmfn.emit()
+            else:
+                self.confirmfn()
 
     def paint(self, p, *args):
         tr = p.transform()
