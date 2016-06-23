@@ -745,14 +745,16 @@ class NormalizeEditor(BaseEditor):
         self.limitcb = QComboBox()
         self.limitcb.addItems(["Full Range", "Within Limits"])
 
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+
         self.lspin = QDoubleSpinBox(
-            minimum=0, maximum=16000, singleStep=50,
+            minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.lower, enabled=self.limits)
         self.lspin.valueChanged[float].connect(self.setL)
         self.lspin.editingFinished.connect(self.reorderLimits)
 
         self.uspin = QDoubleSpinBox(
-            minimum=0, maximum=16000, singleStep=50,
+            minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.upper, enabled=self.limits)
         self.uspin.valueChanged[float].connect(self.setU)
         self.uspin.editingFinished.connect(self.reorderLimits)
