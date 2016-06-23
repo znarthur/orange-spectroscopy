@@ -766,15 +766,19 @@ class NormalizeEditor(BaseEditor):
         self.limitcb.currentIndexChanged.connect(self.setlimittype)
         self.limitcb.activated.connect(self.edited)
 
+        self.user_changed = False
+
     def setParameters(self, params):
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
         method = params.get("method", Normalize.MinMax)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
         self.setMethod(method)
         self.limitcb.setCurrentIndex(limits)
-        self.setL(lower)
-        self.setU(upper)
+        self.setL(lower, user=False)
+        self.setU(upper, user=False)
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
@@ -787,13 +791,17 @@ class NormalizeEditor(BaseEditor):
             b.setChecked(True)
             self.changed.emit()
 
-    def setL(self, lower):
+    def setL(self, lower, user=True):
+        if user:
+            self.user_changed = True
         if self.lower != lower:
             self.lower = lower
             self.lspin.setValue(lower)
             self.changed.emit()
 
-    def setU(self, upper):
+    def setU(self, upper, user=True):
+        if user:
+            self.user_changed = True
         if self.upper != upper:
             self.upper = upper
             self.uspin.setValue(upper)
@@ -826,6 +834,13 @@ class NormalizeEditor(BaseEditor):
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
         return Normalize(method=method,lower=lower,upper=upper,limits=limits)
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.setL(min(x))
+                self.setU(max(x))
 
 
 PREPROCESSORS = [
