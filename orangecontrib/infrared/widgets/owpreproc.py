@@ -344,7 +344,7 @@ class MovableVlineWD(pg.UIGraphicsItem):
         self.mouseHovering = False
 
         self.line = pg.InfiniteLine(angle=90, movable=True)
-        self.line.setX(position)
+        self.line.setValue(position)
         self.line.setCursor(Qt.SizeHorCursor)
 
         self.line.setParentItem(self)
