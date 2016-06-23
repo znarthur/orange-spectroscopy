@@ -730,8 +730,6 @@ class NormalizeEditor(BaseEditor):
         self.upper = 4000
         self.limits = 0
 
-
-
         self.__group = group = QButtonGroup(self)
 
         for name, method in self.Normalizers:
@@ -751,10 +749,10 @@ class NormalizeEditor(BaseEditor):
 
         minf,maxf = -sys.float_info.max, sys.float_info.max
 
-        self.lspin = QDoubleSpinBox(
+        self.lspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.lower, enabled=self.limits)
-        self.uspin = QDoubleSpinBox(
+        self.uspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.upper, enabled=self.limits)
 
@@ -763,6 +761,10 @@ class NormalizeEditor(BaseEditor):
         form.addRow("Upper limit", self.uspin)
         self.layout().addLayout(form)
 
+        self.lspin.focusIn = self.activateOptions
+        self.uspin.focusIn = self.activateOptions
+        self.focusIn = self.activateOptions
+
         self.lspin.valueChanged[float].connect(self.setL)
         self.lspin.editingFinished.connect(self.reorderLimits)
         self.uspin.valueChanged[float].connect(self.setU)
@@ -770,7 +772,20 @@ class NormalizeEditor(BaseEditor):
         self.limitcb.currentIndexChanged.connect(self.setlimittype)
         self.limitcb.activated.connect(self.edited)
 
+        self.lline = MovableVlineWD(position=self.lower, label="Low limit",
+                                    setvalfn=self.setL, confirmfn=self.reorderLimits)
+        self.uline = MovableVlineWD(position=self.upper, label="High limit",
+                                    setvalfn=self.setU, confirmfn=self.reorderLimits)
+
         self.user_changed = False
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.limits:
+            if self.lline not in self.parent_widget.curveplot.markings:
+                self.parent_widget.curveplot.add_marking(self.lline)
+            if self.uline not in self.parent_widget.curveplot.markings:
+                self.parent_widget.curveplot.add_marking(self.uline)
 
     def setParameters(self, params):
         if params: #parameters were manually set somewhere else
@@ -800,7 +815,9 @@ class NormalizeEditor(BaseEditor):
             self.user_changed = True
         if self.lower != lower:
             self.lower = lower
-            self.lspin.setValue(lower)
+            with blocked(self.lspin):
+                self.lspin.setValue(lower)
+                self.lline.setValue(lower)
             self.changed.emit()
 
     def setU(self, upper, user=True):
@@ -808,7 +825,9 @@ class NormalizeEditor(BaseEditor):
             self.user_changed = True
         if self.upper != upper:
             self.upper = upper
-            self.uspin.setValue(upper)
+            with blocked(self.uspin):
+                self.uspin.setValue(upper)
+                self.uline.setValue(upper)
             self.changed.emit()
 
     def reorderLimits(self):
@@ -816,6 +835,8 @@ class NormalizeEditor(BaseEditor):
         self.lower, self.upper = min(limits), max(limits)
         self.lspin.setValue(self.lower)
         self.uspin.setValue(self.upper)
+        self.lline.setValue(self.lower)
+        self.uline.setValue(self.upper)
         self.edited.emit()
 
     def setlimittype(self):
@@ -823,6 +844,7 @@ class NormalizeEditor(BaseEditor):
             self.limits = self.limitcb.currentIndex()
             self.lspin.setEnabled(self.limits)
             self.uspin.setEnabled(self.limits)
+            self.activateOptions()
             self.changed.emit()
 
     def __on_buttonClicked(self):
