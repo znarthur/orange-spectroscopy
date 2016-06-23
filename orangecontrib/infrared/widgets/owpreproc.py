@@ -243,6 +243,9 @@ class SequenceFlow(owpreprocess.SequenceFlow):
             index = index - 1
         return index
 
+    def __closeRequested(self):
+        self.sender().widget().parent_widget.curveplot.clear_markings()
+        super().__closeRequested()
 
 class GaussianSmoothing():
 
