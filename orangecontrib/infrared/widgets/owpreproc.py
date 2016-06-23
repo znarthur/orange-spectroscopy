@@ -247,6 +247,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         self.sender().widget().parent_widget.curveplot.clear_markings()
         super().__closeRequested()
 
+
 class GaussianSmoothing():
 
     def __init__(self, sd=10.):
@@ -936,16 +937,47 @@ class OWPreprocess(widget.OWWidget):
         self._initialize()
 
     def show_preview(self):
+        """ Shows preview and also passes preview data to the widgets """
         #self.storeSpecificSettings()
         preprocessor = self.buildpreproc(self.flow_view.preview_n())
 
         if self.data is not None:
             data = self.data
-            if len(data) > self.preview_curves:
+            if len(data) > self.preview_curves: #sample data
                 sampled_indices = sorted(random.Random(0).sample(range(len(data)), self.preview_curves))
                 data = data[sampled_indices]
 
-            self.curveplot.set_data(preprocessor(data))
+            widgets = self.flow_view.widgets()
+            preview_pos = self.flow_view.preview_n()
+            n = self.preprocessormodel.rowCount()
+
+            preview_data = None
+
+            for i in range(n):
+                if preview_pos == i:
+                    preview_data = data
+
+                if hasattr(widgets[i], "set_preview_data"):
+                    widgets[i].set_preview_data(data)
+
+                item = self.preprocessormodel.item(i)
+                desc = item.data(DescriptionRole)
+                params = item.data(ParametersRole)
+
+                if not isinstance(params, dict):
+                    params = {}
+
+                create = desc.viewclass.createinstance
+                preproc = create(params)
+
+                data = preproc(data)
+
+            if preview_pos == len(widgets):
+                preview_data = data
+
+            self.curveplot.set_data(preview_data)
+        else:
+            self.curveplot.set_data(None)
 
     def _initialize(self):
         for pp_def in PREPROCESSORS:
