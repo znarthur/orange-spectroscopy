@@ -676,31 +676,32 @@ class Normalize():
         self.limits = limits
 
     def __call__(self, data):
-        x = getx(data)
+        if len(data.domain.attributes) > 0:
+            x = getx(data)
 
-        data = data.copy()
+            data = data.copy()
 
-        if self.limits == 1:
-            x_sorter = np.argsort(x)
-            limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
-            y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-        else:
-            y_s = data.X
+            if self.limits == 1:
+                x_sorter = np.argsort(x)
+                limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
+                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+            else:
+                y_s = data.X
 
-        if self.method == self.MinMax:
-            data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
-        elif self.method == self.Vector:
-            # zero offset correction applies to entire spectrum, regardless of limits
-            y_offsets = np.mean(data.X, axis=1, keepdims=True)
-            data.X -= y_offsets
-            y_s -= y_offsets
-            rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
-            data.X /= rssq
-        elif self.method == self.Offset:
-            data.X -= np.min(y_s, axis=1, keepdims=True)
-        elif self.method == self.Attribute:
-            # Not implemented
-            pass
+            if self.method == self.MinMax:
+                data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
+            elif self.method == self.Vector:
+                # zero offset correction applies to entire spectrum, regardless of limits
+                y_offsets = np.mean(data.X, axis=1, keepdims=True)
+                data.X -= y_offsets
+                y_s -= y_offsets
+                rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
+                data.X /= rssq
+            elif self.method == self.Offset:
+                data.X -= np.min(y_s, axis=1, keepdims=True)
+            elif self.method == self.Attribute:
+                # Not implemented
+                pass
 
         return data
 
