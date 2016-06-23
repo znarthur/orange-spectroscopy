@@ -750,19 +750,19 @@ class NormalizeEditor(BaseEditor):
         self.lspin = QDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.lower, enabled=self.limits)
-        self.lspin.valueChanged[float].connect(self.setL)
-        self.lspin.editingFinished.connect(self.reorderLimits)
-
         self.uspin = QDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.upper, enabled=self.limits)
-        self.uspin.valueChanged[float].connect(self.setU)
-        self.uspin.editingFinished.connect(self.reorderLimits)
 
         form.addRow("Normalize region", self.limitcb)
         form.addRow("Lower limit", self.lspin)
         form.addRow("Upper limit", self.uspin)
         self.layout().addLayout(form)
+
+        self.lspin.valueChanged[float].connect(self.setL)
+        self.lspin.editingFinished.connect(self.reorderLimits)
+        self.uspin.valueChanged[float].connect(self.setU)
+        self.uspin.editingFinished.connect(self.reorderLimits)
         self.limitcb.currentIndexChanged.connect(self.setlimittype)
         self.limitcb.activated.connect(self.edited)
 
