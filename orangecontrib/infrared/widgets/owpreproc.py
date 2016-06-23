@@ -434,6 +434,7 @@ class CutEditor(BaseEditor):
         self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
 
     def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
         if self.line1 not in self.parent_widget.curveplot.markings:
             self.parent_widget.curveplot.add_marking(self.line1)
         if self.line2 not in self.parent_widget.curveplot.markings:

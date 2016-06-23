@@ -377,6 +377,11 @@ class CurvePlot(QWidget):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
+    def clear_markings(self):
+        for m in self.markings:
+            self.plot.removeItem(m)
+        self.markings = []
+
     def add_curves(self, x, data, addc=True):
         """ Add multiple curves with the same x domain. """
         xsind = np.argsort(x)
