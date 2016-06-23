@@ -437,6 +437,8 @@ class CutEditor(BaseEditor):
         self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
         self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
 
+        self.user_changed = False
+
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         if self.line1 not in self.parent_widget.curveplot.markings:
@@ -444,7 +446,9 @@ class CutEditor(BaseEditor):
         if self.line2 not in self.parent_widget.curveplot.markings:
             self.parent_widget.curveplot.add_marking(self.line2)
 
-    def set_lowlim(self, lowlim):
+    def set_lowlim(self, lowlim, user=True):
+        if user:
+            self.user_changed = True
         if self.__lowlim != lowlim:
             self.__lowlim = lowlim
             with blocked(self.__lowlime):
@@ -455,7 +459,9 @@ class CutEditor(BaseEditor):
     def left(self):
         return self.__lowlim
 
-    def set_highlim(self, highlim):
+    def set_highlim(self, highlim, user=True):
+        if user:
+            self.user_changed = True
         if self.__highlim != highlim:
             self.__highlim = highlim
             with blocked(self.__highlime):
@@ -467,8 +473,10 @@ class CutEditor(BaseEditor):
         return self.__highlim
 
     def setParameters(self, params):
-        self.set_lowlim(params.get("lowlim", 0.))
-        self.set_highlim(params.get("highlim", 1.))
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
+        self.set_lowlim(params.get("lowlim", 0.), user=False)
+        self.set_highlim(params.get("highlim", 1.), user=False)
 
     def parameters(self):
         return {"lowlim": self.__lowlim, "highlim": self.__highlim}
@@ -479,6 +487,13 @@ class CutEditor(BaseEditor):
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
         return Cut(lowlim=lowlim, highlim=highlim)
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_lowlim(min(x))
+                self.set_highlim(max(x))
 
 
 class SavitzkyGolayFiltering():
