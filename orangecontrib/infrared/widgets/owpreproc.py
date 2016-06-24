@@ -892,7 +892,44 @@ class NormalizeEditor(BaseEditor):
         self.attrs[:] = [var for var in data.domain.metas
                          if var.is_continuous]
 
+class Integrate():
 
+    def __init__(self, lowlim=None, highlim=None):
+        self.lowlim = lowlim
+        self.highlim = highlim
+
+    def __call__(self, data):
+        x = getx(data)
+        if len(x) > 0 and data.X.size > 0 and self.lowlim != None and self.highlim != None:
+            x_sorter = np.argsort(x)
+            limits = np.searchsorted(x, [self.lowlim, self.highlim], sorter=x_sorter)
+            x_s = x[x_sorter][limits[0]:limits[1]]
+            y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+            newd = np.trapz(y_s, x_s, axis=1)
+            range_str = "%s - %s" % (x_s[0], x_s[-1])
+            range_attr = [Orange.data.ContinuousVariable(name=range_str)]
+            domain = Orange.data.Domain(range_attr, data.domain.class_vars,
+                                        metas=data.domain.metas)
+            table = Orange.data.Table.from_numpy(domain, newd[:,None],
+                                                 Y=data.Y, metas=data.metas)
+        else:
+            table = data
+        return table
+
+class IntegrateEditor(CutEditor):
+    """
+    Editor to integrate defined regions.
+    """
+
+    def __init__(self, parent=None, **kwargs):
+        CutEditor.__init__(self, parent, **kwargs)
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        lowlim = params.get("lowlim", None)
+        highlim = params.get("highlim", None)
+        return Integrate(lowlim=lowlim, highlim=highlim)
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -924,6 +961,12 @@ PREPROCESSORS = [
         Description("Normalization",
         icon_path("Normalize.svg")),
         NormalizeEditor
+    ),
+    PreprocessAction(
+        "Integrate", "orangecontrib.infrared.integrate", "Integrate",
+        Description("Integrate",
+                    icon_path("Discretize.svg")),
+        IntegrateEditor
     ),
 ]
 
