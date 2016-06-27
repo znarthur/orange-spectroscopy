@@ -893,8 +893,12 @@ class NormalizeEditor(BaseEditor):
                          if var.is_continuous]
 
 class Integrate():
+    # Integration methods
+    Simple, Baseline = 0, 1
 
-    def __init__(self, lowlim=None, highlim=None):
+
+    def __init__(self, method=Baseline, lowlim=None, highlim=None):
+        self.method = method
         self.lowlim = lowlim
         self.highlim = highlim
 
@@ -905,7 +909,7 @@ class Integrate():
             limits = np.searchsorted(x, [self.lowlim, self.highlim], sorter=x_sorter)
             x_s = x[x_sorter][limits[0]:limits[1]]
             y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-            newd = np.trapz(y_s, x_s, axis=1)
+            newd = self.IntMethods[self.method](y_s, x_s)
             range_str = "%s - %s" % (x_s[0], x_s[-1])
             range_attr = [Orange.data.ContinuousVariable(name=range_str)]
             domain = Orange.data.Domain(range_attr, data.domain.class_vars,
@@ -916,20 +920,125 @@ class Integrate():
             table = data
         return table
 
-class IntegrateEditor(CutEditor):
+    def simpleInt(y, x):
+        """
+        Perform a simple y=0 integration on the provided data window
+        """
+        integrals = np.trapz(y, x, axis=1)
+        return integrals
+
+    def baselineInt(y, x):
+        """
+        Perform a baseline-subtracted integration on the provided data window
+        """
+        i = np.array([0, -1])
+        baseline = interp1d(x[i], y[:,i], axis=1)(x)
+        integrals = np.trapz((y-baseline), x, axis=1)
+        return integrals
+
+    IntMethods = [simpleInt, baselineInt]
+
+class IntegrateEditor(BaseEditor):
     """
     Editor to integrate defined regions.
     """
 
+    Integrators = ["Simple y=0 Int",
+                   "Baseline-subtracted Int"]
+
     def __init__(self, parent=None, **kwargs):
-        CutEditor.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
+
+        self.__lowlim = 0.
+        self.__highlim = 1.
+
+        layout = QFormLayout()
+
+        self.setLayout(layout)
+
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+
+        self.__lowlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__lowlim)
+        self.__highlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__highlim)
+
+        layout.addRow("Low limit", self.__lowlime)
+        layout.addRow("High limit", self.__highlime)
+
+        self.__lowlime.focusIn = self.activateOptions
+        self.__highlime.focusIn = self.activateOptions
+        self.focusIn = self.activateOptions
+
+        self.__lowlime.valueChanged[float].connect(self.set_lowlim)
+        self.__highlime.valueChanged[float].connect(self.set_highlim)
+        self.__lowlime.editingFinished.connect(self.edited)
+        self.__highlime.editingFinished.connect(self.edited)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+        self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
+        self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
+
+        self.user_changed = False
+
+        self.methodcb = QComboBox()
+        self.methodcb.addItems(self.Integrators)
+
+        self.layout().insertRow(0, "Integration method", self.methodcb)
+        self.methodcb.currentIndexChanged.connect(self.changed)
+        self.methodcb.activated.connect(self.edited)
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.line1 not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.line1)
+        if self.line2 not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.line2)
+
+    def set_lowlim(self, lowlim, user=True):
+        if user:
+            self.user_changed = True
+        if self.__lowlim != lowlim:
+            self.__lowlim = lowlim
+            with blocked(self.__lowlime):
+                self.__lowlime.setValue(lowlim)
+                self.line1.setValue(lowlim)
+            self.changed.emit()
+
+    def set_highlim(self, highlim, user=True):
+        if user:
+            self.user_changed = True
+        if self.__highlim != highlim:
+            self.__highlim = highlim
+            with blocked(self.__highlime):
+                self.__highlime.setValue(highlim)
+                self.line2.setValue(highlim)
+            self.changed.emit()
+
+    def setParameters(self, params):
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
+        self.methodcb.setCurrentIndex(params.get("method", Integrate.Baseline))
+        self.set_lowlim(params.get("lowlim", 0.), user=False)
+        self.set_highlim(params.get("highlim", 1.), user=False)
+
+    def parameters(self):
+        return {"method": self.methodcb.currentIndex(),
+                "lowlim": self.__lowlim, "highlim": self.__highlim}
 
     @staticmethod
     def createinstance(params):
-        params = dict(params)
+        method = params.get("method", Integrate.Baseline)
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
-        return Integrate(lowlim=lowlim, highlim=highlim)
+        return Integrate(method=method, lowlim=lowlim, highlim=highlim)
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_lowlim(min(x))
+                self.set_highlim(max(x))
 
 PREPROCESSORS = [
     PreprocessAction(
