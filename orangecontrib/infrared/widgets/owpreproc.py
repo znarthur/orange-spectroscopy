@@ -950,7 +950,7 @@ class Integrate():
 
 class LimitsBox(QHBoxLayout):
     """
-    Box with two limits
+    Box with two limits and optional selection lines
 
     Args:
         limits (list): List containing low and high limit set
@@ -959,6 +959,7 @@ class LimitsBox(QHBoxLayout):
     """
 
     valueChanged = Signal(list, QObject)
+    editingFinished = Signal(QObject)
     deleted = Signal(QObject)
 
     def __init__(self, parent=None, **kwargs):
@@ -988,9 +989,19 @@ class LimitsBox(QHBoxLayout):
 
         self.lowlime.valueChanged[float].connect(self.limitChanged)
         self.highlime.valueChanged[float].connect(self.limitChanged)
+        self.lowlime.editingFinished.connect(self.editFinished)
+        self.highlime.editingFinished.connect(self.editFinished)
 
         self.lowlime.focusIn = self.focusInChild
         self.highlime.focusIn = self.focusInChild
+
+        self.line1 = MovableVlineWD(position=limits[0], label=label + " - Low",
+                        setvalfn=self.lineLimitChanged)
+        self.line2 = MovableVlineWD(position=limits[1], label=label + " - High",
+                        setvalfn=self.lineLimitChanged)
+
+        self.line1.line.sigPositionChangeFinished.connect(self.editFinished)
+        self.line2.line.sigPositionChangeFinished.connect(self.editFinished)
 
     def focusInEvent(self, *e):
         self.focusIn()
@@ -1001,7 +1012,18 @@ class LimitsBox(QHBoxLayout):
 
     def limitChanged(self):
         newlimits = [self.lowlime.value(), self.highlime.value()]
+        self.line1.setValue(newlimits[0])
+        self.line2.setValue(newlimits[1])
         self.valueChanged.emit(newlimits, self)
+
+    def lineLimitChanged(self, value=None):
+        newlimits = [self.line1.value(), self.line2.value()]
+        self.lowlime.setValue(newlimits[0])
+        self.highlime.setValue(newlimits[1])
+        self.valueChanged.emit(newlimits, self)
+
+    def editFinished(self):
+        self.editingFinished.emit(self)
 
     def selfDelete(self):
         self.deleted.emit(self)
@@ -1048,17 +1070,14 @@ class IntegrateEditor(BaseEditor):
 
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
-        self.line1 = MovableVlineWD(position=self._limits[0][0], label="Low limit", setvalfn=self.set_limits, confirmfn=self.edited)
-        self.line2 = MovableVlineWD(position=self._limits[0][1], label="High limit", setvalfn=self.set_limits, confirmfn=self.edited)
-
         self.user_changed = False
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        if self.line1 not in self.parent_widget.curveplot.markings:
-            self.parent_widget.curveplot.add_marking(self.line1)
-        if self.line2 not in self.parent_widget.curveplot.markings:
-            self.parent_widget.curveplot.add_marking(self.line2)
+        for row in range(self.form_lim.count()):
+            limitbox = self.form_lim.itemAt(row, 1)
+            self.parent_widget.curveplot.add_marking(limitbox.line1)
+            self.parent_widget.curveplot.add_marking(limitbox.line2)
 
     def add_limit(self, *args, row=None):
         if row is None:
@@ -1077,9 +1096,8 @@ class IntegrateEditor(BaseEditor):
             self.form_lim.setLayout(row, 2, limitbox)
         limitbox.focusIn = self.activateOptions
         limitbox.valueChanged.connect(self.set_limits)
+        limitbox.editingFinished.connect(self.edited)
         limitbox.deleted.connect(self.remove_limit)
-        limitbox.lowlime.editingFinished.connect(self.edited)
-        limitbox.highlime.editingFinished.connect(self.edited)
         return limitbox
 
     def remove_limit(self, limitbox):
