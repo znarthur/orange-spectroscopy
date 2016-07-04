@@ -894,7 +894,7 @@ class NormalizeEditor(BaseEditor):
 
 class Integrate():
     # Integration methods
-    Simple, Baseline = 0, 1
+    Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
 
 
     def __init__(self, method=Baseline, limits=[]):
@@ -937,16 +937,44 @@ class Integrate():
         integrals = np.trapz(y, x, axis=1)
         return integrals
 
+    def baselineSub(y, x):
+        """
+        Perform a linear edge-to-edge baseline subtraction
+        """
+        i = np.array([0, -1])
+        baseline = interp1d(x[i], y[:,i], axis=1)(x)
+        return y-baseline
+
     def baselineInt(y, x):
         """
         Perform a baseline-subtracted integration on the provided data window
         """
-        i = np.array([0, -1])
-        baseline = interp1d(x[i], y[:,i], axis=1)(x)
-        integrals = np.trapz((y-baseline), x, axis=1)
+        ysub = Integrate.baselineSub(y, x)
+        integrals = Integrate.simpleInt(ysub, x)
         return integrals
 
-    IntMethods = [simpleInt, baselineInt]
+    def simplePeakHeight(y, x):
+        """
+        Find the maximum peak height in the provided data window
+        """
+        peak_heights = np.max(y, axis=1)
+        return peak_heights
+
+    def baselinePeakHeight(y, x):
+        """
+        Find the maximum baseline-subtracted peak height in the provided window
+        """
+        ysub = Integrate.baselineSub(y, x)
+        peak_heights = Integrate.simplePeakHeight(ysub, x)
+        return peak_heights
+
+    def atPeakHeight(y, x):
+        """
+        Return the peak height at the first limit
+        """
+        return y[:,0]
+
+    IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]
 
 class LimitsBox(QHBoxLayout):
     """
@@ -1040,7 +1068,10 @@ class IntegrateEditor(BaseEditor):
     """
 
     Integrators = ["Simple y=0 Int",
-                   "Baseline-subtracted Int"]
+                   "Baseline-subtracted Int",
+                   "Peak Height",
+                   "Baseline-subtracted Peak",
+                   "Low limit value"]
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
