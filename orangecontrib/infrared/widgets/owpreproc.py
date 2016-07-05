@@ -390,7 +390,10 @@ class MovableVlineWD(pg.UIGraphicsItem):
         if self.setvalfn:
             self.setvalfn(self.value())
         if self.confirmfn:
-            self.confirmfn.emit()
+            if hasattr(self.confirmfn, "emit"):
+                self.confirmfn.emit()
+            else:
+                self.confirmfn()
 
     def paint(self, p, *args):
         tr = p.transform()
@@ -598,28 +601,29 @@ class RubberbandBaseline():
 
     def __call__(self, data):
         x = getx(data)
-        if self.sub == 0:
-            newd = None
-        elif self.sub == 1:
-            newd = data.X
-        for row in data.X:
-            v = ConvexHull(np.column_stack((x, row))).vertices
-            if self.peak_dir == 0:
-                v = np.roll(v, -v.argmax())
-                v = v[:v.argmin()+1]
-            elif self.peak_dir == 1:
-                v = np.roll(v, -v.argmin())
-                v = v[:v.argmax()+1]
-            baseline = interp1d(x[v], row[v])(x)
-            if newd is not None and self.sub == 0:
-                newd = np.vstack((newd, (row - baseline)))
-            elif newd is not None and self.sub == 1:
-                newd = np.vstack((newd, baseline))
-            else:
-                newd = row - baseline
-                newd = newd[None,:]
-        data = data.copy()
-        data.X = newd
+        if len(x) > 0 and data.X.size > 0:
+            if self.sub == 0:
+                newd = None
+            elif self.sub == 1:
+                newd = data.X
+            for row in data.X:
+                v = ConvexHull(np.column_stack((x, row))).vertices
+                if self.peak_dir == 0:
+                    v = np.roll(v, -v.argmax())
+                    v = v[:v.argmin()+1]
+                elif self.peak_dir == 1:
+                    v = np.roll(v, -v.argmin())
+                    v = v[:v.argmax()+1]
+                baseline = interp1d(x[v], row[v])(x)
+                if newd is not None and self.sub == 0:
+                    newd = np.vstack((newd, (row - baseline)))
+                elif newd is not None and self.sub == 1:
+                    newd = np.vstack((newd, baseline))
+                else:
+                    newd = row - baseline
+                    newd = newd[None,:]
+            data = data.copy()
+            data.X = newd
         return data
 
 
@@ -678,29 +682,30 @@ class Normalize():
     def __call__(self, data):
         x = getx(data)
 
-        data = data.copy()
+        if len(x) > 0 and data.X.size > 0:
+            data = data.copy()
 
-        if self.limits == 1:
-            x_sorter = np.argsort(x)
-            limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
-            y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-        else:
-            y_s = data.X
+            if self.limits == 1:
+                x_sorter = np.argsort(x)
+                limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
+                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+            else:
+                y_s = data.X
 
-        if self.method == self.MinMax:
-            data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
-        elif self.method == self.Vector:
-            # zero offset correction applies to entire spectrum, regardless of limits
-            y_offsets = np.mean(data.X, axis=1, keepdims=True)
-            data.X -= y_offsets
-            y_s -= y_offsets
-            rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
-            data.X /= rssq
-        elif self.method == self.Offset:
-            data.X -= np.min(y_s, axis=1, keepdims=True)
-        elif self.method == self.Attribute:
-            # Not implemented
-            pass
+            if self.method == self.MinMax:
+                data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
+            elif self.method == self.Vector:
+                # zero offset correction applies to entire spectrum, regardless of limits
+                y_offsets = np.mean(data.X, axis=1, keepdims=True)
+                data.X -= y_offsets
+                y_s -= y_offsets
+                rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
+                data.X /= rssq
+            elif self.method == self.Offset:
+                data.X -= np.min(y_s, axis=1, keepdims=True)
+            elif self.method == self.Attribute:
+                # Not implemented
+                pass
 
         return data
 
@@ -726,8 +731,6 @@ class NormalizeEditor(BaseEditor):
         self.upper = 4000
         self.limits = 0
 
-
-
         self.__group = group = QButtonGroup(self)
 
         for name, method in self.Normalizers:
@@ -745,34 +748,57 @@ class NormalizeEditor(BaseEditor):
         self.limitcb = QComboBox()
         self.limitcb.addItems(["Full Range", "Within Limits"])
 
-        self.lspin = QDoubleSpinBox(
-            minimum=0, maximum=16000, singleStep=50,
-            value=self.lower, enabled=self.limits)
-        self.lspin.valueChanged[float].connect(self.setL)
-        self.lspin.editingFinished.connect(self.reorderLimits)
+        minf,maxf = -sys.float_info.max, sys.float_info.max
 
-        self.uspin = QDoubleSpinBox(
-            minimum=0, maximum=16000, singleStep=50,
+        self.lspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=self.lower, enabled=self.limits)
+        self.uspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.upper, enabled=self.limits)
-        self.uspin.valueChanged[float].connect(self.setU)
-        self.uspin.editingFinished.connect(self.reorderLimits)
 
         form.addRow("Normalize region", self.limitcb)
         form.addRow("Lower limit", self.lspin)
         form.addRow("Upper limit", self.uspin)
         self.layout().addLayout(form)
+
+        self.lspin.focusIn = self.activateOptions
+        self.uspin.focusIn = self.activateOptions
+        self.focusIn = self.activateOptions
+
+        self.lspin.valueChanged[float].connect(self.setL)
+        self.lspin.editingFinished.connect(self.reorderLimits)
+        self.uspin.valueChanged[float].connect(self.setU)
+        self.uspin.editingFinished.connect(self.reorderLimits)
         self.limitcb.currentIndexChanged.connect(self.setlimittype)
         self.limitcb.activated.connect(self.edited)
 
+        self.lline = MovableVlineWD(position=self.lower, label="Low limit",
+                                    setvalfn=self.setL, confirmfn=self.reorderLimits)
+        self.uline = MovableVlineWD(position=self.upper, label="High limit",
+                                    setvalfn=self.setU, confirmfn=self.reorderLimits)
+
+        self.user_changed = False
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.limits:
+            if self.lline not in self.parent_widget.curveplot.markings:
+                self.parent_widget.curveplot.add_marking(self.lline)
+            if self.uline not in self.parent_widget.curveplot.markings:
+                self.parent_widget.curveplot.add_marking(self.uline)
+
     def setParameters(self, params):
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
         method = params.get("method", Normalize.MinMax)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
         self.setMethod(method)
         self.limitcb.setCurrentIndex(limits)
-        self.setL(lower)
-        self.setU(upper)
+        self.setL(lower, user=False)
+        self.setU(upper, user=False)
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
@@ -785,16 +811,24 @@ class NormalizeEditor(BaseEditor):
             b.setChecked(True)
             self.changed.emit()
 
-    def setL(self, lower):
+    def setL(self, lower, user=True):
+        if user:
+            self.user_changed = True
         if self.lower != lower:
             self.lower = lower
-            self.lspin.setValue(lower)
+            with blocked(self.lspin):
+                self.lspin.setValue(lower)
+                self.lline.setValue(lower)
             self.changed.emit()
 
-    def setU(self, upper):
+    def setU(self, upper, user=True):
+        if user:
+            self.user_changed = True
         if self.upper != upper:
             self.upper = upper
-            self.uspin.setValue(upper)
+            with blocked(self.uspin):
+                self.uspin.setValue(upper)
+                self.uline.setValue(upper)
             self.changed.emit()
 
     def reorderLimits(self):
@@ -802,6 +836,8 @@ class NormalizeEditor(BaseEditor):
         self.lower, self.upper = min(limits), max(limits)
         self.lspin.setValue(self.lower)
         self.uspin.setValue(self.upper)
+        self.lline.setValue(self.lower)
+        self.uline.setValue(self.upper)
         self.edited.emit()
 
     def setlimittype(self):
@@ -809,6 +845,7 @@ class NormalizeEditor(BaseEditor):
             self.limits = self.limitcb.currentIndex()
             self.lspin.setEnabled(self.limits)
             self.uspin.setEnabled(self.limits)
+            self.activateOptions()
             self.changed.emit()
 
     def __on_buttonClicked(self):
@@ -824,6 +861,13 @@ class NormalizeEditor(BaseEditor):
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
         return Normalize(method=method,lower=lower,upper=upper,limits=limits)
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.setL(min(x))
+                self.setU(max(x))
 
 
 PREPROCESSORS = [
