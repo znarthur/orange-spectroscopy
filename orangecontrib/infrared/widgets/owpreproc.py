@@ -30,6 +30,7 @@ from Orange.preprocess import Continuize, ProjectPCA, \
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.sql import check_sql_input
+from Orange.widgets.utils.itemmodels import VariableListModel
 
 import Orange.widgets.data.owpreprocess as owpreprocess
 
@@ -673,11 +674,12 @@ class Normalize():
     # Normalization methods
     MinMax, Vector, Offset, Attribute = 0, 1, 2, 3
 
-    def __init__(self, method=MinMax, lower=float, upper=float, limits=0):
+    def __init__(self, method=MinMax, lower=float, upper=float, limits=0, attr=None):
         self.method = method
         self.lower = lower
         self.upper = upper
         self.limits = limits
+        self.attr = attr
 
     def __call__(self, data):
         x = getx(data)
@@ -704,8 +706,12 @@ class Normalize():
             elif self.method == self.Offset:
                 data.X -= np.min(y_s, axis=1, keepdims=True)
             elif self.method == self.Attribute:
-                # Not implemented
-                pass
+                # attr normalization applies to entire spectrum, regardless of limits
+                # meta indices are -ve and start at -1
+                if self.attr not in (None, "None", ""):
+                    attr_index = -1-data.domain.index(self.attr)
+                    factors = data.metas[:, attr_index]
+                    data.X /= factors[:, None]
 
         return data
 
@@ -730,6 +736,12 @@ class NormalizeEditor(BaseEditor):
         self.lower = 0
         self.upper = 4000
         self.limits = 0
+        self.attrs = ['None']
+
+        model = VariableListModel()
+        model.wrap(self.attrs)
+        self.attrcb = QComboBox(visible=False, maximumWidth=100)
+        self.attrcb.setModel(model)
 
         self.__group = group = QButtonGroup(self)
 
@@ -739,9 +751,12 @@ class NormalizeEditor(BaseEditor):
                         checked=self.__method == method
                         )
             layout.addWidget(rb)
+            if method is Normalize.Attribute:
+                layout.addWidget(self.attrcb)
             group.addButton(rb, method)
 
         group.buttonClicked.connect(self.__on_buttonClicked)
+        self.attrcb.activated.connect(self.edited)
 
         form = QFormLayout()
 
@@ -802,13 +817,18 @@ class NormalizeEditor(BaseEditor):
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
-                "upper": self.upper, "limits": self.limits}
+                "upper": self.upper, "limits": self.limits,
+                "attr": self.attrcb.currentText()}
 
     def setMethod(self, method):
         if self.__method != method:
             self.__method = method
             b = self.__group.button(method)
             b.setChecked(True)
+            if method is Normalize.Attribute:
+                self.attrcb.setVisible(True)
+            else:
+                self.attrcb.setVisible(False)
             self.changed.emit()
 
     def setL(self, lower, user=True):
@@ -860,7 +880,8 @@ class NormalizeEditor(BaseEditor):
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
-        return Normalize(method=method,lower=lower,upper=upper,limits=limits)
+        attr = params.get("attr", None)
+        return Normalize(method=method,lower=lower,upper=upper,limits=limits,attr=attr)
 
     def set_preview_data(self, data):
         if not self.user_changed:
@@ -868,6 +889,9 @@ class NormalizeEditor(BaseEditor):
             if len(x):
                 self.setL(min(x))
                 self.setU(max(x))
+        self.attrs[:] = [var for var in data.domain.metas
+                         if var.is_continuous]
+
 
 
 PREPROCESSORS = [
