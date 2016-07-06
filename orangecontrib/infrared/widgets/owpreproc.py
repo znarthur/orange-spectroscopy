@@ -44,6 +44,7 @@ import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter1d
 from scipy.spatial import ConvexHull
+from scipy.spatial.qhull import QhullError
 from scipy.interpolate import interp1d
 
 from orangecontrib.infrared.data import getx
@@ -608,21 +609,26 @@ class RubberbandBaseline():
             elif self.sub == 1:
                 newd = data.X
             for row in data.X:
-                v = ConvexHull(np.column_stack((x, row))).vertices
-                if self.peak_dir == 0:
-                    v = np.roll(v, -v.argmax())
-                    v = v[:v.argmin()+1]
-                elif self.peak_dir == 1:
-                    v = np.roll(v, -v.argmin())
-                    v = v[:v.argmax()+1]
-                baseline = interp1d(x[v], row[v])(x)
-                if newd is not None and self.sub == 0:
-                    newd = np.vstack((newd, (row - baseline)))
-                elif newd is not None and self.sub == 1:
-                    newd = np.vstack((newd, baseline))
+                try:
+                    v = ConvexHull(np.column_stack((x, row))).vertices
+                except QhullError:
+                    baseline = np.zeros_like(row)
                 else:
-                    newd = row - baseline
-                    newd = newd[None,:]
+                    if self.peak_dir == 0:
+                        v = np.roll(v, -v.argmax())
+                        v = v[:v.argmin()+1]
+                    elif self.peak_dir == 1:
+                        v = np.roll(v, -v.argmin())
+                        v = v[:v.argmax()+1]
+                    baseline = interp1d(x[v], row[v])(x)
+                finally:
+                    if newd is not None and self.sub == 0:
+                        newd = np.vstack((newd, (row - baseline)))
+                    elif newd is not None and self.sub == 1:
+                        newd = np.vstack((newd, baseline))
+                    else:
+                        newd = row - baseline
+                        newd = newd[None,:]
             data = data.copy()
             data.X = newd
         return data
