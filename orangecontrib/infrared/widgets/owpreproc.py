@@ -14,7 +14,7 @@ from PyQt4.QtGui import (
     QVBoxLayout, QHBoxLayout, QFormLayout, QSpacerItem, QSizePolicy,
     QCursor, QIcon,  QStandardItemModel, QStandardItem, QStyle,
     QStylePainter, QStyleOptionFrame, QPixmap,
-    QApplication, QDrag
+    QApplication, QDrag, QPushButton, QLabel
 )
 from PyQt4 import QtGui
 from PyQt4.QtCore import (
@@ -892,7 +892,298 @@ class NormalizeEditor(BaseEditor):
         self.attrs[:] = [var for var in data.domain.metas
                          if var.is_continuous]
 
+class Integrate():
+    # Integration methods
+    Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
 
+
+    def __init__(self, method=Baseline, limits=[]):
+        self.method = method
+        self.limits = limits
+
+    def __call__(self, data):
+        x = getx(data)
+        if len(x) > 0 and data.X.size > 0 and self.limits:
+            x_sorter = np.argsort(x)
+            all_limits = np.searchsorted(x, self.limits, sorter=x_sorter)
+            range_attrs = []
+            newd = None
+            for limits in all_limits:
+                try:
+                    x_s = x[x_sorter][limits[0]:limits[1]]
+                except IndexError:
+                    continue
+                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+                try:
+                    newd = np.column_stack((newd, self.IntMethods[self.method](y_s, x_s)))
+                except ValueError:
+                    newd = self.IntMethods[self.method](y_s, x_s)[:,None]
+                except IndexError:
+                    continue
+                range_str = "%s - %s" % (x_s[0], x_s[-1])
+                range_attrs.append(Orange.data.ContinuousVariable(name=range_str))
+            if newd is not None:
+                domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
+                                            metas=data.domain.metas)
+                data = Orange.data.Table.from_numpy(domain, newd,
+                                                     Y=data.Y, metas=data.metas)
+
+        return data
+
+    def simpleInt(y, x):
+        """
+        Perform a simple y=0 integration on the provided data window
+        """
+        integrals = np.trapz(y, x, axis=1)
+        return integrals
+
+    def baselineSub(y, x):
+        """
+        Perform a linear edge-to-edge baseline subtraction
+        """
+        i = np.array([0, -1])
+        baseline = interp1d(x[i], y[:,i], axis=1)(x)
+        return y-baseline
+
+    def baselineInt(y, x):
+        """
+        Perform a baseline-subtracted integration on the provided data window
+        """
+        ysub = Integrate.baselineSub(y, x)
+        integrals = Integrate.simpleInt(ysub, x)
+        return integrals
+
+    def simplePeakHeight(y, x):
+        """
+        Find the maximum peak height in the provided data window
+        """
+        peak_heights = np.max(y, axis=1)
+        return peak_heights
+
+    def baselinePeakHeight(y, x):
+        """
+        Find the maximum baseline-subtracted peak height in the provided window
+        """
+        ysub = Integrate.baselineSub(y, x)
+        peak_heights = Integrate.simplePeakHeight(ysub, x)
+        return peak_heights
+
+    def atPeakHeight(y, x):
+        """
+        Return the peak height at the first limit
+        """
+        return y[:,0]
+
+    IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]
+
+class LimitsBox(QHBoxLayout):
+    """
+    Box with two limits and optional selection lines
+
+    Args:
+        limits (list): List containing low and high limit set
+        label  (str) : Label widget
+        delete (bool): Include self-deletion button
+    """
+
+    valueChanged = Signal(list, QObject)
+    editingFinished = Signal(QObject)
+    deleted = Signal(QObject)
+
+    def __init__(self, parent=None, **kwargs):
+        limits = kwargs.pop('limits', None)
+        label = kwargs.pop('label', None)
+        delete = kwargs.pop('delete', True)
+        super().__init__(parent, **kwargs)
+
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+
+        if label:
+            self.addWidget(QLabel(label))
+
+        self.lowlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=limits[0], maximumWidth=75)
+        self.highlime = SetXDoubleSpinBox(decimals=4,
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=limits[1], maximumWidth=75)
+        self.addWidget(self.lowlime)
+        self.addWidget(self.highlime)
+
+        if delete:
+            self.button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "")
+            self.addWidget(self.button)
+            self.button.clicked.connect(self.selfDelete)
+
+        self.lowlime.valueChanged[float].connect(self.limitChanged)
+        self.highlime.valueChanged[float].connect(self.limitChanged)
+        self.lowlime.editingFinished.connect(self.editFinished)
+        self.highlime.editingFinished.connect(self.editFinished)
+
+        self.lowlime.focusIn = self.focusInChild
+        self.highlime.focusIn = self.focusInChild
+
+        self.line1 = MovableVlineWD(position=limits[0], label=label + " - Low",
+                        setvalfn=self.lineLimitChanged)
+        self.line2 = MovableVlineWD(position=limits[1], label=label + " - High",
+                        setvalfn=self.lineLimitChanged)
+
+        self.line1.line.sigPositionChangeFinished.connect(self.editFinished)
+        self.line2.line.sigPositionChangeFinished.connect(self.editFinished)
+
+    def focusInEvent(self, *e):
+        self.focusIn()
+        return super().focusInEvent(*e)
+
+    def focusInChild(self):
+        self.focusIn()
+
+    def limitChanged(self):
+        newlimits = [self.lowlime.value(), self.highlime.value()]
+        self.line1.setValue(newlimits[0])
+        self.line2.setValue(newlimits[1])
+        self.valueChanged.emit(newlimits, self)
+
+    def lineLimitChanged(self, value=None):
+        newlimits = [self.line1.value(), self.line2.value()]
+        self.lowlime.setValue(newlimits[0])
+        self.highlime.setValue(newlimits[1])
+        self.valueChanged.emit(newlimits, self)
+
+    def editFinished(self):
+        self.editingFinished.emit(self)
+
+    def selfDelete(self):
+        self.deleted.emit(self)
+        self.removeLayout()
+
+    def removeLayout(self):
+        while self.count():
+            self.takeAt(0).widget().setParent(None)
+        self.setParent(None)
+
+class IntegrateEditor(BaseEditor):
+    """
+    Editor to integrate defined regions.
+    """
+
+    Integrators = ["Simple y=0 Int",
+                   "Baseline-subtracted Int",
+                   "Peak Height",
+                   "Baseline-subtracted Peak",
+                   "Low limit value"]
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+
+        self._limits = []
+
+        self.setLayout(QVBoxLayout())
+        self.form_set = QFormLayout()
+        self.form_lim = QFormLayout()
+        self.layout().addLayout(self.form_set)
+        self.layout().addLayout(self.form_lim)
+
+        self.methodcb = QComboBox()
+        self.methodcb.addItems(self.Integrators)
+
+        self.form_set.addRow("Integration method:", self.methodcb)
+        self.methodcb.currentIndexChanged.connect(self.changed)
+        self.methodcb.activated.connect(self.edited)
+
+        self.focusIn = self.activateOptions
+
+        self.add_limit()
+
+        button = QPushButton("Add Region")
+        self.layout().addWidget(button)
+        button.clicked.connect(self.add_limit)
+
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+        self.user_changed = False
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        for row in range(self.form_lim.count()):
+            limitbox = self.form_lim.itemAt(row, 1)
+            self.parent_widget.curveplot.add_marking(limitbox.line1)
+            self.parent_widget.curveplot.add_marking(limitbox.line2)
+
+    def add_limit(self, *args, row=None):
+        if row is None:
+            row = len(self._limits)
+            try:
+                self._limits.append(self._limits[-1])
+            except IndexError:
+                self._limits.append([0.,1.])
+        label = "Region {0}".format(row+1)
+        limitbox = LimitsBox(limits=self._limits[row], label=label)
+        if self.form_lim.rowCount() < row+1:
+            # new row
+            self.form_lim.addRow(limitbox)
+        else:
+            # row already exists
+            self.form_lim.setLayout(row, 2, limitbox)
+        limitbox.focusIn = self.activateOptions
+        limitbox.valueChanged.connect(self.set_limits)
+        limitbox.editingFinished.connect(self.edited)
+        limitbox.deleted.connect(self.remove_limit)
+        return limitbox
+
+    def remove_limit(self, limitbox):
+        row, role = self.form_lim.getLayoutPosition(limitbox)
+        for r in range(row, len(self._limits)):
+            limitbox = self.form_lim.itemAt(r, 1)
+            limitbox.removeLayout()
+        self._limits.pop(row)
+        self.set_all_limits(self._limits)
+
+    def set_limits(self, limits, limitbox, user=True):
+        if user:
+            self.user_changed = True
+        row, role = self.form_lim.getLayoutPosition(limitbox)
+        if self._limits[row] != limits:
+            self._limits[row] = limits
+            with blocked(self.form_lim):
+                limitbox.lowlime.setValue(limits[0])
+                limitbox.highlime.setValue(limits[1])
+            self.changed.emit()
+
+    def set_all_limits(self, limits, user=True):
+        if user:
+            self.user_changed = True
+        self._limits = limits
+        for row in range(len(limits)):
+            limitbox = self.form_lim.itemAt(row, 1)
+            if limitbox is None:
+                limitbox = self.add_limit(row=row)
+            with blocked(limitbox):
+                limitbox.lowlime.setValue(limits[row][0])
+                limitbox.highlime.setValue(limits[row][1])
+        self.changed.emit()
+
+    def setParameters(self, params):
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
+        self.methodcb.setCurrentIndex(params.get("method", Integrate.Baseline))
+        self.set_all_limits(params.get("limits", [[0.,1.]]), user=False)
+
+    def parameters(self):
+        return {"method": self.methodcb.currentIndex(),
+                "limits": self._limits}
+
+    @staticmethod
+    def createinstance(params):
+        method = params.get("method", Integrate.Baseline)
+        limits = params.get("limits", [[]])
+        return Integrate(method=method, limits=limits)
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_all_limits([[min(x),max(x)]])
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -924,6 +1215,12 @@ PREPROCESSORS = [
         Description("Normalization",
         icon_path("Normalize.svg")),
         NormalizeEditor
+    ),
+    PreprocessAction(
+        "Integrate", "orangecontrib.infrared.integrate", "Integrate",
+        Description("Integrate",
+                    icon_path("Discretize.svg")),
+        IntegrateEditor
     ),
 ]
 
