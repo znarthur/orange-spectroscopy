@@ -716,7 +716,7 @@ class Normalize():
                 # meta indices are -ve and start at -1
                 if self.attr not in (None, "None", ""):
                     attr_index = -1-data.domain.index(self.attr)
-                    factors = data.metas[:, attr_index]
+                    factors = data.metas[:, attr_index].astype(float)
                     data.X /= factors[:, None]
 
         return data
