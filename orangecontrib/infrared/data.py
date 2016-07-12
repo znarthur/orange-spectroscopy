@@ -125,7 +125,7 @@ class OmnicMapReader(FileFormat):
 
 class OPUSReader(FileFormat):
     """Reader for OPUS files"""
-    EXTENSIONS = ('.0', '.1', '.2', '.3', '.4')
+    EXTENSIONS = tuple('.{0}'.format(i) for i in range(100))
     DESCRIPTION = 'OPUS Spectrum'
 
     @property
