@@ -11,7 +11,7 @@ class DptReader(FileFormat):
     def read(self):
         tbl = np.loadtxt(self.filename)
         domvals = tbl.T[0]  # first column is attribute name
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
 

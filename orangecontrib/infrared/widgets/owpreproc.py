@@ -927,7 +927,7 @@ class Integrate():
                 except IndexError:
                     continue
                 range_str = "%s - %s" % (x_s[0], x_s[-1])
-                range_attrs.append(Orange.data.ContinuousVariable(name=range_str))
+                range_attrs.append(Orange.data.ContinuousVariable.make(range_str))
             if newd is not None:
                 domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
                                             metas=data.domain.metas)
