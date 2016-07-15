@@ -160,8 +160,8 @@ class OPUSReader(FileFormat):
         meta_data = None
 
         if dim == '3D':
-            metas = [Orange.data.ContinuousVariable.make('map_x'),
-                     Orange.data.ContinuousVariable.make('map_y')]
+            metas.extend([Orange.data.ContinuousVariable.make('map_x'),
+                     Orange.data.ContinuousVariable.make('map_y')])
 
             for i in np.ndindex(data.spectra.shape[:1]):
                 map_y = np.full_like(data.mapX, data.mapY[i])
@@ -174,6 +174,19 @@ class OPUSReader(FileFormat):
                     meta_data = np.vstack((meta_data, coord))
         elif dim == '2D':
             y_data = data.y[None,:]
+
+        try:
+            stime = data.parameters['SRT']
+        except Exception:
+            raise
+        else:
+            metas.extend([Orange.data.TimeVariable.make('Start time')])
+            if meta_data:
+                dates = np.empty_like(meta_data[:,1])
+                dates[:] = stime
+                meta_data = np.column_stack((meta_data, dates))
+            else:
+                meta_data = np.array([stime])[None,:]
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
