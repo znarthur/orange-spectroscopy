@@ -170,7 +170,7 @@ class OPUSReader(FileFormat):
                 coord = np.column_stack((data.mapX, map_y))
                 if y_data is None:
                     y_data = data.spectra[i]
-                    meta_data = coord
+                    meta_data = coord.astype(object)
                 else:
                     y_data = np.vstack((y_data, data.spectra[i]))
                     meta_data = np.vstack((meta_data, coord))
@@ -184,11 +184,32 @@ class OPUSReader(FileFormat):
         else:
             metas.extend([TimeVariable.make('Start time')])
             if meta_data:
-                dates = np.empty_like(meta_data[:,1])
-                dates[:] = stime
-                meta_data = np.column_stack((meta_data, dates))
+                dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
+                meta_data = np.column_stack((meta_data, dates.astype(object)))
             else:
                 meta_data = np.array([stime])[None,:]
+
+        import_params = ['SNM']
+
+        for param_name in import_params:
+            try:
+                param = data.parameters[param_name]
+            except Exception:
+                pass # TODO should notify user?
+            else:
+                if type(param) is float:
+                    var = ContinuousVariable.make(param_name)
+                elif type(param) is str:
+                    var = StringVariable.make(param_name)
+                else:
+                    raise ValueError #Found a type to handle
+                metas.extend([var])
+                if meta_data:
+                    # NB dtype default will be np.array(fill_value).dtype in future
+                    params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
+                    meta_data = np.column_stack((meta_data, params.astype(object)))
+                else:
+                    meta_data = np.array([stime])[None,:]
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
