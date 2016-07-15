@@ -1,10 +1,12 @@
-from Orange.data.io import FileFormat
 import numpy as np
 import Orange
-from .pymca5 import OmnicMap
+from Orange.data.io import FileFormat
+from Orange.data import \
+    ContinuousVariable, StringVariable, TimeVariable, DiscreteVariable
 import spectral.io.envi
 import itertools
 
+from .pymca5 import OmnicMap
 
 class DptReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
@@ -153,15 +155,15 @@ class OPUSReader(FileFormat):
 
         attrs, clses, metas = [], [], []
 
-        attrs = [Orange.data.ContinuousVariable.make(repr(data.x[i]))
+        attrs = [ContinuousVariable.make(repr(data.x[i]))
                     for i in range(data.x.shape[0])]
 
         y_data = None
         meta_data = None
 
         if dim == '3D':
-            metas.extend([Orange.data.ContinuousVariable.make('map_x'),
-                     Orange.data.ContinuousVariable.make('map_y')])
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
 
             for i in np.ndindex(data.spectra.shape[:1]):
                 map_y = np.full_like(data.mapX, data.mapY[i])
@@ -180,7 +182,7 @@ class OPUSReader(FileFormat):
         except Exception:
             raise
         else:
-            metas.extend([Orange.data.TimeVariable.make('Start time')])
+            metas.extend([TimeVariable.make('Start time')])
             if meta_data:
                 dates = np.empty_like(meta_data[:,1])
                 dates[:] = stime
