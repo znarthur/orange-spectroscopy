@@ -10,7 +10,7 @@ from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets import widget
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QWidget, QColor, QPixmapCache, QGraphicsItem
+from PyQt4.QtGui import QWidget, QColor, QPixmapCache, QGraphicsItem, QPushButton, QMenu
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
@@ -258,31 +258,35 @@ class CurvePlot(QWidget):
         zoom_in = QtGui.QAction(
             "Zoom in", self, triggered=self.set_mode_zooming
         )
-        zoom_in.setShortcuts([QtGui.QKeySequence(QtGui.QKeySequence.ZoomIn), Qt.Key_Z])
+        zoom_in.setShortcuts([Qt.Key_Z, QtGui.QKeySequence(QtGui.QKeySequence.ZoomIn)])
 
         zoom_fit = QtGui.QAction(
-            "Fit in view", self,
+            "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
         )
-        zoom_fit.setShortcuts([QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0), Qt.Key_Backspace])
+        zoom_fit.setShortcuts([Qt.Key_Backspace, QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0)])
 
         view_individual = QtGui.QAction(
             "Show individual", self, shortcut=Qt.Key_I,
             triggered=lambda x: self.show_individual()
         )
 
-        development_key = QtGui.QAction(
-            "Rescale Y", self, shortcut=Qt.Key_D,
-            triggered=self.rescale_current_view_y
-        )
-
         view_average = QtGui.QAction(
-            "Show individual", self, shortcut=Qt.Key_A,
+            "Show averages", self, shortcut=Qt.Key_A,
             triggered=lambda x: self.show_average()
         )
 
+        rescale_y = QtGui.QAction(
+            "Rescale Y to fit", self, shortcut=Qt.Key_D,
+            triggered=self.rescale_current_view_y
+        )
+
+        self.button = QPushButton("View", self.plotview)
+        view_menu = QMenu(self)
+        self.button.setMenu(view_menu)
+        view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
         self.set_mode_panning()
-        self.addActions([zoom_in, zoom_fit, view_individual, view_average, development_key])
+        self.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
