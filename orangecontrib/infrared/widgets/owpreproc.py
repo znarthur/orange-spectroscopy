@@ -14,7 +14,7 @@ from PyQt4.QtGui import (
     QVBoxLayout, QHBoxLayout, QFormLayout, QSpacerItem, QSizePolicy,
     QCursor, QIcon,  QStandardItemModel, QStandardItem, QStyle,
     QStylePainter, QStyleOptionFrame, QPixmap,
-    QApplication, QDrag, QPushButton, QLabel
+    QApplication, QDrag, QPushButton, QLabel, QMenu
 )
 from PyQt4 import QtGui
 from PyQt4.QtCore import (
@@ -1266,17 +1266,21 @@ class OWPreprocess(widget.OWWidget):
         # for mimeData delegate)
         self.preprocessors.mimeData = mimeData
 
-        box = gui.widgetBox(self.controlArea, "Preprocessors")
+        self.button = QPushButton("Add preprocessor...", self)
+        self.controlArea.layout().addWidget(self.button)
+        self.preprocessor_menu = QMenu(self)
+        self.button.setMenu(self.preprocessor_menu)
 
+        #FIXME temporarily disabled (menu evaluation)
+        #box = gui.widgetBox(self.controlArea, "Preprocessors")
         self.preprocessorsView = view = QListView(
             selectionMode=QListView.SingleSelection,
             dragEnabled=True,
             dragDropMode=QListView.DragOnly
         )
-        view.setModel(self.preprocessors)
-        view.activated.connect(self.__activated)
-
-        box.layout().addWidget(view)
+        #view.setModel(self.preprocessors)
+        #view.activated.connect(self.__activated)
+        #box.layout().addWidget(view)
 
         ####
         self._qname2ppdef = {ppdef.qualname: ppdef for ppdef in PREPROCESSORS}
@@ -1287,6 +1291,8 @@ class OWPreprocess(widget.OWWidget):
         self.flow_view = SequenceFlow(preview_callback=self.show_preview)
         self.controler = ViewController(self.flow_view, parent=self)
 
+        #FIXME temporarily disabled (menu evaluation)
+        """
         self.overlay = OverlayWidget(self)
         self.overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.overlay.setWidget(self.flow_view)
@@ -1294,6 +1300,7 @@ class OWPreprocess(widget.OWWidget):
         self.overlay.layout().addWidget(
             QtGui.QLabel("Drag items from the list on the left",
                          wordWrap=True))
+        """
 
         self.scroll_area = QtGui.QScrollArea(
             verticalScrollBarPolicy=Qt.ScrollBarAlwaysOn
@@ -1308,8 +1315,7 @@ class OWPreprocess(widget.OWWidget):
 
         self.topbox = gui.hBox(self)
         self.topbox.layout().addWidget(self.curveplot)
-        self.topbox.layout().addWidget(self.scroll_area)
-
+        self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(self.topbox)
         self.flow_view.installEventFilter(self)
 
@@ -1366,7 +1372,7 @@ class OWPreprocess(widget.OWWidget):
             self.curveplot.set_data(None)
 
     def _initialize(self):
-        for pp_def in PREPROCESSORS:
+        for i,pp_def in enumerate(PREPROCESSORS):
             description = pp_def.description
             if description.icon:
                 icon = QIcon(description.icon)
@@ -1378,6 +1384,12 @@ class OWPreprocess(widget.OWWidget):
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                           Qt.ItemIsDragEnabled)
             self.preprocessors.appendRow([item])
+            action = QtGui.QAction(
+                description.title, self, triggered=lambda x,id=i: self.__activated(id)
+            )
+            action.setToolTip(description.summary or "")
+            action.setIcon(icon)
+            self.preprocessor_menu.addAction(action)
 
         try:
             model = self.load(self.storedsettings)
@@ -1467,6 +1479,7 @@ class OWPreprocess(widget.OWWidget):
         self.__update_overlay()
 
     def __update_overlay(self):
+        return #FIXME temporarily disabled (menu evaluation)
         if self.preprocessormodel is None or \
                 self.preprocessormodel.rowCount() == 0:
             self.overlay.setWidget(self.flow_view)
@@ -1490,8 +1503,11 @@ class OWPreprocess(widget.OWWidget):
         self.apply()
 
     def __activated(self, index):
-        item = self.preprocessors.itemFromIndex(index)
-        action = item.data(DescriptionRole)
+        if isinstance(index, int):
+            action = PREPROCESSORS[index]
+        else:
+            item = self.preprocessors.itemFromIndex(index)
+            action = item.data(DescriptionRole)
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
