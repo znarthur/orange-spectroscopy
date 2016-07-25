@@ -80,8 +80,6 @@ class PreviewFrame(owpreprocess.SequenceFlow.Frame):
         self.setFeatures(QtGui.QDockWidget.DockWidgetMovable)
         self.setStyleSheet("""QDockWidget::title {
                               background:lightblue;
-                              background-clip:
-                              content-box;
                               padding: 10px;
                               text-align: right;
                               }""");
