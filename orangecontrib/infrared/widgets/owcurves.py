@@ -10,7 +10,8 @@ from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets import widget
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import QWidget, QColor, QPixmapCache, QGraphicsItem, QPushButton, QMenu
+from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
+                        QPushButton, QMenu, QGridLayout)
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
@@ -281,7 +282,12 @@ class CurvePlot(QWidget):
             triggered=self.rescale_current_view_y
         )
 
+        layout = QGridLayout()
+        self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
+        layout.setRowStretch(0, 1)
+        layout.setColumnStretch(0, 1)
+        layout.addWidget(self.button, 1, 1)
         view_menu = QMenu(self)
         self.button.setMenu(view_menu)
         view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
