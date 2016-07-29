@@ -926,22 +926,17 @@ class Integrate():
         if len(x) > 0 and data.X.size > 0 and self.limits:
             x_sorter = np.argsort(x)
             all_limits = np.searchsorted(x, self.limits, sorter=x_sorter)
-            range_attrs = []
+            range_attrs = [Orange.data.ContinuousVariable.make(
+                            "{0} - {1}".format(limits[0], limits[1]))
+                            for limits in self.limits]
             newd = None
             for limits in all_limits:
-                try:
-                    x_s = x[x_sorter][limits[0]:limits[1]]
-                except IndexError:
-                    continue
+                x_s = x[x_sorter][limits[0]:limits[1]]
                 y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
                 try:
                     newd = np.column_stack((newd, self.IntMethods[self.method](y_s, x_s)))
                 except ValueError:
                     newd = self.IntMethods[self.method](y_s, x_s)[:,None]
-                except IndexError:
-                    continue
-                range_str = "%s - %s" % (x_s[0], x_s[-1])
-                range_attrs.append(Orange.data.ContinuousVariable.make(range_str))
             if newd is not None:
                 domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
                                             metas=data.domain.metas)
