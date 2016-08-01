@@ -36,7 +36,7 @@ import re
 import struct
 import numpy
 import copy
-from PyMca5 import DataObject
+from . import DataObject #modified
 
 DEBUG = 0
 SOURCE_TYPE = "EdfFileStack"
@@ -59,7 +59,7 @@ class OmnicMap(DataObject.DataObject):
             It is expected to work with OMNIC versions 7.x and 8.x
         '''
         DataObject.DataObject.__init__(self)
-        if sys.platform == 'win32':
+        if sys.platform == 'win32' or 1: #modified, "added or 1"
             fid = open(filename, 'rb')
         else:
             fid = open(filename, 'r')
