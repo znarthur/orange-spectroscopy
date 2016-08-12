@@ -923,7 +923,7 @@ class Integrate():
 
     def __call__(self, data):
         x = getx(data)
-        if len(x) > 0 and data.X.size > 0 and self.limits:
+        if len(x) > 0 and data.X.size > 0 and len(self.limits) > 0:
             x_sorter = np.argsort(x)
             all_limits = np.searchsorted(x, self.limits, sorter=x_sorter)
             range_attrs = [Orange.data.ContinuousVariable.make(
@@ -1191,7 +1191,7 @@ class IntegrateEditor(BaseEditor):
     @staticmethod
     def createinstance(params):
         method = params.get("method", Integrate.Baseline)
-        limits = params.get("limits", [[]])
+        limits = params.get("limits", [])
         return Integrate(method=method, limits=limits)
 
     def set_preview_data(self, data):
