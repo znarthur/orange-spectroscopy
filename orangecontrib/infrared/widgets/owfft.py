@@ -307,7 +307,9 @@ class OWFFT(OWWidget):
         data = self.data.X[0]
         zpd = irfft.peak_search(data)
         middle = data.shape[0] // 2
-        if zpd >= middle - 25 and zpd <= middle + 25:
+        # Allow variation of +/- 0.4 % in zpd location
+        var = middle // 250
+        if zpd >= middle - var and zpd <= middle + var:
             # single, symmetric
             self.sweeps = 0
         else:
@@ -320,7 +322,7 @@ class OWFFT(OWWidget):
             zpd1 = irfft.peak_search(data[0])
             zpd2 = irfft.peak_search(data[1][::-1])
             # Forward / backward zpds never perfectly match
-            if zpd1 >= zpd2 - 25 and zpd1 <= zpd2 + 25:
+            if zpd1 >= zpd2 - var and zpd1 <= zpd2 + var:
                 # forward-backward, symmetric and asymmetric
                 self.sweeps = 1
             else:
