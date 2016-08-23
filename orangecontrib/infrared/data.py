@@ -183,7 +183,7 @@ class OPUSReader(FileFormat):
             pass # TODO notify user?
         else:
             metas.extend([TimeVariable.make('Start time')])
-            if meta_data:
+            if meta_data is not None:
                 dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
                 meta_data = np.column_stack((meta_data, dates.astype(object)))
             else:
@@ -204,7 +204,7 @@ class OPUSReader(FileFormat):
                 else:
                     raise ValueError #Found a type to handle
                 metas.extend([var])
-                if meta_data:
+                if meta_data is not None:
                     # NB dtype default will be np.array(fill_value).dtype in future
                     params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
                     meta_data = np.column_stack((meta_data, params.astype(object)))
