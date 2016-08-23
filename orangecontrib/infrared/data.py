@@ -179,8 +179,8 @@ class OPUSReader(FileFormat):
 
         try:
             stime = data.parameters['SRT']
-        except Exception:
-            raise
+        except KeyError:
+            pass # TODO notify user?
         else:
             metas.extend([TimeVariable.make('Start time')])
             if meta_data:
@@ -209,7 +209,7 @@ class OPUSReader(FileFormat):
                     params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
                     meta_data = np.column_stack((meta_data, params.astype(object)))
                 else:
-                    meta_data = np.array([stime])[None,:]
+                    meta_data = np.array([param])[None,:]
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
