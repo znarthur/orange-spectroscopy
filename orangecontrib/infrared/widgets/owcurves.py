@@ -398,6 +398,9 @@ class CurvePlot(QWidget):
         x = x[xsind]
         if addc and len(data) > MAXINST:
             self.sampled_indices = sorted(random.Random(0).sample(range(len(data)), MAXINST))
+        else:
+            self.sampled_indices = list(range(len(data)))
+        random.Random(0).shuffle(self.sampled_indices) #for sequential classes
         ys = data.X if not self.sampled_indices else data.X[self.sampled_indices]
         for y in ys:
             y = y[xsind]
@@ -604,7 +607,8 @@ class OWCurves(widget.OWWidget):
                 if isinstance(var, str) or var.is_discrete]
             self.color_attr = 0
         self.plotview.set_data(data)
-        if self.plotview.sampled_indices:
+        if self.plotview.sampled_indices \
+                and len(self.plotview.sampled_indices) != len(self.plotview.data):
             self.information(0, "Showing %d of %d curves." % (len(self.plotview.sampled_indices), len(data)))
         self.openContext(data)
         self.plotview.set_pen_colors()
