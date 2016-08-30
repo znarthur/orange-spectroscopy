@@ -146,10 +146,11 @@ class OPUSReader(FileFormat):
         else:
             db = self.sheets[0]
 
-        db, dim, deriv = db.split(" ")
+        db = tuple(db.split(" "))
+        dim = db[1]
 
         try:
-            data = opusFC.getOpusData(self.filename, db, dim, deriv)
+            data = opusFC.getOpusData(self.filename, db)
         except Exception:
             raise IOError("Couldn't load spectrum from " + self.filename)
 
