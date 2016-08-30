@@ -7,7 +7,7 @@ ENTRY_POINTS = {
     # from welcome screen. Tutorials are saved Orange Workflows (.ows files).
     'orange.widgets.tutorials': (
         # Syntax: any_text = path.to.package.containing.tutorials
-        'exampletutorials = orangecontrib.example.tutorials',
+        'exampletutorials = orangecontrib.infrared.tutorials',
     ),
 
     # Entry point used to specify packages containing widgets.
@@ -19,19 +19,21 @@ ENTRY_POINTS = {
     ),
 }
 
-KEYWORDS = (
+KEYWORDS = [
     # [PyPi](https://pypi.python.org) packages with keyword "orange3 add-on"
     # can be installed using the Orange Add-on Manager
     'orange3 add-on',
-)
+    'spectroscopy',
+    'infrared'
+]
 
 if __name__ == '__main__':
     setup(
         name="Orange-Infrared",
         description='',
-        author='',
-        author_email='',
-        version="0.0.2",
+        author='Biolab FRI UL, Soleil, Elettra',
+        author_email='marko.toplak@gmail.com',
+        version="0.0.3",
         packages=find_packages(),
         install_requires=[
             'Orange3',
@@ -42,4 +44,5 @@ if __name__ == '__main__':
         namespace_packages=['orangecontrib'],
         include_package_data=True,
         zip_safe=False,
+        url="https://github.com/markotoplak/orange-infrared"
     )
