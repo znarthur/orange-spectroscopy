@@ -2,6 +2,8 @@ from Orange.data.io import FileFormat
 import numpy as np
 import Orange
 from .pymca5 import OmnicMap
+import spectral.io.envi
+import itertools
 
 
 class DptReader(FileFormat):
@@ -15,6 +17,68 @@ class DptReader(FileFormat):
         domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
+
+    @staticmethod
+    def write_file(filename, data):
+        pass #not implemented
+
+
+def _table_from_image(X, features, x_locs, y_locs):
+    """
+    Create a Orange.data.Table from 3D image organized
+    [ rows, columns, wavelengths ]
+    """
+    spectra = []
+    metadata = []
+
+    for ir, row in enumerate(X):
+        for ic, column in enumerate(row):
+            spectra.append(column)
+            if x_locs is not None and y_locs is not None:
+                x = x_locs[ic]
+                y = y_locs[ir]
+                metadata.append({"map_x": x, "map_y": y})
+            else:
+                metadata.append({})
+
+    metakeys = sorted(set(itertools.chain.from_iterable(metadata)))
+    metas = []
+    for mk in metakeys:
+        if mk in ["map_x", "map_y"]:
+            metas.append(Orange.data.ContinuousVariable.make(mk))
+        else:
+            metas.append(Orange.data.StringVariable.make(mk))
+
+    domain = Orange.data.Domain(
+        [Orange.data.ContinuousVariable.make("%f" % f) for f in features],
+        None, metas=metas)
+    data = Orange.data.Table(domain, spectra)
+    for ex, exmeta in zip(data, metadata):
+        for k, v in exmeta.items():
+            ex[k] = v
+
+    return data
+
+
+class EnviMapReader(FileFormat):
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'Envi'
+
+    def read(self):
+
+        a = spectral.io.envi.open(self.filename)
+        X = np.array(a.load())
+        try:
+            lv = a.metadata["wavelength"]
+            features = list(map(float, lv))
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        x_locs = np.arange(X.shape[1])
+        y_locs = np.arange(X.shape[0])
+
+        return _table_from_image(X, features, x_locs, y_locs)
 
     @staticmethod
     def write_file(filename, data):
@@ -50,39 +114,8 @@ class OmnicMapReader(FileFormat):
             x_locs = None
             y_locs = None
 
-        spectra = []
-        metadata = []
+        return _table_from_image(X, features, x_locs, y_locs)
 
-        for ir, row in enumerate(X):
-            for ic, column in enumerate(row):
-                print(ir, ic, column)
-                spectra.append(column)
-                if x_locs is not None and y_locs is not None:
-                    x = x_locs[ic]
-                    y = y_locs[ir]
-                    metadata.append({"map_x": x, "map_y": y})
-                else:
-                    metadata.append({})
-
-        import itertools
-
-        metakeys = sorted(set(itertools.chain.from_iterable(metadata)))
-        metas = []
-        for mk in metakeys:
-            if mk in ["map_x", "map_y"]:
-                metas.append(Orange.data.ContinuousVariable.make(mk))
-            else:
-                metas.append(Orange.data.StringVariable.make(mk))
-
-        domain = Orange.data.Domain(
-            [Orange.data.ContinuousVariable.make("%f" % f) for f in features],
-            None, metas=metas)
-        data = Orange.data.Table(domain, spectra)
-        for ex, exmeta in zip(data, metadata):
-            for k,v in exmeta.items():
-                ex[k] = v
-
-        return data
 
     @staticmethod
     def write_file(filename, data):

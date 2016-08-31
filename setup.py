@@ -38,6 +38,7 @@ if __name__ == '__main__':
         install_requires=[
             'Orange3',
             'scipy>=0.14.0',
+            'spectral>=0.18',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
