@@ -28,12 +28,14 @@ def _table_from_image(X, features, x_locs, y_locs):
     Create a Orange.data.Table from 3D image organized
     [ rows, columns, wavelengths ]
     """
-    spectra = []
+    spectra = np.zeros((X.shape[0]*X.shape[1], X.shape[2]), dtype=np.float32)
     metadata = []
 
+    cs = 0
     for ir, row in enumerate(X):
         for ic, column in enumerate(row):
-            spectra.append(column)
+            spectra[cs] = column
+            cs += 1
             if x_locs is not None and y_locs is not None:
                 x = x_locs[ic]
                 y = y_locs[ir]
@@ -52,10 +54,9 @@ def _table_from_image(X, features, x_locs, y_locs):
     domain = Orange.data.Domain(
         [Orange.data.ContinuousVariable.make("%f" % f) for f in features],
         None, metas=metas)
-    data = Orange.data.Table(domain, spectra)
-    for ex, exmeta in zip(data, metadata):
-        for k, v in exmeta.items():
-            ex[k] = v
+    metas = np.array([[ row[ma.name] for ma in metas ]
+                            for row in metadata], dtype=object)
+    data = Orange.data.Table(domain, spectra, metas=metas)
 
     return data
 
