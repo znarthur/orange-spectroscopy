@@ -166,14 +166,21 @@ class OPUSReader(FileFormat):
             metas.extend([ContinuousVariable.make('map_x'),
                           ContinuousVariable.make('map_y')])
 
-            for i in np.ndindex(data.spectra.shape[:1]):
+            if db[0] == 'TRC':
+                attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                            for i in range(len(data.labels))]
+                data_3D = data.traces
+            else:
+                data_3D = data.spectra
+
+            for i in np.ndindex(data_3D.shape[:1]):
                 map_y = np.full_like(data.mapX, data.mapY[i])
                 coord = np.column_stack((data.mapX, map_y))
                 if y_data is None:
-                    y_data = data.spectra[i]
+                    y_data = data_3D[i]
                     meta_data = coord.astype(object)
                 else:
-                    y_data = np.vstack((y_data, data.spectra[i]))
+                    y_data = np.vstack((y_data, data_3D[i]))
                     meta_data = np.vstack((meta_data, coord))
         elif dim == '2D':
             y_data = data.y[None,:]
