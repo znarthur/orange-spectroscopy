@@ -1200,6 +1200,89 @@ class IntegrateEditor(BaseEditor):
             if len(x):
                 self.set_all_limits([[min(x),max(x)]])
 
+
+class _PCAReconstructCommon:
+    """Computation common for all PCA variables."""
+
+    def __init__(self, pca, components=None):
+        self.pca = pca
+        self.components = components
+
+    def __call__(self, data):
+        if data.domain != self.pca.pre_domain:
+            data = data.from_table(self.pca.pre_domain, data)
+        pca_space = self.pca.transform(data.X)
+        if self.components is not None:
+            #set unused components to zero
+            remove = np.ones(pca_space.shape[1])
+            remove[self.components] = 0
+            remove = np.extract(remove, np.arange(pca_space.shape[1]))
+            pca_space[:,remove] = 0
+        return self.pca.proj.inverse_transform(pca_space)
+
+
+class PCADenoising():
+
+    def __init__(self, components=None):
+        self.components = components
+
+    def __call__(self, data):
+        maxpca = min(len(data.domain.attributes), len(data))
+        pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
+        commonfn = _PCAReconstructCommon(pca)
+
+        nats = []
+        for i, at in enumerate(data.domain.attributes):
+            at = at.copy(compute_value=Orange.projection.pca.Projector(self, i, commonfn))
+            nats.append(at)
+
+        domain = Orange.data.Domain(nats, data.domain.class_vars,
+                                    data.domain.metas)
+
+        return data.from_table(domain, data)
+
+
+class PCADenoisingEditor(BaseEditor):
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        self.__components = 5
+
+        form = QFormLayout()
+
+        self.__compspin = compspin = QSpinBox(
+           minimum=1, maximum=100, value=self.__components)
+        form.addRow("N components", compspin)
+
+        self.setLayout(form)
+
+        compspin.valueChanged[int].connect(self.setComponents)
+        compspin.editingFinished.connect(self.edited)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def setComponents(self, components):
+        if self.__components != components:
+            self.__components = components
+            with blocked(self.__compspin):
+                self.__compspin.setValue(components)
+            self.changed.emit()
+
+    def sd(self):
+        return self.__components
+
+    def setParameters(self, params):
+        self.setComponents(params.get("components", 5))
+
+    def parameters(self):
+        return {"components": self.__components}
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        components = params.get("components", 5)
+        return PCADenoising(components=components)
+
+
 PREPROCESSORS = [
     PreprocessAction(
         "Cut", "orangecontrib.infrared.cut", "Cut",
@@ -1236,6 +1319,12 @@ PREPROCESSORS = [
         Description("Integrate",
                     icon_path("Discretize.svg")),
         IntegrateEditor
+    ),
+    PreprocessAction(
+        "PCA denoising", "orangecontrib.infrared.pca_denoising", "PCA denoising",
+        Description("PCA denoising",
+                    icon_path("Discretize.svg")),
+        PCADenoisingEditor
     ),
 ]
 
