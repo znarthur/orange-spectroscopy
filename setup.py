@@ -39,6 +39,7 @@ if __name__ == '__main__':
             'Orange3',
             'scipy>=0.14.0',
             'spectral>=0.18',
+            'opusFC>=1.0.0b1',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
