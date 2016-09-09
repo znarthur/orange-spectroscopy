@@ -190,7 +190,7 @@ class OPUSReader(FileFormat):
         except KeyError:
             pass # TODO notify user?
         else:
-            metas.extend([TimeVariable.make('Start time')])
+            metas.extend([TimeVariable.make(opusFC.paramDict['SRT'])])
             if meta_data is not None:
                 dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
                 meta_data = np.column_stack((meta_data, dates.astype(object)))
@@ -199,12 +199,16 @@ class OPUSReader(FileFormat):
 
         import_params = ['SNM']
 
-        for param_name in import_params:
+        for param_key in import_params:
             try:
-                param = data.parameters[param_name]
+                param = data.parameters[param_key]
             except Exception:
                 pass # TODO should notify user?
             else:
+                try:
+                    param_name = opusFC.paramDict[param_key]
+                except KeyError:
+                    param_name = param_key
                 if type(param) is float:
                     var = ContinuousVariable.make(param_name)
                 elif type(param) is str:
