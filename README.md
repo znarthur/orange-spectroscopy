@@ -24,12 +24,11 @@ under the section Infrared.
 For developers
 --------------
 
-If you would like to install from cloned git repository use
-source
+If you would like to install from cloned git repository, run
 
-    python setup.py install
+    pip install .
 
 To register this add-on with Orange, but keep the code in the development
 directory (do not copy it to Python's site-packages directory), run
 
-    python setup.py develop
+    pip install -e .
