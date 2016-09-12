@@ -1,10 +1,12 @@
-from Orange.data.io import FileFormat
 import numpy as np
 import Orange
-from .pymca5 import OmnicMap
+from Orange.data.io import FileFormat
+from Orange.data import \
+    ContinuousVariable, StringVariable, TimeVariable, DiscreteVariable
 import spectral.io.envi
 import itertools
 
+from .pymca5 import OmnicMap
 
 class DptReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
@@ -121,6 +123,113 @@ class OmnicMapReader(FileFormat):
     @staticmethod
     def write_file(filename, data):
         pass #not implemented
+
+
+class OPUSReader(FileFormat):
+    """Reader for OPUS files"""
+    EXTENSIONS = tuple('.{0}'.format(i) for i in range(100))
+    DESCRIPTION = 'OPUS Spectrum'
+
+    @property
+    def sheets(self):
+        import opusFC
+        dbs = []
+        for db in opusFC.listContents(self.filename):
+            dbs.append(db[0] + " " + db[1] + " " + db[2])
+        return dbs
+
+    def read(self):
+        import opusFC
+
+        if self.sheet:
+            db = self.sheet
+        else:
+            db = self.sheets[0]
+
+        db = tuple(db.split(" "))
+        dim = db[1]
+
+        try:
+            data = opusFC.getOpusData(self.filename, db)
+        except Exception:
+            raise IOError("Couldn't load spectrum from " + self.filename)
+
+        attrs, clses, metas = [], [], []
+
+        attrs = [ContinuousVariable.make(repr(data.x[i]))
+                    for i in range(data.x.shape[0])]
+
+        y_data = None
+        meta_data = None
+
+        if dim == '3D':
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
+
+            if db[0] == 'TRC':
+                attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                            for i in range(len(data.labels))]
+                data_3D = data.traces
+            else:
+                data_3D = data.spectra
+
+            for i in np.ndindex(data_3D.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data_3D[i]
+                    meta_data = coord.astype(object)
+                else:
+                    y_data = np.vstack((y_data, data_3D[i]))
+                    meta_data = np.vstack((meta_data, coord))
+        elif dim == '2D':
+            y_data = data.y[None,:]
+
+        try:
+            stime = data.parameters['SRT']
+        except KeyError:
+            pass # TODO notify user?
+        else:
+            metas.extend([TimeVariable.make(opusFC.paramDict['SRT'])])
+            if meta_data is not None:
+                dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
+                meta_data = np.column_stack((meta_data, dates.astype(object)))
+            else:
+                meta_data = np.array([stime])[None,:]
+
+        import_params = ['SNM']
+
+        for param_key in import_params:
+            try:
+                param = data.parameters[param_key]
+            except Exception:
+                pass # TODO should notify user?
+            else:
+                try:
+                    param_name = opusFC.paramDict[param_key]
+                except KeyError:
+                    param_name = param_key
+                if type(param) is float:
+                    var = ContinuousVariable.make(param_name)
+                elif type(param) is str:
+                    var = StringVariable.make(param_name)
+                else:
+                    raise ValueError #Found a type to handle
+                metas.extend([var])
+                if meta_data is not None:
+                    # NB dtype default will be np.array(fill_value).dtype in future
+                    params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
+                    meta_data = np.column_stack((meta_data, params.astype(object)))
+                else:
+                    meta_data = np.array([param])[None,:]
+
+        domain = Orange.data.Domain(attrs, clses, metas)
+
+        table = Orange.data.Table.from_numpy(domain,
+                                             y_data.astype(float, order='C'),
+                                             metas=meta_data)
+
+        return table
 
 
 def build_spec_table(wavenumbers, intensities):
