@@ -22,6 +22,8 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
 
     file_idx = -1
 
+    open_files = Orange.widgets.settings.Setting([])
+
     def __init__(self):
         widget.OWWidget.__init__(self)
         self.domain = None
@@ -60,6 +62,11 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
         self.editor_model = domain_editor.model()
         box.layout().addWidget(domain_editor)
 
+        for f in self.open_files:
+            self.lb.addItem(f)
+
+        self.load_data()
+
     def remove_item(self):
         ri = [ i.row() for i in  self.lb.selectedIndexes() ]
         for i in sorted(ri, reverse=True):
@@ -87,6 +94,10 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
             self.lb.addItem(f)
 
         self.load_data()
+
+    def saveSettings(self):
+        self.open_files = self.current_filenames()
+        super().saveSettings()
 
     def current_filenames(self):
         return [str(self.lb.item(i).text()) for i in range(len(self.lb))]
