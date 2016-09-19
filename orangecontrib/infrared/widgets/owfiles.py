@@ -1,11 +1,13 @@
 import os
 from functools import reduce
 from itertools import chain, repeat
+from collections import Counter
 
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from PyQt4.QtGui import QSizePolicy as Policy
 
 import Orange
+import orangecontrib.infrared
 from Orange.data.table import get_sample_datasets_dir
 from Orange.data.io import FileFormat
 from Orange.widgets import widget, gui
@@ -23,13 +25,14 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
     file_idx = -1
 
     open_files = Orange.widgets.settings.Setting([])
+    sheet = Orange.widgets.settings.Setting(None)
 
     def __init__(self):
         widget.OWWidget.__init__(self)
         self.domain = None
         self.data = None
         self.loaded_file = ""
-        self.reader = None
+        self.sheets = []
 
         self.lb = gui.listBox(self.controlArea, self, "file_idx")
 
@@ -41,21 +44,40 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
         file_button.setIcon(self.style().standardIcon(
             QtGui.QStyle.SP_DirOpenIcon))
         file_button.setSizePolicy(Policy.Maximum, Policy.Fixed)
-        layout.addWidget(file_button, 0, 2)
+        layout.addWidget(file_button, 0, 0)
 
         remove_button = gui.button(
             None, self, 'Remove', callback=self.remove_item)
 
-        layout.addWidget(remove_button, 0, 3)
+        layout.addWidget(remove_button, 0, 1)
 
         reload_button = gui.button(
             None, self, "Reload", callback=self.load_data, autoDefault=False)
         reload_button.setIcon(self.style().standardIcon(
                 QtGui.QStyle.SP_BrowserReload))
         reload_button.setSizePolicy(Policy.Fixed, Policy.Fixed)
-        layout.addWidget(reload_button, 0, 4)
+        layout.addWidget(reload_button, 0, 5)
 
-        layout.setColumnStretch(0, 1)
+        self.sheet_box = gui.hBox(None, addToLayout=False, margin=0)
+        self.sheet_combo = gui.comboBox(None, self, "xls_sheet",
+                                        callback=self.select_sheet,
+                                        sendSelectedValue=True)
+        self.sheet_combo.setSizePolicy(
+            Policy.MinimumExpanding, Policy.Fixed)
+        self.sheet_label = QtGui.QLabel()
+        self.sheet_label.setText('Sheet')
+        self.sheet_label.setSizePolicy(
+            Policy.MinimumExpanding, Policy.Fixed)
+        self.sheet_box.layout().addWidget(
+            self.sheet_label, QtCore.Qt.AlignLeft)
+        self.sheet_box.layout().addWidget(
+            self.sheet_combo, QtCore.Qt.AlignVCenter)
+        layout.addWidget(self.sheet_box, 2, 1)
+        self.sheet_box.hide()
+
+        layout.addWidget(self.sheet_box, 0, 4)
+
+        layout.setColumnStretch(2, 2)
 
         box = gui.widgetBox(self.controlArea, "Columns (Double click to edit)")
         domain_editor = DomainEditor(self.variables)
@@ -65,12 +87,51 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
         for f in self.open_files:
             self.lb.addItem(f)
 
+        self._update_sheet_combo()
+        self.load_data()
+
+    def _select_active_sheet(self):
+        if self.sheet:
+            try:
+                sheet_list = [ s[0] for s in self.sheets]
+                idx = sheet_list.index(self.sheet)
+                self.sheet_combo.setCurrentIndex(idx)
+            except ValueError:
+                # Requested sheet does not exist in this file
+                self.sheet = None
+        else:
+            self.sheet_combo.setCurrentIndex(0)
+
+    def _update_sheet_combo(self):
+        sheets = Counter()
+
+        for fn in self.current_filenames():
+            reader = FileFormat.get_reader(fn)
+            sheets.update(reader.sheets)
+
+        sheets = sorted(sheets.items(), key=lambda x: x[0])
+
+        self.sheets = [(s, s + " (" + str(n) + ")") for s, n in sheets]
+
+        if len(sheets) < 2:
+            self.sheet_box.hide()
+            self.sheet = None
+        else:
+            self.sheets.insert(0, (None, "(None)"))
+            self.sheet_combo.clear()
+            self.sheet_combo.addItems([s[1] for s in self.sheets])
+            self._select_active_sheet()
+            self.sheet_box.show()
+
+    def select_sheet(self):
+        self.sheet = self.sheets[self.sheet_combo.currentIndex()][0]
         self.load_data()
 
     def remove_item(self):
         ri = [ i.row() for i in  self.lb.selectedIndexes() ]
         for i in sorted(ri, reverse=True):
             self.lb.takeItem(i)
+        self._update_sheet_combo()
         self.load_data()
 
     def browse_files(self, in_demos=False):
@@ -93,6 +154,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
         for f in filenames:
             self.lb.addItem(f)
 
+        self._update_sheet_combo()
         self.load_data()
 
     def saveSettings(self):
@@ -111,8 +173,8 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
 
         for fn in fns:
             reader = FileFormat.get_reader(fn)
-
-            #FIXME self._update_sheet_combo()
+            if self.sheet in reader.sheets:
+                reader.select_sheet(self.sheet)
 
             errors = []
             with catch_warnings(record=True) as warnings:
