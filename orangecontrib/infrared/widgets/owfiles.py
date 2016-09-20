@@ -14,21 +14,23 @@ from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
 from Orange.widgets.data.owconcatenate import domain_union, concat, append_columns
 from Orange.widgets.utils.domaineditor import DomainEditor
+from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
 
 from warnings import catch_warnings
 
-class OWFiles(Orange.widgets.data.owfile.OWFile):
+class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     name = "Files"
     id = "orangecontrib.infrared.widgets.files"
     icon = "icons/File.svg"
 
     file_idx = -1
 
-    open_files = Orange.widgets.settings.Setting([])
     sheet = Orange.widgets.settings.Setting(None)
+    recent_paths = Orange.widgets.settings.Setting([])
 
     def __init__(self):
         widget.OWWidget.__init__(self)
+        RecentPathsWidgetMixin.__init__(self)
         self.domain = None
         self.data = None
         self.loaded_file = ""
@@ -84,11 +86,21 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
         self.editor_model = domain_editor.model()
         box.layout().addWidget(domain_editor)
 
-        for f in self.open_files:
-            self.lb.addItem(f)
+        for i, rp in enumerate(self.recent_paths):
+            self.lb.addItem(rp.abspath)
+
+        # TODO unresolved paths just disappear! Modify _relocate_recent_files
 
         self._update_sheet_combo()
         self.load_data()
+
+    def add_path(self, filename):
+        recent = RecentPath.create(filename, self._search_paths())
+        self.recent_paths.append(recent)
+
+    def set_file_list(self):
+        # need to define it for RecentPathsWidgetMixin
+        pass
 
     def _select_active_sheet(self):
         if self.sheet:
@@ -130,6 +142,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
     def remove_item(self):
         ri = [ i.row() for i in  self.lb.selectedIndexes() ]
         for i in sorted(ri, reverse=True):
+            self.recent_paths.pop(i)
             self.lb.takeItem(i)
         self._update_sheet_combo()
         self.load_data()
@@ -152,17 +165,14 @@ class OWFiles(Orange.widgets.data.owfile.OWFile):
             return
 
         for f in filenames:
+            self.add_path(f)
             self.lb.addItem(f)
 
         self._update_sheet_combo()
         self.load_data()
 
-    def saveSettings(self):
-        self.open_files = self.current_filenames()
-        super().saveSettings()
-
     def current_filenames(self):
-        return [str(self.lb.item(i).text()) for i in range(len(self.lb))]
+        return [rp.abspath for rp in self.recent_paths]
 
     def load_data(self):
 
