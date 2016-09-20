@@ -21,7 +21,9 @@ from warnings import catch_warnings
 class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     name = "Files"
     id = "orangecontrib.infrared.widgets.files"
-    icon = "icons/File.svg"
+    icon = "icons/files.svg"
+    description = "Read data from input files " \
+                  "and send a data table to the output."
 
     file_idx = -1
 
