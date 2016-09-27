@@ -924,20 +924,21 @@ class Integrate():
     def __call__(self, data):
         x = getx(data)
         if len(x) > 0 and data.X.size > 0 and self.limits:
+            newd = []
+            range_attrs = []
             x_sorter = np.argsort(x)
-            all_limits = np.searchsorted(x, self.limits, sorter=x_sorter)
-            range_attrs = [Orange.data.ContinuousVariable.make(
-                            "{0} - {1}".format(limits[0], limits[1]))
-                            for limits in self.limits]
-            newd = None
-            for limits in all_limits:
-                x_s = x[x_sorter][limits[0]:limits[1]]
-                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-                try:
-                    newd = np.column_stack((newd, self.IntMethods[self.method](y_s, x_s)))
-                except ValueError:
-                    newd = self.IntMethods[self.method](y_s, x_s)[:,None]
-            if newd is not None:
+            for limits in self.limits:
+                x_limits = np.searchsorted(x, limits, sorter=x_sorter)
+                lim_min = min(x_limits)
+                lim_max = max(x_limits)
+                if lim_min != lim_max:
+                    x_s = x[x_sorter][lim_min:lim_max]
+                    y_s = data.X[:,x_sorter][:,lim_min:lim_max]
+                    range_attrs.append(Orange.data.ContinuousVariable.make(
+                            "{0} - {1}".format(limits[0], limits[1])))
+                    newd.append(self.IntMethods[self.method](y_s, x_s))
+            newd = np.column_stack(np.atleast_2d(newd))
+            if newd.size:
                 domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
                                             metas=data.domain.metas)
                 data = Orange.data.Table.from_numpy(domain, newd,
