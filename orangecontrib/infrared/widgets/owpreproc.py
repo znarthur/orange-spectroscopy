@@ -1123,8 +1123,9 @@ class IntegrateEditor(BaseEditor):
         self.parent_widget.curveplot.clear_markings()
         for row in range(self.form_lim.count()):
             limitbox = self.form_lim.itemAt(row, 1)
-            self.parent_widget.curveplot.add_marking(limitbox.line1)
-            self.parent_widget.curveplot.add_marking(limitbox.line2)
+            if limitbox:
+                self.parent_widget.curveplot.add_marking(limitbox.line1)
+                self.parent_widget.curveplot.add_marking(limitbox.line2)
 
     def add_limit(self, *args, row=None):
         if row is None:
