@@ -1148,6 +1148,7 @@ class IntegrateEditor(BaseEditor):
         limitbox.valueChanged.connect(self.set_limits)
         limitbox.editingFinished.connect(self.edited)
         limitbox.deleted.connect(self.remove_limit)
+        self.edited.emit()
         return limitbox
 
     def remove_limit(self, limitbox):
