@@ -5,6 +5,7 @@ from Orange.data import \
     ContinuousVariable, StringVariable, TimeVariable, DiscreteVariable
 import spectral.io.envi
 import itertools
+import struct
 
 from .pymca5 import OmnicMap
 
@@ -230,6 +231,64 @@ class OPUSReader(FileFormat):
                                              metas=meta_data)
 
         return table
+
+
+class SPAReader(FileFormat):
+    #based on code by Zack Gainsforth
+
+    EXTENSIONS = (".spa",)
+    DESCRIPTION = 'SPA'
+
+    def sections(self):
+        with open(self.filename, 'rb') as f:
+            # offset 294 tells us the number of sections in the file.
+            f.seek(294)
+            n = struct.unpack('h', f.read(2))[0]
+            sections = []
+            for i in range(n):
+                # Go to the section start.  Each section is 16 bytes, and starts after offset 304.
+                f.seek(304 + 16 * i)
+                type = struct.unpack('h', f.read(2))[0]
+                sections.append((i, type))
+        return sections
+
+    @property
+    def sheets(self):
+        return [ "%d %d" % (a, b) for a, b in self.sections() ]
+
+    def read(self):
+
+        sections = self.sections()
+
+        sectionind = 0
+        if self.sheet is None:
+            # by default return section of type 3
+            for i, type in sections:
+                if type == 3:
+                    sectionind = i
+        else:
+            sectionind = int(self.sheet.split(" ")[0])
+
+        with open(self.filename, 'rb') as f:
+            f.seek(304 + 16*sectionind)
+
+            type = struct.unpack('h', f.read(2))[0]
+            offset = struct.unpack('i', f.read(3) + b'\x00')[0]
+            length = struct.unpack('i', f.read(3) + b'\x00')[0]
+
+            # length seemed off by this factor in code sample
+            length = length//256
+
+            f.seek(offset)
+            data = np.fromfile(f, dtype='float32', count=length//4)
+
+            domvals = range(len(data))
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+            return Orange.data.Table(domain, np.array([data]))
+
+    @staticmethod
+    def write_file(filename, data):
+        pass #not implemented
 
 
 def build_spec_table(wavenumbers, intensities):
