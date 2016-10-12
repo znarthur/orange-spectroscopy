@@ -1017,12 +1017,14 @@ class LimitsBox(QHBoxLayout):
         if label:
             self.addWidget(QLabel(label))
 
-        self.lowlime = SetXDoubleSpinBox(decimals=4,
+        self.lowlime = SetXDoubleSpinBox(decimals=2,
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=limits[0], maximumWidth=75)
-        self.highlime = SetXDoubleSpinBox(decimals=4,
+        self.highlime = SetXDoubleSpinBox(decimals=2,
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=limits[1], maximumWidth=75)
+        self.lowlime.setValue(limits[0])
+        self.highlime.setValue(limits[1])
         self.addWidget(self.lowlime)
         self.addWidget(self.highlime)
 
@@ -1064,7 +1066,7 @@ class LimitsBox(QHBoxLayout):
         newlimits = [self.line1.value(), self.line2.value()]
         self.lowlime.setValue(newlimits[0])
         self.highlime.setValue(newlimits[1])
-        self.valueChanged.emit(newlimits, self)
+        self.limitChanged()
 
     def editFinished(self):
         self.editingFinished.emit(self)
