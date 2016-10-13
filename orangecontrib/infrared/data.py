@@ -252,27 +252,31 @@ class SPAReader(FileFormat):
                 sections.append((i, type))
         return sections
 
+    TYPE_NAMES = [(3, "result"), (102, "processed")]
+
     @property
     def sheets(self):
-        return [ "%d %d" % (a, b) for a, b in self.sections() ]
+        # assume that section types can not repeat
+        d = dict(self.TYPE_NAMES)
+        return [ "%s" % d.get(b, b) for a, b in self.sections() ]
 
     def read(self):
 
-        sections = self.sections()
+        if self.sheet is None:
+            type = 3
+        else:
+            db = {b:a for a,b in self.TYPE_NAMES}
+            type = int(db.get(self.sheet, self.sheet))
 
         sectionind = 0
-        if self.sheet is None:
-            # by default return section of type 3
-            for i, type in sections:
-                if type == 3:
-                    sectionind = i
-        else:
-            sectionind = int(self.sheet.split(" ")[0])
+        for i, t in self.sections():
+            if t == type:
+                sectionind = i
 
         with open(self.filename, 'rb') as f:
             f.seek(304 + 16*sectionind)
 
-            type = struct.unpack('h', f.read(2))[0]
+            _ = struct.unpack('h', f.read(2))[0]
             offset = struct.unpack('i', f.read(3) + b'\x00')[0]
             length = struct.unpack('i', f.read(3) + b'\x00')[0]
 
