@@ -917,27 +917,28 @@ class Integrate():
     Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
 
 
-    def __init__(self, method=Baseline, limits=[]):
+    def __init__(self, method=Baseline, limits=None):
         self.method = method
         self.limits = limits
 
     def __call__(self, data):
         x = getx(data)
-        if len(x) > 0 and data.X.size > 0 and len(self.limits) > 0:
+        if len(x) > 0 and data.X.size > 0 and self.limits:
+            newd = []
+            range_attrs = []
             x_sorter = np.argsort(x)
-            all_limits = np.searchsorted(x, self.limits, sorter=x_sorter)
-            range_attrs = [Orange.data.ContinuousVariable.make(
-                            "{0} - {1}".format(limits[0], limits[1]))
-                            for limits in self.limits]
-            newd = None
-            for limits in all_limits:
-                x_s = x[x_sorter][limits[0]:limits[1]]
-                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
-                try:
-                    newd = np.column_stack((newd, self.IntMethods[self.method](y_s, x_s)))
-                except ValueError:
-                    newd = self.IntMethods[self.method](y_s, x_s)[:,None]
-            if newd is not None:
+            for limits in self.limits:
+                x_limits = np.searchsorted(x, limits, sorter=x_sorter)
+                lim_min = min(x_limits)
+                lim_max = max(x_limits)
+                if lim_min != lim_max:
+                    x_s = x[x_sorter][lim_min:lim_max]
+                    y_s = data.X[:,x_sorter][:,lim_min:lim_max]
+                    range_attrs.append(Orange.data.ContinuousVariable.make(
+                            "{0} - {1}".format(limits[0], limits[1])))
+                    newd.append(self.IntMethods[self.method](y_s, x_s))
+            newd = np.column_stack(np.atleast_2d(newd))
+            if newd.size:
                 domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
                                             metas=data.domain.metas)
                 data = Orange.data.Table.from_numpy(domain, newd,
@@ -1016,12 +1017,14 @@ class LimitsBox(QHBoxLayout):
         if label:
             self.addWidget(QLabel(label))
 
-        self.lowlime = SetXDoubleSpinBox(decimals=4,
+        self.lowlime = SetXDoubleSpinBox(decimals=2,
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=limits[0], maximumWidth=75)
-        self.highlime = SetXDoubleSpinBox(decimals=4,
+        self.highlime = SetXDoubleSpinBox(decimals=2,
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=limits[1], maximumWidth=75)
+        self.lowlime.setValue(limits[0])
+        self.highlime.setValue(limits[1])
         self.addWidget(self.lowlime)
         self.addWidget(self.highlime)
 
@@ -1063,7 +1066,7 @@ class LimitsBox(QHBoxLayout):
         newlimits = [self.line1.value(), self.line2.value()]
         self.lowlime.setValue(newlimits[0])
         self.highlime.setValue(newlimits[1])
-        self.valueChanged.emit(newlimits, self)
+        self.limitChanged()
 
     def editFinished(self):
         self.editingFinished.emit(self)
@@ -1122,8 +1125,9 @@ class IntegrateEditor(BaseEditor):
         self.parent_widget.curveplot.clear_markings()
         for row in range(self.form_lim.count()):
             limitbox = self.form_lim.itemAt(row, 1)
-            self.parent_widget.curveplot.add_marking(limitbox.line1)
-            self.parent_widget.curveplot.add_marking(limitbox.line2)
+            if limitbox:
+                self.parent_widget.curveplot.add_marking(limitbox.line1)
+                self.parent_widget.curveplot.add_marking(limitbox.line2)
 
     def add_limit(self, *args, row=None):
         if row is None:
@@ -1144,6 +1148,7 @@ class IntegrateEditor(BaseEditor):
         limitbox.valueChanged.connect(self.set_limits)
         limitbox.editingFinished.connect(self.edited)
         limitbox.deleted.connect(self.remove_limit)
+        self.edited.emit()
         return limitbox
 
     def remove_limit(self, limitbox):
@@ -1191,7 +1196,7 @@ class IntegrateEditor(BaseEditor):
     @staticmethod
     def createinstance(params):
         method = params.get("method", Integrate.Baseline)
-        limits = params.get("limits", [])
+        limits = params.get("limits", None)
         return Integrate(method=method, limits=limits)
 
     def set_preview_data(self, data):
