@@ -25,7 +25,8 @@ class OWFFT(OWWidget):
 
     # Define inputs and outputs
     inputs = [("Interferogram", Orange.data.Table, "set_data")]
-    outputs = [("Spectra", Orange.data.Table)]
+    outputs = [("Spectra", Orange.data.Table),
+               ("Phases", Orange.data.Table)]
 
     # Define widget settings
     laser_wavenumber = settings.Setting(15797.337544)
@@ -235,6 +236,7 @@ class OWFFT(OWWidget):
 
         self.wavenumbers = None
         self.spectra = None
+        self.phases = None
 
         # Reset info, error and warning dialogs
         self.error(1)   # FFT ValueError, usually wrong sweep number
@@ -245,7 +247,7 @@ class OWFFT(OWWidget):
             # Check to see if interferogram is single or double sweep
             if self.sweeps == 0:
                 try:
-                    spectrum_out, self.wavenumbers = self.fft_single(row)
+                    spectrum_out, phase_out, self.wavenumbers = self.fft_single(row)
                 except ValueError as e:
                     self.error(1, "FFT error: %s" % e)
                     return
@@ -265,22 +267,25 @@ class OWFFT(OWWidget):
 
                 # Calculate spectrum for both forward and backward sweeps
                 try:
-                    spectrum_fwd, self.wavenumbers = self.fft_single(fwd)
-                    spectrum_back, self.wavenumbers = self.fft_single(back)
+                    spectrum_fwd, phase_fwd, self.wavenumbers = self.fft_single(fwd)
+                    spectrum_back, phase_back, self.wavenumbers = self.fft_single(back)
                 except ValueError as e:
                     self.error(1, "FFT error: %s" % e)
                     return
 
                 # Calculate the average of the forward and backward sweeps
                 spectrum_out = np.mean( np.array([spectrum_fwd, spectrum_back]), axis=0)
+                phase_out = np.mean(np.array([phase_fwd, phase_back]), axis=0)
 
             else:
                 return
 
             if self.spectra is not None:
                 self.spectra = np.vstack((self.spectra, spectrum_out))
+                self.phases = np.vstack((self.phases, phase_out))
             else:
                 self.spectra = spectrum_out
+                self.phases = phase_out
 
         if self.limit_output is True:
             limits = np.searchsorted(self.wavenumbers,
@@ -289,12 +294,15 @@ class OWFFT(OWWidget):
             # Handle 1D array if necessary
             if self.spectra.ndim == 1:
                 self.spectra = self.spectra[None,limits[0]:limits[1]]
+                self.phases = self.phases[None,limits[0]:limits[1]]
             else:
                 self.spectra = self.spectra[:,limits[0]:limits[1]]
+                self.phases = self.phases[:,limits[0]:limits[1]]
 
         self.spectra_table = build_spec_table(self.wavenumbers, self.spectra)
+        self.phases_table = build_spec_table(self.wavenumbers, self.phases)
         self.send("Spectra", self.spectra_table)
-
+        self.send("Phases", self.phases_table)
 
 
     def determine_sweeps(self):
@@ -337,7 +345,8 @@ class OWFFT(OWWidget):
             Ix (np.array): 1D array with a single-sweep interferogram
 
         Returns:
-            spectrum: 1D array of frequency domain intensities
+            spectrum: 1D array of frequency domain amplitude intensities
+            phase: 1D array of frequency domain phase intensities
             wavenumbers: 1D array of corresponding wavenumber set
         """
         if self.phase_res_limit is True:
@@ -345,10 +354,10 @@ class OWFFT(OWWidget):
         else:
             phase_res = None
 
-        spectrum, wavenumbers = irfft.fft_single_sweep(Ix, self.dx,
+        spectrum, phase, wavenumbers = irfft.fft_single_sweep(Ix, self.dx,
                                         phase_res, self.apod_func, self.zff)
 
-        return spectrum, wavenumbers
+        return spectrum, phase, wavenumbers
 
 # Simple main stub function in case being run outside Orange Canvas
 def main(argv=sys.argv):
