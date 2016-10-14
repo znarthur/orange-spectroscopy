@@ -33,10 +33,10 @@ if __name__ == '__main__':
         description='',
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
-        version="0.0.6",
+        version="0.0.7",
         packages=find_packages(),
         install_requires=[
-            'Orange3',
+            'Orange3>=3.3.8',
             'scipy>=0.14.0',
             'spectral>=0.18',
             'opusFC>=1.0.0b1',

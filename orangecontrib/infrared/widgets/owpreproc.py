@@ -1325,17 +1325,12 @@ PREPROCESSORS = [
                     icon_path("Discretize.svg")),
         IntegrateEditor
     ),
-    ]
-
-
-if Orange.__version__ >= "3.3.8":
-    PREPROCESSORS += [
-        PreprocessAction(
-            "PCA denoising", "orangecontrib.infrared.pca_denoising", "PCA denoising",
-            Description("PCA denoising",
-                        icon_path("Discretize.svg")),
-            PCADenoisingEditor
-        ),
+    PreprocessAction(
+        "PCA denoising", "orangecontrib.infrared.pca_denoising", "PCA denoising",
+        Description("PCA denoising",
+                    icon_path("Discretize.svg")),
+        PCADenoisingEditor
+    ),
     ]
 
 
