@@ -196,7 +196,8 @@ def fft_single_sweep(Ix, dx, phase_res=None, apod_func=1, zff=2):
         zff (int): Zero-filling factor passed to zero_fill()
 
     Returns:
-        spectrum: 1D array of frequency domain intensities
+        spectrum: 1D array of frequency domain amplitude intensities
+        phase: 1D array of frequency domain phase intensities
         wavenumbers: 1D array of corresponding wavenumber set
     """
 
@@ -232,4 +233,4 @@ def fft_single_sweep(Ix, dx, phase_res=None, apod_func=1, zff=2):
     spectrum =  phase_cos * Ix_fft.real \
                 + phase_sin * Ix_fft.imag
 
-    return spectrum, wavenumbers
+    return spectrum, phase, wavenumbers
