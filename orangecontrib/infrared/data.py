@@ -9,7 +9,7 @@ import struct
 
 from .pymca5 import OmnicMap
 from Orange.preprocess.preprocess import Preprocess
-from Orange.data.util import ComputeValueWCommon
+from Orange.data.util import SharedComputeValue
 
 class DptReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
@@ -327,14 +327,14 @@ def build_spec_table(wavenumbers, intensities):
     return table
 
 
-class InterpolatedFeature(ComputeValueWCommon):
+class InterpolatedFeature(SharedComputeValue):
 
     def __init__(self, feature, commonfn):
+        super().__init__(commonfn)
         self.feature = feature
-        self.commonfn = commonfn
 
-    def specific(self, common, data):
-        return common[:,self.feature]
+    def compute(self, data, interpolated):
+        return interpolated[:, self.feature]
 
 
 class _InterpolateCommon:
