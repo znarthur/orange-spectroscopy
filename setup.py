@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+import sys
 
 ENTRY_POINTS = {
     # Entry point used to specify packages containing tutorials accessible
@@ -27,6 +28,13 @@ KEYWORDS = [
     'infrared'
 ]
 
+if 'test' in sys.argv:
+    extra_setuptools_args = dict(
+        test_suite='orangecontrib.infrared.tests',
+    )
+else:
+    extra_setuptools_args = dict()
+
 if __name__ == '__main__':
     setup(
         name="Orange-Infrared",
@@ -46,5 +54,6 @@ if __name__ == '__main__':
         namespace_packages=['orangecontrib'],
         include_package_data=True,
         zip_safe=False,
-        url="https://github.com/markotoplak/orange-infrared"
+        url="https://github.com/markotoplak/orange-infrared",
+        **extra_setuptools_args
     )
