@@ -523,6 +523,16 @@ class CutEditor(BaseEditor):
                 self.set_highlim(max(x))
 
 
+class CutEditorInverse(CutEditor):
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        lowlim = params.get("lowlim", None)
+        highlim = params.get("highlim", None)
+        return Cut(lowlim=lowlim, highlim=highlim, inverse=True)
+
+
 class SavitzkyGolayFiltering():
     """
     Apply a Savitzky-Golay[1] Filter to the data using SciPy Library.
@@ -1298,10 +1308,16 @@ class PCADenoisingEditor(BaseEditor):
 
 PREPROCESSORS = [
     PreprocessAction(
-        "Cut", "orangecontrib.infrared.cut", "Cut",
-        Description("Cut",
+        "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
+        Description("Cut (keep)",
                     icon_path("Discretize.svg")),
         CutEditor
+    ),
+    PreprocessAction(
+        "Cut (remove)", "orangecontrib.infrared.cutinverse", "Cut",
+        Description("Cut (remove)",
+                    icon_path("Discretize.svg")),
+        CutEditorInverse
     ),
     PreprocessAction(
         "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
