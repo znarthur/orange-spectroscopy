@@ -81,7 +81,7 @@ class OWFFT(OWWidget):
         self.dx_edit = gui.lineEdit(
                     self.dataBox, self, "dx",
                     callback=self.setting_changed,
-                    valueType=float, enterPlaceholder=True,
+                    valueType=float,
                     controlWidth=100, disabled=self.dx_HeNe
                     )
         cb = gui.checkBox(
@@ -125,8 +125,7 @@ class OWFFT(OWWidget):
         le1 = gui.lineEdit(
                     self.optionsBox, self, "phase_resolution",
                     callback=self.setting_changed,
-                    valueType=int, enterPlaceholder=True,
-                    controlWidth=30
+                    valueType=int, controlWidth=30
                     )
         cb1 = gui.checkBox(
                     self.optionsBox, self, "phase_res_limit",
@@ -150,14 +149,12 @@ class OWFFT(OWWidget):
         le2 = gui.lineEdit(
                     self.outputBox, self, "out_limit1",
                     callback=self.out_limit_changed,
-                    valueType=int, enterPlaceholder=True,
-                    controlWidth=50
+                    valueType=float, controlWidth=50
                     )
         le3 = gui.lineEdit(
                     self.outputBox, self, "out_limit2",
                     callback=self.out_limit_changed,
-                    valueType=int, enterPlaceholder=True,
-                    controlWidth=50
+                    valueType=float, controlWidth=50
                     )
         cb2 = gui.checkBox(
                     self.outputBox, self, "limit_output",
