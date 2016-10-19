@@ -329,13 +329,21 @@ class GaussianSmoothingEditor(BaseEditor):
 
 class Cut():
 
-    def __init__(self, lowlim=None, highlim=None):
+    def __init__(self, lowlim=None, highlim=None, inverse=False):
         self.lowlim = lowlim
         self.highlim = highlim
+        self.inverse = inverse
 
     def __call__(self, data):
         x = getx(data)
-        okattrs = [at for at, v in zip(data.domain.attributes, x) if (self.lowlim is None or self.lowlim <= v) and (self.highlim is None or v <= self.highlim)]
+        if not self.inverse:
+            okattrs = [at for at, v in zip(data.domain.attributes, x)
+                       if (self.lowlim is None or self.lowlim <= v) and
+                          (self.highlim is None or v <= self.highlim)]
+        else:
+            okattrs = [at for at, v in zip(data.domain.attributes, x)
+                       if (self.lowlim is not None and v <= self.lowlim) or
+                          (self.highlim is not None and self.highlim <= v)]
         domain = Orange.data.Domain(okattrs, data.domain.class_vars, metas=data.domain.metas)
         return data.from_table(domain, data)
 
