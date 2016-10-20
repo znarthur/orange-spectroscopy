@@ -475,6 +475,15 @@ class CutEditorInverse(CutEditor):
         highlim = params.get("highlim", None)
         return Cut(lowlim=lowlim, highlim=highlim, inverse=True)
 
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                avg = (min(x) + max(x))/2
+                self.set_lowlim(avg)
+                self.set_highlim(avg)
+                self.edited.emit()
+
 
 class SavitzkyGolayFilteringEditor(BaseEditor):
     """
