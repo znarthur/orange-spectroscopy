@@ -1211,7 +1211,7 @@ class OWPreprocess(widget.OWWidget):
                           Qt.ItemIsDragEnabled)
             self.preprocessors.appendRow([item])
             action = QtGui.QAction(
-                description.title, self, triggered=lambda x,id=i: self.__activated(id)
+                description.title, self, triggered=lambda x,id=i: self.add_preprocessor(id)
             )
             action.setToolTip(description.summary or "")
             action.setIcon(icon)
@@ -1315,7 +1315,7 @@ class OWPreprocess(widget.OWWidget):
     def handleNewSignals(self):
         self.apply()
 
-    def __activated(self, index):
+    def add_preprocessor(self, index):
         action = PREPROCESSORS[index]
         item = QStandardItem()
         item.setData({}, ParametersRole)
