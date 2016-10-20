@@ -1114,18 +1114,12 @@ class OWPreprocess(widget.OWWidget):
         self.preprocessor_menu = QMenu(self)
         self.button.setMenu(self.preprocessor_menu)
 
-        #FIXME temporarily disabled (menu evaluation)
-        #box = gui.widgetBox(self.controlArea, "Preprocessors")
         self.preprocessorsView = view = QListView(
             selectionMode=QListView.SingleSelection,
             dragEnabled=True,
             dragDropMode=QListView.DragOnly
         )
-        #view.setModel(self.preprocessors)
-        #view.activated.connect(self.__activated)
-        #box.layout().addWidget(view)
 
-        ####
         self._qname2ppdef = {ppdef.qualname: ppdef for ppdef in PREPROCESSORS}
 
         # List of 'selected' preprocessors and their parameters.
@@ -1133,17 +1127,6 @@ class OWPreprocess(widget.OWWidget):
 
         self.flow_view = SequenceFlow(preview_callback=self.show_preview)
         self.controler = ViewController(self.flow_view, parent=self)
-
-        #FIXME temporarily disabled (menu evaluation)
-        """
-        self.overlay = OverlayWidget(self)
-        self.overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.overlay.setWidget(self.flow_view)
-        self.overlay.setLayout(QVBoxLayout())
-        self.overlay.layout().addWidget(
-            QtGui.QLabel("Drag items from the list on the left",
-                         wordWrap=True))
-        """
 
         self.scroll_area = QtGui.QScrollArea(
             verticalScrollBarPolicy=Qt.ScrollBarAlwaysOn
@@ -1319,20 +1302,7 @@ class OWPreprocess(widget.OWWidget):
             self.preprocessormodel.rowsRemoved.connect(self.__on_modelchanged)
             self.preprocessormodel.rowsMoved.connect(self.__on_modelchanged)
 
-        self.__update_overlay()
-
-    def __update_overlay(self):
-        return #FIXME temporarily disabled (menu evaluation)
-        if self.preprocessormodel is None or \
-                self.preprocessormodel.rowCount() == 0:
-            self.overlay.setWidget(self.flow_view)
-            self.overlay.show()
-        else:
-            self.overlay.setWidget(None)
-            self.overlay.hide()
-
     def __on_modelchanged(self):
-        self.__update_overlay()
         self.show_preview()
         self.commit()
 
@@ -1346,11 +1316,7 @@ class OWPreprocess(widget.OWWidget):
         self.apply()
 
     def __activated(self, index):
-        if isinstance(index, int):
-            action = PREPROCESSORS[index]
-        else:
-            item = self.preprocessors.itemFromIndex(index)
-            action = item.data(DescriptionRole)
+        action = PREPROCESSORS[index]
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
