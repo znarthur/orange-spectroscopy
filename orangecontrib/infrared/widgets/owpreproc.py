@@ -463,6 +463,7 @@ class CutEditor(BaseEditor):
             if len(x):
                 self.set_lowlim(min(x))
                 self.set_highlim(max(x))
+                self.edited.emit()
 
 
 class CutEditorInverse(CutEditor):
@@ -763,6 +764,7 @@ class NormalizeEditor(BaseEditor):
             if len(x):
                 self.setL(min(x))
                 self.setU(max(x))
+                self.edited.emit()
         self.attrs[:] = [var for var in data.domain.metas
                          if var.is_continuous]
 
@@ -979,6 +981,7 @@ class IntegrateEditor(BaseEditor):
             x = getx(data)
             if len(x):
                 self.set_all_limits([[min(x),max(x)]])
+                self.edited.emit()
 
 
 class PCADenoisingEditor(BaseEditor):
@@ -1417,7 +1420,7 @@ def test_main(argv=sys.argv):
     app = QtGui.QApplication(argv)
 
     w = OWPreprocess()
-    w.set_data(Orange.data.Table("iris"))
+    w.set_data(Orange.data.Table("peach_juice.dpt"))
     w.show()
     w.raise_()
     r = app.exec_()
