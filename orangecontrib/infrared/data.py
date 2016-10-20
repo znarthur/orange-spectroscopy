@@ -1,15 +1,15 @@
-import numpy as np
-import Orange
-from Orange.data.io import FileFormat
-from Orange.data import \
-    ContinuousVariable, StringVariable, TimeVariable, DiscreteVariable
-import spectral.io.envi
 import itertools
 import struct
 
+import Orange
+import numpy as np
+import spectral.io.envi
+from Orange.data import \
+    ContinuousVariable, StringVariable, TimeVariable
+from Orange.data.io import FileFormat
+
 from .pymca5 import OmnicMap
-from Orange.preprocess.preprocess import Preprocess
-from Orange.data.util import SharedComputeValue
+
 
 class DptReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
@@ -325,58 +325,6 @@ def build_spec_table(wavenumbers, intensities):
     # Finally, build the table using the damain and intensity arrays:
     table = Orange.data.Table.from_numpy(domain, intensities)
     return table
-
-
-class InterpolatedFeature(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, interpolated):
-        return interpolated[:, self.feature]
-
-
-class _InterpolateCommon:
-
-    def __init__(self, points):
-        self.points = points
-
-    def __call__(self, data):
-        x = getx(data)
-        Y = data.X
-        xsind = np.argsort(x)
-        x = x[xsind]
-        inter = []
-        for y in Y:
-            i = np.interp(self.points, x, y[xsind])
-            inter.append(i)
-        inter = np.array(inter)
-        return inter
-
-
-class Interpolate(Preprocess):
-    """
-    Linear interpolation of the domain.
-
-    Parameters
-    ----------
-    points : interpolation points (numpy array)
-    """
-
-    def __init__(self, points):
-        self.points = np.asarray(points)
-
-    def __call__(self, data):
-        common = _InterpolateCommon(self.points)
-        atts = []
-        for i,p in enumerate(self.points):
-            atts.append(
-                Orange.data.ContinuousVariable(name=str(p),
-                    compute_value=InterpolatedFeature(i, common)))
-        domain = Orange.data.Domain(atts, data.domain.class_vars,
-                                    data.domain.metas)
-        return data.from_table(domain, data)
 
 
 def getx(data):

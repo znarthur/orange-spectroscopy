@@ -1,7 +1,7 @@
 import numpy as np
 import Orange
 import unittest
-from orangecontrib.infrared.widgets.owpreproc import Cut
+from orangecontrib.infrared.preprocess import Cut
 from orangecontrib.infrared.data import getx
 
 

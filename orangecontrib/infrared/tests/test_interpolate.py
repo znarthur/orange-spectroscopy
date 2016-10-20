@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 import Orange
-from orangecontrib.infrared.data import Interpolate
+from orangecontrib.infrared.preprocess import Interpolate
 
 
 class TestInterpolate(unittest.TestCase):
