@@ -1416,8 +1416,8 @@ class OWPreprocess(widget.OWWidget):
         sh = self.flow_view.minimumSizeHint()
         scroll_width = self.scroll_area.verticalScrollBar().width()
         self.scroll_area.setMinimumWidth(
-            min(max(sh.width() + scroll_width + 2, self.controlArea.width()),
-                520))
+            min(max(sh.width() + scroll_width + 5, self.controlArea.width()),
+               520))
 
     def sizeHint(self):
         sh = super().sizeHint()
