@@ -4,6 +4,7 @@ from itertools import chain, repeat
 from collections import Counter
 
 from PyQt4 import QtGui, QtCore
+from PyQt4.QtCore import Qt
 from PyQt4.QtGui import QSizePolicy as Policy
 
 import Orange
@@ -28,6 +29,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     file_idx = -1
 
     sheet = Orange.widgets.settings.Setting(None)
+    label = Orange.widgets.settings.Setting("")
     recent_paths = Orange.widgets.settings.Setting([])
 
     def __init__(self):
@@ -64,7 +66,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         reload_button.setIcon(self.style().standardIcon(
                 QtGui.QStyle.SP_BrowserReload))
         reload_button.setSizePolicy(Policy.Fixed, Policy.Fixed)
-        layout.addWidget(reload_button, 0, 6)
+        layout.addWidget(reload_button, 0, 7)
 
         self.sheet_box = gui.hBox(None, addToLayout=False, margin=0)
         self.sheet_combo = gui.comboBox(None, self, "xls_sheet",
@@ -85,6 +87,11 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
         layout.addWidget(self.sheet_box, 0, 5)
 
+        label_box = gui.hBox(None, addToLayout=False, margin=0)
+        label = gui.lineEdit(label_box, self, "label", callback=self.set_label,
+                             label="Label", orientation=Qt.Horizontal)
+        layout.addWidget(label_box, 0, 6)
+
         layout.setColumnStretch(3, 2)
 
         box = gui.widgetBox(self.controlArea, "Columns (Double click to edit)")
@@ -98,6 +105,9 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         # TODO unresolved paths just disappear! Modify _relocate_recent_files
 
         self._update_sheet_combo()
+        self.load_data()
+
+    def set_label(self):
         self.load_data()
 
     def add_path(self, filename):
@@ -223,8 +233,14 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
                 chain(*(repeat(fn, len(table))
                         for fn, table in zip(fnok_list, tables)))
                 )
+            label_var = Orange.data.StringVariable("Label")
+            label_values = list(
+                chain(*(repeat(self.label, len(table))
+                        for fn, table in zip(fnok_list, tables)))
+            )
             data = append_columns(
-                data, **{"metas": [(source_var, source_values)]})
+                data, **{"metas": [(source_var, source_values),
+                                   (label_var, label_values)]})
             self.data = data
             self.editor_model.set_domain(data.domain)
         else:
