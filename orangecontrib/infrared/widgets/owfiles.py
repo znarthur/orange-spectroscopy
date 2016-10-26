@@ -228,12 +228,12 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             tables = [Orange.data.Table.from_table(domain, table)
                       for table in tables]
             data = concat(tables)
-            source_var = Orange.data.StringVariable("Filename")
+            source_var = Orange.data.StringVariable.make("Filename")
             source_values = list(
                 chain(*(repeat(fn, len(table))
                         for fn, table in zip(fnok_list, tables)))
                 )
-            label_var = Orange.data.StringVariable("Label")
+            label_var = Orange.data.StringVariable.make("Label")
             label_values = list(
                 chain(*(repeat(self.label, len(table))
                         for fn, table in zip(fnok_list, tables)))
