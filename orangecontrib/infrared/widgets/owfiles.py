@@ -53,14 +53,18 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         remove_button = gui.button(
             None, self, 'Remove', callback=self.remove_item)
 
+        clear_button = gui.button(
+            None, self, 'Clear', callback=self.clear)
+
         layout.addWidget(remove_button, 0, 1)
+        layout.addWidget(clear_button, 0, 2)
 
         reload_button = gui.button(
             None, self, "Reload", callback=self.load_data, autoDefault=False)
         reload_button.setIcon(self.style().standardIcon(
                 QtGui.QStyle.SP_BrowserReload))
         reload_button.setSizePolicy(Policy.Fixed, Policy.Fixed)
-        layout.addWidget(reload_button, 0, 5)
+        layout.addWidget(reload_button, 0, 6)
 
         self.sheet_box = gui.hBox(None, addToLayout=False, margin=0)
         self.sheet_combo = gui.comboBox(None, self, "xls_sheet",
@@ -79,9 +83,9 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         layout.addWidget(self.sheet_box, 2, 1)
         self.sheet_box.hide()
 
-        layout.addWidget(self.sheet_box, 0, 4)
+        layout.addWidget(self.sheet_box, 0, 5)
 
-        layout.setColumnStretch(2, 2)
+        layout.setColumnStretch(3, 2)
 
         box = gui.widgetBox(self.controlArea, "Columns (Double click to edit)")
         domain_editor = DomainEditor(self.variables)
@@ -146,6 +150,13 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         for i in sorted(ri, reverse=True):
             self.recent_paths.pop(i)
             self.lb.takeItem(i)
+        self._update_sheet_combo()
+        self.load_data()
+
+    def clear(self):
+        self.lb.clear()
+        while self.recent_paths:
+            self.recent_paths.pop()
         self._update_sheet_combo()
         self.load_data()
 
