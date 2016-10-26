@@ -27,7 +27,7 @@ from PyQt4.QtGui import (
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
-    RubberbandBaseline, Normalize, Integrate
+    RubberbandBaseline, Normalize, Integrate, Absorbance, Transmittance
 from orangecontrib.infrared.widgets.owcurves import CurvePlot
 
 
@@ -1033,6 +1033,29 @@ class PCADenoisingEditor(BaseEditor):
         components = params.get("components", 5)
         return PCADenoising(components=components)
 
+class TransToAbsEditor(BaseEditor):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def setParameters(self, params):
+        pass
+
+    @staticmethod
+    def createinstance(params):
+        return Absorbance(ref=None)
+
+class AbsToTransEditor(BaseEditor):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def setParameters(self, params):
+        pass
+
+    @staticmethod
+    def createinstance(params):
+        return Transmittance(ref=None)
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -1082,6 +1105,18 @@ PREPROCESSORS = [
         Description("PCA denoising",
                     icon_path("Discretize.svg")),
         PCADenoisingEditor
+    ),
+    PreprocessAction(
+        "Transmittance to Absorbance", "orangecontrib.infrared.absorbance", "Trasmittance to Absorbance",
+        Description("Trasmittance to Absorbance",
+                    icon_path("Discretize.svg")),
+        TransToAbsEditor
+    ),
+    PreprocessAction(
+        "Absorbance to Transmittance", "orangecontrib.infrared.transmittance", "Absorbance to Transmittance",
+        Description("Absorbance to Transmittance",
+                    icon_path("Discretize.svg")),
+        AbsToTransEditor
     ),
     ]
 

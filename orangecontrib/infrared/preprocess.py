@@ -327,3 +327,99 @@ class Interpolate(Preprocess):
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)
+
+class AbsorbanceFeature(SharedComputeValue):
+
+    def __init__(self, feature, commonfn):
+        super().__init__(commonfn)
+        self.feature = feature
+
+    def compute(self, data, shared_data):
+        return shared_data[:, self.feature]
+
+class _AbsorbanceCommon:
+
+    def __init__(self, ref):
+        self.ref = ref
+
+    def __call__(self, data):
+        if self.ref:
+            # Calculate from single-channel data
+            absd = self.ref.X / data.X
+            np.log10(absd, absd)
+        else:
+            # Calculate from transmittance data
+            absd = np.log10(data.X)
+            absd *= -1
+        return absd
+
+class Absorbance(Preprocess):
+    """
+    Convert data to absorbance.
+
+    Set ref to calculate from single-channel spectra, otherwise convert from transmittance.
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, ref=None):
+        self.ref = ref
+
+    def __call__(self, data):
+        common = _AbsorbanceCommon(self.ref)
+        newattrs = [Orange.data.ContinuousVariable(
+                    name=var.name, compute_value=AbsorbanceFeature(i, common))
+                    for i, var in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(
+                    newattrs, data.domain.class_vars, data.domain.metas)
+        return data.from_table(domain, data)
+
+class TransmittanceFeature(SharedComputeValue):
+
+    def __init__(self, feature, commonfn):
+        super().__init__(commonfn)
+        self.feature = feature
+
+    def compute(self, data, shared_data):
+        return shared_data[:, self.feature]
+
+class _TransmittanceCommon:
+
+    def __init__(self, ref):
+        self.ref = ref
+
+    def __call__(self, data):
+        if self.ref:
+            # Calculate from single-channel data
+            transd = data.X / self.ref.X
+        else:
+            # Calculate from absorbance data
+            transd = data.X.copy()
+            transd *= -1
+            np.power(10, transd, transd)
+        return transd
+
+class Transmittance(Preprocess):
+    """
+    Convert data to transmittance.
+
+    Set ref to calculate from single-channel spectra, otherwise convert from absorbance.
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, ref=None):
+        self.ref = ref
+
+    def __call__(self, data):
+        common = _TransmittanceCommon(self.ref)
+        newattrs = [Orange.data.ContinuousVariable(
+                    name=var.name, compute_value=TransmittanceFeature(i, common))
+                    for i, var in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(
+                    newattrs, data.domain.class_vars, data.domain.metas)
+        return data.from_table(domain, data)
