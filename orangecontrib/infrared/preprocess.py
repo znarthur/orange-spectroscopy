@@ -289,19 +289,15 @@ class InterpolatedFeature(SharedComputeValue):
 
 class _InterpolateCommon:
 
-    def __init__(self, points):
+    def __init__(self, points, kind):
         self.points = points
+        self.kind = kind
 
     def __call__(self, data):
         x = getx(data)
-        Y = data.X
-        xsind = np.argsort(x)
-        x = x[xsind]
-        inter = []
-        for y in Y:
-            i = np.interp(self.points, x, y[xsind])
-            inter.append(i)
-        inter = np.array(inter)
+        f = interp1d(x, data.X, fill_value=np.nan,
+                     bounds_error=False, kind=self.kind)
+        inter = f(self.points)
         return inter
 
 
@@ -312,13 +308,16 @@ class Interpolate(Preprocess):
     Parameters
     ----------
     points : interpolation points (numpy array)
+    kind   : type of interpolation (linear by default, passed to
+             scipy.interpolate.interp1d)
     """
 
-    def __init__(self, points):
+    def __init__(self, points, kind="linear"):
         self.points = np.asarray(points)
+        self.kind = kind
 
     def __call__(self, data):
-        common = _InterpolateCommon(self.points)
+        common = _InterpolateCommon(self.points, self.kind)
         atts = []
         for i,p in enumerate(self.points):
             atts.append(

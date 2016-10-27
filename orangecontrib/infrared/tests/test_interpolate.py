@@ -38,4 +38,27 @@ class TestInterpolate(unittest.TestCase):
         """Interpolate values are original values."""
         data = Orange.data.Table("iris")
         interpolated = Interpolate(range(len(data.domain.attributes)))(data)
-        np.testing.assert_equal(interpolated.X, data.X)
+        np.testing.assert_allclose(interpolated.X, data.X)
+
+    def test_permute(self):
+        rs = np.random.RandomState(0)
+        data = Orange.data.Table("iris")
+        oldX = data.X
+        #permute data
+        p = rs.permutation(range(len(data.domain.attributes)))
+        for i, a in enumerate(data.domain.attributes):
+            a.name = str(p[i])
+        data.X = data.X[:, p]
+        interpolated = Interpolate(range(len(data.domain.attributes)))(data)
+        np.testing.assert_allclose(interpolated.X, oldX)
+        #also permute output
+        p1 = rs.permutation(range(len(data.domain.attributes)))
+        interpolated = Interpolate(p1)(data)
+        np.testing.assert_allclose(interpolated.X, oldX[:, p1])
+        Orange.data.domain.Variable._clear_all_caches()
+
+    def test_out_of_band(self):
+        data = Orange.data.Table("iris")
+        interpolated = Interpolate(range(-1, len(data.domain.attributes)+1))(data)
+        np.testing.assert_allclose(interpolated.X[:, 1:5], data.X)
+        np.testing.assert_equal(interpolated.X[:, [0, -1]], np.nan)
