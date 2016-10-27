@@ -328,6 +328,7 @@ class Interpolate(Preprocess):
                                     data.domain.metas)
         return data.from_table(domain, data)
 
+
 class AbsorbanceFeature(SharedComputeValue):
 
     def __init__(self, feature, commonfn):
@@ -336,6 +337,7 @@ class AbsorbanceFeature(SharedComputeValue):
 
     def compute(self, data, shared_data):
         return shared_data[:, self.feature]
+
 
 class _AbsorbanceCommon:
 
@@ -352,6 +354,7 @@ class _AbsorbanceCommon:
             absd = np.log10(data.X)
             absd *= -1
         return absd
+
 
 class Absorbance(Preprocess):
     """
@@ -376,6 +379,7 @@ class Absorbance(Preprocess):
                     newattrs, data.domain.class_vars, data.domain.metas)
         return data.from_table(domain, data)
 
+
 class TransmittanceFeature(SharedComputeValue):
 
     def __init__(self, feature, commonfn):
@@ -384,6 +388,7 @@ class TransmittanceFeature(SharedComputeValue):
 
     def compute(self, data, shared_data):
         return shared_data[:, self.feature]
+
 
 class _TransmittanceCommon:
 
@@ -400,6 +405,7 @@ class _TransmittanceCommon:
             transd *= -1
             np.power(10, transd, transd)
         return transd
+
 
 class Transmittance(Preprocess):
     """
