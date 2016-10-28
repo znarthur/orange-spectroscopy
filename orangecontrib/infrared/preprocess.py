@@ -277,6 +277,16 @@ class Integrate():
     IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]
 
 
+def features_with_interpolation(points, kind="linear"):
+    common = _InterpolateCommon(points, kind)
+    atts = []
+    for i, p in enumerate(points):
+        atts.append(
+            Orange.data.ContinuousVariable(name=str(p),
+                                           compute_value=InterpolatedFeature(i, common)))
+    return atts
+
+
 class InterpolatedFeature(SharedComputeValue):
 
     def __init__(self, feature, commonfn):
@@ -317,12 +327,7 @@ class Interpolate(Preprocess):
         self.kind = kind
 
     def __call__(self, data):
-        common = _InterpolateCommon(self.points, self.kind)
-        atts = []
-        for i,p in enumerate(self.points):
-            atts.append(
-                Orange.data.ContinuousVariable(name=str(p),
-                    compute_value=InterpolatedFeature(i, common)))
+        atts = features_with_interpolation(self.points, self.kind)
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)

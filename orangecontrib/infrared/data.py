@@ -19,7 +19,8 @@ class DptReader(FileFormat):
     def read(self):
         tbl = np.loadtxt(self.filename)
         domvals = tbl.T[0]  # first column is attribute name
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        from orangecontrib.infrared.preprocess import features_with_interpolation
+        domain = Orange.data.Domain(features_with_interpolation(domvals), None)
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
 
