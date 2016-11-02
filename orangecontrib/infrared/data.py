@@ -167,7 +167,26 @@ class OPUSReader(FileFormat):
         y_data = None
         meta_data = None
 
-        if dim == '3D':
+        if dim == '3D' and hasattr(data, 'regions'):
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region'),
+                          TimeVariable.make('start_time')])
+            for region in data.regions:
+                y_data.append(region['spectra'])
+                mapX = region['mapX']
+                mapY = region['mapY']
+                map_region = np.full_like(mapX, region['title'], dtype=object)
+                start_time = region['start_time']
+                meta_region = np.column_stack((mapX, mapY,
+                                               map_region, start_time))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
+        elif dim == '3D':
             metas.extend([ContinuousVariable.make('map_x'),
                           ContinuousVariable.make('map_y')])
 
