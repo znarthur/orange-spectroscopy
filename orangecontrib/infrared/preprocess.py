@@ -68,7 +68,7 @@ class GaussianSmoothing():
         return data
 
 
-class Cut():
+class Cut(Preprocess):
 
     def __init__(self, lowlim=None, highlim=None, inverse=False):
         self.lowlim = lowlim
