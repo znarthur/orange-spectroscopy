@@ -11,6 +11,16 @@ from scipy.signal import savgol_filter
 from orangecontrib.infrared.data import getx
 
 
+class SelectColumn(SharedComputeValue):
+    
+    def __init__(self, feature, commonfn):
+        super().__init__(commonfn)
+        self.feature = feature
+
+    def compute(self, data, common):
+        return common[:, self.feature]
+
+
 class _PCAReconstructCommon:
     """Computation common for all PCA variables."""
 
@@ -90,14 +100,8 @@ class Cut(Preprocess):
         return data.from_table(domain, data)
 
 
-class SavitzkyGolayFeature(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, sg):
-        return sg[:, self.feature]
+class SavitzkyGolayFeature(SelectColumn):
+    pass
 
 
 class _SavitzkyGolayCommon:
@@ -311,14 +315,8 @@ def features_with_interpolation(points, kind="linear"):
     return atts
 
 
-class InterpolatedFeature(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, interpolated):
-        return interpolated[:, self.feature]
+class InterpolatedFeature(SelectColumn):
+    pass
 
 
 class _InterpolateCommon:
@@ -357,14 +355,8 @@ class Interpolate(Preprocess):
         return data.from_table(domain, data)
 
 
-class AbsorbanceFeature(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, shared_data):
-        return shared_data[:, self.feature]
+class AbsorbanceFeature(SelectColumn):
+    pass
 
 
 class _AbsorbanceCommon:
@@ -408,14 +400,8 @@ class Absorbance(Preprocess):
         return data.from_table(domain, data)
 
 
-class TransmittanceFeature(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, shared_data):
-        return shared_data[:, self.feature]
+class TransmittanceFeature(SelectColumn):
+    pass
 
 
 class _TransmittanceCommon:
