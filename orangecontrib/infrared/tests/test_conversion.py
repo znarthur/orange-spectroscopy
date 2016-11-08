@@ -12,7 +12,7 @@ from orangecontrib.infrared.preprocess import Interpolate, Cut, SavitzkyGolayFil
 from orangecontrib.infrared.data import getx
 
 
-def seperate_learn_test(data):
+def separate_learn_test(data):
     sf = ms.ShuffleSplit(n_splits=1, test_size=0.2, random_state=np.random.RandomState(0))
     (traini, testi), = sf.split(y=data.Y, X=data.X)
     return data[traini], data[testi]
@@ -34,18 +34,18 @@ class TestConversion(unittest.TestCase):
         cls.collagen = Orange.data.Table("collagen")
 
     def test_predict_same_domain(self):
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertGreater(auc, 0.9) # easy dataset
 
     def test_predict_samename_domain(self):
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         test = destroy_atts_conversion(test)
         aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_samename_domain_interpolation(self):
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         test = destroy_atts_conversion(test)
         train = Interpolate(train, points=getx(train)) # make train capable of interpolation
@@ -53,13 +53,13 @@ class TestConversion(unittest.TestCase):
         self.assertEqual(aucorig, auc)
 
     def test_predict_different_domain(self):
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         test = Interpolate(points=getx(test) - 1)(test) # other test domain
         aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_different_domain_interpolation(self):
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         test = Interpolate(points=getx(test) - 1.)(test) # other test domain
         train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
@@ -76,16 +76,16 @@ class TestConversion(unittest.TestCase):
 
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
-        train, test = seperate_learn_test(data)
+        train, test = separate_learn_test(data)
         auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertGreater(auc, 0.85)
 
     def test_predict_savgol_samename_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
-        train, test = seperate_learn_test(data)
+        train, test = separate_learn_test(data)
         train1 = train
         aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
-        train, test = seperate_learn_test(self.collagen)
+        train, test = separate_learn_test(self.collagen)
         train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
         np.testing.assert_equal(train.X, train1.X)
         aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
