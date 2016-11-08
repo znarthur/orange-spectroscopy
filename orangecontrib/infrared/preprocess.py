@@ -6,6 +6,7 @@ from Orange.preprocess.preprocess import Preprocess
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
+from scipy.signal import savgol_filter
 
 from orangecontrib.infrared.data import getx
 
@@ -89,26 +90,46 @@ class Cut(Preprocess):
         return data.from_table(domain, data)
 
 
-class SavitzkyGolayFiltering():
-    """
-    Apply a Savitzky-Golay[1] Filter to the data using SciPy Library.
-    """
-    def __init__(self, window=5,polyorder=2,deriv=0):
-        #super().__init__(variable)
+class SavitzkyGolayFeature(SharedComputeValue):
+
+    def __init__(self, feature, commonfn):
+        super().__init__(commonfn)
+        self.feature = feature
+
+    def compute(self, data, sg):
+        return sg[:, self.feature]
+
+
+class _SavitzkyGolayCommon:
+
+    def __init__(self, window, polyorder, deriv):
         self.window = window
         self.polyorder = polyorder
         self.deriv = deriv
 
     def __call__(self, data):
-        x = np.arange(len(data.domain.attributes))
-        from scipy.signal import savgol_filter
+        return savgol_filter(data.X, window_length=self.window,
+                             polyorder=self.polyorder,
+                             deriv=self.deriv, mode="nearest")
 
-        #savgol_filter(x, window_length, polyorder, deriv=0, delta=1.0, axis=-1, mode='interp', cval=0.0)
-        newd = savgol_filter(data.X, window_length=self.window, polyorder=self.polyorder, deriv=self.deriv, mode="nearest")
 
-        data = data.copy()
-        data.X = newd
-        return data
+class SavitzkyGolayFiltering(Preprocess):
+    """
+    Apply a Savitzky-Golay[1] Filter to the data using SciPy Library.
+    """
+    def __init__(self, window=5, polyorder=2, deriv=0):
+        self.window = window
+        self.polyorder = polyorder
+        self.deriv = deriv
+
+    def __call__(self, data):
+        # TODO what is input domain is different
+        common = _SavitzkyGolayCommon(self.window, self.polyorder, self.deriv)
+        atts = [ a.copy(compute_value=SavitzkyGolayFeature(i, common))
+                        for i,a in enumerate(data.domain.attributes) ]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
 
 
 class RubberbandBaseline():

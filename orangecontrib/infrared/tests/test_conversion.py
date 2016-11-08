@@ -8,7 +8,7 @@ from Orange.evaluation.scoring import AUC
 
 import sklearn.model_selection as ms
 
-from orangecontrib.infrared.preprocess import Interpolate, Cut
+from orangecontrib.infrared.preprocess import Interpolate, Cut, SavitzkyGolayFiltering
 from orangecontrib.infrared.data import getx
 
 
@@ -73,3 +73,20 @@ class TestConversion(unittest.TestCase):
         auccut3 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         # the more we cut the lower precision we get
         self.assertTrue(aucorig > auccut1 > auccut2 > auccut3)
+
+    def test_predict_savgov_same_domain(self):
+        data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
+        train, test = seperate_learn_test(data)
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertGreater(auc, 0.85)
+
+    def test_predict_savgol_samename_domain(self):
+        data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
+        train, test = seperate_learn_test(data)
+        train1 = train
+        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        train, test = seperate_learn_test(self.collagen)
+        train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
+        np.testing.assert_equal(train.X, train1.X)
+        aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertEqual(aucorig, aucnow)
