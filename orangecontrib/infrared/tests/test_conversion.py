@@ -27,6 +27,14 @@ def destroy_atts_conversion(data):
     return ndata
 
 
+def odd_attr(data):
+    natts = [a for i, a in enumerate(data.domain.attributes)
+            if i%2 == 0]
+    ndomain = Orange.data.Domain(natts, data.domain.class_vars,
+                                metas=data.domain.metas)
+    return Orange.data.Table(ndomain, data)
+
+
 class TestConversion(unittest.TestCase):
 
     @classmethod
@@ -90,3 +98,15 @@ class TestConversion(unittest.TestCase):
         np.testing.assert_equal(train.X, train1.X)
         aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertEqual(aucorig, aucnow)
+
+    def test_predict_savgol_different_domain(self):
+        """ Savgol filter should handle different domains that those on the input. """
+        train, test = separate_learn_test(self.collagen)
+        train1 = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
+        aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
+        test = destroy_atts_conversion(test)
+        test = odd_attr(test)
+        test = Interpolate(points=getx(test) - 1.)(test)  # other test domain
+        train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
+        aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertEqual(aucnow, aucorig) #the difference should be slight
