@@ -8,7 +8,7 @@ from Orange.evaluation.scoring import AUC
 
 import sklearn.model_selection as ms
 
-from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.preprocess import Interpolate, Cut
 from orangecontrib.infrared.data import getx
 
 
@@ -48,6 +48,28 @@ class TestConversion(unittest.TestCase):
         train, test = seperate_learn_test(self.collagen)
         aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         test = destroy_atts_conversion(test)
-        train = Interpolate(train, points=getx(train))
+        train = Interpolate(train, points=getx(train)) # make train capable of interpolation
         auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertEqual(aucorig, auc)
+
+    def test_predict_different_domain(self):
+        train, test = seperate_learn_test(self.collagen)
+        test = Interpolate(points=getx(test) - 1)(test) # other test domain
+        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertTrue(0.45 < aucdestroyed < 0.55)
+
+    def test_predict_different_domain_interpolation(self):
+        train, test = seperate_learn_test(self.collagen)
+        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        test = Interpolate(points=getx(test) - 1.)(test) # other test domain
+        train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
+        aucshift = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertEqual(aucorig, aucshift)
+        test = Cut(1000, 1700)(test)
+        auccut1 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        test = Cut(1100, 1600)(test)
+        auccut2 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        test = Cut(1200, 1500)(test)
+        auccut3 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        # the more we cut the lower precision we get
+        self.assertTrue(aucorig > auccut1 > auccut2 > auccut3)
