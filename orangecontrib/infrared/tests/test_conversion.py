@@ -106,7 +106,10 @@ class TestConversion(unittest.TestCase):
         aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
         test = destroy_atts_conversion(test)
         test = odd_attr(test)
-        test = Interpolate(points=getx(test) - 1.)(test)  # other test domain
+        train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
         train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
         aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
-        self.assertEqual(aucnow, aucorig) #the difference should be slight
+        self.assertEqual(aucnow, aucorig)
+        test = Interpolate(points=getx(test) - 1.)(test)  # other test domain
+        aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertAlmostEqual(aucnow, aucorig, delta=0.01)  # the difference should be slight

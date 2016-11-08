@@ -102,12 +102,15 @@ class SavitzkyGolayFeature(SharedComputeValue):
 
 class _SavitzkyGolayCommon:
 
-    def __init__(self, window, polyorder, deriv):
+    def __init__(self, window, polyorder, deriv, domain):
         self.window = window
         self.polyorder = polyorder
         self.deriv = deriv
+        self.domain = domain
 
     def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
         return savgol_filter(data.X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
@@ -123,8 +126,8 @@ class SavitzkyGolayFiltering(Preprocess):
         self.deriv = deriv
 
     def __call__(self, data):
-        # TODO what is input domain is different
-        common = _SavitzkyGolayCommon(self.window, self.polyorder, self.deriv)
+        common = _SavitzkyGolayCommon(self.window, self.polyorder,
+                                      self.deriv, data.domain)
         atts = [ a.copy(compute_value=SavitzkyGolayFeature(i, common))
                         for i,a in enumerate(data.domain.attributes) ]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
