@@ -62,21 +62,34 @@ class PCADenoising():
         return data.from_table(domain, data)
 
 
-class GaussianSmoothing():
+class GaussianFeature(SelectColumn):
+    pass
+
+
+class _GaussianCommon:
+
+    def __init__(self, sd, domain):
+        self.sd = sd
+        self.domain = domain
+
+    def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+        return gaussian_filter1d(data.X, sigma=self.sd, mode="nearest")
+
+
+class GaussianSmoothing(Preprocess):
 
     def __init__(self, sd=10.):
-        #super().__init__(variable)
         self.sd = sd
 
     def __call__(self, data):
-        #FIXME this filted does not do automatic domain conversions!
-        #FIXME we need need data about frequencies:
-        #what if frequencies are not sampled on equal intervals
-        x = np.arange(len(data.domain.attributes))
-        newd = gaussian_filter1d(data.X, sigma=self.sd, mode="nearest")
-        data = data.copy()
-        data.X = newd
-        return data
+        common = _GaussianCommon(self.sd, data.domain)
+        atts = [a.copy(compute_value=GaussianFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
 
 
 class Cut(Preprocess):
