@@ -112,17 +112,19 @@ class TestConversion(unittest.TestCase):
         auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertGreater(auc, 0.85)
 
-    def test_predict_savgol_different_domain(self):
-        """ Savgol filter should handle different domains that those on the input. """
-        train, test = separate_learn_test(self.collagen)
-        train1 = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
-        aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
-        test = destroy_atts_conversion(test)
-        test = odd_attr(test)
-        train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
-        train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
-        aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
-        self.assertEqual(aucnow, aucorig)
-        test = Interpolate(points=getx(test) - 1.)(test)  # other test domain
-        aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
-        self.assertAlmostEqual(aucnow, aucorig, delta=0.01)  # the difference should be slight
+    def test_slightly_different_domain(self):
+        """ If test data has a slightly different domain then (with interpolation)
+        we should obtain a similar classification score. """
+        for proc in self.PREPROCESSORS:
+            train, test = separate_learn_test(self.collagen)
+            train1 = proc(train)
+            aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
+            test = destroy_atts_conversion(test)
+            test = odd_attr(test)
+            train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
+            train = proc(train)
+            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+            self.assertAlmostEqual(aucnow, aucorig, delta=0.01)
+            test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
+            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+            self.assertAlmostEqual(aucnow, aucorig, delta=0.01)  # the difference should be slight
