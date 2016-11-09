@@ -241,6 +241,7 @@ class Integrate():
     # Integration methods
     Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
 
+    #FIXME make limits inclusive. Also fix tests.
 
     def __init__(self, method=Baseline, limits=None):
         self.method = method

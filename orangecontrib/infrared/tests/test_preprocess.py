@@ -2,7 +2,9 @@ import unittest
 
 import numpy as np
 import Orange
-from orangecontrib.infrared.preprocess import Absorbance, Transmittance
+from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
+    Integrate
+
 
 class TestTransmittance(unittest.TestCase):
 
@@ -21,6 +23,7 @@ class TestTransmittance(unittest.TestCase):
         calcdata = Absorbance(Transmittance(data))
         np.testing.assert_allclose(data.X, calcdata.X)
 
+
 class TestAbsorbance(unittest.TestCase):
 
     def test_domain_conversion(self):
@@ -38,3 +41,31 @@ class TestAbsorbance(unittest.TestCase):
         data = Transmittance(Orange.data.Table("collagen.csv"))
         calcdata = Transmittance(Absorbance(data))
         np.testing.assert_allclose(data.X, calcdata.X)
+
+
+class TestIntegrate(unittest.TestCase):
+
+    def test_simple(self):
+        data = Orange.data.Table([[ 1, 2, 3, 1, 1, 1 ]])
+        i = Integrate(method=Integrate.Simple, limits=[[0, 6]])(data)
+        self.assertEqual(i[0][0], 8)
+
+    def test_baseline(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(method=Integrate.Baseline, limits=[[0, 6]])(data)
+        self.assertEqual(i[0][0], 3)
+
+    def test_peakmax(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(method=Integrate.PeakMax, limits=[[0, 6]])(data)
+        self.assertEqual(i[0][0], 3)
+
+    def test_peakbaseline(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(method=Integrate.PeakBaseline, limits=[[0, 6]])(data)
+        self.assertEqual(i[0][0], 2)
+
+    def test_peakat(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(method=Integrate.PeakAt, limits=[[0, 6]])(data)
+        self.assertEqual(i[0][0], 1)
