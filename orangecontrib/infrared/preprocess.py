@@ -374,10 +374,13 @@ class AbsorbanceFeature(SelectColumn):
 
 class _AbsorbanceCommon:
 
-    def __init__(self, ref):
+    def __init__(self, ref, domain):
         self.ref = ref
+        self.domain = domain
 
     def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
         if self.ref:
             # Calculate from single-channel data
             absd = self.ref.X / data.X
@@ -404,7 +407,7 @@ class Absorbance(Preprocess):
         self.ref = ref
 
     def __call__(self, data):
-        common = _AbsorbanceCommon(self.ref)
+        common = _AbsorbanceCommon(self.ref, data.domain)
         newattrs = [Orange.data.ContinuousVariable(
                     name=var.name, compute_value=AbsorbanceFeature(i, common))
                     for i, var in enumerate(data.domain.attributes)]
@@ -419,10 +422,13 @@ class TransmittanceFeature(SelectColumn):
 
 class _TransmittanceCommon:
 
-    def __init__(self, ref):
+    def __init__(self, ref, domain):
         self.ref = ref
+        self.domain = domain
 
     def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
         if self.ref:
             # Calculate from single-channel data
             transd = data.X / self.ref.X
@@ -449,7 +455,7 @@ class Transmittance(Preprocess):
         self.ref = ref
 
     def __call__(self, data):
-        common = _TransmittanceCommon(self.ref)
+        common = _TransmittanceCommon(self.ref, data.domain)
         newattrs = [Orange.data.ContinuousVariable(
                     name=var.name, compute_value=TransmittanceFeature(i, common))
                     for i, var in enumerate(data.domain.attributes)]
