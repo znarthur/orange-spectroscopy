@@ -131,3 +131,9 @@ class TestConversion(unittest.TestCase):
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight
+
+    def test_empty_data(self):
+        """ Preprocessors should not crash at empty imput data. """
+        data = self.collagen[:0]
+        for proc in self.PREPROCESSORS:
+            d2 = proc(data)
