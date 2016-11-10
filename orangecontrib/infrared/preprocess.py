@@ -237,40 +237,54 @@ class Normalize():
         return data
 
 
-class Integrate():
+class IntegrateFeature(SelectColumn):
+    pass
+
+
+class _IntegrateCommon:
+
+    def __init__(self, method, limits, domain):
+        self.method = method
+        self.limits = limits
+        self.domain = domain
+
+    def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+        x = getx(data)
+        newd = []
+        x_sorter = np.argsort(x)
+        for limits in self.limits:
+            # find limiting indices (inclusive left, exclusive right)
+            lim_min, lim_max = min(limits), max(limits)
+            lim_min = np.searchsorted(x, lim_min, sorter=x_sorter, side="left")
+            lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
+            x_s = x[x_sorter][lim_min:lim_max]
+            y_s = data.X[:, x_sorter][:, lim_min:lim_max]
+            newd.append(Integrate.IntMethods[self.method](y_s, x_s))
+        newd = np.column_stack(np.atleast_2d(newd))
+        return newd
+
+
+class Integrate(Preprocess):
+
     # Integration methods
     Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
-
-    #FIXME make limits inclusive. Also fix tests.
 
     def __init__(self, method=Baseline, limits=None):
         self.method = method
         self.limits = limits
 
     def __call__(self, data):
-        x = getx(data)
-        if len(x) > 0 and data.X.size > 0 and self.limits:
-            newd = []
-            range_attrs = []
-            x_sorter = np.argsort(x)
-            for limits in self.limits:
-                x_limits = np.searchsorted(x, limits, sorter=x_sorter)
-                lim_min = min(x_limits)
-                lim_max = max(x_limits)
-                if lim_min != lim_max:
-                    x_s = x[x_sorter][lim_min:lim_max]
-                    y_s = data.X[:,x_sorter][:,lim_min:lim_max]
-                    range_attrs.append(Orange.data.ContinuousVariable.make(
-                            "{0} - {1}".format(limits[0], limits[1])))
-                    newd.append(self.IntMethods[self.method](y_s, x_s))
-            newd = np.column_stack(np.atleast_2d(newd))
-            if newd.size:
-                domain = Orange.data.Domain(range_attrs, data.domain.class_vars,
-                                            metas=data.domain.metas)
-                data = Orange.data.Table.from_numpy(domain, newd,
-                                                     Y=data.Y, metas=data.metas)
-
-        return data
+        common = _IntegrateCommon(self.method, self.limits, data.domain)
+        atts = []
+        for i, limits in enumerate(self.limits):
+            atts.append(Orange.data.ContinuousVariable(
+                name="{0} - {1}".format(limits[0], limits[1]),
+                compute_value=IntegrateFeature(i, common)))
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    metas=data.domain.metas)
+        return data.from_table(domain, data)
 
     def simpleInt(y, x):
         """
@@ -284,7 +298,7 @@ class Integrate():
         Perform a linear edge-to-edge baseline subtraction
         """
         i = np.array([0, -1])
-        baseline = interp1d(x[i], y[:,i], axis=1)(x)
+        baseline = interp1d(x[i], y[:,i], axis=1)(x) if len(x) else 0
         return y-baseline
 
     def baselineInt(y, x):
@@ -299,6 +313,8 @@ class Integrate():
         """
         Find the maximum peak height in the provided data window
         """
+        if len(x) == 0:
+            return np.zeros((y.shape[0], 1)) * np.nan
         peak_heights = np.max(y, axis=1)
         return peak_heights
 
@@ -314,6 +330,7 @@ class Integrate():
         """
         Return the peak height at the first limit
         """
+        # FIXME should return the closest peak height
         return y[:,0]
 
     IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]

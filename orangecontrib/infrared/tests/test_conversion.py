@@ -10,7 +10,7 @@ import sklearn.model_selection as ms
 
 from orangecontrib.infrared.preprocess import Interpolate, \
     Cut, SavitzkyGolayFiltering, Transmittance, Absorbance, \
-    GaussianSmoothing
+    GaussianSmoothing, Integrate
 from orangecontrib.infrared.data import getx
 
 
@@ -46,7 +46,8 @@ class TestConversion(unittest.TestCase):
                      Cut(lowlim=1000, highlim=1800),
                      GaussianSmoothing(sd=3.),
                      Absorbance(),
-                     Transmittance()]
+                     Transmittance(),
+                     Integrate(limits=[ [900,100], [1100, 1200], [1200, 1300] ])]
 
     @classmethod
     def setUpClass(cls):
