@@ -215,8 +215,10 @@ class Normalize():
 
             if self.limits == 1:
                 x_sorter = np.argsort(x)
-                limits = np.searchsorted(x, [self.lower, self.upper], sorter=x_sorter)
-                y_s = data.X[:,x_sorter][:,limits[0]:limits[1]]
+                lim_min = np.searchsorted(x, self.lower, sorter=x_sorter, side="left")
+                lim_max = np.searchsorted(x, self.upper, sorter=x_sorter, side="right")
+                limits = [lim_min, lim_max]
+                y_s = data.X[:, x_sorter][:, limits[0]:limits[1]]
             else:
                 y_s = data.X
 

@@ -4,7 +4,8 @@ import numpy as np
 import Orange
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
-    GaussianSmoothing, PCADenoising, RubberbandBaseline
+    GaussianSmoothing, PCADenoising, RubberbandBaseline, \
+    Normalize
 
 # Preprocessors that work per sample and should return the same
 # result for a sample independent of the other samples
@@ -122,6 +123,23 @@ class TestRubberbandBaseline(unittest.TestCase):
         data = Orange.data.Table([[2, 1, 2, 2]])
         i = RubberbandBaseline(peak_dir=1)(data)
         np.testing.assert_equal(i.X, [[0, 0, 0.5, 0]])
+
+
+class TestNormalize(unittest.TestCase):
+
+    def test_minmax(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.MinMax)(data)
+        np.testing.assert_equal(p.X, data.X/3)
+        p = Normalize(method=Normalize.MinMax, limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 3)
+
+    def test_offset(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.Offset)(data)
+        np.testing.assert_equal(p.X, data.X - 1)
+        p = Normalize(method=Normalize.Offset, limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X - 1)
 
 
 class TestCommon(unittest.TestCase):
