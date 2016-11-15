@@ -214,7 +214,60 @@ class RubberbandBaseline(Preprocess):
         return data.from_table(domain, data)
 
 
-class Normalize():
+class NormalizeFeature(SelectColumn):
+    pass
+
+
+class _NormalizeCommon:
+
+    def __init__(self, method, lower, upper, limits, attr, domain):
+        self.method = method
+        self.lower = lower
+        self.upper = upper
+        self.limits = limits
+        self.attr = attr
+        self.domain = domain
+
+    def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+
+        x = getx(data)
+
+        data = data.copy()
+
+        if self.limits == 1:
+            x_sorter = np.argsort(x)
+            lim_min = np.searchsorted(x, self.lower, sorter=x_sorter, side="left")
+            lim_max = np.searchsorted(x, self.upper, sorter=x_sorter, side="right")
+            limits = [lim_min, lim_max]
+            y_s = data.X[:, x_sorter][:, limits[0]:limits[1]]
+        else:
+            y_s = data.X
+
+        if self.method == Normalize.MinMax:
+            data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
+        elif self.method == Normalize.Vector:
+            # zero offset correction applies to entire spectrum, regardless of limits
+            y_offsets = np.mean(data.X, axis=1, keepdims=True)
+            data.X -= y_offsets
+            y_s -= y_offsets
+            rssq = np.sqrt(np.sum(y_s ** 2, axis=1, keepdims=True))
+            data.X /= rssq
+        elif self.method == Normalize.Offset:
+            data.X -= np.min(y_s, axis=1, keepdims=True)
+        elif self.method == Normalize.Attribute:
+            # attr normalization applies to entire spectrum, regardless of limits
+            # meta indices are -ve and start at -1
+            if self.attr not in (None, "None", ""):
+                attr_index = -1 - data.domain.index(self.attr)
+                factors = data.metas[:, attr_index].astype(float)
+                data.X /= factors[:, None]
+
+        return data.X
+
+
+class Normalize(Preprocess):
     # Normalization methods
     MinMax, Vector, Offset, Attribute = 0, 1, 2, 3
 
@@ -226,40 +279,13 @@ class Normalize():
         self.attr = attr
 
     def __call__(self, data):
-        x = getx(data)
-
-        if len(x) > 0 and data.X.size > 0:
-            data = data.copy()
-
-            if self.limits == 1:
-                x_sorter = np.argsort(x)
-                lim_min = np.searchsorted(x, self.lower, sorter=x_sorter, side="left")
-                lim_max = np.searchsorted(x, self.upper, sorter=x_sorter, side="right")
-                limits = [lim_min, lim_max]
-                y_s = data.X[:, x_sorter][:, limits[0]:limits[1]]
-            else:
-                y_s = data.X
-
-            if self.method == self.MinMax:
-                data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
-            elif self.method == self.Vector:
-                # zero offset correction applies to entire spectrum, regardless of limits
-                y_offsets = np.mean(data.X, axis=1, keepdims=True)
-                data.X -= y_offsets
-                y_s -= y_offsets
-                rssq = np.sqrt(np.sum(y_s**2, axis=1, keepdims=True))
-                data.X /= rssq
-            elif self.method == self.Offset:
-                data.X -= np.min(y_s, axis=1, keepdims=True)
-            elif self.method == self.Attribute:
-                # attr normalization applies to entire spectrum, regardless of limits
-                # meta indices are -ve and start at -1
-                if self.attr not in (None, "None", ""):
-                    attr_index = -1-data.domain.index(self.attr)
-                    factors = data.metas[:, attr_index].astype(float)
-                    data.X /= factors[:, None]
-
-        return data
+        common = _NormalizeCommon(self.method, self.lower, self.upper,
+                                           self.limits, self.attr, data.domain)
+        atts = [a.copy(compute_value=NormalizeFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
 
 
 class IntegrateFeature(SelectColumn):
