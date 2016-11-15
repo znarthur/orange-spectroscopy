@@ -156,44 +156,62 @@ class SavitzkyGolayFiltering(Preprocess):
         return data.from_table(domain, data)
 
 
-class RubberbandBaseline():
+class RubberbandBaselineFeature(SelectColumn):
+    pass
+
+
+class _RubberbandBaselineCommon:
+
+    def __init__(self, peak_dir, sub, domain):
+        self.peak_dir = peak_dir
+        self.sub = sub
+        self.domain = domain
+
+    def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+
+        x = getx(data)
+        newd = None
+        for row in data.X:
+            try:
+                v = ConvexHull(np.column_stack((x, row))).vertices
+            except QhullError:
+                # FIXME notify user
+                baseline = np.zeros_like(row)
+            else:
+                if self.peak_dir == 0:
+                    v = np.roll(v, -v.argmax())
+                    v = v[:v.argmin() + 1]
+                elif self.peak_dir == 1:
+                    v = np.roll(v, -v.argmin())
+                    v = v[:v.argmax() + 1]
+                baseline = interp1d(x[v], row[v])(x)
+            finally:
+                if newd is not None and self.sub == 0:
+                    newd = np.vstack((newd, (row - baseline)))
+                elif newd is not None and self.sub == 1:
+                    newd = np.vstack((newd, baseline))
+                else:
+                    newd = row - baseline
+                    newd = newd[None, :]
+        return newd
+
+
+class RubberbandBaseline(Preprocess):
 
     def __init__(self, peak_dir=0, sub=0):
         self.peak_dir = peak_dir
         self.sub = sub
 
     def __call__(self, data):
-        x = getx(data)
-        if len(x) > 0 and data.X.size > 0:
-            if self.sub == 0:
-                newd = None
-            elif self.sub == 1:
-                newd = data.X
-            for row in data.X:
-                try:
-                    v = ConvexHull(np.column_stack((x, row))).vertices
-                except QhullError:
-                    # FIXME notify user
-                    baseline = np.zeros_like(row)
-                else:
-                    if self.peak_dir == 0:
-                        v = np.roll(v, -v.argmax())
-                        v = v[:v.argmin()+1]
-                    elif self.peak_dir == 1:
-                        v = np.roll(v, -v.argmin())
-                        v = v[:v.argmax()+1]
-                    baseline = interp1d(x[v], row[v])(x)
-                finally:
-                    if newd is not None and self.sub == 0:
-                        newd = np.vstack((newd, (row - baseline)))
-                    elif newd is not None and self.sub == 1:
-                        newd = np.vstack((newd, baseline))
-                    else:
-                        newd = row - baseline
-                        newd = newd[None,:]
-            data = data.copy()
-            data.X = newd
-        return data
+        common = _RubberbandBaselineCommon(self.peak_dir, self.sub,
+                                           data.domain)
+        atts = [a.copy(compute_value=RubberbandBaselineFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
 
 
 class Normalize():
