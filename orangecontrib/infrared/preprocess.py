@@ -41,20 +41,24 @@ class _PCAReconstructCommon:
         return self.pca.proj.inverse_transform(pca_space)
 
 
-class PCADenoising():
+class PCADenoising(Preprocess):
 
     def __init__(self, components=None):
         self.components = components
 
     def __call__(self, data):
-        maxpca = min(len(data.domain.attributes), len(data))
-        pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
-        commonfn = _PCAReconstructCommon(pca)
+        if data:
+            maxpca = min(len(data.domain.attributes), len(data))
+            pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
+            commonfn = _PCAReconstructCommon(pca)
 
-        nats = []
-        for i, at in enumerate(data.domain.attributes):
-            at = at.copy(compute_value=Orange.projection.pca.Projector(self, i, commonfn))
-            nats.append(at)
+            nats = []
+            for i, at in enumerate(data.domain.attributes):
+                at = at.copy(compute_value=Orange.projection.pca.Projector(self, i, commonfn))
+                nats.append(at)
+        else:
+            # FIXME Decide how to handle errors.
+            nats = [ at.copy() for at in data.domain.attributes ]
 
         domain = Orange.data.Domain(nats, data.domain.class_vars,
                                     data.domain.metas)

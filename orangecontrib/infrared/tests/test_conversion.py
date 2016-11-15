@@ -10,7 +10,7 @@ import sklearn.model_selection as ms
 
 from orangecontrib.infrared.preprocess import Interpolate, \
     Cut, SavitzkyGolayFiltering, Transmittance, Absorbance, \
-    GaussianSmoothing, Integrate
+    GaussianSmoothing, Integrate, PCADenoising
 from orangecontrib.infrared.data import getx
 
 
@@ -41,13 +41,25 @@ def odd_attr(data):
 
 class TestConversion(unittest.TestCase):
 
-    PREPROCESSORS = [Interpolate(np.linspace(1000, 1800, 100)),
-                     SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2),
-                     Cut(lowlim=1000, highlim=1800),
-                     GaussianSmoothing(sd=3.),
-                     Absorbance(),
-                     Transmittance(),
-                     Integrate(limits=[ [900,100], [1100, 1200], [1200, 1300] ])]
+    # Preprocessors that work per sample and should return the same
+    # result for a sample independent of the other samples
+    PREPROCESSORS_INDEPENDENT_SAMPLES = [
+        Interpolate(np.linspace(1000, 1800, 100)),
+        SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2),
+        Cut(lowlim=1000, highlim=1800),
+        GaussianSmoothing(sd=3.),
+        Absorbance(),
+        Transmittance(),
+        Integrate(limits=[ [900,100], [1100, 1200], [1200, 1300] ]),
+    ]
+
+    # Preprocessors that use groups of input samples to infer
+    # internal parameters.
+    PREPROCESSORS_GROUPS_OF_SAMPLES = [
+        PCADenoising(components=2),
+    ]
+
+    PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
     @classmethod
     def setUpClass(cls):
@@ -99,7 +111,7 @@ class TestConversion(unittest.TestCase):
         and applying is just on train data should yield the same transformation of
         the test data. """
         data = self.collagen
-        for proc in self.PREPROCESSORS:
+        for proc in self.PREPROCESSORS_INDEPENDENT_SAMPLES:
             train1, test1 = separate_learn_test(proc(data))
             train, test = separate_learn_test(data)
             train = proc(train)
