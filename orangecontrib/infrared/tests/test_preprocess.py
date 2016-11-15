@@ -109,8 +109,17 @@ class TestCommon(unittest.TestCase):
     def setUpClass(cls):
         cls.collagen = Orange.data.Table("collagen")
 
-    def test_empty_data(self):
-        """ Preprocessors should not crash at empty imput data. """
+    def test_no_samples(self):
+        """ Preprocessors should not crash when there are no input samples. """
         data = self.collagen[:0]
+        for proc in PREPROCESSORS:
+            d2 = proc(data)
+
+    def test_no_attributes(self):
+        """ Preprocessors should not crash when samples have no attributes. """
+        data = self.collagen
+        data = Orange.data.Table(Orange.data.Domain([],
+                class_vars=data.domain.class_vars,
+                metas=data.domain.metas), data)
         for proc in PREPROCESSORS:
             d2 = proc(data)
