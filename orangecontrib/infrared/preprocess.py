@@ -173,6 +173,7 @@ class RubberbandBaseline():
                 try:
                     v = ConvexHull(np.column_stack((x, row))).vertices
                 except QhullError:
+                    # FIXME notify user
                     baseline = np.zeros_like(row)
                 else:
                     if self.peak_dir == 0:

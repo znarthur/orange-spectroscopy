@@ -4,7 +4,7 @@ import numpy as np
 import Orange
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
-    GaussianSmoothing, Integrate, PCADenoising
+    GaussianSmoothing, PCADenoising, RubberbandBaseline
 
 # Preprocessors that work per sample and should return the same
 # result for a sample independent of the other samples
@@ -101,6 +101,27 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i[0][0], np.nan)
         i = Integrate(method=Integrate.PeakBaseline, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], np.nan)
+
+
+class TestRubberbandBaseline(unittest.TestCase):
+
+    def test_whole(self):
+        """ Every point belongs in the convex region. """
+        data = Orange.data.Table([[1, 2, 1]])
+        i = RubberbandBaseline()(data)
+        np.testing.assert_equal(i.X, 0)
+        data = Orange.data.Table([[2, 1, 2]])
+        i = RubberbandBaseline(peak_dir=1)(data)
+        np.testing.assert_equal(i.X, 0)
+
+    def test_simple(self):
+        """ Just one point is not in the convex region. """
+        data = Orange.data.Table([[1, 2, 1, 1]])
+        i = RubberbandBaseline()(data)
+        np.testing.assert_equal(i.X, [[0, 0, -0.5, 0]])
+        data = Orange.data.Table([[2, 1, 2, 2]])
+        i = RubberbandBaseline(peak_dir=1)(data)
+        np.testing.assert_equal(i.X, [[0, 0, 0.5, 0]])
 
 
 class TestCommon(unittest.TestCase):
