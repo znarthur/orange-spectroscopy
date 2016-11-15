@@ -3,7 +3,28 @@ import unittest
 import numpy as np
 import Orange
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
-    Integrate
+    Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
+    GaussianSmoothing, Integrate, PCADenoising
+
+# Preprocessors that work per sample and should return the same
+# result for a sample independent of the other samples
+PREPROCESSORS_INDEPENDENT_SAMPLES = [
+    Interpolate(np.linspace(1000, 1800, 100)),
+    SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2),
+    Cut(lowlim=1000, highlim=1800),
+    GaussianSmoothing(sd=3.),
+    Absorbance(),
+    Transmittance(),
+    Integrate(limits=[[900, 100], [1100, 1200], [1200, 1300]]),
+]
+
+# Preprocessors that use groups of input samples to infer
+# internal parameters.
+PREPROCESSORS_GROUPS_OF_SAMPLES = [
+    PCADenoising(components=2),
+]
+
+PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
 
 class TestTransmittance(unittest.TestCase):
@@ -80,3 +101,16 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i[0][0], np.nan)
         i = Integrate(method=Integrate.PeakBaseline, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], np.nan)
+
+
+class TestCommon(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.collagen = Orange.data.Table("collagen")
+
+    def test_empty_data(self):
+        """ Preprocessors should not crash at empty imput data. """
+        data = self.collagen[:0]
+        for proc in PREPROCESSORS:
+            d2 = proc(data)

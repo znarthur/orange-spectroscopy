@@ -8,9 +8,12 @@ from Orange.evaluation.scoring import AUC
 
 import sklearn.model_selection as ms
 
+from .test_preprocess import \
+    PREPROCESSORS_INDEPENDENT_SAMPLES, \
+    PREPROCESSORS
+
 from orangecontrib.infrared.preprocess import Interpolate, \
-    Cut, SavitzkyGolayFiltering, Transmittance, Absorbance, \
-    GaussianSmoothing, Integrate, PCADenoising
+    Cut, SavitzkyGolayFiltering
 from orangecontrib.infrared.data import getx
 
 
@@ -37,29 +40,7 @@ def odd_attr(data):
     return Orange.data.Table(ndomain, data)
 
 
-
-
 class TestConversion(unittest.TestCase):
-
-    # Preprocessors that work per sample and should return the same
-    # result for a sample independent of the other samples
-    PREPROCESSORS_INDEPENDENT_SAMPLES = [
-        Interpolate(np.linspace(1000, 1800, 100)),
-        SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2),
-        Cut(lowlim=1000, highlim=1800),
-        GaussianSmoothing(sd=3.),
-        Absorbance(),
-        Transmittance(),
-        Integrate(limits=[ [900,100], [1100, 1200], [1200, 1300] ]),
-    ]
-
-    # Preprocessors that use groups of input samples to infer
-    # internal parameters.
-    PREPROCESSORS_GROUPS_OF_SAMPLES = [
-        PCADenoising(components=2),
-    ]
-
-    PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
     @classmethod
     def setUpClass(cls):
@@ -111,7 +92,7 @@ class TestConversion(unittest.TestCase):
         and applying is just on train data should yield the same transformation of
         the test data. """
         data = self.collagen
-        for proc in self.PREPROCESSORS_INDEPENDENT_SAMPLES:
+        for proc in PREPROCESSORS_INDEPENDENT_SAMPLES:
             train1, test1 = separate_learn_test(proc(data))
             train, test = separate_learn_test(data)
             train = proc(train)
@@ -130,7 +111,7 @@ class TestConversion(unittest.TestCase):
     def test_slightly_different_domain(self):
         """ If test data has a slightly different domain then (with interpolation)
         we should obtain a similar classification score. """
-        for proc in self.PREPROCESSORS:
+        for proc in PREPROCESSORS:
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)
             aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
@@ -143,9 +124,3 @@ class TestConversion(unittest.TestCase):
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight
-
-    def test_empty_data(self):
-        """ Preprocessors should not crash at empty imput data. """
-        data = self.collagen[:0]
-        for proc in self.PREPROCESSORS:
-            d2 = proc(data)
