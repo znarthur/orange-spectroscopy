@@ -172,8 +172,8 @@ class _RubberbandBaselineCommon:
             data = data.from_table(self.domain, data)
 
         x = getx(data)
-        newd = None
-        for row in data.X:
+        newd = np.zeros_like(data.X)
+        for rowi, row in enumerate(data.X):
             try:
                 v = ConvexHull(np.column_stack((x, row))).vertices
             except QhullError:
@@ -188,13 +188,10 @@ class _RubberbandBaselineCommon:
                     v = v[:v.argmax() + 1]
                 baseline = interp1d(x[v], row[v])(x)
             finally:
-                if newd is not None and self.sub == 0:
-                    newd = np.vstack((newd, (row - baseline)))
-                elif newd is not None and self.sub == 1:
-                    newd = np.vstack((newd, baseline))
+                if self.sub == 0:
+                    newd[rowi] = row - baseline
                 else:
-                    newd = row - baseline
-                    newd = newd[None, :]
+                    newd[rowi] = baseline
         return newd
 
 

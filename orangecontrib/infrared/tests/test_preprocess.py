@@ -17,6 +17,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Absorbance(),
     Transmittance(),
     Integrate(limits=[[900, 100], [1100, 1200], [1200, 1300]]),
+    RubberbandBaseline(),
 ]
 
 # Preprocessors that use groups of input samples to infer
