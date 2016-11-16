@@ -409,6 +409,8 @@ class _InterpolateCommon:
 
     def __call__(self, data):
         x = getx(data)
+        if len(x) == 0:
+            return np.ones((len(data), len(self.points)))*np.nan
         f = interp1d(x, data.X, fill_value=np.nan,
                      bounds_error=False, kind=self.kind)
         inter = f(self.points)
