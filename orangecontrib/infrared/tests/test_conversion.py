@@ -108,6 +108,14 @@ class TestConversion(unittest.TestCase):
         auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         self.assertGreater(auc, 0.85)
 
+    def test_predict_savgol_another_interpolate(self):
+        train, test = separate_learn_test(self.collagen)
+        train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        train = Interpolate(points=getx(train))(train)
+        aucai = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        self.assertAlmostEqual(auc, aucai, delta=0.02)
+
     def test_slightly_different_domain(self):
         """ If test data has a slightly different domain then (with interpolation)
         we should obtain a similar classification score. """

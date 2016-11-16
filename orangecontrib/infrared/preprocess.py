@@ -386,8 +386,8 @@ class Integrate(Preprocess):
     IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]
 
 
-def features_with_interpolation(points, kind="linear"):
-    common = _InterpolateCommon(points, kind)
+def features_with_interpolation(points, kind="linear", domain=None):
+    common = _InterpolateCommon(points, kind, domain)
     atts = []
     for i, p in enumerate(points):
         atts.append(
@@ -402,11 +402,17 @@ class InterpolatedFeature(SelectColumn):
 
 class _InterpolateCommon:
 
-    def __init__(self, points, kind):
+    def __init__(self, points, kind, domain):
         self.points = points
         self.kind = kind
+        self.domain = domain
 
     def __call__(self, data):
+        # convert to data domain if any conversion is possible,
+        # otherwise we use the interpolator directly to make domains compatible
+        if self.domain and data.domain != self.domain \
+                and any(at.compute_value for at in self.domain.attributes):
+            data = data.from_table(self.domain, data)
         x = getx(data)
         if len(x) == 0:
             return np.ones((len(data), len(self.points)))*np.nan
@@ -432,7 +438,7 @@ class Interpolate(Preprocess):
         self.kind = kind
 
     def __call__(self, data):
-        atts = features_with_interpolation(self.points, self.kind)
+        atts = features_with_interpolation(self.points, self.kind, data.domain)
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)
