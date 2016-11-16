@@ -162,3 +162,13 @@ class TestCommon(unittest.TestCase):
                 metas=data.domain.metas), data)
         for proc in PREPROCESSORS:
             d2 = proc(data)
+
+
+class TestPCADenoising(unittest.TestCase):
+
+    def test_no_samples(self):
+        data = Orange.data.Table("iris")
+        proc = PCADenoising()
+        d1 = proc(data[:0])
+        newdata = Orange.data.Table(d1.domain, data)
+        np.testing.assert_equal(newdata.X, np.nan)

@@ -47,7 +47,7 @@ class PCADenoising(Preprocess):
         self.components = components
 
     def __call__(self, data):
-        if data:
+        if data and len(data.domain.attributes):
             maxpca = min(len(data.domain.attributes), len(data))
             pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
             commonfn = _PCAReconstructCommon(pca)
@@ -57,8 +57,8 @@ class PCADenoising(Preprocess):
                 at = at.copy(compute_value=Orange.projection.pca.Projector(self, i, commonfn))
                 nats.append(at)
         else:
-            # FIXME Decide how to handle errors.
-            nats = [ at.copy() for at in data.domain.attributes ]
+            # FIXME we should have a warning here
+            nats = [ at.copy() for at in data.domain.attributes ]  # unknown values
 
         domain = Orange.data.Domain(nats, data.domain.class_vars,
                                     data.domain.metas)
