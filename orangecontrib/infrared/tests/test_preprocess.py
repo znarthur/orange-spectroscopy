@@ -18,6 +18,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Transmittance(),
     Integrate(limits=[[900, 100], [1100, 1200], [1200, 1300]]),
     RubberbandBaseline(),
+    Normalize(method=Normalize.Vector),
 ]
 
 # Preprocessors that use groups of input samples to infer

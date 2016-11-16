@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
+from bottleneck import nanmax, nanmin, nansum, nanmean
 
 from orangecontrib.infrared.data import getx
 
@@ -245,16 +246,16 @@ class _NormalizeCommon:
             y_s = data.X
 
         if self.method == Normalize.MinMax:
-            data.X /= np.max(np.abs(y_s), axis=1, keepdims=True)
+            data.X /= nanmax(np.abs(y_s), axis=1).reshape((-1,1))
         elif self.method == Normalize.Vector:
             # zero offset correction applies to entire spectrum, regardless of limits
-            y_offsets = np.mean(data.X, axis=1, keepdims=True)
+            y_offsets = nanmean(data.X, axis=1).reshape((-1,1))
             data.X -= y_offsets
             y_s -= y_offsets
-            rssq = np.sqrt(np.sum(y_s ** 2, axis=1, keepdims=True))
+            rssq = np.sqrt(nansum(y_s ** 2, axis=1).reshape((-1,1)))
             data.X /= rssq
         elif self.method == Normalize.Offset:
-            data.X -= np.min(y_s, axis=1, keepdims=True)
+            data.X -= nanmin(y_s, axis=1).reshape((-1,1))
         elif self.method == Normalize.Attribute:
             # attr normalization applies to entire spectrum, regardless of limits
             # meta indices are -ve and start at -1
@@ -262,7 +263,6 @@ class _NormalizeCommon:
                 attr_index = -1 - data.domain.index(self.attr)
                 factors = data.metas[:, attr_index].astype(float)
                 data.X /= factors[:, None]
-
         return data.X
 
 
