@@ -170,12 +170,14 @@ class _RubberbandBaselineCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-
         x = getx(data)
         newd = np.zeros_like(data.X)
         for rowi, row in enumerate(data.X):
+            # remove nans which ConvexHull can not handle
+            source = np.column_stack((x, row))
+            source = source[~np.isnan(source).any(axis=1)]
             try:
-                v = ConvexHull(np.column_stack((x, row))).vertices
+                v = ConvexHull(source).vertices
             except QhullError:
                 # FIXME notify user
                 baseline = np.zeros_like(row)
@@ -186,7 +188,7 @@ class _RubberbandBaselineCommon:
                 elif self.peak_dir == 1:
                     v = np.roll(v, -v.argmin())
                     v = v[:v.argmax() + 1]
-                baseline = interp1d(x[v], row[v])(x)
+                baseline = interp1d(source[v, 0], source[v, 1], fill_value="extrapolate")(x)
             finally:
                 if self.sub == 0:
                     newd[rowi] = row - baseline

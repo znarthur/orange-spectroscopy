@@ -8,7 +8,7 @@ from Orange.evaluation.scoring import AUC
 
 import sklearn.model_selection as ms
 
-from .test_preprocess import \
+from orangecontrib.infrared.tests.test_preprocess import \
     PREPROCESSORS_INDEPENDENT_SAMPLES, \
     PREPROCESSORS
 
