@@ -328,10 +328,11 @@ class Integrate(Preprocess):
     def __call__(self, data):
         common = _IntegrateCommon(self.method, self.limits, data.domain)
         atts = []
-        for i, limits in enumerate(self.limits):
-            atts.append(Orange.data.ContinuousVariable(
-                name="{0} - {1}".format(limits[0], limits[1]),
-                compute_value=IntegrateFeature(i, common)))
+        if self.limits:
+            for i, limits in enumerate(self.limits):
+                atts.append(Orange.data.ContinuousVariable(
+                    name="{0} - {1}".format(limits[0], limits[1]),
+                    compute_value=IntegrateFeature(i, common)))
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)
         return data.from_table(domain, data)

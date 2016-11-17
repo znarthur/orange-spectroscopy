@@ -18,3 +18,19 @@ class TestOWPreprocess(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
+
+    def test_allpreproc_indv_empty(self):
+        data = Orange.data.Table("peach_juice.dpt")[:0]
+        for i, p in enumerate(PREPROCESSORS):
+            self.widget = self.create_widget(OWPreprocess)
+            self.send_signal("Data", data)
+            self.widget.add_preprocessor(i)
+        # no attributes
+        data = Orange.data.Table("peach_juice.dpt")
+        data = Orange.data.Table(Orange.data.Domain([],
+                class_vars=data.domain.class_vars,
+                metas=data.domain.metas), data)
+        for i, p in enumerate(PREPROCESSORS):
+            self.widget = self.create_widget(OWPreprocess)
+            self.send_signal("Data", data)
+            self.widget.add_preprocessor(i)
