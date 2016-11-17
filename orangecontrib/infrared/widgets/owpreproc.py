@@ -42,6 +42,25 @@ class ViewController(Controller):
         w.parent_widget = self.parent()
         return w
 
+    # ensure that view on the right
+    # and the model are sychronized when on_modelchanged is called
+
+    def _dataChanged(self, topleft, bottomright):
+        super()._dataChanged(topleft, bottomright)
+        self.parent().on_modelchanged()
+
+    def _rowsInserted(self, parent, start, end):
+        super()._rowsInserted(parent, start, end)
+        self.parent().on_modelchanged()
+
+    def _rowsRemoved(self, parent, start, end):
+        super()._rowsRemoved(parent, start, end)
+        self.parent().on_modelchanged()
+
+    def _widgetMoved(self, from_, to):
+        super()._widgetMoved(from_, to)
+        self.parent().on_modelchanged()
+
 
 class FocusFrame(owpreprocess.SequenceFlow.Frame):
 
@@ -121,7 +140,6 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
     def insertWidget(self, index, widget, title):
         """ Mostly copied to get different kind of frame """
-
         self.__initPreview() #added
         if index > self.__preview_position(): #added
             index = index + 1 #added
@@ -1204,7 +1222,6 @@ class OWPreprocess(widget.OWWidget):
     def show_preview(self):
         """ Shows preview and also passes preview data to the widgets """
         #self.storeSpecificSettings()
-        preprocessor = self.buildpreproc(self.flow_view.preview_n())
 
         if self.data is not None:
             data = self.data
@@ -1335,21 +1352,12 @@ class OWPreprocess(widget.OWWidget):
 
     def set_model(self, ppmodel):
         if self.preprocessormodel:
-            self.preprocessormodel.dataChanged.disconnect(self.__on_modelchanged)
-            self.preprocessormodel.rowsInserted.disconnect(self.__on_modelchanged)
-            self.preprocessormodel.rowsRemoved.disconnect(self.__on_modelchanged)
-            self.preprocessormodel.rowsMoved.disconnect(self.__on_modelchanged)
             self.preprocessormodel.deleteLater()
 
         self.preprocessormodel = ppmodel
         self.controler.setModel(ppmodel)
-        if ppmodel is not None:
-            self.preprocessormodel.dataChanged.connect(self.__on_modelchanged)
-            self.preprocessormodel.rowsInserted.connect(self.__on_modelchanged)
-            self.preprocessormodel.rowsRemoved.connect(self.__on_modelchanged)
-            self.preprocessormodel.rowsMoved.connect(self.__on_modelchanged)
 
-    def __on_modelchanged(self):
+    def on_modelchanged(self):
         self.show_preview()
         self.commit()
 
