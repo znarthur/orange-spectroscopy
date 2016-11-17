@@ -36,6 +36,7 @@ class OWInterpolate(OWWidget):
     class Warning(OWWidget.Warning):
         reference_data_missing = Msg("Missing separate reference data input.")
         reference_data_unused = Msg("Reference data is present but unused.")
+        dxzero = Msg("Step should not be 0.0.")
 
     def __init__(self):
         super().__init__()
@@ -68,15 +69,18 @@ class OWInterpolate(OWWidget):
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
 
     def commit(self):
-        print("commit")
+        out = None
         if self.data:
             if self.input_radio == 0:
-                points = np.arange(self.xmin, self.xmax, self.dx)
-                data = Interpolate(points)(self.data)
-                self.send("Interpolated data", data)
+                if self.dx == 0:
+                    self.Warning.dxzero()
+                else:
+                    self.Warning.dxzero.clear()
+                    points = np.arange(self.xmin, self.xmax, self.dx)
+                    out = Interpolate(points)(self.data)
             elif self.input_radio == 1 and self.data_points is not None:
-                data = Interpolate(self.data_points)(self.data)
-                self.send("Interpolated data", data)
+                out = Interpolate(self.data_points)(self.data)
+        self.send("Interpolated data", out)
 
     def _invalidate(self):
         self.commit()
