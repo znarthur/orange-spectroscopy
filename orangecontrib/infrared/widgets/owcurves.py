@@ -146,24 +146,26 @@ class InteractiveViewBox(ViewBox):
             clicked_curve = self.graph.highlighted
 
             selected_indices = self.graph.parent.selected_indices
+            invd = self.graph.sampled_indices_inverse
             if clicked_curve is not None:
+                clicked_curve = self.graph.sampled_indices[clicked_curve]
                 if add:
                     if clicked_curve not in selected_indices:
                         selected_indices.add(clicked_curve)
                     else:
                         selected_indices.remove(clicked_curve)
-                    self.graph.set_curve_pen(clicked_curve)
+                    self.graph.set_curve_pen(invd[clicked_curve])
                     self.graph.curves_cont.update()
                 else:
                     oldids = selected_indices.copy()
                     selected_indices.clear()
                     selected_indices.add(clicked_curve)
-                    self.graph.set_curve_pens(oldids | selected_indices)
+                    self.graph.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
             else:
                 if not add:
                     oldids = selected_indices.copy()
                     selected_indices.clear()
-                    self.graph.set_curve_pens(oldids)
+                    self.graph.set_curve_pens([invd[a] for a in oldids if a in invd])
             self.graph.selection_changed()
             ev.accept()
         if self.graph.state == ZOOMING and ev.button() == Qt.LeftButton:
@@ -231,6 +233,8 @@ class CurvePlot(QWidget):
         self.label.setText("", color=(0,0,0))
         self.discrete_palette = None
         self.sampled_indices = []
+        self.sampled_indices_inverse = {}
+        self.sampling = None
 
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
@@ -336,9 +340,9 @@ class CurvePlot(QWidget):
             self.hLine.setPos(posy)
 
     def set_curve_pen(self, idc):
-        idcdata = idc if not self.sampled_indices else self.sampled_indices[idc]
+        idcdata = self.sampled_indices[idc]
         insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
-        inselected = self.selection_enabled and not self.sampled_indices and idc in self.parent.selected_indices
+        inselected = self.selection_enabled and idcdata in self.parent.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
@@ -360,6 +364,8 @@ class CurvePlot(QWidget):
             self.parent.selected_indices.clear()
         self.curves = []
         self.sampled_indices = []
+        self.sampled_indices_inverse = {}
+        self.sampling = None
         self.selection_changed()
         self.discrete_palette = None
 
@@ -396,12 +402,15 @@ class CurvePlot(QWidget):
         """ Add multiple curves with the same x domain. """
         xsind = np.argsort(x)
         x = x[xsind]
-        if addc and len(data) > MAXINST:
-            self.sampled_indices = sorted(random.Random(0).sample(range(len(data)), MAXINST))
-        else:
-            self.sampled_indices = list(range(len(data)))
-        random.Random(0).shuffle(self.sampled_indices) #for sequential classes
-        ys = data.X if not self.sampled_indices else data.X[self.sampled_indices]
+        if addc:
+            if len(data) > MAXINST:
+                self.sampled_indices = sorted(random.Random(0).sample(range(len(data)), MAXINST))
+                self.sampling = True
+            else:
+                self.sampled_indices = list(range(len(data)))
+            random.Random(0).shuffle(self.sampled_indices) #for sequential classes
+            self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
+        ys = data.X[self.sampled_indices]
         for y in ys:
             y = y[xsind]
             if addc:
@@ -619,8 +628,7 @@ class OWCurves(widget.OWWidget):
         self.plotview.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if not self.plotview.sampled_indices \
-                and self.selected_indices and self.plotview.data:
+        if self.selected_indices and self.plotview.data:
             # discard selected indices if they do not fit to data
             if any(a for a in self.selected_indices if a >= len(self.plotview.data)):
                 self.selected_indices.clear()
@@ -636,9 +644,7 @@ def main(argv=None):
     app = QtGui.QApplication(argv)
     w = OWCurves()
     w.show()
-    import os.path
-    data = Orange.data.Table("2012.11.09-11.45_Peach juice colorful spot.dpt")
-    data = Orange.data.Table("iris.tab")
+    data = Orange.data.Table("collagen.csv")
     w.set_data(data)
     w.set_subset(data[:40])
     #w.set_subset(None)
