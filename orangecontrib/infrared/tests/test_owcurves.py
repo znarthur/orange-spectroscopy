@@ -2,7 +2,8 @@ import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owcurves import OWCurves
-
+from orangecontrib.infrared.data import getx
+from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked
 
 class TestOWCurves(WidgetTest):
 
@@ -42,3 +43,13 @@ class TestOWCurves(WidgetTest):
         self.widget.plotview.show_individual()
         curves_plotted3 = self.widget.plotview.curves_plotted
         self.assertEqual(curves_plotted, curves_plotted3)
+
+    def test_line_intersection(self):
+        data = self.collagen
+        x = getx(data)
+        sort = np.argsort(x)
+        x = x[sort]
+        ys = data.X[:, sort]
+        boola = intersect_curves_chunked(x, ys, np.array([0, 1.15]), np.array([3000, 1.15]))
+        intc = np.flatnonzero(boola)
+        np.testing.assert_equal(intc, [191, 635, 638, 650, 712, 716, 717, 726])

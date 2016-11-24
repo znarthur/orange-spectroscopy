@@ -1,0 +1,120 @@
+import numpy as np
+
+
+def rolling_window(a, window):
+    """
+    Make an ndarray with a rolling window of the last dimension
+
+    Code from http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html
+
+    Parameters
+    ----------
+    a : array_like
+        Array to add rolling window to
+    window : int
+        Size of rolling window
+
+    Returns
+    -------
+    Array that is a view of the original array with a added dimension
+    of size w.
+
+    Examples
+    --------
+    >>> x=np.arange(10).reshape((2,5))
+    >>> rolling_window(x, 3)
+    array([[[0, 1, 2], [1, 2, 3], [2, 3, 4]],
+           [[5, 6, 7], [6, 7, 8], [7, 8, 9]]])
+
+    Calculate rolling mean of last dimension:
+    >>> np.mean(rolling_window(x, 3), -1)
+    array([[ 1.,  2.,  3.],
+           [ 6.,  7.,  8.]])
+
+    """
+    if window < 1:
+        raise ValueError("`window` must be at least 1.")
+    if window > a.shape[-1]:
+        raise ValueError("`window` is too long.")
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+
+def intersect_line_segments(x1, y1, x2, y2, x3, y3, x4, y4):
+    """
+    Line segment intersection implemented after
+    http://paulbourke.net/geometry/pointlineplane/
+
+    This implementation does not handle colinear points.
+
+    This implementation builds intermediate arrays that are
+    bigger than the input array.
+    """
+    D = ((y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1))
+    with np.errstate(divide='ignore'):
+        ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3)) / D
+        ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3)) / D
+    return (D != 0) * (ua < 1) * (0 < ua) * (ub < 1) * (0 < ub)
+
+
+def intersect_curves(x, ys, q1, q2):
+    """
+    Intersection between multiple curves described by points
+    and a single line segment. Returns an array of booleans
+    describing whether a line segment (q1 to q2) intersects
+    a curve.
+
+    :param x: x values of curves (they have to be sorted).
+    :param ys: y values of multiple curves sharing x values.
+    :param q1: point of the line segment (x, y)
+    :param q2: point of the line segnemt (x, y)
+    :return:
+    """
+
+    # convert curves into a series of startpoints and endpoints
+    xp = rolling_window(x, 2)
+    ysp = rolling_window(ys, 2)
+
+    r = intersect_line_segments(xp[:, 0], ysp[:, :, 0],
+                                xp[:, 1], ysp[:, :, 1],
+                                q1[0], q1[1], q2[0], q2[1])
+    return np.any(r, axis=1)
+
+
+def intersect_curves_chunked(x, ys, q1, q2):
+    """
+    Processes data in chunks, othewise same as intersect
+    curves. Decreases maximum memory use.
+    """
+    rs = []
+    for ysc in np.array_split(ys, 100):
+        ic = intersect_curves(x, ysc, q1, q2)
+        rs.append(ic)
+    ica = np.concatenate(rs)
+    return ica
+
+
+if __name__ == "__main__":
+    import Orange
+    from orangecontrib.infrared.data import getx
+    import time
+    import sys
+
+    data = Orange.data.Table("collagen.csv")
+    x = getx(data)
+    sort = np.argsort(x)
+    x = x[sort]
+    print("sizeof", sys.getsizeof(data.X))
+    ys = data.X[:, sort]
+    print("sizeof", sys.getsizeof(ys))
+    print(ys.shape)
+    ys = np.tile(ys, (500, 1)).copy()
+    print(ys.shape)
+    print("sizeof ys", sys.getsizeof(ys))
+
+    t = time.time()
+    intc = np.where(intersect_curves_chunked(x, ys, np.array([0, 1.0]), np.array([3000, 1.0])))
+    print(intc.shape)
+    print(time.time()-t)
+    print(intc)
