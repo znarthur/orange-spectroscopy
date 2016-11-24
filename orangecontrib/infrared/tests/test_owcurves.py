@@ -3,7 +3,8 @@ import Orange
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owcurves import OWCurves
 from orangecontrib.infrared.data import getx
-from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked
+from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
+    distance_line_segment
 
 class TestOWCurves(WidgetTest):
 
@@ -53,3 +54,16 @@ class TestOWCurves(WidgetTest):
         boola = intersect_curves_chunked(x, ys, np.array([0, 1.15]), np.array([3000, 1.15]))
         intc = np.flatnonzero(boola)
         np.testing.assert_equal(intc, [191, 635, 638, 650, 712, 716, 717, 726])
+
+    def test_line_point_distance(self):
+        # nan in point
+        a = distance_line_segment(np.array([0, 0]), np.array([0, float("nan")]), 10, 10, 5, 5)
+        np.testing.assert_equal(a, [0, float("nan")])
+
+        # distance to the middle of the line segment
+        a = distance_line_segment(np.array(0), 0, 10, 10, 10, 0)
+        self.assertEqual(a, 50**0.5)
+
+        # equal endpoints
+        a = distance_line_segment(np.array(0), 0, 0, 0, 10, 0)
+        self.assertEqual(a, 10)

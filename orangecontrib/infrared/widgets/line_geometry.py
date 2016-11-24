@@ -95,7 +95,44 @@ def intersect_curves_chunked(x, ys, q1, q2):
     return ica
 
 
+def distance_line_segment(x1, y1, x2, y2, x3, y3):
+    """
+    The distance to the line segment [ (x1, y1), (x2, y2) ]
+    to a point (x3, y3).
+    """
+    with np.errstate(divide='ignore', invalid='ignore'):
+        u = ((x3 - x1) * (x2-x1) + (y3 - y1) * (y2 - y1)) / ((x1-x2)**2 + (y1-y2)**2)
+        xc = x1 + u*(x2 - x1)
+        yc = y1 + u*(y2 - y1)
+        return np.where((u <= 1) * (u >= 0),
+                        ((x3 - xc)**2 + (y3-yc)**2)**0.5,  # distance to a point on line
+                        np.fmin(((x3 - x1)**2 + (y3-y1)**2)**0.5,  # closest point
+                                ((x3 - x1)**2 + (y3-y1)**2)**0.5))
+
+
+def distance_curves(x, ys, q1):
+    """
+    Distances to the curves.
+
+    :param x: x values of curves (they have to be sorted).
+    :param ys: y values of multiple curves sharing x values.
+    :param q1: a point to measure distance to.
+    :return:
+    """
+
+    # convert curves into a series of startpoints and endpoints
+    xp = rolling_window(x, 2)
+    ysp = rolling_window(ys, 2)
+
+    r = np.nanmin(distance_line_segment(xp[:, 0], ysp[:, :, 0],
+                              xp[:, 1], ysp[:, :, 1],
+                              q1[0], q1[1]), axis=1)
+
+    return r
+
+
 if __name__ == "__main__":
+
     import Orange
     from orangecontrib.infrared.data import getx
     import time
@@ -109,12 +146,18 @@ if __name__ == "__main__":
     ys = data.X[:, sort]
     print("sizeof", sys.getsizeof(ys))
     print(ys.shape)
-    ys = np.tile(ys, (500, 1)).copy()
+    ys = np.tile(ys, (1, 1)).copy()
     print(ys.shape)
     print("sizeof ys", sys.getsizeof(ys))
 
     t = time.time()
     intc = np.where(intersect_curves_chunked(x, ys, np.array([0, 1.0]), np.array([3000, 1.0])))
-    print(intc.shape)
     print(time.time()-t)
     print(intc)
+
+    t = time.time()
+    #dists = [ distance_curves(x, ys[i:i+1], np.array([910, 1.0])) for i in range(len(ys)-1) ]
+    dists = distance_curves(x, ys, np.array([910, 1.0]))
+    print(time.time() - t)
+    print(dists)
+
