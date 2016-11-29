@@ -445,7 +445,7 @@ class NeaReader(FileFormat):
             final_data = np.vstack(final_data)
 
             metas = [Orange.data.ContinuousVariable.make("row"),
-                     Orange.data.ContinuousVariable.make("row"),
+                     Orange.data.ContinuousVariable.make("column"),
                      Orange.data.StringVariable.make("channel")]
 
             domain = Orange.data.Domain(
