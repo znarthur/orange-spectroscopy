@@ -298,6 +298,52 @@ class SPAReader(FileFormat):
         pass #not implemented
 
 
+class GSFReader(FileFormat):
+
+    EXTENSIONS = (".gsf",)
+    DESCRIPTION = 'Gwyddion Simple Field'
+
+    def read(self):
+        with open(self.filename, "rb") as f:
+            #print(f.readline())
+            if not (f.readline() == b'Gwyddion Simple Field 1.0\n'):
+                raise ValueError('Not a correct file')
+
+            meta = {}
+
+            term = False #there are mandatory fileds
+            while term != b'\x00':
+                l = f.readline().decode('utf-8')
+                name, value = l.split("=")
+                name = name.strip()
+                value = value.strip()
+                meta[name] = value
+                term = f.read(1)
+                f.seek(-1, 1)
+
+            f.read(4 - f.tell() % 4)
+
+            meta["XRes"] = int(meta["XRes"])
+            meta["YRes"] = int(meta["YRes"])
+            meta["XReal"] = float(meta.get("XReal", 1))
+            meta["YReal"] = float(meta.get("YReal", 1))
+            meta["XOffset"] = float(meta.get("XOffset", 0))
+            meta["YOffset"] = float(meta.get("YOffset", 0))
+            meta["Title"] = meta.get("Title", None)
+            meta["XYUnits"] = meta.get("XYUnits", None)
+            meta["ZUnits"] = meta.get("ZUnits", None)
+
+            X = np.fromfile(f, dtype='float32', count=meta["XRes"]*meta["YRes"]). \
+                reshape(meta['YRes'], meta['XRes'])
+
+            domvals = range(meta["XRes"])
+
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
+            data = Orange.data.Table(domain, X)
+            data.attributes = meta
+            return data
+
+
 def build_spec_table(wavenumbers, intensities):
     """
     Converts numpy arrays of wavenumber and intensity into an

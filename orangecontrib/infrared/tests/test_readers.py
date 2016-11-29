@@ -33,3 +33,10 @@ class TestReaders(unittest.TestCase):
         dround = Orange.data.Table(ndom, d3)
         #edges are unknown, the rest roughly the same
         np.testing.assert_allclose(dround.X[:, 1:-1], d2.X[:, 1:-1], rtol=0.011)
+
+
+class TestGSS(unittest.TestCase):
+
+    def test_open(self):
+        data = Orange.data.Table("Au168mA_nodisplacement.gsf")
+        self.assertEquals(data.X.shape, (1, 20480))
