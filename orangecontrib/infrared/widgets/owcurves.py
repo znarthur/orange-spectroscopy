@@ -56,11 +56,11 @@ class PlotCurvesItem(GraphicsObject):
         return self.bounds
 
 
-def closestindex(array, v, side="left"):
+def closestindex(array, v):
     """
     Return index of a 1d sorted array closest to value v.
     """
-    fi = np.searchsorted(array, v, side=side)
+    fi = np.searchsorted(array, v)
     if fi == 0:
         return 0
     elif fi == len(array):
@@ -76,34 +76,24 @@ def searchsorted_cached(cache, arr, v, side="left"):
     return cache[key]
         
 
-def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
-    # xpixel, ypixel are sizes of pixels
-    # r how many pixels do we look around
-    # array - curves in both x and y
-    # x,y position in curve coordinates
+def distancetocurve(array, x, y, xpixel, ypixel, r=5, cache=None):
     if cache is not None and id(x) in cache:
         xmin,xmax = cache[id(x)]
     else:
         xmin = closestindex(array[0], x-r*xpixel)
-        xmax = closestindex(array[0], x+r*xpixel, side="right")
+        xmax = closestindex(array[0], x+r*xpixel)
         if cache is not None: 
             cache[id(x)] = xmin,xmax
-    xp = array[0][xmin-1:xmax+2]
-    yp = array[1][:,xmin-1:xmax+2]
-
+    xp = array[0][xmin:xmax+1]
+    yp = array[1][xmin:xmax+1]
+    
     #convert to distances in pixels
     xp = ((xp-x)/xpixel)
     yp = ((yp-y)/ypixel)
     
     distancepx = (xp**2+yp**2)**0.5
     mini = np.argmin(distancepx)
-
-    from orangecontrib.infrared.widgets.line_geometry import distance_curves
-
-    xp = np.hstack((xp, float("nan")))
-    yp = np.hstack((yp, np.zeros((yp.shape[0], 1))*float("nan")))
-    dc = distance_curves(xp, yp, (0, 0))
-    return dc
+    return distancepx[mini], xmin + mini
 
 
 class InteractiveViewBox(ViewBox):
@@ -265,8 +255,6 @@ class CurvePlot(QWidget):
         self.markings = []
         self.subset_ids = set()
         self.data = None
-        self.data_x = None
-        self.data_ys = None
 
         self.viewtype = INDIVIDUAL
 
@@ -329,25 +317,23 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.curves and self.viewtype == INDIVIDUAL:
+            if self.curves and len(self.curves[0][0]) and self.viewtype == INDIVIDUAL:
                 cache = {}
                 R = 20
                 bd = None
                 if self.markclosest and self.state != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
-                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=R, cache=cache)
-                    bd = np.nanargmin(distances)
-                    bd = (bd, distances[bd])
+                    distances = [ distancetocurve(c, posx, posy, xpixel, ypixel, r=R, cache=cache) for c in self.curves ]
+                    bd = min(enumerate(distances), key= lambda x: x[1][0])
                 if self.highlighted is not None:
                     self.highlighted = None
                     self.highlighted_curve.hide()
-                if bd and bd[1] < R:
+                if bd and bd[1][0] < R:
                     self.highlighted = bd[0]
-                    x = self.curves[0][0]
-                    y = self.curves[0][1][self.highlighted]
+                    x,y = self.curves[self.highlighted]
                     self.highlighted_curve.setData(x=x,y=y)
                     self.highlighted_curve.show()
-                    if False and self.snap: # temporary disable snap!
+                    if self.snap:
                         posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
 
             self.vLine.setPos(posx)
@@ -377,8 +363,6 @@ class CurvePlot(QWidget):
         if self.selection_enabled:
             self.parent.selected_indices.clear()
         self.curves = []
-        self.data_x = None
-        self.data_ys = None
         self.sampled_indices = []
         self.sampled_indices_inverse = {}
         self.sampling = None
@@ -414,20 +398,23 @@ class CurvePlot(QWidget):
             self.plot.removeItem(m)
         self.markings = []
 
-    def add_curves(self, x, ys, addc=True):
+    def add_curves(self, x, data, addc=True):
         """ Add multiple curves with the same x domain. """
+        xsind = np.argsort(x)
+        x = x[xsind]
         if addc:
-            if len(ys) > MAXINST:
-                self.sampled_indices = sorted(random.Random(0).sample(range(len(ys)), MAXINST))
+            if len(data) > MAXINST:
+                self.sampled_indices = sorted(random.Random(0).sample(range(len(data)), MAXINST))
                 self.sampling = True
             else:
-                self.sampled_indices = list(range(len(ys)))
+                self.sampled_indices = list(range(len(data)))
             random.Random(0).shuffle(self.sampled_indices) #for sequential classes
             self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
-        ys = ys[self.sampled_indices]
-        if addc:
-            self.curves.append((x, ys))
+        ys = data.X[self.sampled_indices]
         for y in ys:
+            y = y[xsind]
+            if addc:
+                self.curves.append((x,y))
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
             self.curves_cont.add_curve(c)
         self.curves_plotted = self.curves
@@ -437,7 +424,7 @@ class CurvePlot(QWidget):
         x = x[xsind]
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
         self.curves_cont.add_curve(c)
-        self.curves_plotted.append((x, [y]))
+        self.curves_plotted.append((x, y))
 
     def _current_color_var(self):
         color_var = "(Same color)"
@@ -473,7 +460,7 @@ class CurvePlot(QWidget):
         self.viewtype = INDIVIDUAL
         self.clear_graph()
         x = getx(self.data)
-        self.add_curves(self.data_x, self.data_ys, addc=not self.curves)
+        self.add_curves(x, self.data, addc=not self.curves)
         self.set_curve_pens()
         self.curves_cont.update()
 
@@ -557,13 +544,6 @@ class CurvePlot(QWidget):
                 else:
                     rescale = True
             self.data = data
-
-            # get and sort input data
-            x = getx(self.data)
-            xsind = np.argsort(x)
-            self.data_x = x[xsind]
-            self.data_ys = data.X[xsind]
-
             self.update_view()
             if rescale == True:
                 self.plot.vb.autoRange()
