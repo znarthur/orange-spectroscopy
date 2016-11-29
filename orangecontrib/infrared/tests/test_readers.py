@@ -40,3 +40,11 @@ class TestGSS(unittest.TestCase):
     def test_open(self):
         data = Orange.data.Table("Au168mA_nodisplacement.gsf")
         self.assertEquals(data.X.shape, (1, 20480))
+
+
+class TestNea(unittest.TestCase):
+
+    def test_open(self):
+        data = Orange.data.Table("/home/marko/spectra20.nea")
+        self.assertEqual(len(data), 12)
+        # FIXME check contents

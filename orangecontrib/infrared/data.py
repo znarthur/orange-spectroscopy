@@ -7,6 +7,7 @@ import spectral.io.envi
 from Orange.data import \
     ContinuousVariable, StringVariable, TimeVariable
 from Orange.data.io import FileFormat
+from scipy.interpolate import interp1d
 
 from .pymca5 import OmnicMap
 
@@ -342,6 +343,116 @@ class GSFReader(FileFormat):
             data = Orange.data.Table(domain, X)
             data.attributes = meta
             return data
+
+
+class NeaReader(FileFormat):
+
+    EXTENSIONS = (".nea",)
+    DESCRIPTION = 'NeaSPEC'
+
+    def read(self):
+
+        with open(self.filename, "rt") as f:
+            next(f)  # skip header
+            l = next(f)
+            l = l.strip()
+            l = l.split("\t")
+            ncols = len(l)
+
+            f.seek(0)
+            next(f)
+            datacols = np.arange(4, ncols)
+            data = np.loadtxt(f, dtype="float", usecols=datacols)
+
+            f.seek(0)
+            next(f)
+            metacols = np.arange(0, 4)
+            meta = np.loadtxt(f,
+                              dtype={'names': ('row', 'column', 'run', 'channel'),
+                                     'formats': (np.int, np.int, np.int, "S10")},
+                              usecols=metacols)
+
+            # ASSUMTION: runs start with 0
+            runs = np.unique(meta["run"])
+
+            # ASSUMPTION: there is one M channel and multiple O?A and O?P channels,
+            # both with the same number, both starting with 0
+            channels = np.unique(meta["channel"])
+            maxn = -1
+
+            def channel_type(a):
+                if a.startswith(b"O") and a.endswith(b"A"):
+                    return "OA"
+                elif a.startswith(b"O") and a.endswith(b"P"):
+                    return "OP"
+                else:
+                    return "M"
+
+            for a in channels:
+                if channel_type(a) in ("OA", "OP"):
+                    maxn = max(maxn, int(a[1:-1]))
+            numharmonics = maxn+1
+
+            rowcols = np.vstack((meta["row"], meta["column"])).T
+            uniquerc = set(map(tuple, rowcols))
+
+            di = {}  # dictionary of indices for each row and column
+
+            min_intp, max_intp = None, None
+
+
+            for i, (row, col, run, chan) in enumerate(meta):
+                if (row, col) not in di:
+                    di[(row, col)] = \
+                        {"M": np.zeros((len(runs), len(datacols))) * np.nan,
+                         "OA": np.zeros((numharmonics, len(runs), len(datacols))) * np.nan,
+                         "OP": np.zeros((numharmonics, len(runs), len(datacols))) * np.nan}
+                if channel_type(chan) == "M":
+                    di[(row, col)][channel_type(chan)][run] = data[i]
+                    if min_intp is None:  # we need the limits of common X for all
+                        min_intp = np.min(data[i])
+                        max_intp = np.max(data[i])
+                    else:
+                        min_intp = max(min_intp, np.min(data[i]))
+                        max_intp = min(max_intp, np.max(data[i]))
+                elif channel_type(chan) in ("OA", "OP"):
+                    di[(row, col)][channel_type(chan)][int(chan[1:-1]), run] = data[i]
+
+            X = np.linspace(min_intp, max_intp, num=len(datacols))
+
+            final_metas = []
+            final_data = []
+
+            for row, col in uniquerc:
+                cur = di[(row, col)]
+                M, OA, OP = cur["M"], cur["OA"], cur["OP"]
+
+                OAn = np.zeros(OA.shape) * np.nan
+                OPn = np.zeros(OA.shape) * np.nan
+                for run in range(len(M)):
+                    f = interp1d(M[run], OA[:, run])
+                    OAn[:, run] = f(X)
+                    f = interp1d(M[run], OP[:, run])
+                    OPn[:, run] = f(X)
+
+                OAmean = np.mean(OAn, axis=1)
+                OPmean = np.mean(OPn, axis=1)
+                final_data.append(OAmean)
+                final_data.append(OPmean)
+                final_metas += [[row, col, "O%dA" % i] for i in range(numharmonics)]
+                final_metas += [[row, col, "O%dP" % i] for i in range(numharmonics)]
+
+            final_data = np.vstack(final_data)
+
+            metas = [Orange.data.ContinuousVariable.make("row"),
+                     Orange.data.ContinuousVariable.make("row"),
+                     Orange.data.StringVariable.make("channel")]
+
+            domain = Orange.data.Domain(
+                [Orange.data.ContinuousVariable("%f" % f) for f in X],
+                None, metas=metas)
+            final_metas = np.array(final_metas, dtype=object)
+            return Orange.data.Table(domain, final_data, metas=final_metas)
 
 
 def build_spec_table(wavenumbers, intensities):
