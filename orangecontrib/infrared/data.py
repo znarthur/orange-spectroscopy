@@ -324,8 +324,8 @@ class GSFReader(FileFormat):
 
             f.read(4 - f.tell() % 4)
 
-            meta["XRes"] = int(meta["XRes"])
-            meta["YRes"] = int(meta["YRes"])
+            meta["XRes"] = XR = int(meta["XRes"])
+            meta["YRes"] = YR = int(meta["YRes"])
             meta["XReal"] = float(meta.get("XReal", 1))
             meta["YReal"] = float(meta.get("YReal", 1))
             meta["XOffset"] = float(meta.get("XOffset", 0))
@@ -334,13 +334,19 @@ class GSFReader(FileFormat):
             meta["XYUnits"] = meta.get("XYUnits", None)
             meta["ZUnits"] = meta.get("ZUnits", None)
 
-            X = np.fromfile(f, dtype='float32', count=meta["XRes"]*meta["YRes"]). \
-                reshape(meta['YRes'], meta['XRes'])
+            X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
 
-            domvals = range(meta["XRes"])
+            metas = [Orange.data.ContinuousVariable.make("x"),
+                     Orange.data.ContinuousVariable.make("y")]
 
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable("%f" % f) for f in domvals], None)
-            data = Orange.data.Table(domain, X)
+            XRr = np.arange(XR)
+            YRr = np.arange(YR)
+            indices = np.transpose([np.tile(XRr, len(YRr)), np.repeat(YRr, len(XRr))])
+
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable("value")], None, metas=metas)
+            data = Orange.data.Table(domain,
+                                     X.reshape(meta["XRes"]*meta["YRes"], 1),
+                                     metas=np.array(indices, dtype="object"))
             data.attributes = meta
             return data
 

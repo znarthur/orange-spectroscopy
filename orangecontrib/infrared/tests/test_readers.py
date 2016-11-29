@@ -35,11 +35,15 @@ class TestReaders(unittest.TestCase):
         np.testing.assert_allclose(dround.X[:, 1:-1], d2.X[:, 1:-1], rtol=0.011)
 
 
-class TestGSS(unittest.TestCase):
+class TestGSF(unittest.TestCase):
 
-    def test_open(self):
+    def test_open_line(self):
         data = Orange.data.Table("Au168mA_nodisplacement.gsf")
-        self.assertEquals(data.X.shape, (1, 20480))
+        self.assertEquals(data.X.shape, (20480,1))
+
+    def test_open_2d(self):
+        data = Orange.data.Table("whitelight.gsf")
+        self.assertEquals(data.X.shape, (20000, 1))
 
 
 class TestNea(unittest.TestCase):
