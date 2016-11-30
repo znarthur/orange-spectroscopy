@@ -353,7 +353,7 @@ class GSFReader(FileFormat):
 
 class NeaReader(FileFormat):
 
-    EXTENSIONS = (".nea",)
+    EXTENSIONS = (".nea", ".txt")
     DESCRIPTION = 'NeaSPEC'
 
     def read(self):
