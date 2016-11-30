@@ -17,18 +17,21 @@ class TestOWCurves(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
 
+    def test_empty(self):
+        self.send_signal("Data", None)
+
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
-        curves = self.widget.plotview.curves
-        self.assertEqual(len(curves), len(self.collagen))
+        x, ys = self.widget.plotview.curves[0]
+        self.assertEqual(len(ys), len(self.collagen))
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
-        np.testing.assert_equal(curves[0][0], fs)
+        np.testing.assert_equal(x, fs)
 
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
-        curves = self.widget.plotview.curves
-        self.assertEqual(len(curves), len(self.iris))
-        np.testing.assert_equal(curves[0][0],
+        x,ys = self.widget.plotview.curves[0]
+        self.assertEqual(len(ys), len(self.iris))
+        np.testing.assert_equal(x,
                                 range(len(self.iris.domain.attributes)))
 
     def test_show_average(self):
@@ -40,7 +43,9 @@ class TestOWCurves(WidgetTest):
         curves2 = self.widget.plotview.curves
         self.assertIs(curves, curves2)
         curves_plotted2 = self.widget.plotview.curves_plotted
-        self.assertLess(len(curves_plotted2), len(curves_plotted))
+        def numcurves(curves):
+            return sum(len(a[1]) for a in curves)
+        self.assertLess(numcurves(curves_plotted2), numcurves(curves_plotted))
         self.widget.plotview.show_individual()
         curves_plotted3 = self.widget.plotview.curves_plotted
         self.assertEqual(curves_plotted, curves_plotted3)
