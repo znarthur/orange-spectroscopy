@@ -25,6 +25,8 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 
 from orangecontrib.infrared.data import getx
 
+from orangecontrib.infrared.widgets.line_geometry import distance_curves, intersect_curves_chunked
+
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
@@ -99,12 +101,11 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     distancepx = (xp**2+yp**2)**0.5
     mini = np.argmin(distancepx)
 
-    from orangecontrib.infrared.widgets.line_geometry import distance_curves
-
     xp = np.hstack((xp, float("nan")))
     yp = np.hstack((yp, np.zeros((yp.shape[0], 1))*float("nan")))
     dc = distance_curves(xp, yp, (0, 0))
     return dc
+
 
 
 class InteractiveViewBox(ViewBox):
@@ -114,6 +115,7 @@ class InteractiveViewBox(ViewBox):
         self.graph = graph
         self.setMouseMode(self.PanMode)
         self.zoomstartpoint = None
+        self.selection_start = None
 
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
@@ -143,41 +145,54 @@ class InteractiveViewBox(ViewBox):
         if self.graph.state == ZOOMING and self.zoomstartpoint:
             pos = self.mapFromView(self.mapSceneToView(ev))
             self.updateScaleBox(self.zoomstartpoint, pos)
+        if self.graph.state == SELECT and self.selection_start:
+            pos = self.mapFromView(self.mapSceneToView(ev))
+            self.updateSelectionLine(self.selection_start, pos)
+
+    def updateSelectionLine(self, p1, p2):
+        p1 = self.childGroup.mapFromParent(p1)
+        p2 = self.childGroup.mapFromParent(p2)
+        self.graph.selection_line.setData(x=[p1.x(), p2.x()], y=[p1.y(), p2.y()])
+        self.graph.selection_line.show()
 
     def wheelEvent(self, ev, axis=None):
         ev.accept() #ignore wheel zoom
+
+    def make_selection(self, data_indices, add=False):
+        selected_indices = self.graph.parent.selected_indices
+        oldids = selected_indices.copy()
+        invd = self.graph.sampled_indices_inverse
+        if data_indices is None:
+            if not add:
+                selected_indices.clear()
+                self.graph.set_curve_pens([invd[a] for a in oldids if a in invd])
+        else:
+            if add:
+                selected_indices.update(data_indices)
+                self.graph.set_curve_pens([invd[a] for a in data_indices if a in invd])
+            else:
+                selected_indices.clear()
+                selected_indices.update(data_indices)
+                self.graph.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
+        self.graph.selection_changed()
+
+    def intersect_curves(self, q1, q2):
+        x, ys = self.graph.data_x, self.graph.data_ys
+        sel = np.flatnonzero(intersect_curves_chunked(x, ys, q1, q2))
+        return sel
 
     def mouseClickEvent(self, ev):
         if ev.button() ==  Qt.RightButton:
             ev.accept()
             self.autoRange()
             self.graph.set_mode_panning()
-        if self.graph.state != ZOOMING and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
-            add = True if ev.modifiers() & Qt.ControlModifier else False
+        add = True if ev.modifiers() & Qt.ControlModifier else False
+        if self.graph.state != ZOOMING and self.graph.state != SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
             clicked_curve = self.graph.highlighted
-
-            selected_indices = self.graph.parent.selected_indices
-            invd = self.graph.sampled_indices_inverse
             if clicked_curve is not None:
-                clicked_curve = self.graph.sampled_indices[clicked_curve]
-                if add:
-                    if clicked_curve not in selected_indices:
-                        selected_indices.add(clicked_curve)
-                    else:
-                        selected_indices.remove(clicked_curve)
-                    self.graph.set_curve_pen(invd[clicked_curve])
-                    self.graph.curves_cont.update()
-                else:
-                    oldids = selected_indices.copy()
-                    selected_indices.clear()
-                    selected_indices.add(clicked_curve)
-                    self.graph.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
+                self.make_selection([self.graph.sampled_indices[clicked_curve]], add)
             else:
-                if not add:
-                    oldids = selected_indices.copy()
-                    selected_indices.clear()
-                    self.graph.set_curve_pens([invd[a] for a in oldids if a in invd])
-            self.graph.selection_changed()
+                self.make_selection(None, add)
             ev.accept()
         if self.graph.state == ZOOMING and ev.button() == Qt.LeftButton:
             if self.zoomstartpoint == None:
@@ -191,6 +206,19 @@ class InteractiveViewBox(ViewBox):
                 self.axHistoryPointer += 1
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
                 self.zoomstartpoint = None
+            ev.accept()
+        if self.graph.state == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
+            if self.selection_start is None:
+                self.selection_start = ev.pos()
+            else:
+                startp = self.childGroup.mapFromParent(self.selection_start)
+                endp = self.childGroup.mapFromParent(ev.pos())
+                intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
+                self.make_selection(intersected if len(intersected) else None, add)
+                self.rbScaleBox.hide()
+                self.selection_start = None
+                self.graph.selection_line.hide()
+                self.graph.set_mode_panning()
             ev.accept()
 
     def showAxRect(self, ax):
@@ -299,6 +327,11 @@ class CurvePlot(QWidget):
             triggered=self.rescale_current_view_y
         )
 
+        select_curves = QtGui.QAction(
+            "Select (line)", self, triggered=self.set_mode_select,
+        )
+        select_curves.setShortcuts([Qt.Key_S])
+
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
@@ -307,7 +340,7 @@ class CurvePlot(QWidget):
         layout.addWidget(self.button, 1, 1)
         view_menu = QMenu(self)
         self.button.setMenu(view_menu)
-        view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
+        view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average, select_curves])
         self.set_mode_panning()
         self.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
 
@@ -400,9 +433,14 @@ class CurvePlot(QWidget):
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
+        self.selection_line = pg.PlotCurveItem()
+        self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=QtCore.Qt.DotLine))
+        self.selection_line.setZValue(1e9)
+        self.selection_line.hide()
         self.plot.addItem(self.highlighted_curve)
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
+        self.plot.addItem(self.selection_line, ignoreBounds=True)
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
@@ -586,6 +624,12 @@ class CurvePlot(QWidget):
         self.state = PANNING
         self.plot.vb.zoomstartpoint = None
         self.unsetCursor()
+
+    def set_mode_select(self):
+        self.plot.vb.setMouseMode(self.plot.vb.RectMode)
+        self.state = SELECT
+        self.plot.vb.select_start = None
+        self.setCursor(Qt.CrossCursor)
 
 
 class OWCurves(widget.OWWidget):
