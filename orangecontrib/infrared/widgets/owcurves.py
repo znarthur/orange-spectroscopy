@@ -4,33 +4,37 @@ from collections import defaultdict
 import gc
 import random
 
+from PyQt4 import QtGui
+from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
+                        QPushButton, QMenu, QGridLayout)
+from PyQt4.QtCore import Qt, QRectF
+
 import numpy as np
 import pyqtgraph as pg
+from pyqtgraph.graphicsItems.ViewBox import ViewBox
+from pyqtgraph import Point, GraphicsObject
+
 from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets import widget
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
-                        QPushButton, QMenu, QGridLayout)
-from pyqtgraph.graphicsItems.ViewBox import ViewBox
-from pyqtgraph import Point, GraphicsObject
-from PyQt4.QtCore import Qt, QObject, QEvent, QRectF, QPointF
+from Orange.widgets import gui
+from Orange.widgets.settings import \
+    ContextSetting, DomainContextHandler
+from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
-from Orange.widgets.settings import (Setting, ContextSetting,
-                                     DomainContextHandler)
-from Orange.widgets.utils.itemmodels import VariableListModel
-from Orange.widgets import gui
-from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 
 from orangecontrib.infrared.data import getx
+from orangecontrib.infrared.widgets.line_geometry import \
+    distance_curves, intersect_curves_chunked
 
-from orangecontrib.infrared.widgets.line_geometry import distance_curves, intersect_curves_chunked
 
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
 MAXINST = 1000
+
 
 class PlotCurvesItem(GraphicsObject):
     """ Multiple curves on a single plot that can be cached together. """
@@ -40,7 +44,7 @@ class PlotCurvesItem(GraphicsObject):
         self.clear()
 
     def clear(self):
-        self.bounds = QtCore.QRectF(0, 0, 1, 1)
+        self.bounds = QRectF(0, 0, 1, 1)
         self.objs = []
 
     def paint(self, p, *args):
@@ -107,7 +111,6 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     return dc
 
 
-
 class InteractiveViewBox(ViewBox):
 
     def __init__(self, graph):
@@ -127,7 +130,7 @@ class InteractiveViewBox(ViewBox):
 
     # noinspection PyPep8Naming,PyMethodOverriding
     def mouseDragEvent(self, ev, axis=None):
-        if ev.button() & QtCore.Qt.RightButton:
+        if ev.button() & Qt.RightButton:
             ev.accept()
         if self.graph.state == ZOOMING:
             ev.ignore()
@@ -200,7 +203,7 @@ class InteractiveViewBox(ViewBox):
             else:
                 self.updateScaleBox(self.zoomstartpoint, ev.pos())
                 self.rbScaleBox.hide()
-                ax = QtCore.QRectF(Point(self.zoomstartpoint), Point(ev.pos()))
+                ax = QRectF(Point(self.zoomstartpoint), Point(ev.pos()))
                 ax = self.childGroup.mapRectFromParent(ax)
                 self.showAxRect(ax)
                 self.axHistoryPointer += 1
@@ -234,6 +237,7 @@ class InteractiveViewBox(ViewBox):
         super().autoRange()
         self.pad_current_view_y()
 
+
 class SelectRegion(pg.LinearRegionItem):
 
     def __init__(self, *args, **kwargs):
@@ -245,6 +249,7 @@ class SelectRegion(pg.LinearRegionItem):
         color.setAlphaF(0.05)
         self.setBrush(pg.mkBrush(color))
 
+
 class CurvePlot(QWidget):
 
     def __init__(self, parent=None):
@@ -252,13 +257,14 @@ class CurvePlot(QWidget):
         self.parent = parent
 
         self.selection_enabled = hasattr(self.parent, "selected_indices")
+        self.clear_data()
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
         self.plot.invertX(True)
-        self.curves = [] #currently loaded curves
-        self.curves_plotted = [] #currently plotted curves (different than loaded for averages)
+
+        self.markings = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
@@ -267,66 +273,46 @@ class CurvePlot(QWidget):
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
         self.pen_normal = defaultdict(lambda: pg.mkPen(color=(200, 200, 200, 127), width=1))
         self.pen_subset = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=1))
-        self.pen_selected = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=2, style=QtCore.Qt.DotLine))
-        self.label = pg.TextItem("", anchor=(1,0))
-        self.label.setText("", color=(0,0,0))
+        self.pen_selected = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=2, style=Qt.DotLine))
+        self.label = pg.TextItem("", anchor=(1, 0))
+        self.label.setText("", color=(0, 0, 0))
         self.discrete_palette = None
-        self.sampled_indices = []
-        self.sampled_indices_inverse = {}
-        self.sampling = None
-
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
-        self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
+
+        self.clear_graph()
 
         #interface settings
-        self.snap = True #snap to closest point on curve
         self.location = True #show current position
         self.markclosest = True #mark
+        self.viewtype = INDIVIDUAL
 
         layout = QtGui.QVBoxLayout()
         self.setLayout(layout)
-
         self.layout().setContentsMargins(0, 0, 0, 0)
-
         self.layout().addWidget(self.plotview)
-        self.highlighted = None
-        self.markings = []
-        self.subset_ids = set()
-        self.data = None
-        self.data_x = None
-        self.data_ys = None
-
-        self.viewtype = INDIVIDUAL
-
-        #self.clear()
 
         zoom_in = QtGui.QAction(
             "Zoom in", self, triggered=self.set_mode_zooming
         )
         zoom_in.setShortcuts([Qt.Key_Z, QtGui.QKeySequence(QtGui.QKeySequence.ZoomIn)])
-
         zoom_fit = QtGui.QAction(
             "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
         )
         zoom_fit.setShortcuts([Qt.Key_Backspace, QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0)])
-
         view_individual = QtGui.QAction(
             "Show individual", self, shortcut=Qt.Key_I,
             triggered=lambda x: self.show_individual()
         )
-
         view_average = QtGui.QAction(
             "Show averages", self, shortcut=Qt.Key_A,
             triggered=lambda x: self.show_average()
         )
-
         rescale_y = QtGui.QAction(
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
             triggered=self.rescale_current_view_y
         )
-
         select_curves = QtGui.QAction(
             "Select (line)", self, triggered=self.set_mode_select,
         )
@@ -343,6 +329,46 @@ class CurvePlot(QWidget):
         view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average, select_curves])
         self.set_mode_panning()
         self.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
+
+    def clear_data(self):
+        self.subset_ids = set()
+        if self.selection_enabled:
+            self.parent.selected_indices.clear()
+        self.curves = []
+        self.data = None
+        self.data_x = None
+        self.data_ys = None
+        self.sampled_indices = []
+        self.sampled_indices_inverse = {}
+        self.sampling = None
+        self.selection_changed()
+        self.discrete_palette = None
+
+    def clear_graph(self):
+        # reset caching. if not, it is not cleared when view changing when zoomed
+        self.highlighted = None
+        self.curves_cont.setCacheMode(QGraphicsItem.NoCache)
+        self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
+        self.plot.vb.disableAutoRange()
+        self.curves_cont.clear()
+        self.curves_cont.update()
+        self.plotview.clear()
+        self.curves_plotted = []  # currently plotted curves (different than loaded for averages)
+        self.plotview.addItem(self.label, ignoreBounds=True)
+        self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
+        self.highlighted_curve.setZValue(10)
+        self.highlighted_curve.hide()
+        self.selection_line = pg.PlotCurveItem()
+        self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
+        self.selection_line.setZValue(1e9)
+        self.selection_line.hide()
+        self.plot.addItem(self.highlighted_curve)
+        self.plot.addItem(self.vLine, ignoreBounds=True)
+        self.plot.addItem(self.hLine, ignoreBounds=True)
+        self.plot.addItem(self.selection_line, ignoreBounds=True)
+        self.plot.addItem(self.curves_cont)
+        for m in self.markings:
+            self.plot.addItem(m, ignoreBounds=True)
 
     def resized(self):
         self.label.setPos(self.plot.vb.viewRect().bottomLeft())
@@ -381,8 +407,6 @@ class CurvePlot(QWidget):
                     y = self.curves[0][1][self.highlighted]
                     self.highlighted_curve.setData(x=x,y=y)
                     self.highlighted_curve.show()
-                    if False and self.snap: # temporary disable snap!
-                        posx,posy = self.curves[bd[0]][0][bd[1][1]], self.curves[bd[0]][1][bd[1][1]]
 
             self.vLine.setPos(posx)
             self.hLine.setPos(posy)
@@ -405,45 +429,6 @@ class CurvePlot(QWidget):
             for i in curves:
                 self.set_curve_pen(i)
             self.curves_cont.update()
-
-    def clear_data(self):
-        self.subset_ids = set()
-        if self.selection_enabled:
-            self.parent.selected_indices.clear()
-        self.curves = []
-        self.data = None
-        self.data_x = None
-        self.data_ys = None
-        self.sampled_indices = []
-        self.sampled_indices_inverse = {}
-        self.sampling = None
-        self.selection_changed()
-        self.discrete_palette = None
-
-    def clear_graph(self):
-        # reset caching. if not, it is not cleared when view changing when zoomed
-        self.curves_cont.setCacheMode(QGraphicsItem.NoCache)
-        self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
-        self.plot.vb.disableAutoRange()
-        self.curves_cont.clear()
-        self.curves_cont.update()
-        self.plotview.clear()
-        self.curves_plotted = []
-        self.plotview.addItem(self.label, ignoreBounds=True)
-        self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
-        self.highlighted_curve.setZValue(10)
-        self.highlighted_curve.hide()
-        self.selection_line = pg.PlotCurveItem()
-        self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=QtCore.Qt.DotLine))
-        self.selection_line.setZValue(1e9)
-        self.selection_line.hide()
-        self.plot.addItem(self.highlighted_curve)
-        self.plot.addItem(self.vLine, ignoreBounds=True)
-        self.plot.addItem(self.hLine, ignoreBounds=True)
-        self.plot.addItem(self.selection_line, ignoreBounds=True)
-        self.plot.addItem(self.curves_cont)
-        for m in self.markings:
-            self.plot.addItem(m, ignoreBounds=True)
 
     def add_marking(self, item):
         self.markings.append(item)
@@ -500,7 +485,7 @@ class CurvePlot(QWidget):
                 basecolor = QColor(basecolor)
                 basecolor.setAlphaF(0.9)
                 self.pen_subset[v] = pg.mkPen(color=basecolor, width=1)
-                self.pen_selected[v] = pg.mkPen(color=basecolor, width=2, style=QtCore.Qt.DotLine)
+                self.pen_selected[v] = pg.mkPen(color=basecolor, width=2, style=Qt.DotLine)
                 notselcolor = basecolor.lighter(150)
                 notselcolor.setAlphaF(0.5)
                 self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
@@ -522,20 +507,19 @@ class CurvePlot(QWidget):
             bright = qrect.right()
 
             ymax = max(np.max(ys[:, searchsorted_cached(cache, x, bleft):
-                                searchsorted_cached(cache, x, bright, side="right")])
-                       for x,ys in self.curves_plotted)
+                                 searchsorted_cached(cache, x, bright, side="right")])
+                       for x, ys in self.curves_plotted)
             ymin = min(np.min(ys[:, searchsorted_cached(cache, x, bleft):
-                                searchsorted_cached(cache, x, bright, side="right")])
-                       for x,ys in self.curves_plotted)
+                                 searchsorted_cached(cache, x, bright, side="right")])
+                       for x, ys in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
             self.plot.vb.pad_current_view_y()
 
-
     def _split_by_color_value(self, data):
         color_var = self._current_color_var()
         rd = defaultdict(list)
-        for i,inst in enumerate(data):
+        for i, inst in enumerate(data):
             value = None if isinstance(color_var, str) else str(inst[color_var])
             rd[value].append(i)
         return rd
@@ -545,33 +529,29 @@ class CurvePlot(QWidget):
             return
         self.viewtype = AVERAGE
         self.clear_graph()
-        x = getx(self.data)
-        xsind = np.argsort(x)
-        x = x[xsind]
+        x = self.data_x
         if self.data:
             subset_indices = [i for i, id in enumerate(self.data.ids) if id in self.subset_ids]
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
                 for part in ["everything", "subset", "selection"]:
                     if part == "everything":
-                        ys = self.data.X[indices]
+                        ys = self.data_ys[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
                     elif self.selection_enabled and part == "selection" and not self.sampled_indices: #disable selection with sampled indices
                         current_selected = sorted(set(self.parent.selected_indices) & set(indices))
                         if not current_selected:
                             continue
-                        ys = self.data.X[current_selected]
+                        ys = self.data_ys[current_selected]
                         pen = self.pen_selected
                     elif part == "subset":
                         current_subset = sorted(set(subset_indices) & set(indices))
                         if not current_subset:
                             continue
-                        ys = self.data.X[current_subset]
+                        ys = self.data_ys[current_subset]
                         pen = self.pen_subset
                     std = np.std(ys, axis=0)
                     mean = np.mean(ys, axis=0)
-                    std = std[xsind]
-                    mean = mean[xsind]
                     self.add_curve(x, mean, pen=pen[colorv])
                     self.add_curve(x, mean+std, pen=pen[colorv])
                     self.add_curve(x, mean-std, pen=pen[colorv])
@@ -594,13 +574,11 @@ class CurvePlot(QWidget):
                 else:
                     rescale = True
             self.data = data
-
             # get and sort input data
             x = getx(self.data)
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_ys = data.X[:, xsind]
-
             self.update_view()
             if rescale == True:
                 self.plot.vb.autoRange()
@@ -655,7 +633,7 @@ class OWCurves(widget.OWWidget):
         model = VariableListModel()
         model.wrap(self.attrs)
         label = gui.label(self.topbox, self, "Color by")
-        label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.attrCombo = gui.comboBox(
             self.topbox, self, value="color_attr", contentsLength=12,
             callback=self.change_color_attr)
