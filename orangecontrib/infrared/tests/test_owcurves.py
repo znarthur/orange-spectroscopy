@@ -6,6 +6,10 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
     distance_line_segment
 
+
+from PyQt4.QtCore import QPointF
+
+
 class TestOWCurves(WidgetTest):
 
     @classmethod
@@ -13,12 +17,39 @@ class TestOWCurves(WidgetTest):
         super().setUpClass()
         cls.iris = Orange.data.Table("iris")
         cls.collagen = Orange.data.Table("collagen")
+        cls.normal_data = [cls.iris, cls.collagen]
+        # dataset with a single attribute
+        iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
+        cls.strange_data = [iris1]
 
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
 
+    def do_mousemove(self):
+        mr = self.widget.plotview.MOUSE_RADIUS
+        self.widget.plotview.MOUSE_RADIUS = 1000
+        self.widget.plotview.mouseMoved((self.widget.plotview.plot.sceneBoundingRect().center(),))
+        if self.widget.plotview.curves:  # need to detect a curve
+            self.assertIsNotNone(self.widget.plotview.highlighted)
+        else:  # no curve can be detected
+            self.assertIsNone(self.widget.plotview.highlighted)
+
+        # assume nothing is directly in the middle
+        # therefore nothing should be highlighted
+        self.widget.plotview.MOUSE_RADIUS = 0.1
+        self.widget.plotview.mouseMoved((self.widget.plotview.plot.sceneBoundingRect().center(),))
+        self.assertIsNone(self.widget.plotview.highlighted)
+
+        self.widget.plotview.MOUSE_RADIUS = mr
+
     def test_empty(self):
         self.send_signal("Data", None)
+        self.do_mousemove()
+
+    def test_mouse_move(self):
+        for data in self.normal_data + self.strange_data:
+            self.send_signal("Data", data)
+            self.do_mousemove()
 
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)

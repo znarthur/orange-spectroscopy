@@ -107,6 +107,7 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     distancepx = (xp**2+yp**2)**0.5
     mini = np.argmin(distancepx)
 
+    # add edge point so that distance_curves works if there is just one point
     xp = np.hstack((xp, float("nan")))
     yp = np.hstack((yp, np.zeros((yp.shape[0], 1))*float("nan")))
     dc = distance_curves(xp, yp, (0, 0))
@@ -291,6 +292,8 @@ class CurvePlot(QWidget):
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
 
+        self.MOUSE_RADIUS = 20
+
         self.clear_graph()
 
         #interface settings
@@ -402,17 +405,16 @@ class CurvePlot(QWidget):
 
             if self.curves and self.viewtype == INDIVIDUAL:
                 cache = {}
-                R = 20
                 bd = None
                 if self.markclosest and self.state != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
-                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=R, cache=cache)
+                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=self.MOUSE_RADIUS, cache=cache)
                     bd = np.nanargmin(distances)
                     bd = (bd, distances[bd])
                 if self.highlighted is not None:
                     self.highlighted = None
                     self.highlighted_curve.hide()
-                if bd and bd[1] < R:
+                if bd and bd[1] < self.MOUSE_RADIUS:
                     self.highlighted = bd[0]
                     x = self.curves[0][0]
                     y = self.curves[0][1][self.highlighted]
