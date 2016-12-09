@@ -181,6 +181,15 @@ class InteractiveViewBox(ViewBox):
 
     def intersect_curves(self, q1, q2):
         x, ys = self.graph.data_x, self.graph.data_ys
+        if len(x) < 2:
+            return []
+        x1, x2 = min(q1[0], q2[0]), max(q1[0], q2[0])
+        xmin = closestindex(x, x1)
+        xmax = closestindex(x, x2, side="right")
+        xmin = max(0, xmin - 1)
+        xmax = xmax + 2
+        x = x[xmin:xmax]
+        ys = ys[:, xmin:xmax]
         sel = np.flatnonzero(intersect_curves_chunked(x, ys, q1, q2))
         return sel
 
@@ -686,6 +695,7 @@ def main(argv=None):
     w = OWCurves()
     w.show()
     data = Orange.data.Table("collagen.csv")
+    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     w.set_data(data)
     w.set_subset(data[:40])
     #w.set_subset(None)
