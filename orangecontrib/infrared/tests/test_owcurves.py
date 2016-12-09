@@ -1,7 +1,7 @@
 import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.infrared.widgets.owcurves import OWCurves
+from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
     distance_line_segment
@@ -22,15 +22,19 @@ class TestOWCurves(WidgetTest):
 
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
-        x, ys = self.widget.plotview.curves[0]
+        x, cys = self.widget.plotview.curves[0]
+        ys = self.widget.plotview.data_ys
         self.assertEqual(len(ys), len(self.collagen))
+        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
         np.testing.assert_equal(x, fs)
 
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
-        x,ys = self.widget.plotview.curves[0]
+        x, cys = self.widget.plotview.curves[0]
+        ys = self.widget.plotview.data_ys
         self.assertEqual(len(ys), len(self.iris))
+        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         np.testing.assert_equal(x,
                                 range(len(self.iris.domain.attributes)))
 

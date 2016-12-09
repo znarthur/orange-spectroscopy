@@ -33,7 +33,9 @@ from orangecontrib.infrared.widgets.line_geometry import \
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
-MAXINST = 1000
+
+
+MAX_INSTANCES_DRAWN = 100
 
 
 class PlotCurvesItem(GraphicsObject):
@@ -451,8 +453,8 @@ class CurvePlot(QWidget):
     def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
         if addc:
-            if len(ys) > MAXINST:
-                self.sampled_indices = sorted(random.Random(0).sample(range(len(ys)), MAXINST))
+            if len(ys) > MAX_INSTANCES_DRAWN:
+                self.sampled_indices = sorted(random.Random(0).sample(range(len(ys)), MAX_INSTANCES_DRAWN))
                 self.sampling = True
             else:
                 self.sampled_indices = list(range(len(ys)))
