@@ -20,7 +20,9 @@ class TestOWCurves(WidgetTest):
         cls.normal_data = [cls.iris, cls.collagen]
         # dataset with a single attribute
         iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
-        cls.strange_data = [iris1]
+        # dataset without any attributes
+        iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
+        cls.strange_data = [iris1, iris0]
 
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
@@ -29,7 +31,9 @@ class TestOWCurves(WidgetTest):
         mr = self.widget.plotview.MOUSE_RADIUS
         self.widget.plotview.MOUSE_RADIUS = 1000
         self.widget.plotview.mouseMoved((self.widget.plotview.plot.sceneBoundingRect().center(),))
-        if self.widget.plotview.curves:  # need to detect a curve
+        if self.widget.plotview.data \
+                and len(self.widget.plotview.data_ys) \
+                and len(self.widget.plotview.data_x):  # detect a curve if a validgi curve exists
             self.assertIsNotNone(self.widget.plotview.highlighted)
         else:  # no curve can be detected
             self.assertIsNone(self.widget.plotview.highlighted)

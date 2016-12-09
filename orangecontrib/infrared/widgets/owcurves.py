@@ -403,7 +403,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.curves and self.viewtype == INDIVIDUAL:
+            if self.data_x is not None and len(self.data_x) and self.viewtype == INDIVIDUAL:
                 cache = {}
                 bd = None
                 if self.markclosest and self.state != ZOOMING:
