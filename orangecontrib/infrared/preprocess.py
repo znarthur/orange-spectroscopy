@@ -174,7 +174,7 @@ class _RubberbandBaselineCommon:
         x = getx(data)
         newd = np.zeros_like(data.X)
         for rowi, row in enumerate(data.X):
-            # remove nans which ConvexHull can not handle
+            # remove NaNs which ConvexHull can not handle
             source = np.column_stack((x, row))
             source = source[~np.isnan(source).any(axis=1)]
             try:
@@ -189,7 +189,11 @@ class _RubberbandBaselineCommon:
                 elif self.peak_dir == 1:
                     v = np.roll(v, -v.argmin())
                     v = v[:v.argmax() + 1]
-                baseline = interp1d(source[v, 0], source[v, 1], fill_value="extrapolate")(x)
+                # If there are NaN values at the edges of data then convex hull
+                # does not include the endpoints. Because the same values are also
+                # NaN in the current row, we can fill them with NaN (bounds_error
+                # achieves this).
+                baseline = interp1d(source[v, 0], source[v, 1], bounds_error=False)(x)
             finally:
                 if self.sub == 0:
                     newd[rowi] = row - baseline
