@@ -48,6 +48,7 @@ if __name__ == '__main__':
             'scipy>=0.14.0',
             'spectral>=0.18',
             'opusFC>=1.0.0b1',
+            'serverfiles>=0.2',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,

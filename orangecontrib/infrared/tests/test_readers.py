@@ -5,6 +5,7 @@ import Orange
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import features_with_interpolation
 
+from .bigdata import spectra20nea
 
 class TestReaders(unittest.TestCase):
 
@@ -49,6 +50,6 @@ class TestGSF(unittest.TestCase):
 class TestNea(unittest.TestCase):
 
     def test_open(self):
-        data = Orange.data.Table("/home/marko/spectra20.nea")
+        data = Orange.data.Table(spectra20nea())
         self.assertEqual(len(data), 12)
         # FIXME check contents
