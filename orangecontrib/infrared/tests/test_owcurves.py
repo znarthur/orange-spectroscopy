@@ -74,20 +74,16 @@ class TestOWCurves(WidgetTest):
                                 range(len(self.iris.domain.attributes)))
 
     def test_show_average(self):
-        # curves_plotted changed with view switching, curves does not
         self.send_signal("Data", self.iris)
-        curves = self.widget.plotview.curves
         curves_plotted = self.widget.plotview.curves_plotted
         self.widget.plotview.show_average()
-        curves2 = self.widget.plotview.curves
-        self.assertIs(curves, curves2)
         curves_plotted2 = self.widget.plotview.curves_plotted
         def numcurves(curves):
             return sum(len(a[1]) for a in curves)
         self.assertLess(numcurves(curves_plotted2), numcurves(curves_plotted))
         self.widget.plotview.show_individual()
         curves_plotted3 = self.widget.plotview.curves_plotted
-        self.assertEqual(curves_plotted, curves_plotted3)
+        self.assertEqual(numcurves(curves_plotted), numcurves(curves_plotted3))
 
     def test_line_intersection(self):
         data = self.collagen

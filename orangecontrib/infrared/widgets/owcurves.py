@@ -348,7 +348,6 @@ class CurvePlot(QWidget):
         self.subset_ids = set()
         if self.selection_enabled:
             self.parent.selected_indices.clear()
-        self.curves = []
         self.data = None
         self.data_x = None
         self.data_ys = None
@@ -367,7 +366,8 @@ class CurvePlot(QWidget):
         self.curves_cont.clear()
         self.curves_cont.update()
         self.plotview.clear()
-        self.curves_plotted = []  # currently plotted curves (different than loaded for averages)
+        self.curves_plotted = []  # currently plotted elements (for rescale)
+        self.curves = []  # for finding closest curve
         self.plotview.addItem(self.label, ignoreBounds=True)
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
@@ -454,17 +454,15 @@ class CurvePlot(QWidget):
 
     def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
-        if addc:
-            if len(ys) > MAX_INSTANCES_DRAWN:
-                self.sampled_indices = sorted(random.Random(0).sample(range(len(ys)), MAX_INSTANCES_DRAWN))
-                self.sampling = True
-            else:
-                self.sampled_indices = list(range(len(ys)))
-            random.Random(0).shuffle(self.sampled_indices) #for sequential classes
-            self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
+        if len(ys) > MAX_INSTANCES_DRAWN:
+            self.sampled_indices = sorted(random.Random(0).sample(range(len(ys)), MAX_INSTANCES_DRAWN))
+            self.sampling = True
+        else:
+            self.sampled_indices = list(range(len(ys)))
+        random.Random(0).shuffle(self.sampled_indices) #for sequential classes#
+        self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
         ys = ys[self.sampled_indices]
-        if addc:
-            self.curves.append((x, ys))
+        self.curves.append((x, ys))
         for y in ys:
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
             self.curves_cont.add_curve(c)
@@ -521,7 +519,7 @@ class CurvePlot(QWidget):
             return
         self.viewtype = INDIVIDUAL
         self.clear_graph()
-        self.add_curves(self.data_x, self.data_ys, addc=not self.curves)
+        self.add_curves(self.data_x, self.data_ys)
         self.set_curve_pens()
         self.curves_cont.update()
 
