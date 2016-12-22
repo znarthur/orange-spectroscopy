@@ -473,7 +473,20 @@ class CurvePlot(QWidget):
     def add_curve(self, x, y, pen=None):
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
         self.curves_cont.add_curve(c)
+        # for rescale to work correctly
         self.curves_plotted.append((x, np.array([y])))
+
+    def add_fill_curve(self, x, ylow, yhigh, pen):
+        phigh = pg.PlotCurveItem(x, yhigh, pen=pen)
+        plow = pg.PlotCurveItem(x, ylow, pen=pen)
+        color = pen.color()
+        color.setAlphaF(0.2)
+        cc = pg.mkBrush(color)
+        pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
+        pfill.setZValue(10)
+        self.curves_cont.add_curve(pfill)
+        # for zoom to work correctly
+        self.curves_plotted.append((x, np.array([ylow, yhigh])))
 
     def _current_color_var(self):
         color_var = "(Same color)"
@@ -551,7 +564,7 @@ class CurvePlot(QWidget):
                     if part == "everything":
                         ys = self.data_ys[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
-                    elif self.selection_enabled and part == "selection" and not self.sampled_indices: #disable selection with sampled indices
+                    elif part == "selection" and self.selection_enabled:
                         current_selected = sorted(set(self.parent.selected_indices) & set(indices))
                         if not current_selected:
                             continue
@@ -566,8 +579,7 @@ class CurvePlot(QWidget):
                     std = np.std(ys, axis=0)
                     mean = np.mean(ys, axis=0)
                     self.add_curve(x, mean, pen=pen[colorv])
-                    self.add_curve(x, mean+std, pen=pen[colorv])
-                    self.add_curve(x, mean-std, pen=pen[colorv])
+                    self.add_fill_curve(x, mean + std, mean - std, pen=pen[colorv])
         self.curves_cont.update()
 
     def update_view(self):
