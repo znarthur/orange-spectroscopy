@@ -202,7 +202,9 @@ class InteractiveViewBox(ViewBox):
             self.autoRange()
             self.graph.set_mode_panning()
         add = True if ev.modifiers() & Qt.ControlModifier else False
-        if self.graph.state != ZOOMING and self.graph.state != SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
+        if self.graph.state != ZOOMING and self.graph.state != SELECT \
+                and ev.button() == Qt.LeftButton and self.graph.selection_enabled \
+                and self.graph.viewtype == INDIVIDUAL:
             clicked_curve = self.graph.highlighted
             if clicked_curve is not None:
                 self.make_selection([self.graph.sampled_indices[clicked_curve]], add)
@@ -403,7 +405,7 @@ class CurvePlot(QWidget):
             else:
                 self.label.setText("")
 
-            if self.data_x is not None and len(self.data_x) and self.viewtype == INDIVIDUAL:
+            if self.curves and len(self.curves[0][0]): #need non-zero x axis!
                 cache = {}
                 bd = None
                 if self.markclosest and self.state != ZOOMING:
@@ -555,6 +557,7 @@ class CurvePlot(QWidget):
         self.clear_graph()
         x = self.data_x
         if self.data:
+            ysall = []
             subset_indices = [i for i, id in enumerate(self.data.ids) if id in self.subset_ids]
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
@@ -576,8 +579,10 @@ class CurvePlot(QWidget):
                         pen = self.pen_subset
                     std = np.std(ys, axis=0)
                     mean = np.mean(ys, axis=0)
+                    ysall.append(mean)
                     self.add_curve(x, mean, pen=pen[colorv])
                     self.add_fill_curve(x, mean + std, mean - std, pen=pen[colorv])
+            self.curves.append((x, np.array(ysall)))
         self.curves_cont.update()
 
     def update_view(self):
