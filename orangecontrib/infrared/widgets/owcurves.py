@@ -6,7 +6,7 @@ import random
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
-                        QPushButton, QMenu, QGridLayout)
+                        QPushButton, QMenu, QGridLayout, QPen)
 from PyQt4.QtCore import Qt, QRectF
 
 import numpy as np
@@ -580,8 +580,10 @@ class CurvePlot(QWidget):
                     std = np.std(ys, axis=0)
                     mean = np.mean(ys, axis=0)
                     ysall.append(mean)
-                    self.add_curve(x, mean, pen=pen[colorv])
-                    self.add_fill_curve(x, mean + std, mean - std, pen=pen[colorv])
+                    penc = QPen(pen[colorv])
+                    penc.setWidth(3)
+                    self.add_curve(x, mean, pen=penc)
+                    self.add_fill_curve(x, mean + std, mean - std, pen=penc)
             self.curves.append((x, np.array(ysall)))
         self.curves_cont.update()
 
