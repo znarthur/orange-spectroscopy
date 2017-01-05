@@ -20,7 +20,7 @@ from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
 from warnings import catch_warnings
 
 
-OLD_DOMAINEDITOR = Orange.__version__ in ["3.3.8", "3.3.9"]
+OLD_DOMAINEDITOR = not hasattr(DomainEditor, "set_domain")
 
 
 class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
