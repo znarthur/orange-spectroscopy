@@ -411,8 +411,11 @@ class CurvePlot(QWidget):
                 if self.markclosest and self.state != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
                     distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=self.MOUSE_RADIUS, cache=cache)
-                    bd = np.nanargmin(distances)
-                    bd = (bd, distances[bd])
+                    try:
+                        bd = np.nanargmin(distances)
+                        bd = (bd, distances[bd])
+                    except ValueError:  # if all distances are NaN
+                        pass
                 if self.highlighted is not None:
                     self.highlighted = None
                     self.highlighted_curve.hide()

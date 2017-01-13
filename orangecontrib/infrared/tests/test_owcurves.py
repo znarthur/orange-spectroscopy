@@ -5,6 +5,7 @@ from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAW
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
     distance_line_segment
+from orangecontrib.infrared.preprocess import Interpolate
 
 
 from PyQt4.QtCore import QPointF
@@ -22,7 +23,9 @@ class TestOWCurves(WidgetTest):
         iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
         iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
-        cls.strange_data = [iris1, iris0]
+        # dataset with large blank regions
+        irisunknown = Interpolate(np.arange(20))(cls.iris)
+        cls.strange_data = [iris1, iris0, irisunknown]
 
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
