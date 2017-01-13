@@ -658,6 +658,9 @@ class OWCurves(OWWidget):
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
+    class Warning(OWWidget.Warning):
+        no_x = Msg("No continuous features in input data.")
+
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
@@ -684,6 +687,7 @@ class OWCurves(OWWidget):
 
     def set_data(self, data):
         self.Information.showing_sample.clear()
+        self.Warning.no_x.clear()
         self.closeContext()
         self.attrs[:] = []
         if data is not None:
@@ -693,6 +697,8 @@ class OWCurves(OWWidget):
                 if isinstance(var, str) or var.is_discrete]
             self.color_attr = 0
         self.plotview.set_data(data)
+        if data is not None and not len(self.plotview.data_x):
+            self.Warning.no_x()
         if self.plotview.sampled_indices \
                 and len(self.plotview.sampled_indices) != len(self.plotview.data):
             self.Information.showing_sample(len(self.plotview.sampled_indices), len(data))

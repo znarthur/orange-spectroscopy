@@ -58,6 +58,14 @@ class TestOWCurves(WidgetTest):
             self.send_signal("Data", data)
             self.do_mousemove()
 
+    def test_warning_no_x(self):
+        self.send_signal("Data", self.iris)
+        self.assertFalse(self.widget.Warning.no_x.is_shown())
+        self.send_signal("Data", self.strange_data[1])
+        self.assertTrue(self.widget.Warning.no_x.is_shown())
+        self.send_signal("Data", self.iris)
+        self.assertFalse(self.widget.Warning.no_x.is_shown())
+
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
         x, cys = self.widget.plotview.curves[0]
