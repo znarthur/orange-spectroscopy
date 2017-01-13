@@ -16,7 +16,7 @@ from pyqtgraph import Point, GraphicsObject
 
 from Orange.canvas.registry.description import Default
 import Orange.data
-from Orange.widgets import widget
+from Orange.widgets.widget import OWWidget, Msg
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     ContextSetting, DomainContextHandler
@@ -643,7 +643,7 @@ class CurvePlot(QWidget):
         self.setCursor(Qt.CrossCursor)
 
 
-class OWCurves(widget.OWWidget):
+class OWCurves(OWWidget):
     name = "Curves"
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
@@ -654,6 +654,9 @@ class OWCurves(widget.OWWidget):
         match_values=DomainContextHandler.MATCH_VALUES_ALL)
     selected_indices = ContextSetting(set())
     color_attr = ContextSetting(0)
+
+    class Information(OWWidget.Information):
+        showing_sample = Msg("Showing {} of {} curves.")
 
     def __init__(self):
         super().__init__()
@@ -680,7 +683,7 @@ class OWCurves(widget.OWWidget):
         self.plotview.update_view()
 
     def set_data(self, data):
-        self.information(0)
+        self.Information.showing_sample.clear()
         self.closeContext()
         self.attrs[:] = []
         if data is not None:
@@ -692,7 +695,7 @@ class OWCurves(widget.OWWidget):
         self.plotview.set_data(data)
         if self.plotview.sampled_indices \
                 and len(self.plotview.sampled_indices) != len(self.plotview.data):
-            self.information(0, "Showing %d of %d curves." % (len(self.plotview.sampled_indices), len(data)))
+            self.Information.showing_sample(len(self.plotview.sampled_indices), len(data))
         self.openContext(data)
         self.plotview.set_pen_colors()
         self.plotview.set_curve_pens() #mark the selection
