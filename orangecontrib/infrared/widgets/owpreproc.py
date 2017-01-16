@@ -5,7 +5,8 @@ import Orange.data
 import Orange.widgets.data.owpreprocess as owpreprocess
 import pyqtgraph as pg
 from Orange import preprocess
-from Orange.widgets import widget, gui, settings
+from Orange.widgets import gui, settings
+from Orange.widgets.widget import OWWidget, Msg
 from Orange.widgets.data.owpreprocess import (
     Controller, StandardItemModel,
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
@@ -1139,7 +1140,7 @@ PREPROCESSORS = [
     ]
 
 
-class OWPreprocess(widget.OWWidget):
+class OWPreprocess(OWWidget):
     name = "Preprocess"
     description = "Construct a data preprocessing pipeline."
     icon = "icons/preprocess.svg"
@@ -1153,6 +1154,9 @@ class OWPreprocess(widget.OWWidget):
     autocommit = settings.Setting(False)
     preview_curves = settings.Setting(3)
     preview_n = settings.Setting(0)
+
+    class Error(OWWidget.Error):
+        applying = Msg("Error applying preprocessors.")
 
     def __init__(self):
         super().__init__()
@@ -1407,11 +1411,11 @@ class OWPreprocess(widget.OWWidget):
         preprocessor = self.buildpreproc()
 
         if self.data is not None:
-            self.error(0)
+            self.Error.applying.clear()
             try:
                 data = preprocessor(self.data)
             except ValueError as e:
-                self.error(0, str(e))
+                self.Error.applying()
                 return
         else:
             data = None
