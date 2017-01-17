@@ -14,7 +14,7 @@ from orangecontrib.infrared.preprocess import Interpolate
 class OWInterpolate(OWWidget):
     name = "Interpolate"
     description = "Interpolate spectra"
-    icon = "icons/unknown.svg"
+    icon = "icons/interpolate.svg"
 
     inputs = [("Data", Orange.data.Table, "set_data"),
               ("Points", Orange.data.Table, "set_points")]
