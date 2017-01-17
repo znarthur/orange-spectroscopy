@@ -77,7 +77,7 @@ class TestConversion(unittest.TestCase):
         test = Interpolate(points=getx(test) - 1.)(test) # other test domain
         train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
         aucshift = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
-        self.assertEqual(aucorig, aucshift)
+        self.assertAlmostEqual(aucorig, aucshift, delta=0.01)  # shift can decrease AUC slightly
         test = Cut(1000, 1700)(test)
         auccut1 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
         test = Cut(1100, 1600)(test)
