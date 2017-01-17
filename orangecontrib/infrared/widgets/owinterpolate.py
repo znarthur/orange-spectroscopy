@@ -26,7 +26,7 @@ class OWInterpolate(OWWidget):
     # specification of linear space
     xmin = settings.Setting(0)
     xmax = settings.Setting(10000)
-    dx = settings.Setting(1.)
+    dx = settings.Setting(10.)
 
     autocommit = settings.Setting(True)
 
@@ -48,6 +48,8 @@ class OWInterpolate(OWWidget):
         rbox = gui.radioButtons(
             dbox, self, "input_radio", callback=self._change_input)
 
+        gui.appendRadioButton(rbox, "Enable automatic interpolation")
+
         gui.appendRadioButton(rbox, "Linear interval")
         ibox = gui.indentedBox(rbox)
 
@@ -59,12 +61,14 @@ class OWInterpolate(OWWidget):
                                  spinType=float, decimals=4,
                                  label="Max", orientation=Qt.Horizontal,
                                  labelWidth=50, callback=self._invalidate)
-        self.dx_edit = gui.spin(ibox, self, "dx", -10e30, +10e30, 1.0,
+        self.dx_edit = gui.spin(ibox, self, "dx", -10e30, +10e30, 10.0,
                                spinType=float, decimals=4,
                                label="Δ", orientation=Qt.Horizontal,
                                labelWidth=50, callback=self._invalidate)
 
         gui.appendRadioButton(rbox, "Reference data")
+
+        self.data = None
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
 
@@ -72,13 +76,16 @@ class OWInterpolate(OWWidget):
         out = None
         if self.data:
             if self.input_radio == 0:
+                points = getx(self.data)
+                out = Interpolate(points)(self.data)
+            elif self.input_radio == 1:
                 if self.dx == 0:
                     self.Warning.dxzero()
                 else:
                     self.Warning.dxzero.clear()
                     points = np.arange(self.xmin, self.xmax, self.dx)
                     out = Interpolate(points)(self.data)
-            elif self.input_radio == 1 and self.data_points is not None:
+            elif self.input_radio == 2 and self.data_points is not None:
                 out = Interpolate(self.data_points)(self.data)
         self.send("Interpolated data", out)
 
@@ -86,7 +93,7 @@ class OWInterpolate(OWWidget):
         self.commit()
 
     def _change_input(self):
-        if self.input_radio == 1 and self.data_points is None:
+        if self.input_radio == 2 and self.data_points is None:
             self.Warning.reference_data_missing()
         else:
             self.Warning.reference_data_missing.clear()
