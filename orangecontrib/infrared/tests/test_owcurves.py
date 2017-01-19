@@ -1,15 +1,16 @@
 import numpy as np
 import Orange
+import pyqtgraph as pg
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN
+from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN, \
+    PlotCurvesItem
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
     distance_line_segment
 from orangecontrib.infrared.preprocess import Interpolate
+from PyQt4.QtCore import QRectF
 
-
-from PyQt4.QtCore import QPointF
-
+NAN = float("nan")
 
 class TestOWCurves(WidgetTest):
 
@@ -25,10 +26,28 @@ class TestOWCurves(WidgetTest):
         iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
-        cls.strange_data = [iris1, iris0, irisunknown]
+        cls.unknown_last_instance = cls.iris.copy()
+        cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
+        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance]
 
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
+
+    def test_PlotCurvesItem_bounds(self):
+        pc = PlotCurvesItem()
+        # test defaults
+        np.testing.assert_equal(pc.boundingRect(), QRectF(0, 0, 1, 1))
+        pc.add_curve(pg.PlotCurveItem(x=[0, 1], y=[NAN, NAN]))
+        np.testing.assert_equal(pc.boundingRect(), QRectF(0, 0, 1, 1))
+        pc.add_curve(pg.PlotCurveItem(x=[-1, 2], y=[NAN, NAN]))
+        np.testing.assert_equal(pc.boundingRect(), QRectF(-1, 0, 3, 1))
+        # valid y values should overwrite the defaults
+        pc.add_curve(pg.PlotCurveItem(x=[-1, 2], y=[0.1, 0.2]))
+        np.testing.assert_equal(pc.boundingRect(), QRectF(-1, 0.1, 3, 0.1))
+
+    def test_is_last_instance(self):
+        self.send_signal("Data", self.unknown_last_instance)
+        self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.plotview.sampled_indices].X[-1])))
 
     def do_mousemove(self):
         mr = self.widget.plotview.MOUSE_RADIUS

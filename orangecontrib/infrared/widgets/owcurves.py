@@ -3,6 +3,7 @@ import sys
 from collections import defaultdict
 import gc
 import random
+import warnings
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
@@ -36,6 +37,7 @@ AVERAGE = 1
 
 
 MAX_INSTANCES_DRAWN = 100
+NAN = float("nan")
 
 
 class PlotCurvesItem(GraphicsObject):
@@ -46,7 +48,8 @@ class PlotCurvesItem(GraphicsObject):
         self.clear()
 
     def clear(self):
-        self.bounds = QRectF(0, 0, 1, 1)
+        self.bounds = [NAN, NAN, NAN, NAN]
+        self.default_bounds = 0, 0, 1, 1
         self.objs = []
 
     def paint(self, p, *args):
@@ -54,14 +57,21 @@ class PlotCurvesItem(GraphicsObject):
             o.paint(p, *args)
 
     def add_curve(self, c):
-        if not self.objs:
-            self.bounds = c.boundingRect()
-        else:
-            self.bounds = self.bounds.united(c.boundingRect())
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore") # NaN warnings are expected
+            cb = c.boundingRect()
+            # keep undefined elements NaN
+            self.bounds[0] = np.nanmin([cb.left(), self.bounds[0]])
+            self.bounds[1] = np.nanmin([cb.top(), self.bounds[1]])
+            self.bounds[2] = np.nanmax([cb.right(), self.bounds[2]])
+            self.bounds[3] = np.nanmax([cb.bottom(), self.bounds[3]])
         self.objs.append(c)
 
     def boundingRect(self):
-        return self.bounds
+        # replace undefined (NaN) elements with defaults
+        bounds = [d if np.isnan(b) else b \
+                  for b, d in zip(self.bounds, self.default_bounds)]
+        return QRectF(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1])
 
 
 def closestindex(array, v, side="left"):
