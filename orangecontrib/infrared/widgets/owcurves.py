@@ -6,7 +6,7 @@ import random
 import warnings
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication
+    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -25,6 +25,7 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+from Orange.widgets.utils import getdeepattr
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
@@ -368,8 +369,23 @@ class CurvePlot(QWidget):
         view_menu = QMenu(self)
         self.button.setMenu(view_menu)
         view_menu.addActions(actions)
-        self.set_mode_panning()
         self.addActions(actions)
+
+        choose_color_action = QWidgetAction(self)
+        choose_color_box = gui.hBox(self)
+        model = VariableListModel()
+        self.attrs = []
+        model.wrap(self.attrs)
+        label = gui.label(choose_color_box, self, "Color by")
+        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.attrCombo = gui.comboBox(
+            choose_color_box, self.parent, value="color_attr", contentsLength=12,
+            callback=self.change_color_attr)
+        self.attrCombo.setModel(model)
+        choose_color_action.setDefaultWidget(choose_color_box)
+        view_menu.addAction(choose_color_action)
+
+        self.set_mode_panning()
 
     def save_graph(self):
         wh = self.viewhelpers
@@ -541,12 +557,15 @@ class CurvePlot(QWidget):
 
     def _current_color_var(self):
         color_var = "(Same color)"
-        if hasattr(self.parent, "attrs"):
-            try:
-                color_var = self.parent.attrs[self.parent.color_attr]
-            except IndexError:
-                pass
+        try:
+            color_var = self.attrs[self.parent.color_attr]
+        except IndexError:
+            pass
         return color_var
+
+    def change_color_attr(self):
+        self.set_pen_colors()
+        self.update_view()
 
     def set_pen_colors(self):
         self.pen_normal.clear()
@@ -647,6 +666,13 @@ class CurvePlot(QWidget):
     def set_data(self, data, rescale="auto"):
         self.clear_graph()
         self.clear_data()
+        self.attrs[:] = []
+        if data is not None:
+            self.attrs[:] = ["(Same color)"] + [
+                var for var in chain(data.domain,
+                                     data.domain.metas)
+                if isinstance(var, str) or var.is_discrete]
+            self.parent.color_attr = 0
         self.set_pen_colors()
         if data is not None:
             if rescale == "auto":
@@ -703,7 +729,6 @@ class OWCurves(OWWidget):
     selected_indices = ContextSetting(set())
     color_attr = ContextSetting(0)
 
-
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
@@ -713,60 +738,35 @@ class OWCurves(OWWidget):
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
-        self.plotview = CurvePlot(self)
-
-        self.attrs = []
-        self.topbox = gui.hBox(self)
-        self.mainArea.layout().addWidget(self.topbox)
-        model = VariableListModel()
-        model.wrap(self.attrs)
-        label = gui.label(self.topbox, self, "Color by")
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.attrCombo = gui.comboBox(
-            self.topbox, self, value="color_attr", contentsLength=12,
-            callback=self.change_color_attr)
-        self.attrCombo.setModel(model)
-
-        self.mainArea.layout().addWidget(self.plotview)
+        self.curveplot = CurvePlot(self)
+        self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
-        self.graph_name = "plotview.plotview"
-
-
-    def change_color_attr(self):
-        self.plotview.set_pen_colors()
-        self.plotview.update_view()
+        self.graph_name = "curveplot.plotview"
 
     def set_data(self, data):
         self.Information.showing_sample.clear()
         self.Warning.no_x.clear()
         self.closeContext()
-        self.attrs[:] = []
-        if data is not None:
-            self.attrs[:] = ["(Same color)"] + [
-                var for var in chain(data.domain,
-                                     data.domain.metas)
-                if isinstance(var, str) or var.is_discrete]
-            self.color_attr = 0
-        self.plotview.set_data(data)
-        if data is not None and not len(self.plotview.data_x):
+        self.curveplot.set_data(data)
+        if data is not None and not len(self.curveplot.data_x):
             self.Warning.no_x()
-        if self.plotview.sampled_indices \
-                and len(self.plotview.sampled_indices) != len(self.plotview.data):
-            self.Information.showing_sample(len(self.plotview.sampled_indices), len(data))
+        if self.curveplot.sampled_indices \
+                and len(self.curveplot.sampled_indices) != len(self.curveplot.data):
+            self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
         self.openContext(data)
-        self.plotview.set_pen_colors()
-        self.plotview.set_curve_pens() #mark the selection
+        self.curveplot.set_pen_colors()
+        self.curveplot.set_curve_pens() #mark the selection
         self.selection_changed()
 
     def set_subset(self, data):
-        self.plotview.set_data_subset(data.ids if data else None)
+        self.curveplot.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if self.selected_indices and self.plotview.data:
+        if self.selected_indices and self.curveplot.data:
             # discard selected indices if they do not fit to data
-            if any(a for a in self.selected_indices if a >= len(self.plotview.data)):
+            if any(a for a in self.selected_indices if a >= len(self.curveplot.data)):
                 self.selected_indices.clear()
-            self.send("Selection", self.plotview.data[sorted(self.selected_indices)])
+            self.send("Selection", self.curveplot.data[sorted(self.selected_indices)])
         else:
             self.send("Selection", None)
 
@@ -789,7 +789,7 @@ def main(argv=None):
         minX, maxX = region.getRegion()
         print(minX, maxX)
     region.sigRegionChanged.connect(update)
-    w.plotview.add_marking(region)
+    w.curveplot.add_marking(region)
     rval = app.exec_()
     w.set_data(None)
     w.handleNewSignals()

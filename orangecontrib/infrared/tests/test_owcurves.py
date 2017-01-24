@@ -47,26 +47,26 @@ class TestOWCurves(WidgetTest):
 
     def test_is_last_instance(self):
         self.send_signal("Data", self.unknown_last_instance)
-        self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.plotview.sampled_indices].X[-1])))
+        self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.curveplot.sampled_indices].X[-1])))
 
     def do_mousemove(self):
-        mr = self.widget.plotview.MOUSE_RADIUS
-        self.widget.plotview.MOUSE_RADIUS = 1000
-        self.widget.plotview.mouseMoved((self.widget.plotview.plot.sceneBoundingRect().center(),))
-        if self.widget.plotview.data \
-                and len(self.widget.plotview.data_ys) \
-                and len(self.widget.plotview.data_x):  # detect a curve if a validgi curve exists
-            self.assertIsNotNone(self.widget.plotview.highlighted)
+        mr = self.widget.curveplot.MOUSE_RADIUS
+        self.widget.curveplot.MOUSE_RADIUS = 1000
+        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        if self.widget.curveplot.data \
+                and len(self.widget.curveplot.data_ys) \
+                and len(self.widget.curveplot.data_x):  # detect a curve if a validgi curve exists
+            self.assertIsNotNone(self.widget.curveplot.highlighted)
         else:  # no curve can be detected
-            self.assertIsNone(self.widget.plotview.highlighted)
+            self.assertIsNone(self.widget.curveplot.highlighted)
 
         # assume nothing is directly in the middle
         # therefore nothing should be highlighted
-        self.widget.plotview.MOUSE_RADIUS = 0.1
-        self.widget.plotview.mouseMoved((self.widget.plotview.plot.sceneBoundingRect().center(),))
-        self.assertIsNone(self.widget.plotview.highlighted)
+        self.widget.curveplot.MOUSE_RADIUS = 0.1
+        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        self.assertIsNone(self.widget.curveplot.highlighted)
 
-        self.widget.plotview.MOUSE_RADIUS = mr
+        self.widget.curveplot.MOUSE_RADIUS = mr
 
     def test_empty(self):
         self.send_signal("Data", None)
@@ -87,8 +87,8 @@ class TestOWCurves(WidgetTest):
 
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
-        x, cys = self.widget.plotview.curves[0]
-        ys = self.widget.plotview.data_ys
+        x, cys = self.widget.curveplot.curves[0]
+        ys = self.widget.curveplot.data_ys
         self.assertEqual(len(ys), len(self.collagen))
         self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
@@ -96,8 +96,8 @@ class TestOWCurves(WidgetTest):
 
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
-        x, cys = self.widget.plotview.curves[0]
-        ys = self.widget.plotview.data_ys
+        x, cys = self.widget.curveplot.curves[0]
+        ys = self.widget.curveplot.data_ys
         self.assertEqual(len(ys), len(self.iris))
         self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         np.testing.assert_equal(x,
@@ -105,14 +105,14 @@ class TestOWCurves(WidgetTest):
 
     def test_show_average(self):
         self.send_signal("Data", self.iris)
-        curves_plotted = self.widget.plotview.curves_plotted
-        self.widget.plotview.show_average()
-        curves_plotted2 = self.widget.plotview.curves_plotted
+        curves_plotted = self.widget.curveplot.curves_plotted
+        self.widget.curveplot.show_average()
+        curves_plotted2 = self.widget.curveplot.curves_plotted
         def numcurves(curves):
             return sum(len(a[1]) for a in curves)
         self.assertLess(numcurves(curves_plotted2), numcurves(curves_plotted))
-        self.widget.plotview.show_individual()
-        curves_plotted3 = self.widget.plotview.curves_plotted
+        self.widget.curveplot.show_individual()
+        curves_plotted3 = self.widget.curveplot.curves_plotted
         self.assertEqual(numcurves(curves_plotted), numcurves(curves_plotted3))
 
     def test_line_intersection(self):

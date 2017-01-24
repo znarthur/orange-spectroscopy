@@ -1207,6 +1207,7 @@ class OWPreprocess(OWWidget):
         self.scroll_area.setWidget(self.flow_view)
         self.scroll_area.setWidgetResizable(True)
 
+        self.color_attr = 0
         self.curveplot = CurvePlot(self)
 
         self.scroll_area.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -1479,7 +1480,7 @@ def test_main(argv=sys.argv):
     app = QApplication(argv)
 
     w = OWPreprocess()
-    w.set_data(Orange.data.Table("peach_juice.dpt"))
+    w.set_data(Orange.data.Table("collagen.csv"))
     w.show()
     w.raise_()
     r = app.exec_()
