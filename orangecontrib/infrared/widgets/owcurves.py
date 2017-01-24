@@ -5,10 +5,10 @@ import gc
 import random
 import warnings
 
-from PyQt4 import QtGui
-from PyQt4.QtGui import (QWidget, QColor, QPixmapCache, QGraphicsItem,
-                        QPushButton, QMenu, QGridLayout, QPen)
-from PyQt4.QtCore import Qt, QRectF
+from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
+    QGridLayout, QAction, QVBoxLayout, QApplication
+from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
+from AnyQt.QtCore import Qt, QRectF
 
 import numpy as np
 import pyqtgraph as pg
@@ -313,33 +313,33 @@ class CurvePlot(QWidget):
         self.markclosest = True #mark
         self.viewtype = INDIVIDUAL
 
-        layout = QtGui.QVBoxLayout()
+        layout = QVBoxLayout()
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
 
-        zoom_in = QtGui.QAction(
+        zoom_in = QAction(
             "Zoom in", self, triggered=self.set_mode_zooming
         )
-        zoom_in.setShortcuts([Qt.Key_Z, QtGui.QKeySequence(QtGui.QKeySequence.ZoomIn)])
-        zoom_fit = QtGui.QAction(
+        zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
+        zoom_fit = QAction(
             "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
         )
-        zoom_fit.setShortcuts([Qt.Key_Backspace, QtGui.QKeySequence(Qt.ControlModifier | Qt.Key_0)])
-        view_individual = QtGui.QAction(
+        zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
+        view_individual = QAction(
             "Show individual", self, shortcut=Qt.Key_I,
             triggered=lambda x: self.show_individual()
         )
-        view_average = QtGui.QAction(
+        view_average = QAction(
             "Show averages", self, shortcut=Qt.Key_A,
             triggered=lambda x: self.show_average()
         )
-        rescale_y = QtGui.QAction(
+        rescale_y = QAction(
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
             triggered=self.rescale_current_view_y
         )
-        select_curves = QtGui.QAction(
+        select_curves = QAction(
             "Select (line)", self, triggered=self.set_mode_select,
         )
         select_curves.setShortcuts([Qt.Key_S])
@@ -734,7 +734,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
     argv = list(argv)
-    app = QtGui.QApplication(argv)
+    app = QApplication(argv)
     w = OWCurves()
     w.show()
     data = Orange.data.Table("collagen.csv")
