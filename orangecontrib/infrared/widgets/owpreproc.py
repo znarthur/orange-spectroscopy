@@ -13,18 +13,21 @@ from Orange.widgets.data.owpreprocess import (
 )
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.sql import check_sql_input
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-from PyQt4.QtCore import (
+
+from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QMimeData, QTimer
 )
-from PyQt4.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
-from PyQt4.QtGui import (
-    QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox, QListView,
-    QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy,
-    QCursor, QIcon, QStandardItemModel, QStandardItem, QStyle,
-    QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel, QMenu
+from AnyQt.QtWidgets import (
+    QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
+    QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
+    QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
+    QMenu, QApplication, QAction, QDockWidget, QScrollArea
 )
+from AnyQt.QtGui import (
+    QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
+    QDrag, QKeySequence
+)
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
@@ -77,7 +80,7 @@ class PreviewFrame(owpreprocess.SequenceFlow.Frame):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.setFeatures(QtGui.QDockWidget.DockWidgetMovable)
+        self.setFeatures(QDockWidget.DockWidgetMovable)
         self.setStyleSheet("""QDockWidget::title {
                               background:lightblue;
                               padding: 10px;
@@ -322,8 +325,8 @@ class SetXDoubleSpinBox(QDoubleSpinBox):
 
 class MovableVlineWD(pg.UIGraphicsItem):
 
-    sigRegionChangeFinished = QtCore.Signal(object)
-    sigRegionChanged = QtCore.Signal(object)
+    sigRegionChangeFinished = Signal(object)
+    sigRegionChanged = Signal(object)
     Vertical = 0
     Horizontal = 1
 
@@ -1197,7 +1200,7 @@ class OWPreprocess(OWWidget):
         self.flow_view = SequenceFlow(preview_callback=self.show_preview)
         self.controler = ViewController(self.flow_view, parent=self)
 
-        self.scroll_area = QtGui.QScrollArea(
+        self.scroll_area = QScrollArea(
             verticalScrollBarPolicy=Qt.ScrollBarAlwaysOn
         )
         self.scroll_area.viewport().setAcceptDrops(True)
@@ -1278,7 +1281,7 @@ class OWPreprocess(OWWidget):
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable |
                           Qt.ItemIsDragEnabled)
             self.preprocessors.appendRow([item])
-            action = QtGui.QAction(
+            action = QAction(
                 description.title, self, triggered=lambda x,id=i: self.add_preprocessor(id)
             )
             action.setToolTip(description.summary or "")
@@ -1473,7 +1476,7 @@ class OWPreprocess(OWWidget):
 
 def test_main(argv=sys.argv):
     argv = list(argv)
-    app = QtGui.QApplication(argv)
+    app = QApplication(argv)
 
     w = OWPreprocess()
     w.set_data(Orange.data.Table("peach_juice.dpt"))
