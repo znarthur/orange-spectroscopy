@@ -281,6 +281,7 @@ class CurvePlot(QWidget):
         self.parent = parent
 
         self.selection_enabled = hasattr(self.parent, "selected_indices")
+        self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data()
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
@@ -318,32 +319,46 @@ class CurvePlot(QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
 
+        actions = []
+
         zoom_in = QAction(
             "Zoom in", self, triggered=self.set_mode_zooming
         )
         zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
+        actions.append(zoom_in)
         zoom_fit = QAction(
             "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
         )
         zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
-        view_individual = QAction(
-            "Show individual", self, shortcut=Qt.Key_I,
-            triggered=lambda x: self.show_individual()
-        )
-        view_average = QAction(
-            "Show averages", self, shortcut=Qt.Key_A,
-            triggered=lambda x: self.show_average()
-        )
+        actions.append(zoom_fit)
         rescale_y = QAction(
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
             triggered=self.rescale_current_view_y
         )
-        select_curves = QAction(
-            "Select (line)", self, triggered=self.set_mode_select,
+        actions.append(rescale_y)
+        view_individual = QAction(
+            "Show individual", self, shortcut=Qt.Key_I,
+            triggered=lambda x: self.show_individual()
         )
-        select_curves.setShortcuts([Qt.Key_S])
-
+        actions.append(view_individual)
+        view_average = QAction(
+            "Show averages", self, shortcut=Qt.Key_A,
+            triggered=lambda x: self.show_average()
+        )
+        actions.append(view_average)
+        if self.selection_enabled:
+            select_curves = QAction(
+                "Select (line)", self, triggered=self.set_mode_select,
+            )
+            select_curves.setShortcuts([Qt.Key_S])
+            actions.append(select_curves)
+        if self.saving_enabled:
+            save_graph = QAction(
+                "Save graph", self, triggered=lambda: self.parent.save_graph(),
+            )
+            save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
+            actions.append(save_graph)
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
@@ -352,9 +367,9 @@ class CurvePlot(QWidget):
         layout.addWidget(self.button, 1, 1)
         view_menu = QMenu(self)
         self.button.setMenu(view_menu)
-        view_menu.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average, select_curves])
+        view_menu.addActions(actions)
         self.set_mode_panning()
-        self.addActions([zoom_in, zoom_fit, rescale_y, view_individual, view_average])
+        self.addActions(actions)
 
     def clear_data(self):
         self.subset_ids = set()
@@ -665,6 +680,7 @@ class OWCurves(OWWidget):
     selected_indices = ContextSetting(set())
     color_attr = ContextSetting(0)
 
+
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
@@ -690,6 +706,8 @@ class OWCurves(OWWidget):
 
         self.mainArea.layout().addWidget(self.plotview)
         self.resize(900, 700)
+        self.graph_name = "plotview.plotview"
+
 
     def change_color_attr(self):
         self.plotview.set_pen_colors()
