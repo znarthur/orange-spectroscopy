@@ -355,7 +355,7 @@ class CurvePlot(QWidget):
             actions.append(select_curves)
         if self.saving_enabled:
             save_graph = QAction(
-                "Save graph", self, triggered=lambda: self.parent.save_graph(),
+                "Save graph", self, triggered=self.save_graph,
             )
             save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
             actions.append(save_graph)
@@ -370,6 +370,14 @@ class CurvePlot(QWidget):
         view_menu.addActions(actions)
         self.set_mode_panning()
         self.addActions(actions)
+
+    def save_graph(self):
+        wh = self.viewhelpers
+        if wh:
+            self.viewhelpers_hide()
+        self.parent.save_graph()
+        if wh:
+            self.viewhelpers_show()
 
     def clear_data(self):
         self.subset_ids = set()
@@ -406,6 +414,7 @@ class CurvePlot(QWidget):
         self.plot.addItem(self.highlighted_curve)
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
+        self.viewhelpers = True
         self.plot.addItem(self.selection_line, ignoreBounds=True)
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
@@ -418,9 +427,20 @@ class CurvePlot(QWidget):
         if self.parent and self.selection_enabled:
             self.parent.selection_changed()
 
+    def viewhelpers_hide(self):
+        self.label.hide()
+        self.vLine.hide()
+        self.hLine.hide()
+        self.viewhelpers = False
+
+    def viewhelpers_show(self):
+        self.label.show()
+        self.vLine.show()
+        self.hLine.show()
+        self.viewhelpers = True
+
     def mouseMoved(self, evt):
         pos = evt[0]
-
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
@@ -453,6 +473,9 @@ class CurvePlot(QWidget):
 
             self.vLine.setPos(posx)
             self.hLine.setPos(posy)
+            self.viewhelpers_show()
+        else:
+            self.viewhelpers_hide()
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
