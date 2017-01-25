@@ -44,7 +44,7 @@ if __name__ == '__main__':
         version="0.0.9",
         packages=find_packages(),
         install_requires=[
-            'Orange3>=3.3.8',
+            'Orange3>=3.3.10',
             'scipy>=0.14.0',
             'spectral>=0.18',
             'opusFC>=1.0.0b1',

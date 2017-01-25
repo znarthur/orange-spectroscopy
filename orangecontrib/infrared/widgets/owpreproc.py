@@ -87,15 +87,6 @@ class PreviewFrame(owpreprocess.SequenceFlow.Frame):
                               text-align: right;
                               }""");
 
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        #draw a frame after content. fix this in main Orange
-        painter = QStylePainter(self)
-        opt = QStyleOptionFrame()
-        opt.initFrom(self)
-        painter.drawPrimitive(QStyle.PE_FrameDockWidget, opt)
-        painter.end()
-
 
 class PreviewWidget(QWidget):
     pass
