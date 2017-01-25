@@ -369,6 +369,40 @@ class CurvePlot(QWidget, OWComponent):
             save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
             actions.append(save_graph)
 
+        range_menu = QMenu("Define view range", self)
+        range_action = QWidgetAction(self)
+        layout = QGridLayout()
+        self.range_x = False
+        self.range_y = False
+        self.range_x1 = 0
+        self.range_x2 = 10000
+        self.range_y1 = 0
+        self.range_y2 = 1
+        range_box = gui.widgetBox(self, margin=5, orientation=layout)
+        cb = gui.checkBox(None, self, "range_x", "X", callback=self.range_set_enabled)
+        self.range_e_x1 = gui.spin(None, self, "range_x1", -10e30, +10e30, 1.0,
+            spinType=float, decimals=4, label="e")
+        self.range_e_x2 = gui.spin(None, self, "range_x2", -10e30, +10e30, 1.0,
+            spinType=float, decimals=4, label="e")
+        layout.addWidget(cb, 0, 0, Qt.AlignRight)
+        layout.addWidget(self.range_e_x1, 0, 1)
+        layout.addWidget(QLabel("-"), 0, 2)
+        layout.addWidget(self.range_e_x2, 0, 3)
+        cb = gui.checkBox(None, self, "range_y", "Y", callback=self.range_set_enabled)
+        self.range_e_y1 = gui.spin(None, self, "range_y1", -10e30, +10e30, 1.0,
+            spinType=float, decimals=4, label="e")
+        self.range_e_y2 = gui.spin(None, self, "range_y2", -10e30, +10e30, 1.0,
+            spinType=float, decimals=4, label="e")
+        layout.addWidget(cb, 1, 0, Qt.AlignRight)
+        layout.addWidget(self.range_e_y1, 1, 1)
+        layout.addWidget(QLabel("-"), 1, 2)
+        layout.addWidget(self.range_e_y2, 1, 3)
+        self.range_set_enabled()
+        b = gui.button(None, self, "Apply", callback=self.set_limits)
+        layout.addWidget(b, 2, 3, Qt.AlignRight)
+        range_action.setDefaultWidget(range_box)
+        range_menu.addAction(range_action)
+
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
@@ -378,6 +412,7 @@ class CurvePlot(QWidget, OWComponent):
         view_menu = QMenu(self)
         self.button.setMenu(view_menu)
         view_menu.addActions(actions)
+        view_menu.addMenu(range_menu)
         self.addActions(actions)
 
         choose_color_action = QWidgetAction(self)
@@ -416,6 +451,18 @@ class CurvePlot(QWidget, OWComponent):
         view_menu.addAction(labels_action)
 
         self.set_mode_panning()
+
+    def set_limits(self):
+        if self.range_x:
+            self.plot.vb.setXRange(self.range_x1, self.range_x2)
+        if self.range_y:
+            self.plot.vb.setYRange(self.range_y1, self.range_y2)
+
+    def range_set_enabled(self):
+        self.range_e_x1.setDisabled(not self.range_x)
+        self.range_e_x2.setDisabled(not self.range_x)
+        self.range_e_y1.setDisabled(not self.range_y)
+        self.range_e_y2.setDisabled(not self.range_y)
 
     def labels_changed(self):
         self.plot.setTitle(self.label_title)
