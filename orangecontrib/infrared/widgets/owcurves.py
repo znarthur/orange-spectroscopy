@@ -409,6 +409,13 @@ class CurvePlot(QWidget, OWComponent):
         labels_action.setDefaultWidget(labels_box)
         view_menu.addAction(labels_action)
 
+        self.show_grid = False
+        grid_action = QWidgetAction(self)
+        grid_box = gui.hBox(self)
+        gui.checkBox(grid_box, self, "show_grid", "Show grid", callback=self.grid_changed)
+        grid_action.setDefaultWidget(grid_box)
+        view_menu.addAction(grid_action)
+
         self.set_mode_panning()
 
     def labels_changed(self):
@@ -419,6 +426,9 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.showLabel("bottom", bool(self.label_xaxis))
         self.plot.setLabels(left=self.label_yaxis)
         self.plot.showLabel("left", bool(self.label_yaxis))
+
+    def grid_changed(self):
+        self.plot.showGrid(self.show_grid, self.show_grid, alpha=0.3)
 
     def save_graph(self):
         wh = self.viewhelpers
