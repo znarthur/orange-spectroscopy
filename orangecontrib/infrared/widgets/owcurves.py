@@ -350,6 +350,12 @@ class CurvePlot(QWidget, OWComponent):
             triggered=lambda x: self.show_average()
         )
         actions.append(view_average)
+        self.show_grid = False
+        self.show_grid_a = QAction(
+            "Show grid", self, shortcut=Qt.Key_G, checkable=True,
+            triggered=self.grid_changed
+        )
+        actions.append(self.show_grid_a)
         if self.selection_enabled:
             select_curves = QAction(
                 "Select (line)", self, triggered=self.set_mode_select,
@@ -409,13 +415,6 @@ class CurvePlot(QWidget, OWComponent):
         labels_action.setDefaultWidget(labels_box)
         view_menu.addAction(labels_action)
 
-        self.show_grid = False
-        grid_action = QWidgetAction(self)
-        grid_box = gui.hBox(self)
-        gui.checkBox(grid_box, self, "show_grid", "Show grid", callback=self.grid_changed)
-        grid_action.setDefaultWidget(grid_box)
-        view_menu.addAction(grid_action)
-
         self.set_mode_panning()
 
     def labels_changed(self):
@@ -428,6 +427,11 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.showLabel("left", bool(self.label_yaxis))
 
     def grid_changed(self):
+        self.show_grid = not self.show_grid
+        self.grid_apply()
+
+    def grid_apply(self):
+        self.show_grid_a.setChecked(self.show_grid)
         self.plot.showGrid(self.show_grid, self.show_grid, alpha=0.3)
 
     def save_graph(self):
