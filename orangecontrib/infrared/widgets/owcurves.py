@@ -6,7 +6,7 @@ import random
 import warnings
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction
+    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -17,7 +17,7 @@ from pyqtgraph import Point, GraphicsObject
 
 from Orange.canvas.registry.description import Default
 import Orange.data
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     ContextSetting, DomainContextHandler
@@ -275,10 +275,12 @@ class SelectRegion(pg.LinearRegionItem):
         self.setBrush(pg.mkBrush(color))
 
 
-class CurvePlot(QWidget):
+class CurvePlot(QWidget, OWComponent):
 
     def __init__(self, parent=None):
-        super().__init__()
+        QWidget.__init__(self)
+        OWComponent.__init__(self)
+
         self.parent = parent
 
         self.selection_enabled = hasattr(self.parent, "selected_indices")
@@ -360,6 +362,7 @@ class CurvePlot(QWidget):
             )
             save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
             actions.append(save_graph)
+
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
@@ -385,7 +388,37 @@ class CurvePlot(QWidget):
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)
 
+        self.label_title = ""
+        self.label_xaxis = ""
+        self.label_yaxis = ""
+        labels_action = QWidgetAction(self)
+        layout = QGridLayout()
+        labels_box = gui.widgetBox(self, margin=0, orientation=layout)
+        t = gui.lineEdit(None, self, "label_title", label="Title:",
+                         callback=self.labels_changed, callbackOnType=self.labels_changed)
+        layout.addWidget(QLabel("Title:"), 0, 0, Qt.AlignRight)
+        layout.addWidget(t, 0, 1)
+        t = gui.lineEdit(None, self, "label_xaxis", label="X-axis:",
+                         callback=self.labels_changed, callbackOnType=self.labels_changed)
+        layout.addWidget(QLabel("X-axis:"), 1, 0, Qt.AlignRight)
+        layout.addWidget(t, 1, 1)
+        t = gui.lineEdit(None, self, "label_yaxis", label="Y-axis:",
+                         callback=self.labels_changed, callbackOnType=self.labels_changed)
+        layout.addWidget(QLabel("Y-axis:"), 2, 0, Qt.AlignRight)
+        layout.addWidget(t, 2, 1)
+        labels_action.setDefaultWidget(labels_box)
+        view_menu.addAction(labels_action)
+
         self.set_mode_panning()
+
+    def labels_changed(self):
+        self.plot.setTitle(self.label_title)
+        if not self.label_title:
+            self.plot.setTitle(None)
+        self.plot.setLabels(bottom=self.label_xaxis)
+        self.plot.showLabel("bottom", bool(self.label_xaxis))
+        self.plot.setLabels(left=self.label_yaxis)
+        self.plot.showLabel("left", bool(self.label_yaxis))
 
     def save_graph(self):
         wh = self.viewhelpers
