@@ -208,10 +208,13 @@ class InteractiveViewBox(ViewBox):
         return sel
 
     def mouseClickEvent(self, ev):
-        if ev.button() ==  Qt.RightButton:
+        if ev.button() == Qt.RightButton and \
+                (self.graph.state == ZOOMING or self.graph.state == SELECT):
+            ev.accept()
+            self.graph.set_mode_panning()
+        elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
-            self.graph.set_mode_panning()
         add = True if ev.modifiers() & Qt.ControlModifier else False
         if self.graph.state != ZOOMING and self.graph.state != SELECT \
                 and ev.button() == Qt.LeftButton and self.graph.selection_enabled \
@@ -233,7 +236,7 @@ class InteractiveViewBox(ViewBox):
                 self.showAxRect(ax)
                 self.axHistoryPointer += 1
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
-                self.zoomstartpoint = None
+                self.graph.set_mode_panning()
             ev.accept()
         if self.graph.state == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
             if self.selection_start is None:
@@ -243,9 +246,6 @@ class InteractiveViewBox(ViewBox):
                 endp = self.childGroup.mapFromParent(ev.pos())
                 intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
                 self.make_selection(intersected if len(intersected) else None, add)
-                self.rbScaleBox.hide()
-                self.selection_start = None
-                self.graph.selection_line.hide()
                 self.graph.set_mode_panning()
             ev.accept()
 
@@ -741,22 +741,34 @@ class CurvePlot(QWidget, OWComponent):
         self.set_curve_pens()
         self.update_view()
 
+    def cancel_zoom(self):
+        self.plot.vb.setMouseMode(self.plot.vb.PanMode)
+        self.plot.vb.rbScaleBox.hide()
+        self.plot.vb.zoomstartpoint = None
+        self.state = PANNING
+        self.unsetCursor()
+
     def set_mode_zooming(self):
+        self.set_mode_panning()
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
         self.state = ZOOMING
-        self.plot.vb.zoomstartpoint = None
         self.setCursor(Qt.CrossCursor)
 
     def set_mode_panning(self):
+        self.cancel_zoom()
+        self.cancel_select()
+
+    def cancel_select(self):
         self.plot.vb.setMouseMode(self.plot.vb.PanMode)
+        self.selection_line.hide()
+        self.plot.vb.selection_start = None
         self.state = PANNING
-        self.plot.vb.zoomstartpoint = None
         self.unsetCursor()
 
     def set_mode_select(self):
+        self.set_mode_panning()
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
         self.state = SELECT
-        self.plot.vb.select_start = None
         self.setCursor(Qt.CrossCursor)
 
 
