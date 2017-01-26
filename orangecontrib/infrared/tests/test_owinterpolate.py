@@ -36,7 +36,7 @@ class TestOWFiles(WidgetTest):
         self.widget.controls.input_radio.buttons[1].click()
         self.send_signal("Data", self.peach)
         out = self.get_output("Interpolated data")
-        np.testing.assert_equal(np.arange(0, 10000, 10), getx(out))
+        np.testing.assert_almost_equal(np.arange(499.53234, 4000.1161, 10), getx(out))
         self.send_signal("Data", None)
         self.assert_(self.get_output("Interpolated data") is None)
 

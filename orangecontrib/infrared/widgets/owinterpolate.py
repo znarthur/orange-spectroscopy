@@ -1,14 +1,16 @@
 import sys
+import math
 
 import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.widgets import gui, settings
 
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 
 class OWInterpolate(OWWidget):
@@ -24,8 +26,8 @@ class OWInterpolate(OWWidget):
     input_radio = settings.Setting(0)
 
     # specification of linear space
-    xmin = settings.Setting(0)
-    xmax = settings.Setting(10000)
+    xmin = settings.Setting(None)
+    xmax = settings.Setting(None)
     dx = settings.Setting(10.)
 
     autocommit = settings.Setting(True)
@@ -36,7 +38,10 @@ class OWInterpolate(OWWidget):
     class Warning(OWWidget.Warning):
         reference_data_missing = Msg("Missing separate reference data input.")
         reference_data_unused = Msg("Reference data is present but unused.")
-        dxzero = Msg("Step should not be 0.0.")
+
+    class Error(OWWidget.Error):
+        dxzero = Msg("Step should be higher than 0.0.")
+        too_many_points = Msg("More than 10000 points with your current setting.")
 
     def __init__(self):
         super().__init__()
@@ -53,18 +58,15 @@ class OWInterpolate(OWWidget):
         gui.appendRadioButton(rbox, "Linear interval")
         ibox = gui.indentedBox(rbox)
 
-        self.xmin_edit = gui.spin(ibox, self, "xmin", -10e30, +10e30, 1.0,
-                                  spinType=float, decimals=4,
-                                  label="Min", orientation=Qt.Horizontal,
-                                  labelWidth=50, callback=self._invalidate)
-        self.xmax_edit = gui.spin(ibox, self, "xmax", -10e30, +10e30, 1.0,
-                                 spinType=float, decimals=4,
-                                 label="Max", orientation=Qt.Horizontal,
-                                 labelWidth=50, callback=self._invalidate)
-        self.dx_edit = gui.spin(ibox, self, "dx", -10e30, +10e30, 10.0,
-                               spinType=float, decimals=4,
-                               label="Δ", orientation=Qt.Horizontal,
-                               labelWidth=50, callback=self._invalidate)
+        self.xmin_edit = lineEditFloatOrNone(ibox, self, "xmin",
+            label="Min", labelWidth=50, orientation=Qt.Horizontal,
+            callback=self._invalidate)
+        self.xmax_edit = lineEditFloatOrNone(ibox, self, "xmax",
+            label="Max", labelWidth=50, orientation=Qt.Horizontal,
+            callback=self._invalidate)
+        self.dx_edit = lineEditFloatOrNone(ibox, self, "dx",
+            label="Δ", labelWidth=50, orientation=Qt.Horizontal,
+            callback=self._invalidate)
 
         gui.appendRadioButton(rbox, "Reference data")
 
@@ -72,19 +74,30 @@ class OWInterpolate(OWWidget):
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
 
+    def test(self):
+        self.xmin = 1.0004
+
     def commit(self):
         out = None
+        self.Error.dxzero.clear()
+        self.Error.too_many_points.clear()
         if self.data:
             if self.input_radio == 0:
                 points = getx(self.data)
                 out = Interpolate(points)(self.data)
             elif self.input_radio == 1:
-                if self.dx == 0:
-                    self.Warning.dxzero()
+                xs = getx(self.data)
+                if not self.dx > 0:
+                    self.Error.dxzero()
                 else:
-                    self.Warning.dxzero.clear()
-                    points = np.arange(self.xmin, self.xmax, self.dx)
-                    out = Interpolate(points)(self.data)
+                    xmin = self.xmin if self.xmin is not None else np.min(xs)
+                    xmax = self.xmax if self.xmax is not None else np.max(xs)
+                    reslength = abs(math.ceil((xmax - xmin)/self.dx))
+                    if reslength < 10002:
+                        points = np.arange(xmin, xmax, self.dx)
+                        out = Interpolate(points)(self.data)
+                    else:
+                        self.Error.too_many_points(reslength)
             elif self.input_radio == 2 and self.data_points is not None:
                 out = Interpolate(self.data_points)(self.data)
         self.send("Interpolated data", out)
@@ -101,6 +114,13 @@ class OWInterpolate(OWWidget):
 
     def set_data(self, data):
         self.data = data
+        if self.data and len(getx(data)):
+            points = getx(data)
+            self.xmin_edit.setPlaceholderText(str(np.min(points)))
+            self.xmax_edit.setPlaceholderText(str(np.max(points)))
+        else:
+            self.xmin_edit.setPlaceholderText("")
+            self.xmax_edit.setPlaceholderText("")
         self.commit()
 
     def set_points(self, data):
