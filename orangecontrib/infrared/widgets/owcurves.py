@@ -41,6 +41,11 @@ MAX_INSTANCES_DRAWN = 100
 NAN = float("nan")
 
 
+class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
+    def focusNextPrevChild(self, next):
+        return QWidget.focusNextPrevChild(self, next)
+
+
 class PlotCurvesItem(GraphicsObject):
     """ Multiple curves on a single plot that can be cached together. """
 
@@ -369,7 +374,7 @@ class CurvePlot(QWidget, OWComponent):
             save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
             actions.append(save_graph)
 
-        range_menu = QMenu("Define view range", self)
+        range_menu = MenuFocus("Define view range", self)
         range_action = QWidgetAction(self)
         layout = QGridLayout()
         self.range_x = False
@@ -379,7 +384,9 @@ class CurvePlot(QWidget, OWComponent):
         self.range_y1 = 0
         self.range_y2 = 1
         range_box = gui.widgetBox(self, margin=5, orientation=layout)
+        range_box.setFocusPolicy(Qt.TabFocus)
         cb = gui.checkBox(None, self, "range_x", "X", callback=self.range_set_enabled)
+        range_box.setFocusProxy(cb)
         self.range_e_x1 = gui.spin(None, self, "range_x1", -10e30, +10e30, 1.0,
             spinType=float, decimals=4, label="e")
         self.range_e_x2 = gui.spin(None, self, "range_x2", -10e30, +10e30, 1.0,
@@ -409,7 +416,7 @@ class CurvePlot(QWidget, OWComponent):
         layout.setRowStretch(1, 1)
         layout.setColumnStretch(1, 1)
         layout.addWidget(self.button, 0, 0)
-        view_menu = QMenu(self)
+        view_menu = MenuFocus(self)
         self.button.setMenu(view_menu)
         view_menu.addActions(actions)
         view_menu.addMenu(range_menu)
@@ -417,6 +424,7 @@ class CurvePlot(QWidget, OWComponent):
 
         choose_color_action = QWidgetAction(self)
         choose_color_box = gui.hBox(self)
+        choose_color_box.setFocusPolicy(Qt.TabFocus)
         model = VariableListModel()
         self.attrs = []
         model.wrap(self.attrs)
@@ -426,6 +434,7 @@ class CurvePlot(QWidget, OWComponent):
             choose_color_box, self.parent, value="color_attr", contentsLength=12,
             callback=self.change_color_attr)
         self.attrCombo.setModel(model)
+        choose_color_box.setFocusProxy(self.attrCombo)
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)
 
