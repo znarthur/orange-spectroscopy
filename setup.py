@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+import os
+from setuptools import setup, find_packages, Command
+import subprocess
 import sys
 
 ENTRY_POINTS = {
@@ -28,6 +30,23 @@ KEYWORDS = [
     'infrared'
 ]
 
+class CoverageCommand(Command):
+    """A setup.py coverage subcommand developers can run locally."""
+    description = "run code coverage"
+    user_options = []
+    initialize_options = finalize_options = lambda self: None
+
+    def run(self):
+        """Check coverage on current workdir"""
+        sys.exit(subprocess.call(r'''
+        coverage run --source=orangecontrib.infrared -m unittest
+        echo; echo
+        coverage report
+        coverage html &&
+            { echo; echo "See also: file://$(pwd)/htmlcov/index.html"; echo; }
+        ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
+
+
 if 'test' in sys.argv:
     extra_setuptools_args = dict(
         test_suite='orangecontrib.infrared.tests',
@@ -36,6 +55,12 @@ else:
     extra_setuptools_args = dict()
 
 if __name__ == '__main__':
+
+    cmdclass = {
+       'coverage': CoverageCommand,
+    }
+
+
     setup(
         name="Orange-Infrared",
         description='',
@@ -58,5 +83,6 @@ if __name__ == '__main__':
         include_package_data=True,
         zip_safe=False,
         url="https://github.com/markotoplak/orange-infrared",
+        cmdclass=cmdclass,
         **extra_setuptools_args
     )
