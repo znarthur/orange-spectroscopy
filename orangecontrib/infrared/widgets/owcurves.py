@@ -485,7 +485,11 @@ class CurvePlot(QWidget, OWComponent):
         wh = self.viewhelpers
         if wh:
             self.viewhelpers_hide()
+        self.plot.showAxis("top", True)
+        self.plot.showAxis("right", True)
         self.parent.save_graph()
+        self.plot.showAxis("top", False)
+        self.plot.showAxis("right", False)
         if wh:
             self.viewhelpers_show()
 
