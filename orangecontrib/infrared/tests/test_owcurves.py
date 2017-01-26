@@ -137,3 +137,9 @@ class TestOWCurves(WidgetTest):
         # equal endpoints
         a = distance_line_segment(np.array(0), 0, 0, 0, 10, 0)
         self.assertEqual(a, 10)
+
+    def test_grid(self):
+        self.send_signal("Data", self.iris)
+        self.assertFalse(self.widget.curveplot.show_grid)
+        self.widget.curveplot.grid_changed()
+        self.assertTrue(self.widget.curveplot.show_grid)
