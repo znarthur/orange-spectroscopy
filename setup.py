@@ -41,8 +41,8 @@ class CoverageCommand(Command):
         sys.exit(subprocess.call(r'''
         coverage run --source=orangecontrib.infrared -m unittest
         echo; echo
-        coverage report
-        coverage html &&
+        coverage report --omit="*/tests/*"
+        coverage html --omit="*/tests/*" &&
             { echo; echo "See also: file://$(pwd)/htmlcov/index.html"; echo; }
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
