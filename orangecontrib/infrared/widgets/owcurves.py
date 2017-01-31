@@ -533,7 +533,12 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.addItem(m, ignoreBounds=True)
 
     def resized(self):
-        self.label.setPos(self.plot.vb.viewRect().bottomLeft())
+        vr = self.plot.vb.viewRect()
+        self.label.setPos(vr.bottomLeft())
+        self.range_e_x1.setPlaceholderText(str(vr.left()))
+        self.range_e_x2.setPlaceholderText(str(vr.right()))
+        self.range_e_y1.setPlaceholderText(str(vr.top()))
+        self.range_e_y2.setPlaceholderText(str(vr.bottom()))
 
     def selection_changed(self):
         if self.parent and self.selection_enabled:
