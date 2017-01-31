@@ -101,6 +101,29 @@ class TestOWCurves(WidgetTest):
             self.assertEqual(len(data), len(out))
         self.widget.hide()
 
+    def test_zoom_rect(self):
+        """ Test zooming with two clicks. """
+        self.widget.show()
+        QTest.qWaitForWindowShown(self.widget)
+        self.send_signal("Data", self.iris)
+        self.widget.curveplot.set_mode_zooming()
+        vb = self.widget.curveplot.plot.vb
+        vr = vb.viewRect()
+        QTest.qWait(100)
+        tl = vb.mapViewToScene(vr.bottomRight()).toPoint() + QPoint(2, 2)
+        br = vb.mapViewToScene(vr.center()).toPoint()
+        tlw = vb.mapSceneToView(tl)
+        brw = vb.mapSceneToView(br)
+        ca = self.widget.curveplot.childAt(tl)
+        QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
+        QTest.mouseClick(ca, Qt.LeftButton, pos=br)
+        vr = vb.viewRect()
+        self.assertAlmostEquals(vr.bottom(), tlw.y())
+        self.assertAlmostEquals(vr.right(), tlw.x())
+        self.assertAlmostEquals(vr.top(), brw.y())
+        self.assertAlmostEquals(vr.left(), brw.x())
+        self.widget.hide()
+
     def test_warning_no_x(self):
         self.send_signal("Data", self.iris)
         self.assertFalse(self.widget.Warning.no_x.is_shown())
