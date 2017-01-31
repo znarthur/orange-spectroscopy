@@ -20,7 +20,7 @@ import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets import gui
 from Orange.widgets.settings import \
-    ContextSetting, DomainContextHandler
+    Setting, ContextSetting, DomainContextHandler
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
@@ -843,9 +843,8 @@ class OWCurves(OWWidget):
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/curves.svg"
 
-    settingsHandler = DomainContextHandler(
-        match_values=DomainContextHandler.MATCH_VALUES_ALL)
-    selected_indices = ContextSetting(set())
+    settingsHandler = DomainContextHandler()
+    selected_indices = Setting(set())
     color_attr = ContextSetting(0)
 
     class Information(OWWidget.Information):

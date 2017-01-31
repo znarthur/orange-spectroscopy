@@ -94,6 +94,8 @@ class TestOWCurves(WidgetTest):
         QTest.qWaitForWindowShown(self.widget)
         for data in self.normal_data:
             self.send_signal("Data", data)
+            out = self.get_output("Selection")
+            self.assertIsNone(out, None)
             self.select_diagonal()
             out = self.get_output("Selection")
             self.assertEqual(len(data), len(out))
