@@ -38,7 +38,7 @@ class TestOWFiles(WidgetTest):
         out = self.get_output("Interpolated data")
         np.testing.assert_almost_equal(np.arange(499.53234, 4000.1161, 10), getx(out))
         self.send_signal("Data", None)
-        self.assert_(self.get_output("Interpolated data") is None)
+        self.assertTrue(self.get_output("Interpolated data") is None)
 
     def test_interpolate_points(self):
         self.assertFalse(self.widget.Warning.reference_data_missing.is_shown())

@@ -118,10 +118,10 @@ class TestOWCurves(WidgetTest):
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
         vr = vb.viewRect()
-        self.assertAlmostEquals(vr.bottom(), tlw.y())
-        self.assertAlmostEquals(vr.right(), tlw.x())
-        self.assertAlmostEquals(vr.top(), brw.y())
-        self.assertAlmostEquals(vr.left(), brw.x())
+        self.assertAlmostEqual(vr.bottom(), tlw.y())
+        self.assertAlmostEqual(vr.right(), tlw.x())
+        self.assertAlmostEqual(vr.top(), brw.y())
+        self.assertAlmostEqual(vr.left(), brw.x())
         self.widget.hide()
 
     def test_warning_no_x(self):

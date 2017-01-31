@@ -48,42 +48,42 @@ class TestConversion(unittest.TestCase):
 
     def test_predict_same_domain(self):
         train, test = separate_learn_test(self.collagen)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertGreater(auc, 0.9) # easy dataset
 
     def test_predict_samename_domain(self):
         train, test = separate_learn_test(self.collagen)
         test = destroy_atts_conversion(test)
-        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_samename_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         test = destroy_atts_conversion(test)
-        train = Interpolate(train, points=getx(train)) # make train capable of interpolation
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        train = Interpolate(points=getx(train))(train) # make train capable of interpolation
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertEqual(aucorig, auc)
 
     def test_predict_different_domain(self):
         train, test = separate_learn_test(self.collagen)
         test = Interpolate(points=getx(test) - 1)(test) # other test domain
-        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_different_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         test = Interpolate(points=getx(test) - 1.)(test) # other test domain
         train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
-        aucshift = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucshift = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertAlmostEqual(aucorig, aucshift, delta=0.01)  # shift can decrease AUC slightly
         test = Cut(1000, 1700)(test)
-        auccut1 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auccut1 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         test = Cut(1100, 1600)(test)
-        auccut2 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auccut2 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         test = Cut(1200, 1500)(test)
-        auccut3 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auccut3 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         # the more we cut the lower precision we get
         self.assertTrue(aucorig > auccut1 > auccut2 > auccut3)
 
@@ -98,22 +98,22 @@ class TestConversion(unittest.TestCase):
             train = proc(train)
             test_transformed = Orange.data.Table(train.domain, test)
             np.testing.assert_equal(test_transformed.X, test1.X)
-            aucorig = AUC(TestOnTestData(train1, test1, [LogisticRegressionLearner]))
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+            aucorig = AUC(TestOnTestData(train1, test1, [LogisticRegressionLearner()]))
+            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
             self.assertEqual(aucorig, aucnow)
 
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
         train, test = separate_learn_test(data)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertGreater(auc, 0.85)
 
     def test_predict_savgol_another_interpolate(self):
         train, test = separate_learn_test(self.collagen)
         train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         train = Interpolate(points=getx(train))(train)
-        aucai = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+        aucai = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
         self.assertAlmostEqual(auc, aucai, delta=0.02)
 
     def test_slightly_different_domain(self):
@@ -122,13 +122,13 @@ class TestConversion(unittest.TestCase):
         for proc in PREPROCESSORS:
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)
-            aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner]))
+            aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner()]))
             test = destroy_atts_conversion(test)
             test = odd_attr(test)
             train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
             train = proc(train)
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.02)
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner]))
+            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight

@@ -40,11 +40,11 @@ class TestGSF(unittest.TestCase):
 
     def test_open_line(self):
         data = Orange.data.Table("Au168mA_nodisplacement.gsf")
-        self.assertEquals(data.X.shape, (20480,1))
+        self.assertEqual(data.X.shape, (20480,1))
 
     def test_open_2d(self):
         data = Orange.data.Table("whitelight.gsf")
-        self.assertEquals(data.X.shape, (20000, 1))
+        self.assertEqual(data.X.shape, (20000, 1))
 
 
 class TestNea(unittest.TestCase):
