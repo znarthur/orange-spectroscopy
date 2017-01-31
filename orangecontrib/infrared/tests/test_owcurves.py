@@ -8,7 +8,8 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
     distance_line_segment
 from orangecontrib.infrared.preprocess import Interpolate
-from PyQt4.QtCore import QRectF
+from PyQt4.QtCore import QRectF, QPoint, Qt
+from AnyQt.QtTest import QTest
 
 NAN = float("nan")
 
@@ -76,6 +77,27 @@ class TestOWCurves(WidgetTest):
         for data in self.normal_data + self.strange_data:
             self.send_signal("Data", data)
             self.do_mousemove()
+
+    def select_diagonal(self):
+        self.widget.curveplot.set_mode_select()
+        vb = self.widget.curveplot.plot.vb
+        vr = vb.viewRect()
+        QTest.qWait(100)
+        tl = vb.mapViewToScene(vr.bottomRight()).toPoint() + QPoint(2, 2)
+        br = vb.mapViewToScene(vr.topLeft()).toPoint() - QPoint(2, 2)
+        ca = self.widget.curveplot.childAt(tl)
+        QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
+        QTest.mouseClick(ca, Qt.LeftButton, pos=br)
+
+    def test_select_line(self):
+        self.widget.show()
+        QTest.qWaitForWindowShown(self.widget)
+        for data in self.normal_data:
+            self.send_signal("Data", data)
+            self.select_diagonal()
+            out = self.get_output("Selection")
+            self.assertEqual(len(data), len(out))
+        self.widget.hide()
 
     def test_warning_no_x(self):
         self.send_signal("Data", self.iris)
