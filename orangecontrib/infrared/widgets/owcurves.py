@@ -4,6 +4,7 @@ from collections import defaultdict
 import gc
 import random
 import warnings
+import math
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel
@@ -313,6 +314,7 @@ class CurvePlot(QWidget, OWComponent):
         self.discrete_palette = None
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
+        self.important_decimals = 4, 4
 
         self.MOUSE_RADIUS = 20
 
@@ -534,6 +536,12 @@ class CurvePlot(QWidget, OWComponent):
 
     def resized(self):
         vr = self.plot.vb.viewRect()
+        xpixel, ypixel = self.plot.vb.viewPixelSize()
+
+        def important_decimals(n):
+            return max(-int(math.floor(math.log10(n))) + 1, 0)
+
+        self.important_decimals = important_decimals(xpixel), important_decimals(ypixel)
         self.label.setPos(vr.bottomLeft())
         self.range_e_x1.setPlaceholderText(str(vr.left()))
         self.range_e_x2.setPlaceholderText(str(vr.right()))
@@ -563,7 +571,8 @@ class CurvePlot(QWidget, OWComponent):
             posx, posy = mousePoint.x(), mousePoint.y()
 
             if self.location:
-                self.label.setText("%g, %g" % (posx, posy), color=(0,0,0))
+                fs = "%0." + str(self.important_decimals[0]) + "f, %0." + str(self.important_decimals[1]) + "f"
+                self.label.setText(fs % (posx, posy), color=(0, 0, 0))
             else:
                 self.label.setText("")
 
