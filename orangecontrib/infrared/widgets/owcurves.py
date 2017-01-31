@@ -543,10 +543,11 @@ class CurvePlot(QWidget, OWComponent):
 
         self.important_decimals = important_decimals(xpixel), important_decimals(ypixel)
         self.label.setPos(vr.bottomLeft())
-        self.range_e_x1.setPlaceholderText(str(vr.left()))
-        self.range_e_x2.setPlaceholderText(str(vr.right()))
-        self.range_e_y1.setPlaceholderText(str(vr.top()))
-        self.range_e_y2.setPlaceholderText(str(vr.bottom()))
+        xd, yd = self.important_decimals
+        self.range_e_x1.setPlaceholderText(("%0." + str(xd) + "f") % vr.left())
+        self.range_e_x2.setPlaceholderText(("%0." + str(xd) + "f") % vr.right())
+        self.range_e_y1.setPlaceholderText(("%0." + str(yd) + "f") % vr.top())
+        self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
 
     def selection_changed(self):
         if self.parent and self.selection_enabled:
