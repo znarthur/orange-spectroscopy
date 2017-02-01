@@ -87,6 +87,9 @@ class TestOWCurves(WidgetTest):
         br = vb.mapViewToScene(vr.topLeft()).toPoint() - QPoint(2, 2)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
+        QTest.mouseMove(self.widget.curveplot, pos=tl)  # test mouseMoved code
+        QTest.mouseMove(self.widget.curveplot)  # test mouseMoved code
+        QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
 
     def test_select_line(self):
@@ -116,6 +119,11 @@ class TestOWCurves(WidgetTest):
         brw = vb.mapSceneToView(br)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
+        QTest.qWait(1)
+        QTest.mouseMove(self.widget.curveplot, pos=tl)  # test mouseMoved code
+        QTest.qWait(1)
+        QTest.mouseMove(self.widget.curveplot)  # test mouseMoved code
+        QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
         vr = vb.viewRect()
         self.assertAlmostEqual(vr.bottom(), tlw.y())
