@@ -21,12 +21,11 @@ import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets import gui
 from Orange.widgets.settings import \
-    Setting, ContextSetting, DomainContextHandler
+    Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
-from Orange.widgets.utils import getdeepattr
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
@@ -284,9 +283,17 @@ class SelectRegion(pg.LinearRegionItem):
 
 class CurvePlot(QWidget, OWComponent):
 
+    label_title = Setting("")
+    label_xaxis = Setting("")
+    label_yaxis = Setting("")
+    range_x1 = Setting(None)
+    range_x2 = Setting(None)
+    range_y1 = Setting(None)
+    range_y2 = Setting(None)
+
     def __init__(self, parent=None):
         QWidget.__init__(self)
-        OWComponent.__init__(self)
+        OWComponent.__init__(self, parent)
 
         self.parent = parent
 
@@ -380,10 +387,6 @@ class CurvePlot(QWidget, OWComponent):
         range_menu = MenuFocus("Define view range", self)
         range_action = QWidgetAction(self)
         layout = QGridLayout()
-        self.range_x1 = None
-        self.range_x2 = None
-        self.range_y1 = None
-        self.range_y2 = None
         range_box = gui.widgetBox(self, margin=5, orientation=layout)
         range_box.setFocusPolicy(Qt.TabFocus)
         self.range_e_x1 = lineEditFloatOrNone(None, self, "range_x1", label="e")
@@ -432,9 +435,6 @@ class CurvePlot(QWidget, OWComponent):
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)
 
-        self.label_title = ""
-        self.label_xaxis = ""
-        self.label_yaxis = ""
         labels_action = QWidgetAction(self)
         layout = QGridLayout()
         labels_box = gui.widgetBox(self, margin=0, orientation=layout)
@@ -452,6 +452,7 @@ class CurvePlot(QWidget, OWComponent):
         layout.addWidget(t, 2, 1)
         labels_action.setDefaultWidget(labels_box)
         view_menu.addAction(labels_action)
+        self.labels_changed()  # apply saved labels
 
         self.set_mode_panning()
 
@@ -852,6 +853,8 @@ class OWCurves(OWWidget):
     settingsHandler = DomainContextHandler()
     selected_indices = Setting(set())
     color_attr = ContextSetting(0)
+
+    curveplot = SettingProvider(CurvePlot)
 
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
