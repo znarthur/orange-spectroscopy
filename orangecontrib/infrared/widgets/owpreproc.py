@@ -1141,8 +1141,8 @@ class OWPreprocess(OWWidget):
     priority = 2105
 
     inputs = [("Data", Orange.data.Table, "set_data")]
-    outputs = [("Preprocessor", preprocess.preprocess.Preprocess),
-               ("Preprocessed Data", Orange.data.Table)]
+    outputs = [("Preprocessed Data", Orange.data.Table),
+               ("Preprocessor", preprocess.preprocess.Preprocess)]
 
     storedsettings = settings.Setting({})
     autocommit = settings.Setting(False)
