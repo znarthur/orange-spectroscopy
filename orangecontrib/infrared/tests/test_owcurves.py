@@ -170,6 +170,14 @@ class TestOWCurves(WidgetTest):
         curves_plotted3 = self.widget.curveplot.curves_plotted
         self.assertEqual(numcurves(curves_plotted), numcurves(curves_plotted3))
 
+    def test_limits(self):
+        self.send_signal("Data", self.iris)
+        vr = self.widget.curveplot.plot.viewRect()
+        # there should ne no change
+        self.widget.curveplot.set_limits()
+        vr2 = self.widget.curveplot.plot.viewRect()
+        self.assertEqual(vr, vr2)
+
     def test_line_intersection(self):
         data = self.collagen
         x = getx(data)
