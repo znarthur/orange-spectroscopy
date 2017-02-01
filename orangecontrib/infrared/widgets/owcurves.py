@@ -290,6 +290,7 @@ class CurvePlot(QWidget, OWComponent):
     range_x2 = Setting(None)
     range_y1 = Setting(None)
     range_y2 = Setting(None)
+    color_attr = ContextSetting(0)
 
     def __init__(self, parent=None):
         QWidget.__init__(self)
@@ -428,7 +429,7 @@ class CurvePlot(QWidget, OWComponent):
         label = gui.label(choose_color_box, self, "Color by")
         label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.attrCombo = gui.comboBox(
-            choose_color_box, self.parent, value="color_attr", contentsLength=12,
+            choose_color_box, self, value="color_attr", contentsLength=12,
             callback=self.change_color_attr)
         self.attrCombo.setModel(model)
         choose_color_box.setFocusProxy(self.attrCombo)
@@ -672,7 +673,7 @@ class CurvePlot(QWidget, OWComponent):
     def _current_color_var(self):
         color_var = "(Same color)"
         try:
-            color_var = self.attrs[self.parent.color_attr]
+            color_var = self.attrs[self.color_attr]
         except IndexError:
             pass
         return color_var
@@ -786,7 +787,7 @@ class CurvePlot(QWidget, OWComponent):
                 var for var in chain(data.domain,
                                      data.domain.metas)
                 if isinstance(var, str) or var.is_discrete]
-            self.parent.color_attr = 0
+            self.color_attr = 0
         self.set_pen_colors()
         if data is not None:
             if rescale == "auto":
@@ -852,7 +853,6 @@ class OWCurves(OWWidget):
 
     settingsHandler = DomainContextHandler()
     selected_indices = Setting(set())
-    color_attr = ContextSetting(0)
 
     curveplot = SettingProvider(CurvePlot)
 
