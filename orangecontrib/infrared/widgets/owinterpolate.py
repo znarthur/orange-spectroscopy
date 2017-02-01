@@ -60,22 +60,19 @@ class OWInterpolate(OWWidget):
 
         self.xmin_edit = lineEditFloatOrNone(ibox, self, "xmin",
             label="Min", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self._invalidate)
+            callback=self.commit)
         self.xmax_edit = lineEditFloatOrNone(ibox, self, "xmax",
             label="Max", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self._invalidate)
+            callback=self.commit)
         self.dx_edit = lineEditFloatOrNone(ibox, self, "dx",
             label="Δ", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self._invalidate)
+            callback=self.commit)
 
         gui.appendRadioButton(rbox, "Reference data")
 
         self.data = None
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
-
-    def test(self):
-        self.xmin = 1.0004
 
     def commit(self):
         out = None
@@ -92,6 +89,7 @@ class OWInterpolate(OWWidget):
                 else:
                     xmin = self.xmin if self.xmin is not None else np.min(xs)
                     xmax = self.xmax if self.xmax is not None else np.max(xs)
+                    xmin, xmax = min(xmin, xmax), max(xmin, xmax)
                     reslength = abs(math.ceil((xmax - xmin)/self.dx))
                     if reslength < 10002:
                         points = np.arange(xmin, xmax, self.dx)
@@ -101,9 +99,6 @@ class OWInterpolate(OWWidget):
             elif self.input_radio == 2 and self.data_points is not None:
                 out = Interpolate(self.data_points)(self.data)
         self.send("Interpolated data", out)
-
-    def _invalidate(self):
-        self.commit()
 
     def _change_input(self):
         if self.input_radio == 2 and self.data_points is None:
