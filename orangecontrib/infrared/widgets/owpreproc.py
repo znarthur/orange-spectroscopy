@@ -1135,7 +1135,7 @@ PREPROCESSORS = [
 
 
 class OWPreprocess(OWWidget):
-    name = "Preprocess"
+    name = "Preprocess Spectra"
     description = "Construct a data preprocessing pipeline."
     icon = "icons/preprocess.svg"
     priority = 2105
