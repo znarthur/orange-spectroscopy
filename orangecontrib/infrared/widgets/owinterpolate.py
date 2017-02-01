@@ -73,6 +73,7 @@ class OWInterpolate(OWWidget):
         self.data = None
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
+        self._change_input()
 
     def commit(self):
         out = None
@@ -105,6 +106,9 @@ class OWInterpolate(OWWidget):
             self.Warning.reference_data_missing()
         else:
             self.Warning.reference_data_missing.clear()
+        self.xmin_edit.setDisabled(self.input_radio != 1)
+        self.xmax_edit.setDisabled(self.input_radio != 1)
+        self.dx_edit.setDisabled(self.input_radio != 1)
         self.commit()
 
     def set_data(self, data):
