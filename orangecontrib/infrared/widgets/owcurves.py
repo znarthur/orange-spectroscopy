@@ -182,7 +182,7 @@ class InteractiveViewBox(ViewBox):
         ev.accept() #ignore wheel zoom
 
     def make_selection(self, data_indices, add=False):
-        selected_indices = self.graph.parent.selected_indices
+        selected_indices = self.graph.selected_indices
         oldids = selected_indices.copy()
         invd = self.graph.sampled_indices_inverse
         if data_indices is None:
@@ -292,6 +292,8 @@ class CurvePlot(QWidget, OWComponent):
     range_y2 = Setting(None)
     color_attr = ContextSetting(0)
     invertX = Setting(False)
+    selected_indices = Setting(set())
+    data_size = Setting(None)  # to invalidate selected_indices
 
     def __init__(self, parent=None):
         QWidget.__init__(self)
@@ -299,7 +301,7 @@ class CurvePlot(QWidget, OWComponent):
 
         self.parent = parent
 
-        self.selection_enabled = hasattr(self.parent, "selected_indices")
+        self.selection_enabled = hasattr(self.parent, "selection_changed")
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data()
 
@@ -519,8 +521,6 @@ class CurvePlot(QWidget, OWComponent):
 
     def clear_data(self):
         self.subset_ids = set()
-        if self.selection_enabled:
-            self.parent.selected_indices.clear()
         self.data = None
         self.data_x = None
         self.data_ys = None
@@ -577,7 +577,7 @@ class CurvePlot(QWidget, OWComponent):
         self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
 
     def selection_changed(self):
-        if self.parent and self.selection_enabled:
+        if self.selection_enabled:
             self.parent.selection_changed()
 
     def viewhelpers_hide(self):
@@ -634,7 +634,7 @@ class CurvePlot(QWidget, OWComponent):
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
         insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
-        inselected = self.selection_enabled and idcdata in self.parent.selected_indices
+        inselected = self.selection_enabled and idcdata in self.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
@@ -774,7 +774,7 @@ class CurvePlot(QWidget, OWComponent):
                         ys = self.data_ys[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
                     elif part == "selection" and self.selection_enabled:
-                        current_selected = sorted(set(self.parent.selected_indices) & set(indices))
+                        current_selected = sorted(set(self.selected_indices) & set(indices))
                         if not current_selected:
                             continue
                         ys = self.data_ys[current_selected]
@@ -819,6 +819,11 @@ class CurvePlot(QWidget, OWComponent):
                 else:
                     rescale = True
             self.data = data
+            # reset selection if dataset sizes do not match
+            if self.selected_indices and \
+                    (max(self.selected_indices) >= len(self.data) or self.data_size != len(self.data)):
+                self.selected_indices.clear()
+            self.data_size = len(self.data)
             # get and sort input data
             x = getx(self.data)
             xsind = np.argsort(x)
@@ -875,7 +880,6 @@ class OWCurves(OWWidget):
     icon = "icons/curves.svg"
 
     settingsHandler = DomainContextHandler()
-    selected_indices = Setting(set())
 
     curveplot = SettingProvider(CurvePlot)
 
@@ -912,11 +916,8 @@ class OWCurves(OWWidget):
         self.curveplot.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if self.selected_indices and self.curveplot.data:
-            # discard selected indices if they do not fit to data
-            if any(a for a in self.selected_indices if a >= len(self.curveplot.data)):
-                self.selected_indices.clear()
-            self.send("Selection", self.curveplot.data[sorted(self.selected_indices)])
+        if isinstance(self.curveplot, CurvePlot) and self.curveplot.selected_indices and self.curveplot.data:
+            self.send("Selection", self.curveplot.data[sorted(self.curveplot.selected_indices)])
         else:
             self.send("Selection", None)
 
