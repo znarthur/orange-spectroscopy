@@ -1149,6 +1149,8 @@ class OWPreprocess(OWWidget):
     preview_curves = settings.Setting(3)
     preview_n = settings.Setting(0)
 
+    curveplot = settings.SettingProvider(CurvePlot)
+
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
 
