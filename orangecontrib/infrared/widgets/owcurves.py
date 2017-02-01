@@ -470,8 +470,10 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.setTitle(None)
         self.plot.setLabels(bottom=self.label_xaxis)
         self.plot.showLabel("bottom", bool(self.label_xaxis))
+        self.plot.getAxis("bottom").resizeEvent()  # align text
         self.plot.setLabels(left=self.label_yaxis)
         self.plot.showLabel("left", bool(self.label_yaxis))
+        self.plot.getAxis("left").resizeEvent()  # align text
 
     def grid_changed(self):
         self.show_grid = not self.show_grid
