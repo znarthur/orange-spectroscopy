@@ -291,6 +291,7 @@ class CurvePlot(QWidget, OWComponent):
     range_y1 = Setting(None)
     range_y2 = Setting(None)
     color_attr = ContextSetting(0)
+    invertX = Setting(False)
 
     def __init__(self, parent=None):
         QWidget.__init__(self)
@@ -305,7 +306,6 @@ class CurvePlot(QWidget, OWComponent):
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
-        self.plot.invertX(True)
 
         self.markings = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
@@ -372,6 +372,11 @@ class CurvePlot(QWidget, OWComponent):
             triggered=self.grid_changed
         )
         actions.append(self.show_grid_a)
+        self.invertX_menu = QAction(
+            "Invert X", self, shortcut=Qt.Key_X, checkable=True,
+            triggered=self.invertX_changed
+        )
+        actions.append(self.invertX_menu)
         if self.selection_enabled:
             select_curves = QAction(
                 "Select (line)", self, triggered=self.set_mode_select,
@@ -455,10 +460,12 @@ class CurvePlot(QWidget, OWComponent):
         view_menu.addAction(labels_action)
         self.labels_changed()  # apply saved labels
 
+        self.invertX_apply()
         self.set_mode_panning()
 
     def set_limits(self):
         vr = self.plot.vb.viewRect()
+        print(vr)
         x1 = self.range_x1 if self.range_x1 is not None else vr.left()
         x2 = self.range_x2 if self.range_x2 is not None else vr.right()
         y1 = self.range_y1 if self.range_y1 is not None else vr.top()
@@ -482,8 +489,21 @@ class CurvePlot(QWidget, OWComponent):
         self.grid_apply()
 
     def grid_apply(self):
-        self.show_grid_a.setChecked(self.show_grid)
         self.plot.showGrid(self.show_grid, self.show_grid, alpha=0.3)
+        self.show_grid_a.setChecked(self.show_grid)
+
+    def invertX_changed(self):
+        self.invertX = not self.invertX
+        self.invertX_apply()
+
+    def invertX_apply(self):
+        self.plot.vb.invertX(self.invertX)
+        self.resized()
+        # force redraw of axes (to avoid a pyqtgraph bug)
+        vr = self.plot.vb.viewRect()
+        self.plot.vb.setRange(xRange=(0,1), yRange=(0,1))
+        self.plot.vb.setRange(rect=vr)
+        self.invertX_menu.setChecked(self.invertX)
 
     def save_graph(self):
         wh = self.viewhelpers
@@ -546,7 +566,10 @@ class CurvePlot(QWidget, OWComponent):
             return max(-int(math.floor(math.log10(n))) + 1, 0)
 
         self.important_decimals = important_decimals(xpixel), important_decimals(ypixel)
-        self.label.setPos(vr.bottomLeft())
+        if self.invertX:
+            self.label.setPos(vr.bottomLeft())
+        else:
+            self.label.setPos(vr.bottomRight())
         xd, yd = self.important_decimals
         self.range_e_x1.setPlaceholderText(("%0." + str(xd) + "f") % vr.left())
         self.range_e_x2.setPlaceholderText(("%0." + str(xd) + "f") % vr.right())

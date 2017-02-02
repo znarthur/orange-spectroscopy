@@ -83,8 +83,10 @@ class TestOWCurves(WidgetTest):
         vb = self.widget.curveplot.plot.vb
         vr = vb.viewRect()
         QTest.qWait(100)
-        tl = vb.mapViewToScene(vr.bottomRight()).toPoint() + QPoint(2, 2)
-        br = vb.mapViewToScene(vr.topLeft()).toPoint() - QPoint(2, 2)
+        tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
+        brs = vr.topLeft() if self.widget.curveplot.invertX else vr.topRight()
+        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 2)
+        br = vb.mapViewToScene(brs).toPoint() - QPoint(2, 2)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
         QTest.mouseMove(self.widget.curveplot, pos=tl)  # test mouseMoved code
@@ -113,7 +115,8 @@ class TestOWCurves(WidgetTest):
         vb = self.widget.curveplot.plot.vb
         vr = vb.viewRect()
         QTest.qWait(100)
-        tl = vb.mapViewToScene(vr.bottomRight()).toPoint() + QPoint(2, 2)
+        tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
+        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 2)
         br = vb.mapViewToScene(vr.center()).toPoint()
         tlw = vb.mapSceneToView(tl)
         brw = vb.mapSceneToView(br)
@@ -127,9 +130,13 @@ class TestOWCurves(WidgetTest):
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
         vr = vb.viewRect()
         self.assertAlmostEqual(vr.bottom(), tlw.y())
-        self.assertAlmostEqual(vr.right(), tlw.x())
         self.assertAlmostEqual(vr.top(), brw.y())
-        self.assertAlmostEqual(vr.left(), brw.x())
+        if self.widget.curveplot.invertX:
+            self.assertAlmostEqual(vr.right(), tlw.x())
+            self.assertAlmostEqual(vr.left(), brw.x())
+        else:
+            self.assertAlmostEqual(vr.left(), tlw.x())
+            self.assertAlmostEqual(vr.right(), brw.x())
         self.widget.hide()
 
     def test_warning_no_x(self):
