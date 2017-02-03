@@ -418,6 +418,7 @@ class CurvePlot(QWidget, OWComponent):
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("View", self.plotview)
+        self.button.setAutoDefault(False)
         layout.setRowStretch(1, 1)
         layout.setColumnStretch(1, 1)
         layout.addWidget(self.button, 0, 0)

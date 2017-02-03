@@ -1178,6 +1178,7 @@ class OWPreprocess(OWWidget):
         self.controlArea.layout().addWidget(self.button)
         self.preprocessor_menu = QMenu(self)
         self.button.setMenu(self.preprocessor_menu)
+        self.button.setAutoDefault(False)
 
         self.preprocessorsView = view = QListView(
             selectionMode=QListView.SingleSelection,
