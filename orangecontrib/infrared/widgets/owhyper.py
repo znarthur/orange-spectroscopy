@@ -43,6 +43,8 @@ class ImagePlot(QWidget, OWComponent):
 
         self.parent = parent
 
+        self.selection_enabled = False
+
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
 
@@ -50,15 +52,29 @@ class ImagePlot(QWidget, OWComponent):
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
+        self.img = pg.ImageItem()
+        self.img.setOpts(axisOrder='row-major')
+        self.plot.addItem(self.img)
+        self.plot.vb.setAspectLocked()
 
-        img = pg.ImageItem()
-        self.plot.addItem(img)
-        data = np.random.normal(size=(200, 100))
-        data[20:80, 20:80] += 2.
-        data = pg.gaussianFilter(data, (3, 3))
-        data += np.random.normal(size=(200, 100)) * 0.1
-        img.setImage(data)
-        self.plot.addItem(pg.PlotCurveItem(x=[1,2], y=[1,2]))
+    def set_data(self, data):
+        # temporary implementation that works just with one dataset
+        self.img.clear()
+        if data is not None:
+            #TODO create image coordinates from the domain
+            xat = data.domain["x"]
+            yat = data.domain["y"]
+            ndom = Orange.data.Domain([yat, xat])
+            datam = Orange.data.Table(ndom, data)
+            coordinates = datam.X
+            imdata = np.ones((int(max(coordinates[:, 0]+1)), int(max(coordinates[:, 1]+1))))
+            #TODO cumpute integrals for showing
+            d = data.X.sum(axis=1)
+            #TODO Set data - this has to be fast
+            for c,v in zip(coordinates, d):
+                imdata[int(c[0]), int(c[1])] = v
+            self.img.setImage(imdata)
+
 
 class OWHyper(OWWidget):
     name = "Hyperspectra"
@@ -79,10 +95,12 @@ class OWHyper(OWWidget):
 
     def set_data(self, data):
         self.closeContext()
+        self.imageplot.set_data(data)
         self.openContext(data)
 
     def set_subset(self, data):
         pass
+
 
 def main(argv=None):
     if argv is None:
@@ -91,8 +109,7 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWHyper()
     w.show()
-    from orangecontrib.infrared.tests.bigdata import spectra20nea
-    data = Orange.data.Table(spectra20nea())
+    data = Orange.data.Table("whitelight.gsf")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
@@ -106,4 +123,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
