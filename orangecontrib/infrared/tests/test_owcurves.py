@@ -79,8 +79,8 @@ class TestOWCurves(WidgetTest):
             self.do_mousemove()
 
     def select_diagonal(self):
-        self.widget.curveplot.set_mode_select()
         vb = self.widget.curveplot.plot.vb
+        vb.set_mode_select()
         vr = vb.viewRect()
         QTest.qWait(100)
         tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
@@ -111,8 +111,8 @@ class TestOWCurves(WidgetTest):
         self.widget.show()
         QTest.qWaitForWindowShown(self.widget)
         self.send_signal("Data", self.iris)
-        self.widget.curveplot.set_mode_zooming()
         vb = self.widget.curveplot.plot.vb
+        vb.set_mode_zooming()
         vr = vb.viewRect()
         QTest.qWait(100)
         tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()

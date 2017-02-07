@@ -182,24 +182,6 @@ class InteractiveViewBox(ViewBox):
     def wheelEvent(self, ev, axis=None):
         ev.accept() #ignore wheel zoom
 
-    def make_selection(self, data_indices, add=False):
-        selected_indices = self.graph.selected_indices
-        oldids = selected_indices.copy()
-        invd = self.graph.sampled_indices_inverse
-        if data_indices is None:
-            if not add:
-                selected_indices.clear()
-                self.graph.set_curve_pens([invd[a] for a in oldids if a in invd])
-        else:
-            if add:
-                selected_indices.update(data_indices)
-                self.graph.set_curve_pens([invd[a] for a in data_indices if a in invd])
-            else:
-                selected_indices.clear()
-                selected_indices.update(data_indices)
-                self.graph.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
-        self.graph.selection_changed()
-
     def intersect_curves(self, q1, q2):
         x, ys = self.graph.data_x, self.graph.data_ys
         if len(x) < 2:
@@ -218,7 +200,7 @@ class InteractiveViewBox(ViewBox):
         if ev.button() == Qt.RightButton and \
                 (self.action == ZOOMING or self.action == SELECT):
             ev.accept()
-            self.graph.set_mode_panning()
+            self.set_mode_panning()
         elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
@@ -228,9 +210,9 @@ class InteractiveViewBox(ViewBox):
                 and self.graph.viewtype == INDIVIDUAL:
             clicked_curve = self.graph.highlighted
             if clicked_curve is not None:
-                self.make_selection([self.graph.sampled_indices[clicked_curve]], add)
+                self.graph.make_selection([self.graph.sampled_indices[clicked_curve]], add)
             else:
-                self.make_selection(None, add)
+                self.graph.make_selection(None, add)
             ev.accept()
         if self.action == ZOOMING and ev.button() == Qt.LeftButton:
             if self.zoomstartpoint == None:
@@ -243,7 +225,7 @@ class InteractiveViewBox(ViewBox):
                 self.showAxRect(ax)
                 self.axHistoryPointer += 1
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
-                self.graph.set_mode_panning()
+                self.set_mode_panning()
             ev.accept()
         if self.action == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
             if self.selection_start is None:
@@ -252,14 +234,14 @@ class InteractiveViewBox(ViewBox):
                 startp = self.childGroup.mapFromParent(self.selection_start)
                 endp = self.childGroup.mapFromParent(ev.pos())
                 intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
-                self.make_selection(intersected if len(intersected) else None, add)
-                self.graph.set_mode_panning()
+                self.graph.make_selection(intersected if len(intersected) else None, add)
+                self.set_mode_panning()
             ev.accept()
 
     def showAxRect(self, ax):
         super().showAxRect(ax)
         if self.action == ZOOMING:
-            self.graph.set_mode_panning()
+            self.set_mode_panning()
 
     def pad_current_view_y(self):
         qrect = self.targetRect()
@@ -268,6 +250,36 @@ class InteractiveViewBox(ViewBox):
     def autoRange(self):
         super().autoRange()
         self.pad_current_view_y()
+
+    def cancel_zoom(self):
+        self.setMouseMode(self.PanMode)
+        self.rbScaleBox.hide()
+        self.zoomstartpoint = None
+        self.action = PANNING
+        self.unsetCursor()
+
+    def set_mode_zooming(self):
+        self.set_mode_panning()
+        self.setMouseMode(self.RectMode)
+        self.action = ZOOMING
+        self.setCursor(Qt.CrossCursor)
+
+    def set_mode_panning(self):
+        self.cancel_zoom()
+        self.cancel_select()
+
+    def cancel_select(self):
+        self.setMouseMode(self.PanMode)
+        self.graph.selection_line.hide()
+        self.selection_start = None
+        self.action = PANNING
+        self.unsetCursor()
+
+    def set_mode_select(self):
+        self.set_mode_panning()
+        self.setMouseMode(self.RectMode)
+        self.action = SELECT
+        self.setCursor(Qt.CrossCursor)
 
 
 class SelectRegion(pg.LinearRegionItem):
@@ -344,13 +356,13 @@ class CurvePlot(QWidget, OWComponent):
         actions = []
 
         zoom_in = QAction(
-            "Zoom in", self, triggered=self.set_mode_zooming
+            "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
         )
         zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
         actions.append(zoom_in)
         zoom_fit = QAction(
             "Zoom to fit", self,
-            triggered=lambda x: (self.plot.vb.autoRange(), self.set_mode_panning())
+            triggered=lambda x: (self.plot.vb.autoRange(), self.plot.vb.set_mode_panning())
         )
         zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
         actions.append(zoom_fit)
@@ -382,7 +394,7 @@ class CurvePlot(QWidget, OWComponent):
         actions.append(self.invertX_menu)
         if self.selection_enabled:
             select_curves = QAction(
-                "Select (line)", self, triggered=self.set_mode_select,
+                "Select (line)", self, triggered=self.plot.vb.set_mode_select,
             )
             select_curves.setShortcuts([Qt.Key_S])
             actions.append(select_curves)
@@ -465,7 +477,7 @@ class CurvePlot(QWidget, OWComponent):
         self.labels_changed()  # apply saved labels
 
         self.invertX_apply()
-        self.set_mode_panning()
+        self.plot.vb.set_mode_panning()
 
     def set_limits(self):
         vr = self.plot.vb.viewRect()
@@ -577,6 +589,24 @@ class CurvePlot(QWidget, OWComponent):
         self.range_e_x2.setPlaceholderText(("%0." + str(xd) + "f") % vr.right())
         self.range_e_y1.setPlaceholderText(("%0." + str(yd) + "f") % vr.top())
         self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
+
+    def make_selection(self, data_indices, add=False):
+        selected_indices = self.selected_indices
+        oldids = selected_indices.copy()
+        invd = self.sampled_indices_inverse
+        if data_indices is None:
+            if not add:
+                selected_indices.clear()
+                self.set_curve_pens([invd[a] for a in oldids if a in invd])
+        else:
+            if add:
+                selected_indices.update(data_indices)
+                self.set_curve_pens([invd[a] for a in data_indices if a in invd])
+            else:
+                selected_indices.clear()
+                selected_indices.update(data_indices)
+                self.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
+        self.selection_changed()
 
     def selection_changed(self):
         if self.selection_enabled:
@@ -842,36 +872,6 @@ class CurvePlot(QWidget, OWComponent):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
         self.update_view()
-
-    def cancel_zoom(self):
-        self.plot.vb.setMouseMode(self.plot.vb.PanMode)
-        self.plot.vb.rbScaleBox.hide()
-        self.plot.vb.zoomstartpoint = None
-        self.plot.vb.action = PANNING
-        self.unsetCursor()
-
-    def set_mode_zooming(self):
-        self.set_mode_panning()
-        self.plot.vb.setMouseMode(self.plot.vb.RectMode)
-        self.plot.vb.action = ZOOMING
-        self.setCursor(Qt.CrossCursor)
-
-    def set_mode_panning(self):
-        self.cancel_zoom()
-        self.cancel_select()
-
-    def cancel_select(self):
-        self.plot.vb.setMouseMode(self.plot.vb.PanMode)
-        self.selection_line.hide()
-        self.plot.vb.selection_start = None
-        self.plot.vb.action = PANNING
-        self.unsetCursor()
-
-    def set_mode_select(self):
-        self.set_mode_panning()
-        self.plot.vb.setMouseMode(self.plot.vb.RectMode)
-        self.plot.vb.action = SELECT
-        self.setCursor(Qt.CrossCursor)
 
 
 class OWCurves(OWWidget):
