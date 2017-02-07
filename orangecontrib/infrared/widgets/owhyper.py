@@ -40,10 +40,7 @@ class ImagePlot(QWidget, OWComponent):
     def __init__(self, parent):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
-        self.parent = parent
-
-        self.state = PANNING
-
+        
         self.parent = parent
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))

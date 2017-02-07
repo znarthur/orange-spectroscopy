@@ -139,6 +139,7 @@ class InteractiveViewBox(ViewBox):
         self.setMouseMode(self.PanMode)
         self.zoomstartpoint = None
         self.selection_start = None
+        self.action = PANNING
 
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
@@ -152,10 +153,10 @@ class InteractiveViewBox(ViewBox):
     def mouseDragEvent(self, ev, axis=None):
         if ev.button() & Qt.RightButton:
             ev.accept()
-        if self.graph.state == ZOOMING:
+        if self.action == ZOOMING:
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
-        elif self.graph.state == PANNING:
+        elif self.action == PANNING:
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
         else:
@@ -165,10 +166,10 @@ class InteractiveViewBox(ViewBox):
         return 0.
 
     def mouseMovedEvent(self, ev): #not a Qt event!
-        if self.graph.state == ZOOMING and self.zoomstartpoint:
+        if self.action == ZOOMING and self.zoomstartpoint:
             pos = self.mapFromView(self.mapSceneToView(ev))
             self.updateScaleBox(self.zoomstartpoint, pos)
-        if self.graph.state == SELECT and self.selection_start:
+        if self.action == SELECT and self.selection_start:
             pos = self.mapFromView(self.mapSceneToView(ev))
             self.updateSelectionLine(self.selection_start, pos)
 
@@ -215,14 +216,14 @@ class InteractiveViewBox(ViewBox):
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
-                (self.graph.state == ZOOMING or self.graph.state == SELECT):
+                (self.action == ZOOMING or self.action == SELECT):
             ev.accept()
             self.graph.set_mode_panning()
         elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
         add = True if ev.modifiers() & Qt.ControlModifier else False
-        if self.graph.state != ZOOMING and self.graph.state != SELECT \
+        if self.action != ZOOMING and self.action != SELECT \
                 and ev.button() == Qt.LeftButton and self.graph.selection_enabled \
                 and self.graph.viewtype == INDIVIDUAL:
             clicked_curve = self.graph.highlighted
@@ -231,7 +232,7 @@ class InteractiveViewBox(ViewBox):
             else:
                 self.make_selection(None, add)
             ev.accept()
-        if self.graph.state == ZOOMING and ev.button() == Qt.LeftButton:
+        if self.action == ZOOMING and ev.button() == Qt.LeftButton:
             if self.zoomstartpoint == None:
                 self.zoomstartpoint = ev.pos()
             else:
@@ -244,7 +245,7 @@ class InteractiveViewBox(ViewBox):
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
                 self.graph.set_mode_panning()
             ev.accept()
-        if self.graph.state == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
+        if self.action == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
             if self.selection_start is None:
                 self.selection_start = ev.pos()
             else:
@@ -257,7 +258,7 @@ class InteractiveViewBox(ViewBox):
 
     def showAxRect(self, ax):
         super().showAxRect(ax)
-        if self.graph.state == ZOOMING:
+        if self.action == ZOOMING:
             self.graph.set_mode_panning()
 
     def pad_current_view_y(self):
@@ -608,7 +609,7 @@ class CurvePlot(QWidget, OWComponent):
             if self.curves and len(self.curves[0][0]): #need non-zero x axis!
                 cache = {}
                 bd = None
-                if self.markclosest and self.state != ZOOMING:
+                if self.markclosest and self.plot.vb.action != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
                     distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=self.MOUSE_RADIUS, cache=cache)
                     try:
@@ -846,13 +847,13 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.vb.setMouseMode(self.plot.vb.PanMode)
         self.plot.vb.rbScaleBox.hide()
         self.plot.vb.zoomstartpoint = None
-        self.state = PANNING
+        self.plot.vb.action = PANNING
         self.unsetCursor()
 
     def set_mode_zooming(self):
         self.set_mode_panning()
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
-        self.state = ZOOMING
+        self.plot.vb.action = ZOOMING
         self.setCursor(Qt.CrossCursor)
 
     def set_mode_panning(self):
@@ -863,13 +864,13 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.vb.setMouseMode(self.plot.vb.PanMode)
         self.selection_line.hide()
         self.plot.vb.selection_start = None
-        self.state = PANNING
+        self.plot.vb.action = PANNING
         self.unsetCursor()
 
     def set_mode_select(self):
         self.set_mode_panning()
         self.plot.vb.setMouseMode(self.plot.vb.RectMode)
-        self.state = SELECT
+        self.plot.vb.action = SELECT
         self.setCursor(Qt.CrossCursor)
 
 
