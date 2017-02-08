@@ -35,6 +35,28 @@ from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox
 
 
+def values_to_linspace(vals):
+    """Find a near maching linspace for the values given.
+    The problem is that some values can be missing and
+    that they are inexact. The minumum and maximum values
+    are kept as limits."""
+    vals = vals[~np.isnan(vals)]
+    if len(vals):
+        vals = np.unique(vals)
+        if len(vals) == 1:
+            return vals[0], vals[0], 1
+        minabsdiff = (vals[-1] - vals[0])/(len(vals)*100)
+        diffs = np.diff(vals)
+        diffs = diffs[diffs > minabsdiff]
+        first_valid = diffs[0]
+        # allow for a percent mismatch
+        diffs = diffs[diffs < first_valid*1.01]
+        step = np.mean(diffs)
+        size = round((vals[-1]-vals[0])/step) + 1
+        return vals[0], vals[-1], size
+    return None
+
+
 class ImagePlot(QWidget, OWComponent):
 
     def __init__(self, parent):
