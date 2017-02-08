@@ -52,9 +52,15 @@ def values_to_linspace(vals):
         # allow for a percent mismatch
         diffs = diffs[diffs < first_valid*1.01]
         step = np.mean(diffs)
-        size = round((vals[-1]-vals[0])/step) + 1
+        size = int(round((vals[-1]-vals[0])/step) + 1)
         return vals[0], vals[-1], size
     return None
+
+
+def index_values(vals, linspace):
+    """ Remap values into index of array defined by linspace. """
+    v = (vals - linspace[0])*(linspace[2] - 1)/(linspace[1] - linspace[0])
+    return np.round(v).astype(int)
 
 
 class ImagePlot(QWidget, OWComponent):
@@ -83,19 +89,36 @@ class ImagePlot(QWidget, OWComponent):
         # temporary implementation that works just with one dataset
         self.img.clear()
         if data is not None:
-            #TODO create image coordinates from the domain
+            #TODO choose attributes
             xat = data.domain["x"]
             yat = data.domain["y"]
-            ndom = Orange.data.Domain([yat, xat])
+
+            ndom = Orange.data.Domain([xat, yat])
             datam = Orange.data.Table(ndom, data)
-            coordinates = datam.X
-            imdata = np.ones((int(max(coordinates[:, 0]+1)), int(max(coordinates[:, 1]+1))))
-            #TODO cumpute integrals for showing
+            coorx = datam.X[:, 0]
+            coory = datam.X[:, 1]
+            lsx = values_to_linspace(coorx)
+            lsy = values_to_linspace(coory)
+
+            # TODO choose integrals of a part
+            # for now just a integral of everything
             d = data.X.sum(axis=1)
-            #TODO Set data - this has to be fast
-            for c,v in zip(coordinates, d):
-                imdata[int(c[0]), int(c[1])] = v
+
+            # set data
+            imdata = np.ones((lsy[2], lsx[2]))
+            xindex = index_values(coorx, lsx)
+            yindex = index_values(coory, lsy)
+            imdata[yindex, xindex] = d
             self.img.setImage(imdata)
+
+            # shift centres of the pixels so that the axes are useful
+            shiftx = (lsx[1]-lsx[0])/(2*(lsx[2]-1))
+            shifty = (lsy[1]-lsy[0])/(2*(lsy[2]-1))
+            left = lsx[0] - shiftx
+            bottom = lsy[0] - shifty
+            width = (lsx[1]-lsx[0]) + 2*shiftx
+            height = (lsy[1]-lsy[0]) + 2*shifty
+            self.img.setRect(QRectF(left, bottom, width, height))
 
 
 class OWHyper(OWWidget):

@@ -1,7 +1,8 @@
 import unittest
 import numpy as np
 
-from orangecontrib.infrared.widgets.owhyper import values_to_linspace
+from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
+    index_values
 
 
 class TestReadCoordinates(unittest.TestCase):
@@ -15,3 +16,17 @@ class TestReadCoordinates(unittest.TestCase):
         np.testing.assert_equal(np.linspace(*v), [1])
         v = values_to_linspace(np.array([1.001, 2, 3.002]))
         np.testing.assert_equal(np.linspace(*v), [1.001, 2.0015, 3.002])
+
+    def test_index(self):
+        a = np.array([1,2,3])
+        v = values_to_linspace(a)
+        iv = index_values(a, v)
+        np.testing.assert_equal(iv, [0, 1, 2])
+        a = np.array([1, 2, 3, 4])
+        v = values_to_linspace(a)
+        iv = index_values(a, v)
+        np.testing.assert_equal(iv, [0, 1, 2, 3])
+        a = np.array([1, 2, 3, 6, 5])
+        v = values_to_linspace(a)
+        iv = index_values(a, v)
+        np.testing.assert_equal(iv, [0, 1, 2, 5, 4])
