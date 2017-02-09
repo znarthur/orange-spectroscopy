@@ -183,7 +183,7 @@ class OWHyper(OWWidget):
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
     outputs = [("Selection", Orange.data.Table)]
-    icon = "icons/curves.svg"
+    icon = "icons/unknown.svg"
 
     settingsHandler = DomainContextHandler()
 
