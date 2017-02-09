@@ -27,12 +27,13 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+from Orange.widgets.utils.itemmodels import DomainModel
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
-from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox
+from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus
 
 
 def values_to_linspace(vals):
@@ -65,6 +66,9 @@ def index_values(vals, linspace):
 
 class ImagePlot(QWidget, OWComponent):
 
+    attr_x = ContextSetting(None)
+    attr_y = ContextSetting(None)
+
     def __init__(self, parent):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
@@ -76,25 +80,78 @@ class ImagePlot(QWidget, OWComponent):
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
 
+
         layout = QVBoxLayout()
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
+
         self.img = pg.ImageItem()
         self.img.setOpts(axisOrder='row-major')
         self.plot.addItem(self.img)
         self.plot.vb.setAspectLocked()
 
+        layout = QGridLayout()
+        self.plotview.setLayout(layout)
+        self.button = QPushButton("View", self.plotview)
+        self.button.setAutoDefault(False)
+
+        layout.setRowStretch(1, 1)
+        layout.setColumnStretch(1, 1)
+        layout.addWidget(self.button, 0, 0)
+        view_menu = MenuFocus(self)
+        self.button.setMenu(view_menu)
+
+        common_options = dict(
+            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
+            valueType=str)
+
+        choose_xy = QWidgetAction(self)
+        box = gui.vBox(self)
+        box.setFocusPolicy(Qt.TabFocus)
+        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES, valid_types=DomainModel.PRIMITIVE)
+        self.models = [self.xy_model]
+        self.cb_attr_x = gui.comboBox(
+            box, self, "attr_x", label="Axis x:", callback=self.update_attr,
+            model=self.xy_model, **common_options)
+        self.cb_attr_y = gui.comboBox(
+            box, self, "attr_y", label="Axis y:", callback=self.update_attr,
+            model=self.xy_model, **common_options)
+        box.setFocusProxy(self.cb_attr_x)
+        choose_xy.setDefaultWidget(box)
+        view_menu.addAction(choose_xy)
+
+        self.data = None
+
+    def update_attr(self):
+        self.show_data()
+
+    def init_attr_values(self):
+        domain = self.data and self.data.domain
+        for model in self.models:
+            model.set_domain(domain)
+        self.attr_x = self.xy_model[0] if self.xy_model else None
+        self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
+            else self.attr_x
+
     def set_data(self, data):
-        # temporary implementation that works just with one dataset
         self.img.clear()
         if data is not None:
-            #TODO choose attributes
-            xat = data.domain["x"]
-            yat = data.domain["y"]
+            same_domain = (self.data and
+                           data.domain.checksum() == self.data.domain.checksum())
+            self.data = data
+            if not same_domain:
+                self.init_attr_values()
+        self.show_data()
+
+    def show_data(self):
+        self.img.clear()
+        if self.data:
+            xat = self.data.domain[self.attr_x]
+            yat = self.data.domain[self.attr_y]
 
             ndom = Orange.data.Domain([xat, yat])
-            datam = Orange.data.Table(ndom, data)
+            datam = Orange.data.Table(ndom, self.data)
             coorx = datam.X[:, 0]
             coory = datam.X[:, 1]
             lsx = values_to_linspace(coorx)
@@ -102,7 +159,7 @@ class ImagePlot(QWidget, OWComponent):
 
             # TODO choose integrals of a part
             # for now just a integral of everything
-            d = data.X.sum(axis=1)
+            d = self.data.X.sum(axis=1)
 
             # set data
             imdata = np.ones((lsy[2], lsx[2]))
@@ -155,6 +212,7 @@ def main(argv=None):
     w = OWHyper()
     w.show()
     data = Orange.data.Table("whitelight.gsf")
+    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
