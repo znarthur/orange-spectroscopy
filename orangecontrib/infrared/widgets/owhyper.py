@@ -8,7 +8,7 @@ import math
 import collections
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -29,6 +29,7 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.visualize.owheatmap import color_palette_table
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
@@ -104,6 +105,9 @@ class ImagePlot(QWidget, OWComponent):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
+    gamma = Setting(0)
+    threshold_low = Setting(0.0)
+    threshold_high = Setting(1.0)
 
     def __init__(self, parent):
         QWidget.__init__(self)
@@ -153,10 +157,46 @@ class ImagePlot(QWidget, OWComponent):
             box, self, "attr_y", label="Axis y:", callback=self.update_attr,
             model=self.xy_model, **common_options)
         box.setFocusProxy(self.cb_attr_x)
+
+        form = QFormLayout(
+            formAlignment=Qt.AlignLeft,
+            labelAlignment=Qt.AlignLeft,
+            fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
+        )
+
+        lowslider = gui.hSlider(
+            box, self, "threshold_low", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_color_schema)
+        highslider = gui.hSlider(
+            box, self, "threshold_high", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_color_schema)
+        gammaslider = gui.hSlider(
+            box, self, "gamma", minValue=0.0, maxValue=20.0,
+            step=1.0, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_color_schema
+        )
+
+        form.addRow("Low:", lowslider)
+        form.addRow("High:", highslider)
+        form.addRow("Gamma:", gammaslider)
+
+        box.layout().addLayout(form)
+
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
 
         self.data = None
+
+    def update_color_schema(self):
+        # TODO add color chooser
+        colors = [(0, 0, 255), (255, 255, 0)]
+        cols = color_palette_table(
+            colors, threshold_low=self.threshold_low,
+            threshold_high=self.threshold_high,
+            gamma=self.gamma)
+        self.img.setLookupTable(cols)
 
     def update_attr(self):
         self.show_data()
@@ -203,6 +243,8 @@ class ImagePlot(QWidget, OWComponent):
             imdata[yindex, xindex] = d
 
             levels = get_levels(imdata)
+            self.update_color_schema()
+
             self.img.setImage(imdata, levels=levels)
 
             # shift centres of the pixels so that the axes are useful
