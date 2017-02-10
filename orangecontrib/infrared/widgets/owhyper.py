@@ -8,7 +8,7 @@ import math
 import collections
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene, QSplitter
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -35,7 +35,7 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
-from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus
+from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus, CurvePlot
 
 
 def values_to_linspace(vals):
@@ -271,14 +271,22 @@ class OWHyper(OWWidget):
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
+
+        splitter = QSplitter(self)
+        splitter.setOrientation(Qt.Vertical)
         self.imageplot = ImagePlot(self)
-        self.mainArea.layout().addWidget(self.imageplot)
+        self.curveplot = CurvePlot(self)
+        splitter.addWidget(self.imageplot)
+        splitter.addWidget(self.curveplot)
+
+        self.mainArea.layout().addWidget(splitter)
         self.resize(900, 700)
         self.graph_name = "imageplot.plotview"
 
     def set_data(self, data):
         self.closeContext()
         self.imageplot.set_data(data)
+        self.curveplot.set_data(data)
         self.openContext(data)
 
     def set_subset(self, data):
@@ -292,8 +300,8 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWHyper()
     w.show()
-    data = Orange.data.Table("whitelight.gsf")
-    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    #data = Orange.data.Table("whitelight.gsf")
+    data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
