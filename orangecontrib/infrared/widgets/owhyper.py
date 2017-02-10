@@ -187,6 +187,8 @@ class OWHyper(OWWidget):
 
     settingsHandler = DomainContextHandler()
 
+    imageplot = SettingProvider(ImagePlot)
+
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
