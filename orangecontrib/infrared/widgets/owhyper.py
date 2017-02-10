@@ -64,6 +64,17 @@ def index_values(vals, linspace):
     return np.round(v).astype(int)
 
 
+def get_levels(img):
+    """ Compute levels. Account for NaN values. """
+    while img.size > 2 ** 16:
+        img = img[::2, ::2]
+    mn, mx = np.nanmin(img), np.nanmax(img)
+    if mn == mx:
+        mn = 0
+        mx = 255
+    return [mn, mx]
+
+
 class ImagePlot(QWidget, OWComponent):
 
     attr_x = ContextSetting(None)
@@ -162,11 +173,12 @@ class ImagePlot(QWidget, OWComponent):
             d = self.data.X.sum(axis=1)
 
             # set data
-            imdata = np.ones((lsy[2], lsx[2]))
+            imdata = np.ones((lsy[2], lsx[2]))*float("nan")
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
-            self.img.setImage(imdata)
+            levels = get_levels(imdata)
+            self.img.setImage(imdata, levels=levels)
 
             # shift centres of the pixels so that the axes are useful
             shiftx = (lsx[1]-lsx[0])/(2*(lsx[2]-1))
