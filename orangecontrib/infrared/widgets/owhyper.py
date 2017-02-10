@@ -194,6 +194,12 @@ class ImagePlot(QWidget, OWComponent):
         self.data = None
 
     def update_color_schema(self):
+        if not self.threshold_low < self.threshold_high:
+            # TODO this belongs here, not in the parent
+            self.parent.Warning.threshold_error()
+            return
+        else:
+            self.parent.Warning.threshold_error.clear()
         # TODO add color chooser
         colors = [(0, 0, 255), (255, 255, 0)]
         cols = color_palette_table(
@@ -283,6 +289,9 @@ class OWHyper(OWWidget):
 
     lowlim = Setting(None)
     highlim = Setting(None)
+
+    class Warning(OWWidget.Warning):
+        threshold_error = Msg("Low slider should be less than High")
 
     def __init__(self):
         super().__init__()
