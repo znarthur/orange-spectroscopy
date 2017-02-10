@@ -327,7 +327,11 @@ class MovableVlineWD(pg.UIGraphicsItem):
         self.mouseHovering = False
 
         self.line = pg.InfiniteLine(angle=90, movable=True)
-        self.line.setValue(position)
+        if position is not None:
+            self.line.setValue(position)
+        else:
+            self.line.setValue(0)
+            self.line.hide()
         self.line.setCursor(Qt.SizeHorCursor)
 
         self.line.setParentItem(self)
@@ -347,8 +351,12 @@ class MovableVlineWD(pg.UIGraphicsItem):
         return self.line.value()
 
     def setValue(self, val):
-        self.line.setValue(val)
-        self._move_label()
+        if val is not None:
+            self.line.setValue(val)
+            self.line.show()
+            self._move_label()
+        else:
+            self.line.hide()
 
     def boundingRect(self):
         br = pg.UIGraphicsItem.boundingRect(self)

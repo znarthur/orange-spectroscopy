@@ -35,7 +35,11 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
+
+from orangecontrib.infrared.preprocess import Cut
+
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus, CurvePlot
+from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
 def values_to_linspace(vals):
@@ -219,6 +223,9 @@ class ImagePlot(QWidget, OWComponent):
                 self.init_attr_values()
         self.show_data()
 
+    def set_integral_limits(self):
+        self.show_data()
+
     def show_data(self):
         self.img.clear()
         if self.data:
@@ -234,7 +241,13 @@ class ImagePlot(QWidget, OWComponent):
 
             # TODO choose integrals of a part
             # for now just a integral of everything
-            d = self.data.X.sum(axis=1)
+
+            datai = self.data
+            l1, l2 = self.parent.lowlim, self.parent.highlim
+            if l1 is not None and l2 is not None:
+                l1, l2 = min(l1, l2), max(l1, l2)
+                datai = Cut(lowlim=l1, highlim=l2)(datai)
+            d = datai.X.sum(axis=1)
 
             # set data
             imdata = np.ones((lsy[2], lsx[2]))*float("nan")
@@ -268,6 +281,9 @@ class OWHyper(OWWidget):
 
     imageplot = SettingProvider(ImagePlot)
 
+    lowlim = Setting(None)
+    highlim = Setting(None)
+
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
@@ -278,15 +294,39 @@ class OWHyper(OWWidget):
         self.curveplot = CurvePlot(self)
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
-
         self.mainArea.layout().addWidget(splitter)
+
+        self.line1 = MovableVlineWD(position=self.lowlim, label="", setvalfn=self.set_lowlim, confirmfn=self.edited)
+        self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim, confirmfn=self.edited)
+        self.curveplot.add_marking(self.line1)
+        self.curveplot.add_marking(self.line2)
+
         self.resize(900, 700)
         self.graph_name = "imageplot.plotview"
 
+    def edited(self):
+        mi, ma = min(self.lowlim, self.highlim), max(self.lowlim, self.highlim)
+        self.imageplot.set_integral_limits()
+
+    def set_lowlim(self, v):
+        self.lowlim = v
+
+    def set_highlim(self, v):
+        self.highlim = v
+
     def set_data(self, data):
         self.closeContext()
-        self.imageplot.set_data(data)
         self.curveplot.set_data(data)
+        if self.curveplot.data_x is not None:
+            minx = self.curveplot.data_x[0]
+            maxx = self.curveplot.data_x[-1]
+            if self.lowlim is None or not minx <= self.lowlim <= maxx:
+                self.lowlim = min(self.curveplot.data_x)
+                self.line1.setValue(self.lowlim)
+            if self.highlim is None or not minx <= self.highlim <= maxx:
+                self.highlim = max(self.curveplot.data_x)
+                self.line2.setValue(self.highlim)
+        self.imageplot.set_data(data)
         self.openContext(data)
 
     def set_subset(self, data):
