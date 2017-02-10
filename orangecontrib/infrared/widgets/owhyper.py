@@ -5,6 +5,7 @@ import gc
 import random
 import warnings
 import math
+import collections
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene
@@ -75,6 +76,30 @@ def get_levels(img):
     return [mn, mx]
 
 
+class ImageItemNan(pg.ImageItem):
+    """ Simplified ImageItem that can show NaN color. """
+
+    def render(self):
+        # simplified pg.ImageITem
+
+        if self.image is None or self.image.size == 0:
+            return
+        if isinstance(self.lut, collections.Callable):
+            lut = self.lut(self.image)
+        else:
+            lut = self.lut
+
+        image = self.image
+        levels = self.levels
+
+        if self.axisOrder == 'col-major':
+            image = image.transpose((1, 0, 2)[:image.ndim])
+
+        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)
+        argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        self.qimage = pg.makeQImage(argb, alpha, transpose=False)
+
+
 class ImagePlot(QWidget, OWComponent):
 
     attr_x = ContextSetting(None)
@@ -91,13 +116,12 @@ class ImagePlot(QWidget, OWComponent):
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
 
-
         layout = QVBoxLayout()
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
 
-        self.img = pg.ImageItem()
+        self.img = ImageItemNan()
         self.img.setOpts(axisOrder='row-major')
         self.plot.addItem(self.img)
         self.plot.vb.setAspectLocked()
@@ -177,6 +201,7 @@ class ImagePlot(QWidget, OWComponent):
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
+
             levels = get_levels(imdata)
             self.img.setImage(imdata, levels=levels)
 
