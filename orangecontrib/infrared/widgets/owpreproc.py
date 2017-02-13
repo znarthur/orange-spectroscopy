@@ -321,22 +321,23 @@ class MovableVlineWD(pg.UIGraphicsItem):
     Vertical = 0
     Horizontal = 1
 
-    def __init__(self, position, label="", setvalfn=None, confirmfn=None, color=(225, 0, 0)):
+    def __init__(self, position, label="", setvalfn=None, confirmfn=None,
+                 color=(225, 0, 0), report=None):
         pg.UIGraphicsItem.__init__(self)
         self.moving = False
         self.mouseHovering = False
+        self.report = report
 
         hp = pg.mkPen(color=color, width=3)
         np = pg.mkPen(color=color, width=2)
         self.line = pg.InfiniteLine(angle=90, movable=True, pen=np, hoverPen=hp)
-        
+
         if position is not None:
             self.line.setValue(position)
         else:
             self.line.setValue(0)
             self.line.hide()
         self.line.setCursor(Qt.SizeHorCursor)
-
 
         self.line.setParentItem(self)
         self.line.sigPositionChangeFinished.connect(self.lineMoveFinished)
@@ -359,6 +360,7 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.line.setValue(val)
             self.line.show()
             self._move_label()
+            self.lineMoveFinished()
         else:
             self.line.hide()
 
@@ -374,10 +376,14 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
 
     def lineMoved(self):
+        if self.report:
+            self.report.report(self, [("x", self.value())])
         if self.setvalfn:
             self.setvalfn(self.value())
 
     def lineMoveFinished(self):
+        if self.report:
+            self.report.report_finished(self)
         if self.setvalfn:
             self.setvalfn(self.value())
         if self.confirmfn:

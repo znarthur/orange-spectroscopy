@@ -479,9 +479,21 @@ class CurvePlot(QWidget, OWComponent):
         self.invertX_apply()
         self.plot.vb.set_mode_panning()
 
+        self.reports = {}  # current reports
+
+    def report(self, reporter, contents):
+        self.reports[id(reporter)] = contents
+
+    def report_finished(self, reporter):
+        try:
+            self.reports.pop(id(reporter))
+        except KeyError:
+            pass  # ok if it was already removed
+        if not self.reports:
+            pass
+
     def set_limits(self):
         vr = self.plot.vb.viewRect()
-        print(vr)
         x1 = self.range_x1 if self.range_x1 is not None else vr.left()
         x2 = self.range_x2 if self.range_x2 is not None else vr.right()
         y1 = self.range_y1 if self.range_y1 is not None else vr.top()
@@ -630,11 +642,19 @@ class CurvePlot(QWidget, OWComponent):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
 
-            if self.location:
-                fs = "%0." + str(self.important_decimals[0]) + "f, %0." + str(self.important_decimals[1]) + "f"
-                self.label.setText(fs % (posx, posy), color=(0, 0, 0))
-            else:
-                self.label.setText("")
+            labels = []
+            for a, vs in sorted(self.reports.items()):
+                for v in vs:
+                    if isinstance(v, tuple) and len(v) == 2:
+                        if v[0] == "x":
+                            labels.append(("%0." + str(self.important_decimals[0]) + "f") % v[1])
+                            continue
+                    labels.append(str(v))
+            labels = " ".join(labels)
+            if self.location and not labels:
+                fs = "%0." + str(self.important_decimals[0]) + "f %0." + str(self.important_decimals[1]) + "f"
+                labels = fs % (posx, posy)
+            self.label.setText(labels, color=(0, 0, 0))
 
             if self.curves and len(self.curves[0][0]): #need non-zero x axis!
                 cache = {}

@@ -305,8 +305,10 @@ class OWHyper(OWWidget):
         splitter.addWidget(self.curveplot)
         self.mainArea.layout().addWidget(splitter)
 
-        self.line1 = MovableVlineWD(position=self.lowlim, label="", setvalfn=self.set_lowlim, confirmfn=self.edited)
-        self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim, confirmfn=self.edited)
+        self.line1 = MovableVlineWD(position=self.lowlim, label="", setvalfn=self.set_lowlim,
+                                    confirmfn=self.edited, report=self.curveplot)
+        self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim,
+                                    confirmfn=self.edited, report=self.curveplot)
         self.curveplot.add_marking(self.line1)
         self.curveplot.add_marking(self.line2)
 
@@ -314,7 +316,6 @@ class OWHyper(OWWidget):
         self.graph_name = "imageplot.plotview"
 
     def edited(self):
-        mi, ma = min(self.lowlim, self.highlim), max(self.lowlim, self.highlim)
         self.imageplot.set_integral_limits()
 
     def set_lowlim(self, v):
