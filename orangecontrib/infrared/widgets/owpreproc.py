@@ -321,12 +321,15 @@ class MovableVlineWD(pg.UIGraphicsItem):
     Vertical = 0
     Horizontal = 1
 
-    def __init__(self, position, label="", setvalfn=None, confirmfn=None):
+    def __init__(self, position, label="", setvalfn=None, confirmfn=None, color=(225, 0, 0)):
         pg.UIGraphicsItem.__init__(self)
         self.moving = False
         self.mouseHovering = False
 
-        self.line = pg.InfiniteLine(angle=90, movable=True)
+        hp = pg.mkPen(color=color, width=3)
+        np = pg.mkPen(color=color, width=2)
+        self.line = pg.InfiniteLine(angle=90, movable=True, pen=np, hoverPen=hp)
+        
         if position is not None:
             self.line.setValue(position)
         else:
@@ -334,12 +337,13 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.line.hide()
         self.line.setCursor(Qt.SizeHorCursor)
 
+
         self.line.setParentItem(self)
         self.line.sigPositionChangeFinished.connect(self.lineMoveFinished)
         self.line.sigPositionChanged.connect(self.lineMoved)
 
         self.label = pg.TextItem("", anchor=(0,0))
-        self.label.setText(label, color=(0, 0, 0))
+        self.label.setText(label, color=color)
         self.label.setParentItem(self)
 
         self.setvalfn = setvalfn
