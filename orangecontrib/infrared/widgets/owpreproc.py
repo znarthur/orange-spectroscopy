@@ -356,10 +356,12 @@ class MovableVlineWD(pg.UIGraphicsItem):
         return self.line.value()
 
     def setValue(self, val):
+        if self.line.isVisible() and val == self.line.value():
+            # no effective change
+            return
         if val is not None:
             self.line.setValue(val)
             self.line.show()
-            self._move_label()
             self.lineMoveFinished()
         else:
             self.line.hide()
@@ -376,6 +378,7 @@ class MovableVlineWD(pg.UIGraphicsItem):
             self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
 
     def lineMoved(self):
+        self._move_label()
         if self.report:
             self.report.report(self, [("x", self.value())])
         if self.setvalfn:
@@ -442,8 +445,10 @@ class CutEditor(BaseEditor):
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         if self.line1 not in self.parent_widget.curveplot.markings:
+            self.line1.report = self.parent_widget.curveplot
             self.parent_widget.curveplot.add_marking(self.line1)
         if self.line2 not in self.parent_widget.curveplot.markings:
+            self.line2.report = self.parent_widget.curveplot
             self.parent_widget.curveplot.add_marking(self.line2)
 
     def set_lowlim(self, lowlim, user=True):
