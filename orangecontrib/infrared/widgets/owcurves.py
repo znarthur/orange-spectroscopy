@@ -346,6 +346,8 @@ class CurvePlot(QWidget, OWComponent):
         #interface settings
         self.location = True #show current position
         self.markclosest = True #mark
+        self.crosshair = True
+        self.crosshair_hidden = True
         self.viewtype = INDIVIDUAL
 
         layout = QVBoxLayout()
@@ -481,6 +483,8 @@ class CurvePlot(QWidget, OWComponent):
 
         self.reports = {}  # current reports
 
+        self.viewhelpers_show()
+
     def report(self, reporter, contents):
         self.reports[id(reporter)] = contents
 
@@ -534,16 +538,13 @@ class CurvePlot(QWidget, OWComponent):
         self.invertX_menu.setChecked(self.invertX)
 
     def save_graph(self):
-        wh = self.viewhelpers
-        if wh:
-            self.viewhelpers_hide()
+        self.viewhelpers_hide()
         self.plot.showAxis("top", True)
         self.plot.showAxis("right", True)
         self.parent.save_graph()
         self.plot.showAxis("top", False)
         self.plot.showAxis("right", False)
-        if wh:
-            self.viewhelpers_show()
+        self.viewhelpers_show()
 
     def clear_data(self):
         self.subset_ids = set()
@@ -628,13 +629,15 @@ class CurvePlot(QWidget, OWComponent):
         self.label.hide()
         self.vLine.hide()
         self.hLine.hide()
-        self.viewhelpers = False
 
     def viewhelpers_show(self):
         self.label.show()
-        self.vLine.show()
-        self.hLine.show()
-        self.viewhelpers = True
+        if self.crosshair and not self.crosshair_hidden:
+            self.vLine.show()
+            self.hLine.show()
+        else:
+            self.vLine.hide()
+            self.hLine.hide()
 
     def mouseMoved(self, evt):
         pos = evt[0]
@@ -651,6 +654,8 @@ class CurvePlot(QWidget, OWComponent):
                             continue
                     labels.append(str(v))
             labels = " ".join(labels)
+            self.crosshair_hidden = bool(labels)
+
             if self.location and not labels:
                 fs = "%0." + str(self.important_decimals[0]) + "f %0." + str(self.important_decimals[1]) + "f"
                 labels = fs % (posx, posy)
