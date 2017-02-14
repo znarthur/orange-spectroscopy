@@ -315,15 +315,70 @@ class _IntegrateCommon:
             lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
             x_s = x[x_sorter][lim_min:lim_max]
             y_s = data.X[:, x_sorter][:, lim_min:lim_max]
-            newd.append(Integrate.IntMethods[self.method](y_s, x_s))
+            newd.append(self.method(y_s, x_s))
         newd = np.column_stack(np.atleast_2d(newd))
         return newd
+
+
+def _simple_int(y, x):
+    """
+    Perform a simple y=0 integration on the provided data window
+    """
+    integrals = np.trapz(y, x, axis=1)
+    return integrals
+
+
+def _baseline_sub(y, x):
+    """
+    Perform a linear edge-to-edge baseline subtraction
+    """
+    i = np.array([0, -1])
+    baseline = interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
+    return y - baseline
+
+
+def _baseline_int(y, x):
+    """
+    Perform a baseline-subtracted integration on the provided data window
+    """
+    ysub = _baseline_sub(y, x)
+    integrals = _simple_int(ysub, x)
+    return integrals
+
+
+def _simple_peak_height(y, x):
+    """
+    Find the maximum peak height in the provided data window
+    """
+    if len(x) == 0:
+        return np.zeros((y.shape[0], 1)) * np.nan
+    # FIXME test for NaN
+    peak_heights = np.max(y, axis=1)
+    return peak_heights
+
+
+def _baseline_peak_height(y, x):
+    """
+    Find the maximum baseline-subtracted peak height in the provided window
+    """
+    ysub = _baseline_sub(y, x)
+    peak_heights = _simple_peak_height(ysub, x)
+    return peak_heights
+
+
+def _at_peak_height(y, x):
+    """
+    Return the peak height at the first limit
+    """
+    # FIXME should return the closest peak height
+    return y[:, 0]
 
 
 class Integrate(Preprocess):
 
     # Integration methods
-    Simple, Baseline, PeakMax, PeakBaseline, PeakAt = 0, 1, 2, 3, 4
+    Simple, Baseline, PeakMax, PeakBaseline, PeakAt = \
+        _simple_int, _baseline_int, _simple_peak_height, _baseline_peak_height, _at_peak_height
 
     def __init__(self, method=Baseline, limits=None):
         self.method = method
@@ -340,55 +395,6 @@ class Integrate(Preprocess):
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)
         return data.from_table(domain, data)
-
-    def simpleInt(y, x):
-        """
-        Perform a simple y=0 integration on the provided data window
-        """
-        integrals = np.trapz(y, x, axis=1)
-        return integrals
-
-    def baselineSub(y, x):
-        """
-        Perform a linear edge-to-edge baseline subtraction
-        """
-        i = np.array([0, -1])
-        baseline = interp1d(x[i], y[:,i], axis=1)(x) if len(x) else 0
-        return y-baseline
-
-    def baselineInt(y, x):
-        """
-        Perform a baseline-subtracted integration on the provided data window
-        """
-        ysub = Integrate.baselineSub(y, x)
-        integrals = Integrate.simpleInt(ysub, x)
-        return integrals
-
-    def simplePeakHeight(y, x):
-        """
-        Find the maximum peak height in the provided data window
-        """
-        if len(x) == 0:
-            return np.zeros((y.shape[0], 1)) * np.nan
-        peak_heights = np.max(y, axis=1)
-        return peak_heights
-
-    def baselinePeakHeight(y, x):
-        """
-        Find the maximum baseline-subtracted peak height in the provided window
-        """
-        ysub = Integrate.baselineSub(y, x)
-        peak_heights = Integrate.simplePeakHeight(ysub, x)
-        return peak_heights
-
-    def atPeakHeight(y, x):
-        """
-        Return the peak height at the first limit
-        """
-        # FIXME should return the closest peak height
-        return y[:,0]
-
-    IntMethods = [simpleInt, baselineInt, simplePeakHeight, baselinePeakHeight, atPeakHeight]
 
 
 def features_with_interpolation(points, kind="linear", domain=None):
