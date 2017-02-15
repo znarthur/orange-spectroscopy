@@ -293,12 +293,17 @@ class Normalize(Preprocess):
 
 class IntegrateFeature(SharedComputeValue):
 
-    def __init__(self, limits, method, commonfn):
+    def __init__(self, limits, commonfn):
         self.limits = limits
-        self.method = method
         super().__init__(commonfn)
 
-    def compute(self, data, common):
+    def baseline(self, data, common=None):
+        if common is None:
+            common = self.compute_shared(data)
+        x_s, y_s = self.extract_data(data, common)
+        return self.compute_baseline(x_s, y_s)
+
+    def extract_data(self, data, common):
         data, x, x_sorter = common
         # find limiting indices (inclusive left, exclusive right)
         lim_min, lim_max = min(self.limits), max(self.limits)
@@ -306,7 +311,72 @@ class IntegrateFeature(SharedComputeValue):
         lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
         x_s = x[x_sorter][lim_min:lim_max]
         y_s = data.X[:, x_sorter][:, lim_min:lim_max]
-        return self.method(y_s, x_s)
+        return x_s, y_s
+
+    def compute_baseline(self, x_s, y_s):
+        raise NotImplementedError
+
+    def compute_integral(self, x_s, y_s):
+        raise NotImplementedError
+
+    def compute(self, data, common):
+        x_s, y_s = self.extract_data(data, common)
+        return self.compute_integral(x_s, y_s)
+
+
+class IntegrateFeatureEdgeBaseline(IntegrateFeature):
+    """ A linear edge-to-edge baseline subtraction. """
+
+    def compute_baseline(self, x, y):
+        return _edge_baseline(x, y)
+
+    def compute_integral(self, x_s, y_s):
+        y_s = y_s - self.compute_baseline(x_s, y_s)
+        return np.trapz(y_s, x_s, axis=1)
+
+
+class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
+    """ A simple y=0 integration on the provided data window. """
+
+    def compute_baseline(self, x_s, y_s):
+        return np.zeros(y_s.shape)
+
+
+class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
+    """ The maximum baseline-subtracted peak height in the provided window. """
+
+    def compute_baseline(self, x, y):
+        return _edge_baseline(x, y)
+
+    def compute_integral(self, x_s, y_s):
+        y_s = y_s - self.compute_baseline(x_s, y_s)
+        if len(x_s) == 0:
+            return np.zeros((y_s.shape[0], 1)) * np.nan
+        # FIXME test for NaN
+        return np.max(y_s, axis=1)
+
+
+class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
+    """ The maximum peak height in the provided data window. """
+
+    def compute_baseline(self, x_s, y_s):
+        return np.zeros(y_s.shape)
+
+
+class IntegrateFeatureAtPeak(IntegrateFeature):
+    """ Peak height at the first limit. """
+
+    def compute_baseline(self, x, y):
+        return np.zeros(y.shape)
+
+    def compute_integral(self, x_s, y_s):
+        # FIXME should return the closest peak height
+        return y_s[:, 0]
+
+
+def _edge_baseline(x, y):
+    i = np.array([0, -1])
+    return interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
 
 
 class _IntegrateCommon:
@@ -322,65 +392,15 @@ class _IntegrateCommon:
         return data, x, x_sorter
 
 
-def _simple_int(y, x):
-    """
-    Perform a simple y=0 integration on the provided data window
-    """
-    integrals = np.trapz(y, x, axis=1)
-    return integrals
-
-
-def _baseline_sub(y, x):
-    """
-    Perform a linear edge-to-edge baseline subtraction
-    """
-    i = np.array([0, -1])
-    baseline = interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
-    return y - baseline
-
-
-def _baseline_int(y, x):
-    """
-    Perform a baseline-subtracted integration on the provided data window
-    """
-    ysub = _baseline_sub(y, x)
-    integrals = _simple_int(ysub, x)
-    return integrals
-
-
-def _simple_peak_height(y, x):
-    """
-    Find the maximum peak height in the provided data window
-    """
-    if len(x) == 0:
-        return np.zeros((y.shape[0], 1)) * np.nan
-    # FIXME test for NaN
-    peak_heights = np.max(y, axis=1)
-    return peak_heights
-
-
-def _baseline_peak_height(y, x):
-    """
-    Find the maximum baseline-subtracted peak height in the provided window
-    """
-    ysub = _baseline_sub(y, x)
-    peak_heights = _simple_peak_height(ysub, x)
-    return peak_heights
-
-
-def _at_peak_height(y, x):
-    """
-    Return the peak height at the first limit
-    """
-    # FIXME should return the closest peak height
-    return y[:, 0]
-
-
 class Integrate(Preprocess):
 
     # Integration methods
     Simple, Baseline, PeakMax, PeakBaseline, PeakAt = \
-        _simple_int, _baseline_int, _simple_peak_height, _baseline_peak_height, _at_peak_height
+        IntegrateFeatureSimple, \
+        IntegrateFeatureEdgeBaseline, \
+        IntegrateFeaturePeakSimple, \
+        IntegrateFeaturePeakEdgeBaseline, \
+        IntegrateFeatureAtPeak
 
     def __init__(self, method=Baseline, limits=None):
         self.method = method
@@ -393,7 +413,7 @@ class Integrate(Preprocess):
             for limits in self.limits:
                 atts.append(Orange.data.ContinuousVariable(
                     name="{0} - {1}".format(limits[0], limits[1]),
-                    compute_value=IntegrateFeature(limits, self.method, common)))
+                    compute_value=self.method(limits, common)))
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)
         return data.from_table(domain, data)

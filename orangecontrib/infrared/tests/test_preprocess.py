@@ -73,26 +73,36 @@ class TestIntegrate(unittest.TestCase):
         data = Orange.data.Table([[ 1, 2, 3, 1, 1, 1 ]])
         i = Integrate(method=Integrate.Simple, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 8)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data),
+                                [[0, 0, 0, 0, 0, 0]])
 
     def test_baseline(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         i = Integrate(method=Integrate.Baseline, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 3)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data),
+                                [[1, 1, 1, 1, 1, 1]])
 
     def test_peakmax(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         i = Integrate(method=Integrate.PeakMax, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 3)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data),
+                                [[0, 0, 0, 0, 0, 0]])
 
     def test_peakbaseline(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         i = Integrate(method=Integrate.PeakBaseline, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 2)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data),
+                                [[1, 1, 1, 1, 1, 1]])
 
     def test_peakat(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         i = Integrate(method=Integrate.PeakAt, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 1)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data),
+                                [[0, 0, 0, 0, 0, 0]])
 
     def test_empty(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
