@@ -291,33 +291,35 @@ class Normalize(Preprocess):
         return data.from_table(domain, data)
 
 
-class IntegrateFeature(SelectColumn):
-    pass
+class IntegrateFeature(SharedComputeValue):
+
+    def __init__(self, limits, method, commonfn):
+        self.limits = limits
+        self.method = method
+        super().__init__(commonfn)
+
+    def compute(self, data, common):
+        data, x, x_sorter = common
+        # find limiting indices (inclusive left, exclusive right)
+        lim_min, lim_max = min(self.limits), max(self.limits)
+        lim_min = np.searchsorted(x, lim_min, sorter=x_sorter, side="left")
+        lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
+        x_s = x[x_sorter][lim_min:lim_max]
+        y_s = data.X[:, x_sorter][:, lim_min:lim_max]
+        return self.method(y_s, x_s)
 
 
 class _IntegrateCommon:
 
-    def __init__(self, method, limits, domain):
-        self.method = method
-        self.limits = limits
+    def __init__(self, domain):
         self.domain = domain
 
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
         x = getx(data)
-        newd = []
         x_sorter = np.argsort(x)
-        for limits in self.limits:
-            # find limiting indices (inclusive left, exclusive right)
-            lim_min, lim_max = min(limits), max(limits)
-            lim_min = np.searchsorted(x, lim_min, sorter=x_sorter, side="left")
-            lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
-            x_s = x[x_sorter][lim_min:lim_max]
-            y_s = data.X[:, x_sorter][:, lim_min:lim_max]
-            newd.append(self.method(y_s, x_s))
-        newd = np.column_stack(np.atleast_2d(newd))
-        return newd
+        return data, x, x_sorter
 
 
 def _simple_int(y, x):
@@ -385,13 +387,13 @@ class Integrate(Preprocess):
         self.limits = limits
 
     def __call__(self, data):
-        common = _IntegrateCommon(self.method, self.limits, data.domain)
+        common = _IntegrateCommon(data.domain)
         atts = []
         if self.limits:
-            for i, limits in enumerate(self.limits):
+            for limits in self.limits:
                 atts.append(Orange.data.ContinuousVariable(
                     name="{0} - {1}".format(limits[0], limits[1]),
-                    compute_value=IntegrateFeature(i, common)))
+                    compute_value=IntegrateFeature(limits, self.method, common)))
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)
         return data.from_table(domain, data)
