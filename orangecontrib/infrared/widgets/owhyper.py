@@ -36,7 +36,7 @@ from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
-from orangecontrib.infrared.preprocess import Cut
+from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus, CurvePlot
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
@@ -245,15 +245,18 @@ class ImagePlot(QWidget, OWComponent):
             lsx = values_to_linspace(coorx)
             lsy = values_to_linspace(coory)
 
-            # TODO choose integrals of a part
-            # for now just a integral of everything
-
-            datai = self.data
             l1, l2 = self.parent.lowlim, self.parent.highlim
-            if l1 is not None and l2 is not None:
-                l1, l2 = min(l1, l2), max(l1, l2)
-                datai = Cut(lowlim=l1, highlim=l2)(datai)
-            d = datai.X.sum(axis=1)
+
+            gx = getx(self.data)
+
+            if l1 is None:
+                l1 = min(gx) - 1
+            if l2 is None:
+                l2 = max(gx) + 1
+
+            l1, l2 = min(l1, l2), max(l1, l2)
+            datai = Integrate(method=Integrate.Baseline, limits=[[l1, l2]])(self.data)
+            d = datai.X[:, 0]
 
             # set data
             imdata = np.ones((lsy[2], lsx[2]))*float("nan")
