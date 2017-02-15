@@ -255,7 +255,9 @@ class ImagePlot(QWidget, OWComponent):
                 l2 = max(gx) + 1
 
             l1, l2 = min(l1, l2), max(l1, l2)
-            datai = Integrate(method=Integrate.Baseline, limits=[[l1, l2]])(self.data)
+
+            imethod = self.parent.integration_methods[self.parent.integration_method]
+            datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
             d = datai.X[:, 0]
 
             # set data
@@ -290,6 +292,10 @@ class OWHyper(OWWidget):
 
     imageplot = SettingProvider(ImagePlot)
 
+    integration_method = Setting(0)
+    integration_methods = [Integrate.Simple, Integrate.Baseline,
+                           Integrate.PeakMax, Integrate.PeakBaseline]
+
     lowlim = Setting(None)
     highlim = Setting(None)
 
@@ -298,7 +304,17 @@ class OWHyper(OWWidget):
 
     def __init__(self):
         super().__init__()
-        self.controlArea.hide()
+
+        dbox = gui.widgetBox(self.controlArea, "Integration")
+
+        rbox = gui.radioButtons(
+            dbox, self, "integration_method", callback=self._change_integration)
+        gui.appendRadioButton(rbox, "Integrate from 0")
+        gui.appendRadioButton(rbox, "Integrate from baseline")
+        gui.appendRadioButton(rbox, "Peak from 0")
+        gui.appendRadioButton(rbox, "Peak from baseline")
+
+        gui.rubber(self.controlArea)
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
@@ -326,6 +342,9 @@ class OWHyper(OWWidget):
 
     def set_highlim(self, v):
         self.highlim = v
+
+    def _change_integration(self):
+        self.imageplot.set_integral_limits()
 
     def set_data(self, data):
         self.closeContext()
