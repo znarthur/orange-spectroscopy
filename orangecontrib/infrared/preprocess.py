@@ -340,7 +340,7 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
         return _edge_baseline(x, y)
 
     def compute_integral(self, x_s, y_s):
-        y_s = y_s - self.compute_baseline(x_s, y_s)[1]
+        y_s = y_s - self.compute_baseline(x_s, y_s)
         return np.trapz(y_s, x_s, axis=1)
 
     def compute_draw_info(self, x, ys):
