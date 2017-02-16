@@ -37,6 +37,11 @@ from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 INDIVIDUAL = 0
 AVERAGE = 1
 
+#selections
+SELECTNONE = 0
+SELECTONE = 1
+SELECTMANY = 2
+
 
 MAX_INSTANCES_DRAWN = 100
 NAN = float("nan")
@@ -204,9 +209,9 @@ class InteractiveViewBox(ViewBox):
         elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
-        add = True if ev.modifiers() & Qt.ControlModifier else False
+        add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
         if self.action != ZOOMING and self.action != SELECT \
-                and ev.button() == Qt.LeftButton and self.graph.selection_enabled \
+                and ev.button() == Qt.LeftButton and self.graph.selection_type \
                 and self.graph.viewtype == INDIVIDUAL:
             clicked_curve = self.graph.highlighted
             if clicked_curve is not None:
@@ -227,7 +232,7 @@ class InteractiveViewBox(ViewBox):
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
                 self.set_mode_panning()
             ev.accept()
-        if self.action == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_enabled:
+        if self.action == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_type:
             if self.selection_start is None:
                 self.selection_start = ev.pos()
             else:
@@ -308,13 +313,13 @@ class CurvePlot(QWidget, OWComponent):
     selected_indices = Setting(set())
     data_size = Setting(None)  # to invalidate selected_indices
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, select=SELECTNONE):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
 
         self.parent = parent
 
-        self.selection_enabled = hasattr(self.parent, "selection_changed")
+        self.selection_type = select
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data()
 
@@ -394,7 +399,7 @@ class CurvePlot(QWidget, OWComponent):
             triggered=self.invertX_changed
         )
         actions.append(self.invertX_menu)
-        if self.selection_enabled:
+        if self.selection_type == SELECTMANY:
             select_curves = QAction(
                 "Select (line)", self, triggered=self.plot.vb.set_mode_select,
             )
@@ -622,7 +627,7 @@ class CurvePlot(QWidget, OWComponent):
         self.selection_changed()
 
     def selection_changed(self):
-        if self.selection_enabled:
+        if self.selection_type:
             self.parent.selection_changed()
 
     def viewhelpers_hide(self):
@@ -691,7 +696,7 @@ class CurvePlot(QWidget, OWComponent):
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
         insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
-        inselected = self.selection_enabled and idcdata in self.selected_indices
+        inselected = self.selection_type and idcdata in self.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
@@ -834,7 +839,7 @@ class CurvePlot(QWidget, OWComponent):
                     if part == "everything":
                         ys = self.data_ys[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
-                    elif part == "selection" and self.selection_enabled:
+                    elif part == "selection" and self.selection_type:
                         current_selected = sorted(set(self.selected_indices) & set(indices))
                         if not current_selected:
                             continue
@@ -923,7 +928,7 @@ class OWCurves(OWWidget):
     def __init__(self):
         super().__init__()
         self.controlArea.hide()
-        self.curveplot = CurvePlot(self)
+        self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
         self.graph_name = "curveplot.plotview"
