@@ -301,7 +301,13 @@ class IntegrateFeature(SharedComputeValue):
         if common is None:
             common = self.compute_shared(data)
         x_s, y_s = self.extract_data(data, common)
-        return self.compute_baseline(x_s, y_s)
+        return x_s, self.compute_baseline(x_s, y_s)
+
+    def draw_info(self, data, common=None):
+        if common is None:
+            common = self.compute_shared(data)
+        x_s, y_s = self.extract_data(data, common)
+        return self.compute_draw_info(x_s, y_s)
 
     def extract_data(self, data, common):
         data, x, x_sorter = common
@@ -312,6 +318,9 @@ class IntegrateFeature(SharedComputeValue):
         x_s = x[x_sorter][lim_min:lim_max]
         y_s = data.X[:, x_sorter][:, lim_min:lim_max]
         return x_s, y_s
+
+    def compute_draw_info(self, x_s, y_s):
+        return {}
 
     def compute_baseline(self, x_s, y_s):
         raise NotImplementedError
@@ -331,8 +340,13 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
         return _edge_baseline(x, y)
 
     def compute_integral(self, x_s, y_s):
-        y_s = y_s - self.compute_baseline(x_s, y_s)
+        y_s = y_s - self.compute_baseline(x_s, y_s)[1]
         return np.trapz(y_s, x_s, axis=1)
+
+    def compute_draw_info(self, x, ys):
+        return {"baseline": (x, self.compute_baseline(x, ys)),
+                "curve": (x, ys),
+                "fill": ((x, self.compute_baseline(x, ys)), (x, ys))}
 
 
 class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
@@ -354,6 +368,14 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
             return np.zeros((y_s.shape[0], 1)) * np.nan
         # FIXME test for NaN
         return np.max(y_s, axis=1)
+
+    def compute_draw_info(self, x, ys):
+        bs = self.compute_baseline(x, ys)
+        im = np.argmax(ys-bs, axis=1)
+        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
+        return {"baseline": (x, self.compute_baseline(x, ys)),
+                "curve": (x, ys),
+                "line": lines}
 
 
 class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):

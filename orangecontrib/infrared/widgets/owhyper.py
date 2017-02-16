@@ -191,6 +191,8 @@ class ImagePlot(QWidget, OWComponent):
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
 
+        self.markings_integral = []
+
         self.data = None
 
     def update_color_schema(self):
@@ -232,6 +234,53 @@ class ImagePlot(QWidget, OWComponent):
     def set_integral_limits(self):
         self.show_data()
 
+    def refresh_markings(self, di):
+
+        for m in self.markings_integral:
+            self.parent.curveplot.remove_marking(m)
+        self.markings_integral = []
+
+        color = Qt.red
+
+        def add_marking(a):
+            self.markings_integral.append(a)
+            self.parent.curveplot.add_marking(a)
+
+        if "baseline" in di:
+            bs_x, bs_ys = di["baseline"]
+            baseline = pg.PlotCurveItem()
+            baseline.setPen(pg.mkPen(color=QColor(color), width=2, style=Qt.DotLine))
+            baseline.setZValue(10)
+            baseline.setData(x=bs_x, y=bs_ys[0])
+            add_marking(baseline)
+
+        if "curve" in di:
+            bs_x, bs_ys = di["curve"]
+            curve = pg.PlotCurveItem()
+            curve.setPen(pg.mkPen(color=QColor(color), width=2))
+            curve.setZValue(10)
+            curve.setData(x=bs_x, y=bs_ys[0])
+            add_marking(curve)
+
+        if "fill" in di:
+            (x1, ys1), (x2, ys2) = di["fill"]
+            phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
+            plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
+            color = QColor(color)
+            color.setAlphaF(0.5)
+            cc = pg.mkBrush(color)
+            pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
+            pfill.setZValue(9)
+            add_marking(pfill)
+
+        if "line" in di:
+            (x1, y1), (x2, y2) = di["line"]
+            line = pg.PlotCurveItem()
+            line.setPen(pg.mkPen(color=QColor(color), width=4))
+            line.setZValue(10)
+            line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
+            add_marking(line)
+
     def show_data(self):
         self.img.clear()
         if self.data:
@@ -258,6 +307,10 @@ class ImagePlot(QWidget, OWComponent):
 
             imethod = self.parent.integration_methods[self.parent.integration_method]
             datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
+            di = datai.domain.attributes[0].compute_value.draw_info(self.data[:2])
+
+            self.refresh_markings(di)
+
             d = datai.X[:, 0]
 
             # set data

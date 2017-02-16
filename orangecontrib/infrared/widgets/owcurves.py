@@ -711,6 +711,10 @@ class CurvePlot(QWidget, OWComponent):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
+    def remove_marking(self, item):
+        self.plot.removeItem(item)
+        self.markings.remove(item)
+
     def clear_markings(self):
         for m in self.markings:
             self.plot.removeItem(m)
