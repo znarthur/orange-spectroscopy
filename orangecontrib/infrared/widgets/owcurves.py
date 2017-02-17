@@ -321,7 +321,7 @@ class CurvePlot(QWidget, OWComponent):
 
         self.selection_type = select
         self.saving_enabled = hasattr(self.parent, "save_graph")
-        self.clear_data()
+        self.clear_data(init=True)
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -551,7 +551,7 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.showAxis("right", False)
         self.viewhelpers_show()
 
-    def clear_data(self):
+    def clear_data(self, init=True):
         self.subset_ids = set()
         self.data = None
         self.data_x = None
@@ -559,7 +559,8 @@ class CurvePlot(QWidget, OWComponent):
         self.sampled_indices = []
         self.sampled_indices_inverse = {}
         self.sampling = None
-        self.selection_changed()
+        if not init:
+            self.selection_changed()
         self.discrete_palette = None
 
     def clear_graph(self):
@@ -952,7 +953,7 @@ class OWCurves(OWWidget):
         self.curveplot.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
-        if isinstance(self.curveplot, CurvePlot) and self.curveplot.selected_indices and self.curveplot.data:
+        if self.curveplot.selected_indices and self.curveplot.data:
             self.send("Selection", self.curveplot.data[sorted(self.curveplot.selected_indices)])
         else:
             self.send("Selection", None)

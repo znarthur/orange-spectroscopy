@@ -38,7 +38,8 @@ from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 from orangecontrib.infrared.preprocess import Integrate
 
-from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, MenuFocus, CurvePlot
+from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
+    MenuFocus, CurvePlot, SELECTONE
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
@@ -307,8 +308,11 @@ class ImagePlot(QWidget, OWComponent):
 
             imethod = self.parent.integration_methods[self.parent.integration_method]
             datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
-            di = datai.domain.attributes[0].compute_value.draw_info(self.data[:2])
 
+            di = {}
+            if self.parent.curveplot.selected_indices:
+                ind = list(self.parent.curveplot.selected_indices)[0]
+                di = datai.domain.attributes[0].compute_value.draw_info(self.data[ind:ind+1])
             self.refresh_markings(di)
 
             d = datai.X[:, 0]
@@ -344,6 +348,7 @@ class OWHyper(OWWidget):
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
+    curveplot = SettingProvider(CurvePlot)
 
     integration_method = Setting(0)
     integration_methods = [Integrate.Simple, Integrate.Baseline,
@@ -372,7 +377,7 @@ class OWHyper(OWWidget):
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
         self.imageplot = ImagePlot(self)
-        self.curveplot = CurvePlot(self)
+        self.curveplot = CurvePlot(self, select=SELECTONE)
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
         self.mainArea.layout().addWidget(splitter)
@@ -395,6 +400,9 @@ class OWHyper(OWWidget):
 
     def set_highlim(self, v):
         self.highlim = v
+
+    def selection_changed(self):
+        self.imageplot.set_integral_limits()
 
     def _change_integration(self):
         self.imageplot.set_integral_limits()
