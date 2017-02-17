@@ -167,7 +167,7 @@ class OPUSReader(FileFormat):
         y_data = None
         meta_data = None
 
-        if dim == '3D' and hasattr(data, 'regions'):
+        if type(data) == opusFC.MultiRegionDataReturn:
             y_data = []
             meta_data = []
             metas.extend([ContinuousVariable.make('map_x'),
@@ -175,27 +175,22 @@ class OPUSReader(FileFormat):
                           StringVariable.make('map_region'),
                           TimeVariable.make('start_time')])
             for region in data.regions:
-                y_data.append(region['spectra'])
-                mapX = region['mapX']
-                mapY = region['mapY']
-                map_region = np.full_like(mapX, region['title'], dtype=object)
-                start_time = region['start_time']
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                start_time = region.start_time
                 meta_region = np.column_stack((mapX, mapY,
                                                map_region, start_time))
                 meta_data.append(meta_region.astype(object))
             y_data = np.vstack(y_data)
             meta_data = np.vstack(meta_data)
 
-        elif dim == '3D':
+        elif type(data) == opusFC.ImageDataReturn:
             metas.extend([ContinuousVariable.make('map_x'),
                           ContinuousVariable.make('map_y')])
 
-            if db[0] == 'TRC':
-                attrs = [ContinuousVariable.make(repr(data.labels[i]))
-                            for i in range(len(data.labels))]
-                data_3D = data.traces
-            else:
-                data_3D = data.spectra
+            data_3D = data.spectra
 
             for i in np.ndindex(data_3D.shape[:1]):
                 map_y = np.full_like(data.mapX, data.mapY[i])
@@ -206,8 +201,30 @@ class OPUSReader(FileFormat):
                 else:
                     y_data = np.vstack((y_data, data_3D[i]))
                     meta_data = np.vstack((meta_data, coord))
-        elif dim == '2D':
+
+        elif type(data) == opusFC.ImageTRCDataReturn:
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
+
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                        for i in range(len(data.labels))]
+            data_3D = data.traces
+
+            for i in np.ndindex(data_3D.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data_3D[i]
+                    meta_data = coord.astype(object)
+                else:
+                    y_data = np.vstack((y_data, data_3D[i]))
+                    meta_data = np.vstack((meta_data, coord))
+
+        elif type(data) == opusFC.SingleDataReturn:
             y_data = data.y[None,:]
+
+        else:
+            raise ValueError("Empty or unsupported opusFC DataReturn object: " + type(data))
 
         try:
             stime = data.parameters['SRT']
