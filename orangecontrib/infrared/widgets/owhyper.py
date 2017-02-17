@@ -378,6 +378,7 @@ class OWHyper(OWWidget):
         splitter.setOrientation(Qt.Vertical)
         self.imageplot = ImagePlot(self)
         self.curveplot = CurvePlot(self, select=SELECTONE)
+        self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
         self.mainArea.layout().addWidget(splitter)

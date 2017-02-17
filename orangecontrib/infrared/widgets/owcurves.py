@@ -145,6 +145,8 @@ class InteractiveViewBox(ViewBox):
         self.zoomstartpoint = None
         self.selection_start = None
         self.action = PANNING
+        self.y_padding = 0.02
+        self.x_padding = 0
 
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
@@ -249,12 +251,19 @@ class InteractiveViewBox(ViewBox):
             self.set_mode_panning()
 
     def pad_current_view_y(self):
-        qrect = self.targetRect()
-        self.setYRange(qrect.bottom(), qrect.top(), padding=0.02)
+        if self.y_padding:
+            qrect = self.targetRect()
+            self.setYRange(qrect.bottom(), qrect.top(), padding=self.y_padding)
+
+    def pad_current_view_x(self):
+        if self.x_padding:
+            qrect = self.targetRect()
+            self.setXRange(qrect.left(), qrect.right(), padding=self.x_padding)
 
     def autoRange(self):
         super().autoRange()
         self.pad_current_view_y()
+        self.pad_current_view_x()
 
     def cancel_zoom(self):
         self.setMouseMode(self.PanMode)
