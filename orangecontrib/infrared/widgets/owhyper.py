@@ -385,7 +385,7 @@ class OWHyper(OWWidget):
             self.box_values_spectra, self, "integration_method", valueType=int,
             items=("Integral from 0", "Integral from baseline",
                    "Peak from 0", "Peak from baseline"),
-            callback=self._change_value_type)
+            callback=self._change_integral_type)
         gui.rubber(self.controlArea)
 
         gui.appendRadioButton(rbox, "Use feature")
@@ -446,8 +446,8 @@ class OWHyper(OWWidget):
     def edited(self):
         self.redraw_data()
 
-    def _change_value_type(self):
-        pass
+    def _change_integral_type(self):
+        self.redraw_data()
 
     def set_data(self, data):
         self.closeContext()
