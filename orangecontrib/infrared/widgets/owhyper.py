@@ -137,6 +137,7 @@ class ImagePlot(QWidget, OWComponent):
         self.img.setOpts(axisOrder='row-major')
         self.plot.addItem(self.img)
         self.plot.vb.setAspectLocked()
+        self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
 
         layout = QGridLayout()
         self.plotview.setLayout(layout)
