@@ -30,6 +30,7 @@ from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.visualize.owheatmap import color_palette_table
+from Orange.data import DiscreteVariable
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
@@ -211,6 +212,12 @@ class ImagePlot(QWidget, OWComponent):
             threshold_high=self.threshold_high,
             gamma=self.gamma)
         self.img.setLookupTable(cols)
+
+        # use defined discrete palette
+        if self.parent.value_type == 1:
+            dat = self.data.domain[self.parent.attr_value]
+            if isinstance(dat, DiscreteVariable):
+                self.img.setLookupTable(dat.colors)
 
     def update_attr(self):
         self.show_data()
@@ -483,6 +490,7 @@ def main(argv=None):
     w.show()
     data = Orange.data.Table("whitelight.gsf")
     #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
