@@ -11,6 +11,7 @@ from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene, QSplitter
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtTest import QTest
 
 import numpy as np
 import pyqtgraph as pg
@@ -426,6 +427,7 @@ class OWHyper(OWWidget):
 
         self.resize(900, 700)
         self.graph_name = "imageplot.plotview"
+        self._update_integration_type()
 
     def init_attr_values(self):
         domain = self.data and self.data.domain
@@ -447,7 +449,17 @@ class OWHyper(OWWidget):
     def update_feature_value(self):
         self.redraw_data()
 
+    def _update_integration_type(self):
+        if self.value_type == 0:
+            self.box_values_spectra.setDisabled(False)
+            self.box_values_feature.setDisabled(True)
+        elif self.value_type == 1:
+            self.box_values_spectra.setDisabled(True)
+            self.box_values_feature.setDisabled(False)
+        QTest.qWait(1)  # first update the interface
+
     def _change_integration(self):
+        self._update_integration_type()
         self.redraw_data()
 
     def edited(self):
@@ -489,8 +501,8 @@ def main(argv=None):
     w = OWHyper()
     w.show()
     data = Orange.data.Table("whitelight.gsf")
-    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
-    data = Orange.data.Table("iris.tab")
+    data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    #data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
