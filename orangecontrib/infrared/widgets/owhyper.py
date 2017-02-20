@@ -45,6 +45,9 @@ from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
+IMAGE_TOO_BIG = 1024*1024
+
+
 def values_to_linspace(vals):
     """Find a near maching linspace for the values given.
     The problem is that some values can be missing and
@@ -322,6 +325,11 @@ class ImagePlot(QWidget, OWComponent):
             coory = datam.X[:, 1]
             lsx = values_to_linspace(coorx)
             lsy = values_to_linspace(coory)
+            if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
+                self.parent.Error.image_too_big(lsx[-1], lsy[-1])
+                return
+            else:
+                self.parent.Error.image_too_big.clear()
 
             if self.parent.value_type == 0:  # integrals
                 l1, l2 = self.parent.lowlim, self.parent.highlim
@@ -395,6 +403,9 @@ class OWHyper(OWWidget):
 
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
+
+    class Error(OWWidget.Warning):
+        image_too_big = Msg("Image for chosen features is too big ({} x {}).")
 
     def __init__(self):
         super().__init__()
