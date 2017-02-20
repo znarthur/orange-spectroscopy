@@ -295,27 +295,33 @@ class ImagePlot(QWidget, OWComponent):
             lsx = values_to_linspace(coorx)
             lsy = values_to_linspace(coory)
 
-            l1, l2 = self.parent.lowlim, self.parent.highlim
+            if self.parent.value_type == 0:  # integrals
+                l1, l2 = self.parent.lowlim, self.parent.highlim
 
-            gx = getx(self.data)
+                gx = getx(self.data)
 
-            if l1 is None:
-                l1 = min(gx) - 1
-            if l2 is None:
-                l2 = max(gx) + 1
+                if l1 is None:
+                    l1 = min(gx) - 1
+                if l2 is None:
+                    l2 = max(gx) + 1
 
-            l1, l2 = min(l1, l2), max(l1, l2)
+                l1, l2 = min(l1, l2), max(l1, l2)
 
-            imethod = self.parent.integration_methods[self.parent.integration_method]
-            datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
+                imethod = self.parent.integration_methods[self.parent.integration_method]
+                datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
 
-            di = {}
-            if self.parent.curveplot.selected_indices:
-                ind = list(self.parent.curveplot.selected_indices)[0]
-                di = datai.domain.attributes[0].compute_value.draw_info(self.data[ind:ind+1])
-            self.refresh_markings(di)
+                di = {}
+                if self.parent.curveplot.selected_indices:
+                    ind = list(self.parent.curveplot.selected_indices)[0]
+                    di = datai.domain.attributes[0].compute_value.draw_info(self.data[ind:ind+1])
+                self.refresh_markings(di)
 
-            d = datai.X[:, 0]
+                d = datai.X[:, 0]
+            else:
+                dat = self.data.domain[self.parent.attr_value]
+                ndom = Orange.data.Domain([dat])
+                d = Orange.data.Table(ndom, self.data).X[:, 0]
+
 
             # set data
             imdata = np.ones((lsy[2], lsx[2]))*float("nan")
@@ -353,6 +359,8 @@ class OWHyper(OWWidget):
     integration_method = Setting(0)
     integration_methods = [Integrate.Simple, Integrate.Baseline,
                            Integrate.PeakMax, Integrate.PeakBaseline]
+    value_type = Setting(0)
+    attr_value = ContextSetting(None)
 
     lowlim = Setting(None)
     highlim = Setting(None)
@@ -363,16 +371,32 @@ class OWHyper(OWWidget):
     def __init__(self):
         super().__init__()
 
-        dbox = gui.widgetBox(self.controlArea, "Integration")
+        dbox = gui.widgetBox(self.controlArea, "Image values")
 
         rbox = gui.radioButtons(
-            dbox, self, "integration_method", callback=self._change_integration)
-        gui.appendRadioButton(rbox, "Integrate from 0")
-        gui.appendRadioButton(rbox, "Integrate from baseline")
-        gui.appendRadioButton(rbox, "Peak from 0")
-        gui.appendRadioButton(rbox, "Peak from baseline")
+            dbox, self, "value_type", callback=self._change_integration)
 
+        gui.appendRadioButton(rbox, "From spectra")
+
+        self.box_values_spectra = gui.indentedBox(rbox)
+
+        gui.comboBox(
+            self.box_values_spectra, self, "integration_method", valueType=int,
+            items=("Integral from 0", "Integral from baseline",
+                   "Peak from 0", "Peak from baseline"),
+            callback=self._change_value_type)
         gui.rubber(self.controlArea)
+
+        gui.appendRadioButton(rbox, "Use feature")
+
+        self.box_values_feature = gui.indentedBox(rbox)
+
+        self.feature_value_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES | DomainModel.ATTRIBUTES,
+                                               valid_types=DomainModel.PRIMITIVE)
+        self.feature_value = gui.comboBox(
+            self.box_values_feature, self, "attr_value",
+            callback=self.update_feature_value, model=self.feature_value_model,
+            sendSelectedValue=True, valueType=str)
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
@@ -390,11 +414,15 @@ class OWHyper(OWWidget):
         self.curveplot.add_marking(self.line1)
         self.curveplot.add_marking(self.line2)
 
+        self.data = None
+
         self.resize(900, 700)
         self.graph_name = "imageplot.plotview"
 
-    def edited(self):
-        self.imageplot.set_integral_limits()
+    def init_attr_values(self):
+        domain = self.data and self.data.domain
+        self.feature_value_model.set_domain(domain)
+        self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
     def set_lowlim(self, v):
         self.lowlim = v
@@ -402,15 +430,33 @@ class OWHyper(OWWidget):
     def set_highlim(self, v):
         self.highlim = v
 
-    def selection_changed(self):
+    def redraw_data(self):
         self.imageplot.set_integral_limits()
 
+    def selection_changed(self):
+        self.redraw_data()
+
+    def update_feature_value(self):
+        self.redraw_data()
+
     def _change_integration(self):
-        self.imageplot.set_integral_limits()
+        self.redraw_data()
+
+    def edited(self):
+        self.redraw_data()
+
+    def _change_value_type(self):
+        pass
 
     def set_data(self, data):
         self.closeContext()
         self.curveplot.set_data(data)
+        if data is not None:
+            same_domain = (self.data and
+                           data.domain.checksum() == self.data.domain.checksum())
+            self.data = data
+            if not same_domain:
+                self.init_attr_values()
         if self.curveplot.data_x is not None:
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
@@ -434,8 +480,8 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWHyper()
     w.show()
-    #data = Orange.data.Table("whitelight.gsf")
-    data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    data = Orange.data.Table("whitelight.gsf")
+    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     w.set_data(data)
     w.handleNewSignals()
     rval = app.exec_()
