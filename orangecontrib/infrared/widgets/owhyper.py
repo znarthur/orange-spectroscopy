@@ -156,15 +156,17 @@ class ImagePlot(QWidget, OWComponent):
             "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
         )
         zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
+        zoom_in.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(zoom_in)
         zoom_fit = QAction(
             "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.plot.vb.set_mode_panning())
         )
         zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
+        zoom_fit.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(zoom_fit)
         view_menu.addActions(actions)
-        #self.addActions(actions)  # TODO solve ambigious shortcuts
+        self.addActions(actions)
 
         common_options = dict(
             labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,

@@ -382,12 +382,14 @@ class CurvePlot(QWidget, OWComponent):
             "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
         )
         zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
+        zoom_in.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(zoom_in)
         zoom_fit = QAction(
             "Zoom to fit", self,
             triggered=lambda x: (self.plot.vb.autoRange(), self.plot.vb.set_mode_panning())
         )
         zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
+        zoom_fit.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(zoom_fit)
         rescale_y = QAction(
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
