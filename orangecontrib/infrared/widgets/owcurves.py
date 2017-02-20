@@ -33,6 +33,8 @@ from orangecontrib.infrared.widgets.line_geometry import \
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 
+SELECT_SQUARE = 123
+
 #view types
 INDIVIDUAL = 0
 AVERAGE = 1
@@ -155,6 +157,14 @@ class InteractiveViewBox(ViewBox):
         self.selection_line.hide()
         self.addItem(self.selection_line, ignoreBounds=True)
 
+        # square for square selection
+        self.selection_square = pg.PlotCurveItem()
+        self.selection_square.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
+        self.selection_square.setZValue(1e9)
+        self.selection_square.hide()
+        self.addItem(self.selection_square, ignoreBounds=True)
+
+
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
         if buttonDownPos[0] == x:
@@ -183,9 +193,12 @@ class InteractiveViewBox(ViewBox):
         if self.action == ZOOMING and self.zoomstartpoint:
             pos = self.mapFromView(self.mapSceneToView(ev))
             self.updateScaleBox(self.zoomstartpoint, pos)
-        if self.action == SELECT and self.selection_start:
+        if (self.action == SELECT or self.action == SELECT_SQUARE) and self.selection_start:
             pos = self.mapFromView(self.mapSceneToView(ev))
-            self.updateSelectionLine(self.selection_start, pos)
+            if self.action == SELECT:
+                self.updateSelectionLine(self.selection_start, pos)
+            elif self.action == SELECT_SQUARE:
+                self.updateSelectionSquare(self.selection_start, pos)
 
     def updateSelectionLine(self, p1, p2):
         p1 = self.childGroup.mapFromParent(p1)
@@ -193,22 +206,15 @@ class InteractiveViewBox(ViewBox):
         self.selection_line.setData(x=[p1.x(), p2.x()], y=[p1.y(), p2.y()])
         self.selection_line.show()
 
+    def updateSelectionSquare(self, p1, p2):
+        p1 = self.childGroup.mapFromParent(p1)
+        p2 = self.childGroup.mapFromParent(p2)
+        self.selection_square.setData(x=[p1.x(), p1.x(), p2.x(), p2.x(), p1.x()],
+                                      y=[p1.y(), p2.y(), p2.y(), p1.y(), p1.y()])
+        self.selection_square.show()
+
     def wheelEvent(self, ev, axis=None):
         ev.accept() #ignore wheel zoom
-
-    def intersect_curves(self, q1, q2):
-        x, ys = self.graph.data_x, self.graph.data_ys
-        if len(x) < 2:
-            return []
-        x1, x2 = min(q1[0], q2[0]), max(q1[0], q2[0])
-        xmin = closestindex(x, x1)
-        xmax = closestindex(x, x2, side="right")
-        xmin = max(0, xmin - 1)
-        xmax = xmax + 2
-        x = x[xmin:xmax]
-        ys = ys[:, xmin:xmax]
-        sel = np.flatnonzero(intersect_curves_chunked(x, ys, q1, q2))
-        return sel
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
@@ -219,7 +225,7 @@ class InteractiveViewBox(ViewBox):
             ev.accept()
             self.autoRange()
         add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
-        if self.action != ZOOMING and self.action != SELECT \
+        if self.action != ZOOMING and self.action != SELECT and self.action != SELECT_SQUARE \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type \
                 and self.graph.viewtype == INDIVIDUAL:
             clicked_curve = self.graph.highlighted
@@ -241,14 +247,17 @@ class InteractiveViewBox(ViewBox):
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
                 self.set_mode_panning()
             ev.accept()
-        if self.action == SELECT and ev.button() == Qt.LeftButton and self.graph.selection_type:
+        if (self.action == SELECT or self.action == SELECT_SQUARE) \
+                and ev.button() == Qt.LeftButton and self.graph.selection_type:
             if self.selection_start is None:
                 self.selection_start = ev.pos()
             else:
                 startp = self.childGroup.mapFromParent(self.selection_start)
                 endp = self.childGroup.mapFromParent(ev.pos())
-                intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
-                self.graph.make_selection(intersected if len(intersected) else None, add)
+                if self.action == SELECT:
+                    self.graph.select_line(startp, endp, add)
+                elif self.action == SELECT_SQUARE:
+                    self.graph.select_square(startp, endp, add)
                 self.set_mode_panning()
             ev.accept()
 
@@ -292,6 +301,7 @@ class InteractiveViewBox(ViewBox):
     def cancel_select(self):
         self.setMouseMode(self.PanMode)
         self.selection_line.hide()
+        self.selection_square.hide()
         self.selection_start = None
         self.action = PANNING
         self.unsetCursor()
@@ -300,6 +310,16 @@ class InteractiveViewBox(ViewBox):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT
+        self.setCursor(Qt.CrossCursor)
+
+    def set_mode_select_square(self):
+        self.set_mode_select()
+        self.action = SELECT_SQUARE
+
+    def set_mode_select_square(self):
+        self.set_mode_panning()
+        self.setMouseMode(self.RectMode)
+        self.action = SELECT_SQUARE
         self.setCursor(Qt.CrossCursor)
 
 
@@ -422,6 +442,7 @@ class CurvePlot(QWidget, OWComponent):
                 "Select (line)", self, triggered=self.plot.vb.set_mode_select,
             )
             select_curves.setShortcuts([Qt.Key_S])
+            select_curves.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             actions.append(select_curves)
         if self.saving_enabled:
             save_graph = QAction(
@@ -921,6 +942,24 @@ class CurvePlot(QWidget, OWComponent):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
         self.update_view()
+
+    def select_line(self, startp, endp, add):
+        intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
+        self.make_selection(intersected if len(intersected) else None, add)
+
+    def intersect_curves(self, q1, q2):
+        x, ys = self.data_x, self.data_ys
+        if len(x) < 2:
+            return []
+        x1, x2 = min(q1[0], q2[0]), max(q1[0], q2[0])
+        xmin = closestindex(x, x1)
+        xmax = closestindex(x, x2, side="right")
+        xmin = max(0, xmin - 1)
+        xmax = xmax + 2
+        x = x[xmin:xmax]
+        ys = ys[:, xmin:xmax]
+        sel = np.flatnonzero(intersect_curves_chunked(x, ys, q1, q2))
+        return sel
 
 
 class OWCurves(OWWidget):

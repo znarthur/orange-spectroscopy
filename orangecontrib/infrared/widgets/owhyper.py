@@ -41,7 +41,7 @@ from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE, SELECTNONE
+    MenuFocus, CurvePlot, SELECTONE, SELECTNONE, SELECTMANY, INDIVIDUAL
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
@@ -125,8 +125,10 @@ class ImagePlot(QWidget, OWComponent):
 
         self.parent = parent
 
-        self.selection_type = SELECTNONE
-        self.selection_enabled = False
+        self.selection_type = SELECTMANY
+        self.selection_enabled = True
+        self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
+        self.highlighted = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -168,6 +170,13 @@ class ImagePlot(QWidget, OWComponent):
         zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
         zoom_fit.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(zoom_fit)
+        select_square = QAction(
+            "Select (square)", self, triggered=self.plot.vb.set_mode_select_square,
+        )
+        select_square.setShortcuts([Qt.Key_S])
+        select_square.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        actions.append(select_square)
+
         view_menu.addActions(actions)
         self.addActions(actions)
 
@@ -378,6 +387,14 @@ class ImagePlot(QWidget, OWComponent):
             width = (lsx[1]-lsx[0]) + 2*shiftx
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
+
+    def make_selection(self, selected, add):
+        """Add selected indices to the selection."""
+        pass  # TODO
+
+    def select_square(self, p1, p2, add):
+        """Select elements within a square drawn by the user."""
+        pass # TODO
 
 
 class OWHyper(OWWidget):
