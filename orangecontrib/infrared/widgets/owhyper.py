@@ -39,7 +39,7 @@ from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE
+    MenuFocus, CurvePlot, SELECTONE, SELECTNONE
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
@@ -120,6 +120,7 @@ class ImagePlot(QWidget, OWComponent):
 
         self.parent = parent
 
+        self.selection_type = SELECTNONE
         self.selection_enabled = False
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
