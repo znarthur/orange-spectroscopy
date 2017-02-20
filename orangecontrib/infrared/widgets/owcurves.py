@@ -148,6 +148,13 @@ class InteractiveViewBox(ViewBox):
         self.y_padding = 0.02
         self.x_padding = 0
 
+        # line for line selection
+        self.selection_line = pg.PlotCurveItem()
+        self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
+        self.selection_line.setZValue(1e9)
+        self.selection_line.hide()
+        self.addItem(self.selection_line, ignoreBounds=True)
+
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
         if buttonDownPos[0] == x:
@@ -183,8 +190,8 @@ class InteractiveViewBox(ViewBox):
     def updateSelectionLine(self, p1, p2):
         p1 = self.childGroup.mapFromParent(p1)
         p2 = self.childGroup.mapFromParent(p2)
-        self.graph.selection_line.setData(x=[p1.x(), p2.x()], y=[p1.y(), p2.y()])
-        self.graph.selection_line.show()
+        self.selection_line.setData(x=[p1.x(), p2.x()], y=[p1.y(), p2.y()])
+        self.selection_line.show()
 
     def wheelEvent(self, ev, axis=None):
         ev.accept() #ignore wheel zoom
@@ -284,7 +291,7 @@ class InteractiveViewBox(ViewBox):
 
     def cancel_select(self):
         self.setMouseMode(self.PanMode)
-        self.graph.selection_line.hide()
+        self.selection_line.hide()
         self.selection_start = None
         self.action = PANNING
         self.unsetCursor()
@@ -587,15 +594,10 @@ class CurvePlot(QWidget, OWComponent):
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
-        self.selection_line = pg.PlotCurveItem()
-        self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
-        self.selection_line.setZValue(1e9)
-        self.selection_line.hide()
         self.plot.addItem(self.highlighted_curve)
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
         self.viewhelpers = True
-        self.plot.addItem(self.selection_line, ignoreBounds=True)
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
@@ -908,6 +910,7 @@ class CurvePlot(QWidget, OWComponent):
             self.update_view()
             if rescale == True:
                 self.plot.vb.autoRange()
+        self.plot.vb.set_mode_panning()
 
     def update_display(self):
         self.curves_cont.update()
