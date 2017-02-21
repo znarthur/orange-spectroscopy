@@ -70,10 +70,17 @@ def values_to_linspace(vals):
     return None
 
 
+def location_values(vals, linspace):
+    return (vals - linspace[0]) * (linspace[2] - 1) / (linspace[1] - linspace[0])
+
+
 def index_values(vals, linspace):
     """ Remap values into index of array defined by linspace. """
-    v = (vals - linspace[0])*(linspace[2] - 1)/(linspace[1] - linspace[0])
-    return np.round(v).astype(int)
+    return np.round(location_values(vals, linspace)).astype(int)
+
+
+def _shift(ls):
+    return (ls[1]-ls[0])/(2*(ls[2]-1))
 
 
 def get_levels(img):
@@ -228,6 +235,9 @@ class ImagePlot(QWidget, OWComponent):
 
         self.markings_integral = []
 
+        self.lsx = None  # info about the X axis
+        self.lsy = None  # info about the Y axis
+
         self.data = None
 
     def update_color_schema(self):
@@ -324,6 +334,8 @@ class ImagePlot(QWidget, OWComponent):
 
     def show_data(self):
         self.img.clear()
+        self.lsx = None
+        self.lsy = None
         if self.data:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
@@ -332,8 +344,8 @@ class ImagePlot(QWidget, OWComponent):
             datam = Orange.data.Table(ndom, self.data)
             coorx = datam.X[:, 0]
             coory = datam.X[:, 1]
-            lsx = values_to_linspace(coorx)
-            lsy = values_to_linspace(coory)
+            self.lsx = lsx = values_to_linspace(coorx)
+            self.lsy = lsy = values_to_linspace(coory)
             if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
                 self.parent.Error.image_too_big(lsx[-1], lsy[-1])
                 return
@@ -367,7 +379,6 @@ class ImagePlot(QWidget, OWComponent):
                 ndom = Orange.data.Domain([dat])
                 d = Orange.data.Table(ndom, self.data).X[:, 0]
 
-
             # set data
             imdata = np.ones((lsy[2], lsx[2]))*float("nan")
             xindex = index_values(coorx, lsx)
@@ -380,8 +391,8 @@ class ImagePlot(QWidget, OWComponent):
             self.img.setImage(imdata, levels=levels)
 
             # shift centres of the pixels so that the axes are useful
-            shiftx = (lsx[1]-lsx[0])/(2*(lsx[2]-1))
-            shifty = (lsy[1]-lsy[0])/(2*(lsy[2]-1))
+            shiftx = _shift(lsx)
+            shifty = _shift(lsy)
             left = lsx[0] - shiftx
             bottom = lsy[0] - shifty
             width = (lsx[1]-lsx[0]) + 2*shiftx
@@ -393,8 +404,38 @@ class ImagePlot(QWidget, OWComponent):
         pass  # TODO
 
     def select_square(self, p1, p2, add):
-        """Select elements within a square drawn by the user."""
-        pass # TODO
+        """ Select elements within a square drawn by the user.
+        A selection square needs to contain whole pixels """
+        # get edges
+        x1, x2 = min(p1.x(), p2.x()), max(p1.x(), p2.x())
+        y1, y2 = min(p1.y(), p2.y()), max(p1.y(), p2.y())
+
+        # here we change edges of the square so that next
+        # pixel centers need to be in the square x1, x2, y1, y2
+        shiftx = _shift(self.lsx)
+        shifty = _shift(self.lsy)
+        x1 += shiftx
+        x2 -= shiftx
+        y1 += shifty
+        y2 -= shifty
+
+        # get locations in image pixels
+        x1 = location_values(x1, self.lsx)
+        x2 = location_values(x2, self.lsx)
+        y1 = location_values(y1, self.lsy)
+        y2 = location_values(y2, self.lsy)
+
+        # pixel centre need to within the square to be selected
+        x1, x2 = np.ceil(x1).astype(int), np.floor(x2).astype(int)
+        y1, y2 = np.ceil(y1).astype(int), np.floor(y2).astype(int)
+
+        # select a range
+        x1 = max(x1, 0)
+        y1 = max(y1, 0)
+        x2 = max(x2+1, 0)
+        y2 = max(y2+1, 0)
+        select_data = np.zeros((self.lsy[2], self.lsx[2]))
+        select_data[y1:y2, x1:x2] = 1
 
 
 class OWHyper(OWWidget):
