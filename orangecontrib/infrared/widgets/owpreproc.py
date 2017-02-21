@@ -907,6 +907,12 @@ class IntegrateEditor(BaseEditor):
     Editor to integrate defined regions.
     """
 
+    Integrators_classes = [Integrate.Simple,
+                           Integrate.Baseline,
+                           Integrate.PeakMax,
+                           Integrate.PeakBaseline,
+                           Integrate.PeakAt]
+
     Integrators = ["Simple y=0 Int",
                    "Baseline-subtracted Int",
                    "Peak Height",
@@ -1008,7 +1014,7 @@ class IntegrateEditor(BaseEditor):
     def setParameters(self, params):
         if params: #parameters were manually set somewhere else
             self.user_changed = True
-        self.methodcb.setCurrentIndex(params.get("method", Integrate.Baseline))
+        self.methodcb.setCurrentIndex(params.get("method", self.Integrators_classes.index(Integrate.Baseline)))
         self.set_all_limits(params.get("limits", [[0.,1.]]), user=False)
 
     def parameters(self):
@@ -1017,7 +1023,8 @@ class IntegrateEditor(BaseEditor):
 
     @staticmethod
     def createinstance(params):
-        method = params.get("method", Integrate.Baseline)
+        methodindex = params.get("method", IntegrateEditor.Integrators_classes.index(Integrate.Baseline))
+        method = IntegrateEditor.Integrators_classes[methodindex]
         limits = params.get("limits", None)
         return Integrate(method=method, limits=limits)
 

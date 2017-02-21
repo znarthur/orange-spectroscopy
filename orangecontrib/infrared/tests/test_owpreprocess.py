@@ -18,6 +18,8 @@ class TestOWPreprocess(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
+            # direct calls the preview so that exceptions do not get lost in Qt
+            self.widget.show_preview()
 
     def test_allpreproc_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -25,6 +27,7 @@ class TestOWPreprocess(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
+            self.widget.show_preview()  # direct call
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = Orange.data.Table(Orange.data.Domain([],
@@ -34,3 +37,4 @@ class TestOWPreprocess(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
+            self.widget.show_preview()  # direct call
