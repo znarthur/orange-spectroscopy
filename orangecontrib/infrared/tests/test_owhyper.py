@@ -52,6 +52,9 @@ class TestOWCurves(WidgetTest):
     def test_empty(self):
         self.send_signal("Data", None)
 
+    def test_no_samples(self):
+        self.send_signal("Data", self.whitelight[:0])
+
     def test_simple(self):
         self.send_signal("Data", self.whitelight)
         self.send_signal("Data", None)

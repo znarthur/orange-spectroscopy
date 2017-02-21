@@ -280,7 +280,7 @@ class ImagePlot(QWidget, OWComponent):
         self.show_data()
 
     def init_attr_values(self):
-        domain = self.data and self.data.domain
+        domain = self.data.domain if self.data is not None else None
         for model in self.models:
             model.set_domain(domain)
         self.attr_x = self.xy_model[0] if self.xy_model else None
@@ -557,7 +557,7 @@ class OWHyper(OWWidget):
         self.send("Selection", self.data[indices])
 
     def init_attr_values(self):
-        domain = self.data and self.data.domain
+        domain = self.data.domain if self.data is not None else None
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
