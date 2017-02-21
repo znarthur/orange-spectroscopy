@@ -55,20 +55,30 @@ class TestOWCurves(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWHyper)
 
+    def try_big_selection(self):
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100), False)
+        self.widget.imageplot.make_selection(None, False)
+        self.widget.imageplot.make_selection(None, True)
+
     def test_empty(self):
         self.send_signal("Data", None)
+        self.try_big_selection()
 
     def test_no_samples(self):
         self.send_signal("Data", self.whitelight[:0])
+        self.try_big_selection()
 
     def test_few_samples(self):
         self.send_signal("Data", self.whitelight[:1])
         self.send_signal("Data", self.whitelight[:2])
         self.send_signal("Data", self.whitelight[:3])
+        self.try_big_selection()
 
     def test_simple(self):
         self.send_signal("Data", self.whitelight)
         self.send_signal("Data", None)
+        self.try_big_selection()
+        self.assertIsNone(self.get_output("Selection"), None)
 
     def test_unknown(self):
         self.send_signal("Data", self.whitelight)

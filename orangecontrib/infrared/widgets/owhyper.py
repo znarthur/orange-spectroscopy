@@ -429,57 +429,62 @@ class ImagePlot(QWidget, OWComponent):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
-        if selected is None and not add:
-            self.selection_matrix[:, :] = 0
-        elif selected is not None:
-            if add:
-                self.selection_matrix = np.logical_or(self.selection_matrix, selected)
-            else:
-                self.selection_matrix = selected
-        self.img.setSelection(self.selection_matrix)
+        if self.data:
+            if selected is None and not add:
+                self.selection_matrix[:, :] = 0
+            elif selected is not None:
+                if add:
+                    self.selection_matrix = np.logical_or(self.selection_matrix, selected)
+                else:
+                    self.selection_matrix = selected
+            self.img.setSelection(self.selection_matrix)
         self.send_selection()
 
     def send_selection(self):
-        selected = self.selection_indices[np.where(self.selection_matrix)]
-        selected = selected[selected >= 0]  # filter undefined values
-        selected.sort()
+        if self.data:
+            selected = self.selection_indices[np.where(self.selection_matrix)]
+            selected = selected[selected >= 0]  # filter undefined values
+            selected.sort()
+        else:
+            selected = []
         if self.select_fn:
             self.select_fn(selected)
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
         A selection square needs to contain whole pixels """
-        # get edges
-        x1, x2 = min(p1.x(), p2.x()), max(p1.x(), p2.x())
-        y1, y2 = min(p1.y(), p2.y()), max(p1.y(), p2.y())
+        if self.data:
+            # get edges
+            x1, x2 = min(p1.x(), p2.x()), max(p1.x(), p2.x())
+            y1, y2 = min(p1.y(), p2.y()), max(p1.y(), p2.y())
 
-        # here we change edges of the square so that next
-        # pixel centers need to be in the square x1, x2, y1, y2
-        shiftx = _shift(self.lsx)
-        shifty = _shift(self.lsy)
-        x1 += shiftx
-        x2 -= shiftx
-        y1 += shifty
-        y2 -= shifty
+            # here we change edges of the square so that next
+            # pixel centers need to be in the square x1, x2, y1, y2
+            shiftx = _shift(self.lsx)
+            shifty = _shift(self.lsy)
+            x1 += shiftx
+            x2 -= shiftx
+            y1 += shifty
+            y2 -= shifty
 
-        # get locations in image pixels
-        x1 = location_values(x1, self.lsx)
-        x2 = location_values(x2, self.lsx)
-        y1 = location_values(y1, self.lsy)
-        y2 = location_values(y2, self.lsy)
+            # get locations in image pixels
+            x1 = location_values(x1, self.lsx)
+            x2 = location_values(x2, self.lsx)
+            y1 = location_values(y1, self.lsy)
+            y2 = location_values(y2, self.lsy)
 
-        # pixel centre need to within the square to be selected
-        x1, x2 = np.ceil(x1).astype(int), np.floor(x2).astype(int)
-        y1, y2 = np.ceil(y1).astype(int), np.floor(y2).astype(int)
+            # pixel centre need to within the square to be selected
+            x1, x2 = np.ceil(x1).astype(int), np.floor(x2).astype(int)
+            y1, y2 = np.ceil(y1).astype(int), np.floor(y2).astype(int)
 
-        # select a range
-        x1 = max(x1, 0)
-        y1 = max(y1, 0)
-        x2 = max(x2+1, 0)
-        y2 = max(y2+1, 0)
-        select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-        select_data[y1:y2, x1:x2] = 1
-        self.make_selection(select_data, add)
+            # select a range
+            x1 = max(x1, 0)
+            y1 = max(y1, 0)
+            x2 = max(x2+1, 0)
+            y2 = max(y2+1, 0)
+            select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
+            select_data[y1:y2, x1:x2] = 1
+            self.make_selection(select_data, add)
 
 
 class OWHyper(OWWidget):
@@ -561,9 +566,13 @@ class OWHyper(OWWidget):
         self._update_integration_type()
 
     def image_selection_changed(self, indices):
-        selected = self.data[indices]
-        self.send("Selection", selected if selected else None)
-        self.curveplot.set_data_subset(selected.ids)
+        if self.data:
+            selected = self.data[indices]
+            self.send("Selection", selected if selected else None)
+            self.curveplot.set_data_subset(selected.ids)
+        else:
+            self.send("Selection", None)
+            self.curveplot.set_data_subset([])
 
     def selection_changed(self):
         self.redraw_data()
@@ -613,6 +622,8 @@ class OWHyper(OWWidget):
             self.data = data
             if not same_domain:
                 self.init_attr_values()
+        else:
+            self.data = None
         if self.curveplot.data_x is not None:
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
