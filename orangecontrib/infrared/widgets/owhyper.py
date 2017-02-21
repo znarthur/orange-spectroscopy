@@ -97,6 +97,14 @@ def get_levels(img):
 class ImageItemNan(pg.ImageItem):
     """ Simplified ImageItem that can show NaN color. """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.selection = None
+
+    def setSelection(self, selection):
+        self.selection = selection
+        self.updateImage()
+
     def render(self):
         # simplified pg.ImageITem
 
@@ -115,6 +123,9 @@ class ImageItemNan(pg.ImageItem):
 
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)
         argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        if np.any(self.selection):
+            alpha = True
+            argb[:, :, 3] = np.maximum(self.selection*255, 100)
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
 
 
@@ -335,6 +346,7 @@ class ImagePlot(QWidget, OWComponent):
 
     def show_data(self):
         self.img.clear()
+        self.img.setSelection(None)
         self.lsx = None
         self.lsy = None
         self.selection_matrix = None
@@ -411,6 +423,7 @@ class ImagePlot(QWidget, OWComponent):
                 self.selection_matrix = np.logical_or(self.selection_matrix, selected)
             else:
                 self.selection_matrix = selected
+        self.img.setSelection(self.selection_matrix)
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
