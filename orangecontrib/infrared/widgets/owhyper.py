@@ -137,17 +137,20 @@ class ImagePlot(QWidget, OWComponent):
     threshold_low = Setting(0.0)
     threshold_high = Setting(1.0)
 
-    def __init__(self, parent):
+    def __init__(self, parent, select_fn=None):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
 
         self.parent = parent
+
+        self.select_fn = select_fn
 
         self.selection_type = SELECTMANY
         self.selection_enabled = True
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
         self.selection_matrix = None
+        self.selection_indices = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -350,6 +353,7 @@ class ImagePlot(QWidget, OWComponent):
         self.lsx = None
         self.lsy = None
         self.selection_matrix = None
+        self.selection_indices = None
         if self.data:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
@@ -394,11 +398,13 @@ class ImagePlot(QWidget, OWComponent):
                 d = Orange.data.Table(ndom, self.data).X[:, 0]
 
             # set data
-            imdata = np.ones((lsy[2], lsx[2]))*float("nan")
+            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+            self.selection_indices = np.ones((lsy[2], lsx[2]), dtype=int)*-1
             self.selection_matrix = np.zeros((lsy[2], lsx[2]), dtype=bool)
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
+            self.selection_indices[yindex, xindex] = np.arange(0, len(d), dtype=int)
 
             levels = get_levels(imdata)
             self.update_color_schema()
@@ -424,6 +430,14 @@ class ImagePlot(QWidget, OWComponent):
             else:
                 self.selection_matrix = selected
         self.img.setSelection(self.selection_matrix)
+        self.send_selection()
+
+    def send_selection(self):
+        selected = self.selection_indices[np.where(self.selection_matrix)]
+        selected = selected[selected >= 0]  # filter undefined values
+        selected.sort()
+        if self.select_fn:
+            self.select_fn(selected)
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -463,8 +477,7 @@ class ImagePlot(QWidget, OWComponent):
 
 class OWHyper(OWWidget):
     name = "Hyperspectra"
-    inputs = [("Data", Orange.data.Table, 'set_data', Default),
-              ("Data subset", Orange.data.Table, 'set_subset', Default)]
+    inputs = [("Data", Orange.data.Table, 'set_data', Default)]
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/hyper.svg"
 
@@ -520,7 +533,7 @@ class OWHyper(OWWidget):
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
-        self.imageplot = ImagePlot(self)
+        self.imageplot = ImagePlot(self, self.selection_changed)
         self.curveplot = CurvePlot(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
@@ -540,6 +553,9 @@ class OWHyper(OWWidget):
         self.graph_name = "imageplot.plotview"
         self._update_integration_type()
 
+    def selection_changed(self, indices):
+        self.send("Selection", self.data[indices])
+
     def init_attr_values(self):
         domain = self.data and self.data.domain
         self.feature_value_model.set_domain(domain)
@@ -553,9 +569,6 @@ class OWHyper(OWWidget):
 
     def redraw_data(self):
         self.imageplot.set_integral_limits()
-
-    def selection_changed(self):
-        self.redraw_data()
 
     def update_feature_value(self):
         self.redraw_data()
@@ -599,9 +612,6 @@ class OWHyper(OWWidget):
                 self.line2.setValue(self.highlim)
         self.imageplot.set_data(data)
         self.openContext(data)
-
-    def set_subset(self, data):
-        pass
 
 
 def main(argv=None):
