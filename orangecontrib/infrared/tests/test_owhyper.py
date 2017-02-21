@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 
+from PyQt4.QtCore import QPointF
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
@@ -75,3 +76,23 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", self.whitelight_unknown)
         levelsu = self.widget.imageplot.img.levels
         np.testing.assert_equal(levelsu, levels)
+
+    def test_select_all(self):
+        self.send_signal("Data", self.whitelight)
+
+        out = self.get_output("Selection")
+        self.assertIsNone(out, None)
+        self.assertFalse(self.widget.curveplot.subset_ids)
+
+        # select all
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(1000, 1000), False)
+        out = self.get_output("Selection")
+        self.assertEqual(len(self.whitelight), len(out))
+        # all element shown as a subset
+        self.assertEqual(len(self.whitelight), len(self.widget.curveplot.subset_ids))
+
+        # deselect
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(-100, -100), False)
+        out = self.get_output("Selection")
+        self.assertIsNone(out, None)
+        self.assertFalse(self.widget.curveplot.subset_ids)

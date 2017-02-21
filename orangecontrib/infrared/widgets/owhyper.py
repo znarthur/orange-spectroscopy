@@ -561,7 +561,9 @@ class OWHyper(OWWidget):
         self._update_integration_type()
 
     def selection_changed(self, indices):
-        self.send("Selection", self.data[indices])
+        selected = self.data[indices]
+        self.send("Selection", selected if selected else None)
+        self.curveplot.set_data_subset(selected.ids)
 
     def init_attr_values(self):
         domain = self.data.domain if self.data is not None else None
@@ -629,7 +631,7 @@ def main(argv=None):
     w = OWHyper()
     w.show()
     data = Orange.data.Table("whitelight.gsf")
-    data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     #data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.handleNewSignals()
