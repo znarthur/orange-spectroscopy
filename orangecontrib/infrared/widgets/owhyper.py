@@ -71,7 +71,12 @@ def values_to_linspace(vals):
 
 
 def location_values(vals, linspace):
-    return (vals - linspace[0]) * (linspace[2] - 1) / (linspace[1] - linspace[0])
+    vals = np.asarray(vals)
+    if linspace[2] == 1:  # everything is the same value
+        width = 1
+    else:
+        width =  (linspace[1] - linspace[0]) / (linspace[2] - 1)
+    return (vals - linspace[0]) / width
 
 
 def index_values(vals, linspace):
@@ -80,6 +85,8 @@ def index_values(vals, linspace):
 
 
 def _shift(ls):
+    if ls[2] == 1:
+        return 0.5
     return (ls[1]-ls[0])/(2*(ls[2]-1))
 
 

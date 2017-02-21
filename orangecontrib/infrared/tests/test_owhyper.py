@@ -5,7 +5,7 @@ import Orange
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
-    index_values, OWHyper
+    index_values, OWHyper, location_values
 
 NAN = float("nan")
 
@@ -35,6 +35,11 @@ class TestReadCoordinates(unittest.TestCase):
         iv = index_values(a, v)
         np.testing.assert_equal(iv, [0, 1, 2, 5, 4])
 
+    def test_location(self):
+        lsc = values_to_linspace(np.array([1, 1, 1]))  # a constant
+        lv = location_values([0,1,2], lsc)
+        np.testing.assert_equal(lv, [-1, 0, 1])
+
 
 class TestOWCurves(WidgetTest):
 
@@ -54,6 +59,11 @@ class TestOWCurves(WidgetTest):
 
     def test_no_samples(self):
         self.send_signal("Data", self.whitelight[:0])
+
+    def test_few_samples(self):
+        self.send_signal("Data", self.whitelight[:1])
+        self.send_signal("Data", self.whitelight[:2])
+        self.send_signal("Data", self.whitelight[:3])
 
     def test_simple(self):
         self.send_signal("Data", self.whitelight)
