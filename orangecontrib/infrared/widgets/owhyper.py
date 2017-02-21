@@ -136,6 +136,7 @@ class ImagePlot(QWidget, OWComponent):
         self.selection_enabled = True
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
+        self.selection_matrix = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -336,6 +337,7 @@ class ImagePlot(QWidget, OWComponent):
         self.img.clear()
         self.lsx = None
         self.lsy = None
+        self.selection_matrix = None
         if self.data:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
@@ -381,6 +383,7 @@ class ImagePlot(QWidget, OWComponent):
 
             # set data
             imdata = np.ones((lsy[2], lsx[2]))*float("nan")
+            self.selection_matrix = np.zeros((lsy[2], lsx[2]), dtype=bool)
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
@@ -401,7 +404,13 @@ class ImagePlot(QWidget, OWComponent):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
-        pass  # TODO
+        if selected is None and not add:
+            self.selection_matrix[:, :] = 0
+        elif selected is not None:
+            if add:
+                self.selection_matrix = np.logical_or(self.selection_matrix, selected)
+            else:
+                self.selection_matrix = selected
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -434,8 +443,9 @@ class ImagePlot(QWidget, OWComponent):
         y1 = max(y1, 0)
         x2 = max(x2+1, 0)
         y2 = max(y2+1, 0)
-        select_data = np.zeros((self.lsy[2], self.lsx[2]))
+        select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
         select_data[y1:y2, x1:x2] = 1
+        self.make_selection(select_data, add)
 
 
 class OWHyper(OWWidget):
