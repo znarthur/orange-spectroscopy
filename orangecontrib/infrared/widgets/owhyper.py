@@ -540,7 +540,7 @@ class OWHyper(OWWidget):
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
-        self.imageplot = ImagePlot(self, self.selection_changed)
+        self.imageplot = ImagePlot(self, self.image_selection_changed)
         self.curveplot = CurvePlot(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
@@ -560,10 +560,13 @@ class OWHyper(OWWidget):
         self.graph_name = "imageplot.plotview"
         self._update_integration_type()
 
-    def selection_changed(self, indices):
+    def image_selection_changed(self, indices):
         selected = self.data[indices]
         self.send("Selection", selected if selected else None)
         self.curveplot.set_data_subset(selected.ids)
+
+    def selection_changed(self):
+        self.redraw_data()
 
     def init_attr_values(self):
         domain = self.data.domain if self.data is not None else None

@@ -96,3 +96,7 @@ class TestOWCurves(WidgetTest):
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
         self.assertFalse(self.widget.curveplot.subset_ids)
+
+    def test_select_a_curve(self):
+        self.send_signal("Data", self.iris)
+        self.widget.curveplot.make_selection([0], False)
