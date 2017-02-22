@@ -66,7 +66,7 @@ if __name__ == '__main__':
         description='',
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
-        version="0.1.0",
+        version="0.1.1",
         packages=find_packages(),
         install_requires=[
             'Orange3>=3.3.12',
