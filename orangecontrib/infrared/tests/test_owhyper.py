@@ -92,20 +92,16 @@ class TestOWCurves(WidgetTest):
 
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
-        self.assertFalse(self.widget.curveplot.subset_ids)
 
         # select all
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(1000, 1000), False)
         out = self.get_output("Selection")
         self.assertEqual(len(self.whitelight), len(out))
-        # all element shown as a subset
-        self.assertEqual(len(self.whitelight), len(self.widget.curveplot.subset_ids))
 
         # deselect
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(-100, -100), False)
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
-        self.assertFalse(self.widget.curveplot.subset_ids)
 
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)

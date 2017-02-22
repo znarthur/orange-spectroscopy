@@ -261,6 +261,7 @@ class ImagePlot(QWidget, OWComponent):
         self.lsy = None  # info about the Y axis
 
         self.data = None
+        self.data_ids = {}
 
     def update_color_schema(self):
         if not self.threshold_low < self.threshold_high:
@@ -300,8 +301,12 @@ class ImagePlot(QWidget, OWComponent):
             same_domain = (self.data and
                            data.domain.checksum() == self.data.domain.checksum())
             self.data = data
+            self.data_ids = {e: i for i, e in enumerate(data.ids)}
             if not same_domain:
                 self.init_attr_values()
+        else:
+            self.data = None
+            self.data_ids = {}
         self.show_data()
 
     def set_integral_limits(self):
@@ -394,8 +399,10 @@ class ImagePlot(QWidget, OWComponent):
 
                 di = {}
                 if self.parent.curveplot.selected_indices:
+                    # curveplot can have a subset of curves on the input> match IDs
                     ind = list(self.parent.curveplot.selected_indices)[0]
-                    di = datai.domain.attributes[0].compute_value.draw_info(self.data[ind:ind+1])
+                    dind = self.data_ids[self.parent.curveplot.data[ind].id]
+                    di = datai.domain.attributes[0].compute_value.draw_info(self.data[dind:dind+1])
                 self.refresh_markings(di)
 
                 d = datai.X[:, 0]
@@ -586,10 +593,13 @@ class OWHyper(OWWidget):
         if self.data:
             selected = self.data[indices]
             self.send("Selection", selected if selected else None)
-            self.curveplot.set_data_subset(selected.ids)
+            if selected:
+                self.curveplot.set_data(selected)
+            else:
+                self.curveplot.set_data(self.data)
         else:
             self.send("Selection", None)
-            self.curveplot.set_data_subset([])
+            self.curveplot.set_data(None)
 
     def selection_changed(self):
         self.redraw_data()
