@@ -228,11 +228,8 @@ class InteractiveViewBox(ViewBox):
         if self.action != ZOOMING and self.action != SELECT and self.action != SELECT_SQUARE \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type \
                 and self.graph.viewtype == INDIVIDUAL:
-            clicked_curve = self.graph.highlighted
-            if clicked_curve is not None:
-                self.graph.make_selection([self.graph.sampled_indices[clicked_curve]], add)
-            else:
-                self.graph.make_selection(None, add)
+            pos = self.childGroup.mapFromParent(ev.pos())
+            self.graph.select_by_click(pos, add)
             ev.accept()
         if self.action == ZOOMING and ev.button() == Qt.LeftButton:
             if self.zoomstartpoint == None:
@@ -942,6 +939,13 @@ class CurvePlot(QWidget, OWComponent):
         self.subset_ids = set(ids) if ids is not None else set()
         self.set_curve_pens()
         self.update_view()
+
+    def select_by_click(self, pos, add):
+        clicked_curve = self.highlighted
+        if clicked_curve is not None:
+            self.make_selection([self.sampled_indices[clicked_curve]], add)
+        else:
+            self.make_selection(None, add)
 
     def select_line(self, startp, endp, add):
         intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))

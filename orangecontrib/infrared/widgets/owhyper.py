@@ -486,6 +486,23 @@ class ImagePlot(QWidget, OWComponent):
             select_data[y1:y2, x1:x2] = 1
             self.make_selection(select_data, add)
 
+    def select_by_click(self, pos, add):
+        if self.data:
+            x, y = pos.x(), pos.y()
+
+            x = location_values(x, self.lsy)
+            y = location_values(y, self.lsy)
+
+            x = np.round(x).astype(int)
+            y = np.round(y).astype(int)
+
+            if 0 <= x < self.lsx[2] and 0 <= y < self.lsy[2]:
+                select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
+                select_data[y, x] = 1
+                self.make_selection(select_data, add)
+            else:
+                self.make_selection(None, add)
+
 
 class OWHyper(OWWidget):
     name = "Hyperspectra"
@@ -644,8 +661,8 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWHyper()
     w.show()
-    data = Orange.data.Table("whitelight.gsf")
-    #data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
+    #data = Orange.data.Table("whitelight.gsf")
+    data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     #data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.handleNewSignals()
