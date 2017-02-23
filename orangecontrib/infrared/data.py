@@ -186,6 +186,24 @@ class OPUSReader(FileFormat):
             y_data = np.vstack(y_data)
             meta_data = np.vstack(meta_data)
 
+        elif type(data) == opusFC.MultiRegionTRCDataReturn:
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region')])
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                        for i in range(len(data.labels))]
+            for region in data.regions:
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                meta_region = np.column_stack((mapX, mapY, map_region))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
         elif type(data) == opusFC.ImageDataReturn:
             metas.extend([ContinuousVariable.make('map_x'),
                           ContinuousVariable.make('map_y')])
