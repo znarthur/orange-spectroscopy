@@ -244,43 +244,33 @@ class OPUSReader(FileFormat):
         else:
             raise ValueError("Empty or unsupported opusFC DataReturn object: " + type(data))
 
-        try:
-            stime = data.parameters['SRT']
-        except KeyError:
-            pass # TODO notify user?
-        else:
-            metas.extend([TimeVariable.make(opusFC.paramDict['SRT'])])
-            if meta_data is not None:
-                dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
-                meta_data = np.column_stack((meta_data, dates.astype(object)))
-            else:
-                meta_data = np.array([stime])[None,:]
-
-        import_params = ['SNM']
+        import_params = ['SRT', 'SNM']
 
         for param_key in import_params:
             try:
                 param = data.parameters[param_key]
-            except Exception:
+            except KeyError:
                 pass # TODO should notify user?
             else:
                 try:
                     param_name = opusFC.paramDict[param_key]
                 except KeyError:
                     param_name = param_key
-                if type(param) is float:
+                if param_name == 'SRT':
+                    var = TimeVariable.make(param_name)
+                elif type(param) is float:
                     var = ContinuousVariable.make(param_name)
                 elif type(param) is str:
                     var = StringVariable.make(param_name)
                 else:
                     raise ValueError #Found a type to handle
                 metas.extend([var])
+                params = np.full((y_data.shape[0],), param, np.array(param).dtype)
                 if meta_data is not None:
                     # NB dtype default will be np.array(fill_value).dtype in future
-                    params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
                     meta_data = np.column_stack((meta_data, params.astype(object)))
                 else:
-                    meta_data = np.array([param])[None,:]
+                    meta_data = params
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
