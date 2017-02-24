@@ -1232,6 +1232,7 @@ class OWPreprocess(OWWidget):
         self.scroll_area.setWidgetResizable(True)
 
         self.curveplot = CurvePlot(self)
+        self.curveplot.plot.vb.x_padding = 0.005  # so that lines on the edges are visible
 
         self.scroll_area.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding))
 
