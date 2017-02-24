@@ -238,6 +238,15 @@ class OPUSReader(FileFormat):
                     y_data = np.vstack((y_data, data_3D[i]))
                     meta_data = np.vstack((meta_data, coord))
 
+        elif type(data) == opusFC.TimeResolvedTRCDataReturn:
+            y_data = data.traces
+
+        elif type(data) == opusFC.TimeResolvedDataReturn:
+            metas.extend([ContinuousVariable.make('z')])
+
+            y_data = data.spectra
+            meta_data = data.z
+
         elif type(data) == opusFC.SingleDataReturn:
             y_data = data.y[None,:]
 
