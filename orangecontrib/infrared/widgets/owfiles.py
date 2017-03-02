@@ -191,7 +191,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             self, 'Open Multiple Data Files', start_file, self.dlg_formats)
 
         if isinstance(filenames, tuple):  # has a file description
-            filesnames = filenames[0]
+            filenames = filenames[0]
 
         if not filenames:
             return
