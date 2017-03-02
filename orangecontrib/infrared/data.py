@@ -167,16 +167,48 @@ class OPUSReader(FileFormat):
         y_data = None
         meta_data = None
 
-        if dim == '3D':
+        if type(data) == opusFC.MultiRegionDataReturn:
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region'),
+                          TimeVariable.make('start_time')])
+            for region in data.regions:
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                start_time = region.start_time
+                meta_region = np.column_stack((mapX, mapY,
+                                               map_region, start_time))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
+        elif type(data) == opusFC.MultiRegionTRCDataReturn:
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region')])
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                        for i in range(len(data.labels))]
+            for region in data.regions:
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                meta_region = np.column_stack((mapX, mapY, map_region))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
+        elif type(data) == opusFC.ImageDataReturn:
             metas.extend([ContinuousVariable.make('map_x'),
                           ContinuousVariable.make('map_y')])
 
-            if db[0] == 'TRC':
-                attrs = [ContinuousVariable.make(repr(data.labels[i]))
-                            for i in range(len(data.labels))]
-                data_3D = data.traces
-            else:
-                data_3D = data.spectra
+            data_3D = data.spectra
 
             for i in np.ndindex(data_3D.shape[:1]):
                 map_y = np.full_like(data.mapX, data.mapY[i])
@@ -187,46 +219,67 @@ class OPUSReader(FileFormat):
                 else:
                     y_data = np.vstack((y_data, data_3D[i]))
                     meta_data = np.vstack((meta_data, coord))
-        elif dim == '2D':
+
+        elif type(data) == opusFC.ImageTRCDataReturn:
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
+
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                        for i in range(len(data.labels))]
+            data_3D = data.traces
+
+            for i in np.ndindex(data_3D.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data_3D[i]
+                    meta_data = coord.astype(object)
+                else:
+                    y_data = np.vstack((y_data, data_3D[i]))
+                    meta_data = np.vstack((meta_data, coord))
+
+        elif type(data) == opusFC.TimeResolvedTRCDataReturn:
+            y_data = data.traces
+
+        elif type(data) == opusFC.TimeResolvedDataReturn:
+            metas.extend([ContinuousVariable.make('z')])
+
+            y_data = data.spectra
+            meta_data = data.z
+
+        elif type(data) == opusFC.SingleDataReturn:
             y_data = data.y[None,:]
 
-        try:
-            stime = data.parameters['SRT']
-        except KeyError:
-            pass # TODO notify user?
         else:
-            metas.extend([TimeVariable.make(opusFC.paramDict['SRT'])])
-            if meta_data is not None:
-                dates = np.full(meta_data[:,0].shape, stime, np.array(stime).dtype)
-                meta_data = np.column_stack((meta_data, dates.astype(object)))
-            else:
-                meta_data = np.array([stime])[None,:]
+            raise ValueError("Empty or unsupported opusFC DataReturn object: " + type(data))
 
-        import_params = ['SNM']
+        import_params = ['SRT', 'SNM']
 
         for param_key in import_params:
             try:
                 param = data.parameters[param_key]
-            except Exception:
+            except KeyError:
                 pass # TODO should notify user?
             else:
                 try:
                     param_name = opusFC.paramDict[param_key]
                 except KeyError:
                     param_name = param_key
-                if type(param) is float:
+                if param_name == 'SRT':
+                    var = TimeVariable.make(param_name)
+                elif type(param) is float:
                     var = ContinuousVariable.make(param_name)
                 elif type(param) is str:
                     var = StringVariable.make(param_name)
                 else:
                     raise ValueError #Found a type to handle
                 metas.extend([var])
+                params = np.full((y_data.shape[0],), param, np.array(param).dtype)
                 if meta_data is not None:
                     # NB dtype default will be np.array(fill_value).dtype in future
-                    params = np.full(meta_data[:,0].shape, param, np.array(param).dtype)
                     meta_data = np.column_stack((meta_data, params.astype(object)))
                 else:
-                    meta_data = np.array([param])[None,:]
+                    meta_data = params
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
