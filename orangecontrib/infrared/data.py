@@ -283,6 +283,8 @@ class OPUSReader(FileFormat):
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
+        meta_data = np.atleast_2d(meta_data)
+
         table = Orange.data.Table.from_numpy(domain,
                                              y_data.astype(float, order='C'),
                                              metas=meta_data)
