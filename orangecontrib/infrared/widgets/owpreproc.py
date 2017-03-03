@@ -536,22 +536,22 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
 
         form = QFormLayout()
 
-        self.wspin = QDoubleSpinBox(
+        self.wspin = QSpinBox(
             minimum=3, maximum=100, singleStep=2,
             value=self.window)
-        self.wspin.valueChanged[float].connect(self.setW)
+        self.wspin.valueChanged[int].connect(self.setW)
         self.wspin.editingFinished.connect(self.edited)
 
-        self.pspin = QDoubleSpinBox(
+        self.pspin = QSpinBox(
             minimum=2, maximum=self.window, singleStep=1,
             value=self.polyorder)
-        self.pspin.valueChanged[float].connect(self.setP)
+        self.pspin.valueChanged[int].connect(self.setP)
         self.pspin.editingFinished.connect(self.edited)
 
-        self.dspin = QDoubleSpinBox(
+        self.dspin = QSpinBox(
             minimum=0, maximum=3, singleStep=1,
             value=self.deriv)
-        self.dspin.valueChanged[float].connect(self.setD)
+        self.dspin.valueChanged[int].connect(self.setD)
         self.dspin.editingFinished.connect(self.edited)
 
         form.addRow("Window", self.wspin)
