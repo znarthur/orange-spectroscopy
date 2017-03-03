@@ -1238,10 +1238,11 @@ class OWPreprocess(OWWidget):
         self.scroll_area.setWidget(self.flow_view)
         self.scroll_area.setWidgetResizable(True)
 
+        self.flow_view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        self.scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Expanding)
+
         self.curveplot = CurvePlot(self)
         self.curveplot.plot.vb.x_padding = 0.005  # so that lines on the edges are visible
-
-        self.scroll_area.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.topbox = gui.hBox(self)
         self.topbox.layout().addWidget(self.curveplot)
@@ -1496,10 +1497,7 @@ class OWPreprocess(OWWidget):
         # the 'instantiated' preprocessor list (to avoid the horizontal
         # scroll bar).
         sh = self.flow_view.minimumSizeHint()
-        scroll_width = self.scroll_area.verticalScrollBar().width()
-        self.scroll_area.setMinimumWidth(
-            min(max(sh.width() + scroll_width + 5, self.controlArea.width()),
-               520))
+        self.scroll_area.setMinimumWidth(max(sh.width() + 50, 200))
 
     def sizeHint(self):
         sh = super().sizeHint()
