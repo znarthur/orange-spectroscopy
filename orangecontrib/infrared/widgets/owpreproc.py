@@ -590,6 +590,13 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
         window = params.get("window", 5)
         polyorder = params.get("polyorder",2)
         deriv = params.get("deriv", 0)
+        # make window, polyorder, deriv valid, even if they were saved differently
+        window, polyorder, deriv = int(window), int(polyorder), int(deriv)
+        if window % 2 == 0:
+            window = window + 1
+        if polyorder >= window:
+            polyorder = window - 1
+        # FIXME notify changes
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
 
 
