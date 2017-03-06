@@ -5,7 +5,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem
 from orangecontrib.infrared.data import getx
-from orangecontrib.infrared.widgets.line_geometry import intersect_curves_chunked, \
+from orangecontrib.infrared.widgets.line_geometry import intersect_curves, \
     distance_line_segment
 from orangecontrib.infrared.preprocess import Interpolate
 from AnyQt.QtCore import QRectF, QPoint, Qt
@@ -60,7 +60,7 @@ class TestOWCurves(WidgetTest):
         self.widget.curveplot.MOUSE_RADIUS = 1000
         self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
         if self.widget.curveplot.data \
-                and len(self.widget.curveplot.data_ys) \
+                and len(self.widget.curveplot.data.X) \
                 and len(self.widget.curveplot.data_x):  # detect a curve if a validgi curve exists
             self.assertIsNotNone(self.widget.curveplot.highlighted)
         else:  # no curve can be detected
@@ -155,7 +155,7 @@ class TestOWCurves(WidgetTest):
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
         x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data_ys
+        ys = self.widget.curveplot.data.X
         self.assertEqual(len(ys), len(self.collagen))
         self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
@@ -164,7 +164,7 @@ class TestOWCurves(WidgetTest):
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
         x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data_ys
+        ys = self.widget.curveplot.data.X
         self.assertEqual(len(ys), len(self.iris))
         self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
         np.testing.assert_equal(x,
@@ -196,7 +196,7 @@ class TestOWCurves(WidgetTest):
         sort = np.argsort(x)
         x = x[sort]
         ys = data.X[:, sort]
-        boola = intersect_curves_chunked(x, ys, np.array([0, 1.15]), np.array([3000, 1.15]))
+        boola = intersect_curves(x, ys, np.array([0, 1.15]), np.array([3000, 1.15]))
         intc = np.flatnonzero(boola)
         np.testing.assert_equal(intc, [191, 635, 638, 650, 712, 716, 717, 726])
 

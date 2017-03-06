@@ -590,8 +590,8 @@ class CurvePlot(QWidget, OWComponent):
     def clear_data(self, init=True):
         self.subset_ids = set()
         self.data = None
-        self.data_x = None
-        self.data_ys = None
+        self.data_x = None  # already sorted x-axis
+        self.data_xsind = None  # sorting indices for x-axis
         self.sampled_indices = []
         self.sampled_indices_inverse = {}
         self.sampling = None
@@ -766,7 +766,7 @@ class CurvePlot(QWidget, OWComponent):
             self.sampled_indices = list(range(len(ys)))
         random.Random(0).shuffle(self.sampled_indices) #for sequential classes#
         self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
-        ys = ys[self.sampled_indices]
+        ys = self.data.X[self.sampled_indices][:, self.data_xsind]
         self.curves.append((x, ys))
         for y in ys:
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
@@ -827,7 +827,7 @@ class CurvePlot(QWidget, OWComponent):
             return
         self.viewtype = INDIVIDUAL
         self.clear_graph()
-        self.add_curves(self.data_x, self.data_ys)
+        self.add_curves(self.data_x, self.data.X)
         self.set_curve_pens()
         self.curves_cont.update()
 
@@ -869,22 +869,24 @@ class CurvePlot(QWidget, OWComponent):
             for colorv, indices in dsplit.items():
                 for part in ["everything", "subset", "selection"]:
                     if part == "everything":
-                        ys = self.data_ys[indices]
+                        ys = self.data.X[indices]
                         pen = self.pen_normal if subset_indices else self.pen_subset
                     elif part == "selection" and self.selection_type:
                         current_selected = sorted(set(self.selected_indices) & set(indices))
                         if not current_selected:
                             continue
-                        ys = self.data_ys[current_selected]
+                        ys = self.data.X[current_selected]
                         pen = self.pen_selected
                     elif part == "subset":
                         current_subset = sorted(set(subset_indices) & set(indices))
                         if not current_subset:
                             continue
-                        ys = self.data_ys[current_subset]
+                        ys = self.data.X[current_subset]
                         pen = self.pen_subset
                     std = np.std(ys, axis=0)
                     mean = np.mean(ys, axis=0)
+                    std = std[self.data_xsind]
+                    mean = mean[self.data_xsind]
                     ysall.append(mean)
                     penc = QPen(pen[colorv])
                     penc.setWidth(3)
@@ -926,7 +928,7 @@ class CurvePlot(QWidget, OWComponent):
             x = getx(self.data)
             xsind = np.argsort(x)
             self.data_x = x[xsind]
-            self.data_ys = data.X[:, xsind]
+            self.data_xsind = xsind
             self.update_view()
             if rescale == True:
                 self.plot.vb.autoRange()
@@ -952,7 +954,7 @@ class CurvePlot(QWidget, OWComponent):
         self.make_selection(intersected if len(intersected) else None, add)
 
     def intersect_curves(self, q1, q2):
-        x, ys = self.data_x, self.data_ys
+        x, ys = self.data_x, self.data.X
         if len(x) < 2:
             return []
         x1, x2 = min(q1[0], q2[0]), max(q1[0], q2[0])
@@ -960,9 +962,7 @@ class CurvePlot(QWidget, OWComponent):
         xmax = closestindex(x, x2, side="right")
         xmin = max(0, xmin - 1)
         xmax = xmax + 2
-        x = x[xmin:xmax]
-        ys = ys[:, xmin:xmax]
-        sel = np.flatnonzero(intersect_curves_chunked(x, ys, q1, q2))
+        sel = np.flatnonzero(intersect_curves_chunked(x, ys, self.data_xsind, q1, q2, xmin, xmax))
         return sel
 
 

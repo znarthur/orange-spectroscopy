@@ -82,13 +82,16 @@ def intersect_curves(x, ys, q1, q2):
     return np.any(r, axis=1)
 
 
-def intersect_curves_chunked(x, ys, q1, q2):
+def intersect_curves_chunked(x, ys, ys_sind, q1, q2, xmin, xmax):
     """
     Processes data in chunks, othewise same as intersect
     curves. Decreases maximum memory use.
     """
     rs = []
+    x = x[xmin:xmax]
     for ysc in np.array_split(ys, 100):
+        ysc = ysc[:, ys_sind]
+        ysc = ysc[:, xmin:xmax]
         ic = intersect_curves(x, ysc, q1, q2)
         rs.append(ic)
     ica = np.concatenate(rs)
