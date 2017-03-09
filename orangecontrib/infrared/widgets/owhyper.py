@@ -1,47 +1,32 @@
-from itertools import chain
 import sys
-from collections import defaultdict
 import gc
-import random
-import warnings
-import math
 import collections
 
-from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, QGraphicsView, QGraphicsScene, QSplitter
-from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
+from AnyQt.QtWidgets import QWidget, QPushButton, \
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter
+from AnyQt.QtGui import QColor, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 from AnyQt.QtTest import QTest
 
 import numpy as np
 import pyqtgraph as pg
-from pyqtgraph.graphicsItems.ViewBox import ViewBox
-from pyqtgraph import Point, GraphicsObject
 
 from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets import gui
-from Orange.widgets.visualize.owheatmap import GraphicsHeatmapWidget, GraphicsWidget
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
-from Orange.widgets.utils.itemmodels import VariableListModel
-from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
-from Orange.widgets.utils.plot import \
-    SELECT, PANNING, ZOOMING
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.visualize.owheatmap import color_palette_table
 from Orange.data import DiscreteVariable
 
 from orangecontrib.infrared.data import getx
-from orangecontrib.infrared.widgets.line_geometry import \
-    distance_curves, intersect_curves_chunked
-from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE, SELECTNONE, SELECTMANY, INDIVIDUAL
+    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
