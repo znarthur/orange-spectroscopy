@@ -328,7 +328,7 @@ class SelectRegion(pg.LinearRegionItem):
 
 
 class CurvePlot(QWidget, OWComponent):
-    sample_seed = 314
+    sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
     label_xaxis = Setting("")
     label_yaxis = Setting("")
@@ -848,7 +848,7 @@ class CurvePlot(QWidget, OWComponent):
     def reset_curves(self):
         if not self.data:
             return
-        self.sample_seed = 314
+        self.sample_seed = 0
         if self.viewtype == INDIVIDUAL:
             self.show_individual()
         elif self.viewtype == AVERAGE:
@@ -857,7 +857,7 @@ class CurvePlot(QWidget, OWComponent):
     def resample_curves(self):
         if not self.data:
             return
-        self.sample_seed = random.randint(0, 5958723)
+        self.sample_seed += 1
         if self.viewtype == INDIVIDUAL:
             self.show_individual()
         elif self.viewtype == AVERAGE:
