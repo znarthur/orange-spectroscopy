@@ -392,7 +392,7 @@ class CurvePlot(QWidget, OWComponent):
 
         reset_curves = QAction(
             "Reset display", self, shortcut=Qt.Key_R,
-            triggered=lambda x: self.reset_curves()
+            triggered=lambda x: self.resample_curves(0)
         )
         actions.append(reset_curves)
         zoom_in = QAction(
@@ -426,7 +426,7 @@ class CurvePlot(QWidget, OWComponent):
 
         resample_curves = QAction(
             "Resample curves", self, shortcut=Qt.Key_C,
-            triggered=lambda x: self.resample_curves()
+            triggered=lambda x: self.resample_curves(self.sample_seed+1)
         )
         actions.append(resample_curves)
 
@@ -769,7 +769,6 @@ class CurvePlot(QWidget, OWComponent):
         """ Add multiple curves with the same x domain. """
         if len(ys) > MAX_INSTANCES_DRAWN:
             sample_selection = random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
-            print(sample_selection)
             self.sampled_indices = sorted(sample_selection)
             self.sampling = True
         else:
@@ -835,29 +834,14 @@ class CurvePlot(QWidget, OWComponent):
     def show_individual(self):
         if not self.data:
             return
-        # if self.viewtype == AVERAGE:
-        #     print('coming from Average display state')
-        # elif self.viewtype == INDIVIDUAL:
-        #     print('coming from Individual display state')
         self.viewtype = INDIVIDUAL
         self.clear_graph()
         self.add_curves(self.data_x, self.data.X)
         self.set_curve_pens()
         self.curves_cont.update()
 
-    def reset_curves(self):
-        if not self.data:
-            return
-        self.sample_seed = 0
-        if self.viewtype == INDIVIDUAL:
-            self.show_individual()
-        elif self.viewtype == AVERAGE:
-            self.show_average()
-
-    def resample_curves(self):
-        if not self.data:
-            return
-        self.sample_seed += 1
+    def resample_curves(self, seed):
+        self.sample_seed = seed
         if self.viewtype == INDIVIDUAL:
             self.show_individual()
         elif self.viewtype == AVERAGE:
