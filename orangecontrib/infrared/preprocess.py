@@ -8,6 +8,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
 from bottleneck import nanmax, nanmin, nansum, nanmean
+from sklearn.preprocessing import normalize as sknormalize
 
 from orangecontrib.infrared.data import getx
 
@@ -18,7 +19,7 @@ def is_monotonic(a):
 
 
 class SelectColumn(SharedComputeValue):
-    
+
     def __init__(self, feature, commonfn):
         super().__init__(commonfn)
         self.feature = feature
@@ -273,13 +274,18 @@ class _NormalizeCommon:
 
         if self.method == Normalize.MinMax:
             data.X /= nanmax(np.abs(y_s), axis=1).reshape((-1,1))
-        elif self.method == Normalize.Vector:
+        elif self.method == Normalize.MeanOffset:
             # zero offset correction applies to entire spectrum, regardless of limits
             y_offsets = nanmean(data.X, axis=1).reshape((-1,1))
             data.X -= y_offsets
-            y_s -= y_offsets
-            rssq = np.sqrt(nansum(y_s ** 2, axis=1).reshape((-1,1)))
-            data.X /= rssq
+        elif self.method == Normalize.Vector:
+            data.X = sknormalize(data.X, norm='l2', axis=1)
+        elif self.method == Normalize.MeanVector:
+            # zero offset correction applies to entire spectrum, regardless of limits
+            # TODO refactor methods into separate functions
+            y_offsets = nanmean(data.X, axis=1).reshape((-1,1))
+            data.X -= y_offsets
+            data.X = sknormalize(data.X, norm='l2', axis=1)
         elif self.method == Normalize.Offset:
             data.X -= nanmin(y_s, axis=1).reshape((-1,1))
         elif self.method == Normalize.Attribute:
@@ -294,7 +300,7 @@ class _NormalizeCommon:
 
 class Normalize(Preprocess):
     # Normalization methods
-    MinMax, Vector, Offset, Attribute = 0, 1, 2, 3
+    MinMax, Vector, Offset, Attribute, MeanVector, MeanOffset = 0, 1, 2, 3, 4, 5
 
     def __init__(self, method=MinMax, lower=float, upper=float, limits=0, attr=None):
         self.method = method

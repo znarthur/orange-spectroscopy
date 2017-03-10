@@ -650,7 +650,9 @@ class NormalizeEditor(BaseEditor):
     Normalizers = [
         ("Min-Max Scaling", Normalize.MinMax),
         ("Vector Normalization", Normalize.Vector),
+        ("Mean-centered Vector Normalization", Normalize.MeanVector),
         ("Offset Correction", Normalize.Offset),
+        ("Mean-centered Offset Correction", Normalize.MeanOffset),
         ("Attribute Normalization", Normalize.Attribute)]
 
 
