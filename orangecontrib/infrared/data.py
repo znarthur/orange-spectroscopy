@@ -7,6 +7,7 @@ import spectral.io.envi
 from Orange.data import \
     ContinuousVariable, StringVariable, TimeVariable
 from Orange.data.io import FileFormat
+import Orange.data.io
 from scipy.interpolate import interp1d
 
 from .pymca5 import OmnicMap
@@ -132,7 +133,12 @@ class OmnicMapReader(FileFormat):
 
 class OPUSReader(FileFormat):
     """Reader for OPUS files"""
-    EXTENSIONS = tuple('.{0}'.format(i) for i in range(100))
+
+    # use wildcard extensions if supported
+    EXTENSIONS = tuple('.{0}'.format(i) for i in range(100)) \
+            if not hasattr(Orange.data.io, "fnmatch") else \
+            (".[0-9]*",)
+
     DESCRIPTION = 'OPUS Spectrum'
 
     @property
