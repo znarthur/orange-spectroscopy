@@ -162,6 +162,8 @@ class TestNormalize(unittest.TestCase):
         np.testing.assert_equal(p.X, data.X/3)
         p = Normalize(method=Normalize.MinMax, limits=True, lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 3)
+        p = Normalize(method=Normalize.MinMax, limits=True, lower=0, upper=3)(data)
+        np.testing.assert_equal(p.X, data.X/2)
 
     def test_offset(self):
         data = Orange.data.Table([[2, 1, 2, 2, 3]])
@@ -169,6 +171,51 @@ class TestNormalize(unittest.TestCase):
         np.testing.assert_equal(p.X, data.X - 1)
         p = Normalize(method=Normalize.Offset, limits=True, lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, data.X - 1)
+        p = Normalize(method=Normalize.Offset, limits=True, lower=2, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X - 2)
+
+    def test_meanoffset(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.MeanOffset)(data)
+        np.testing.assert_equal(p.X, data.X - 2)
+        p = Normalize(method=Normalize.MeanOffset, limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X - 2)
+        p = Normalize(method=Normalize.MeanOffset, limits=True, lower=2, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X - 2)
+
+    def test_vector(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.Vector)(data)
+        q = data.X / np.sqrt((data.X * data.X).sum(axis=1))
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.Vector, limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.Vector, limits=True, lower=0, upper=2)(data)
+        np.testing.assert_equal(p.X, q)
+
+    def test_meanvector(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.MeanVector)(data)
+        offset = Normalize(method=Normalize.MeanOffset)(data)
+        q = offset.X / np.sqrt((offset.X * offset.X).sum(axis=1))
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.MeanVector, limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.MeanVector, limits=True, lower=0, upper=2)(data)
+        np.testing.assert_equal(p.X, q)
+
+    def test_attribute(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
+        p = Normalize(method=Normalize.Attribute)(data)
+        np.testing.assert_equal(p.X, data.X)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0])(data)
+        np.testing.assert_equal(p.X, data.X / 2)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
+                limits=True, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 2)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
+                limits=True, lower=2, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 2)
 
 
 class TestCommon(unittest.TestCase):
