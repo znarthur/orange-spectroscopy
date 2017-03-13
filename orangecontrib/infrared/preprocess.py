@@ -247,11 +247,11 @@ class NormalizeFeature(SelectColumn):
 
 class _NormalizeCommon:
 
-    def __init__(self, method, lower, upper, limits, attr, domain):
+    def __init__(self, method, lower, upper, int_method, attr, domain):
         self.method = method
         self.lower = lower
         self.upper = upper
-        self.limits = limits
+        self.int_method = int_method
         self.attr = attr
         self.domain = domain
 
@@ -263,20 +263,12 @@ class _NormalizeCommon:
 
         data = data.copy()
 
-        if self.limits == 1:
-            x_sorter = np.argsort(x)
-            lim_min = np.searchsorted(x, self.lower, sorter=x_sorter, side="left")
-            lim_max = np.searchsorted(x, self.upper, sorter=x_sorter, side="right")
-            limits = [lim_min, lim_max]
-            y_s = data.X[:, x_sorter][:, limits[0]:limits[1]]
-        else:
-            y_s = data.X
-
         if self.method == Normalize.Vector:
             data.X = sknormalize(data.X, norm='l2', axis=1)
         elif self.method == Normalize.Area:
-            # Not implemented yet
-            pass
+            norm_data = Integrate(method=self.int_method,
+                                  limits=[[self.lower, self.upper]])(data)
+            data.X /= norm_data.X
         elif self.method == Normalize.Attribute:
             # attr normalization applies to entire spectrum, regardless of limits
             # meta indices are -ve and start at -1
@@ -291,16 +283,16 @@ class Normalize(Preprocess):
     # Normalization methods
     Vector, Area, Attribute = 0, 1, 2
 
-    def __init__(self, method=Vector, lower=float, upper=float, limits=0, attr=None):
+    def __init__(self, method=Vector, lower=float, upper=float, int_method=0, attr=None):
         self.method = method
         self.lower = lower
         self.upper = upper
-        self.limits = limits
+        self.int_method = int_method
         self.attr = attr
 
     def __call__(self, data):
         common = _NormalizeCommon(self.method, self.lower, self.upper,
-                                           self.limits, self.attr, data.domain)
+                                           self.int_method, self.attr, data.domain)
         atts = [a.copy(compute_value=NormalizeFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,

@@ -661,7 +661,7 @@ class NormalizeEditor(BaseEditor):
         self.__method = Normalize.Vector
         self.lower = 0
         self.upper = 4000
-        self.limits = 0
+        self.int_method = 0
         self.attrs = ['None']
 
         model = VariableListModel()
@@ -670,16 +670,16 @@ class NormalizeEditor(BaseEditor):
         self.attrcb.setModel(model)
 
         self.areaform = QFormLayout()
-        self.limitcb = QComboBox()
-        self.limitcb.addItems(["Full Range", "Within Limits"])
+        self.int_method_cb = QComboBox()
+        self.int_method_cb.addItems(IntegrateEditor.Integrators)
         minf,maxf = -sys.float_info.max, sys.float_info.max
         self.lspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.lower, enabled=self.limits)
+            value=self.lower)
         self.uspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.upper, enabled=self.limits)
-        self.areaform.addRow("Normalize region", self.limitcb)
+            value=self.upper)
+        self.areaform.addRow("Normalize to", self.int_method_cb)
         self.areaform.addRow("Lower limit", self.lspin)
         self.areaform.addRow("Upper limit", self.uspin)
 
@@ -708,8 +708,8 @@ class NormalizeEditor(BaseEditor):
         self.lspin.editingFinished.connect(self.reorderLimits)
         self.uspin.valueChanged[float].connect(self.setU)
         self.uspin.editingFinished.connect(self.reorderLimits)
-        self.limitcb.currentIndexChanged.connect(self.setlimittype)
-        self.limitcb.activated.connect(self.edited)
+        self.int_method_cb.currentIndexChanged.connect(self.setinttype)
+        self.int_method_cb.activated.connect(self.edited)
 
         self.lline = MovableVlineWD(position=self.lower, label="Low limit",
                                     setvalfn=self.setL, confirmfn=self.reorderLimits)
@@ -720,7 +720,7 @@ class NormalizeEditor(BaseEditor):
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        if self.limits:
+        if self.__method == Normalize.Area:
             if self.lline not in self.parent_widget.curveplot.markings:
                 self.parent_widget.curveplot.add_marking(self.lline)
             if self.uline not in self.parent_widget.curveplot.markings:
@@ -732,15 +732,18 @@ class NormalizeEditor(BaseEditor):
         method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
-        limits = params.get("limits", 0)
+        int_method = params.get("int_method", 0)
+        if method not in [method for name,method in self.Normalizers]:
+            # handle old worksheets
+            method = Normalize.Vector
         self.setMethod(method)
-        self.limitcb.setCurrentIndex(limits)
+        self.int_method_cb.setCurrentIndex(int_method)
         self.setL(lower, user=False)
         self.setU(upper, user=False)
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
-                "upper": self.upper, "limits": self.limits,
+                "upper": self.upper, "int_method": self.int_method,
                 "attr": self.attrcb.currentText()}
 
     def setMethod(self, method):
@@ -783,11 +786,9 @@ class NormalizeEditor(BaseEditor):
         self.uline.setValue(self.upper)
         self.edited.emit()
 
-    def setlimittype(self):
-        if self.limits != self.limitcb.currentIndex():
-            self.limits = self.limitcb.currentIndex()
-            self.lspin.setEnabled(self.limits)
-            self.uspin.setEnabled(self.limits)
+    def setinttype(self):
+        if self.int_method != self.int_method_cb.currentIndex():
+            self.int_method = self.int_method_cb.currentIndex()
             self.activateOptions()
             self.changed.emit()
 
@@ -802,9 +803,11 @@ class NormalizeEditor(BaseEditor):
         method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
-        limits = params.get("limits", 0)
+        int_method_index = params.get("int_method", 0)
+        int_method = IntegrateEditor.Integrators_classes[int_method_index]
         attr = params.get("attr", None)
-        return Normalize(method=method, lower=lower, upper=upper, limits=limits, attr=attr)
+        return Normalize(method=method, lower=lower, upper=upper,
+                         int_method=int_method, attr=attr)
 
     def set_preview_data(self, data):
         if not self.user_changed:
