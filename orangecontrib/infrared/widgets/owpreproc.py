@@ -648,11 +648,8 @@ class NormalizeEditor(BaseEditor):
     """
     # Normalization methods
     Normalizers = [
-        ("Min-Max Scaling", Normalize.MinMax),
         ("Vector Normalization", Normalize.Vector),
-        ("Mean-centered Vector Normalization", Normalize.MeanVector),
-        ("Offset Correction", Normalize.Offset),
-        ("Mean-centered Offset Correction", Normalize.MeanOffset),
+        ("Area Normalization", Normalize.Area),
         ("Attribute Normalization", Normalize.Attribute)]
 
 
@@ -661,7 +658,7 @@ class NormalizeEditor(BaseEditor):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        self.__method = Normalize.MinMax
+        self.__method = Normalize.Vector
         self.lower = 0
         self.upper = 4000
         self.limits = 0
@@ -671,6 +668,20 @@ class NormalizeEditor(BaseEditor):
         model.wrap(self.attrs)
         self.attrcb = QComboBox(visible=False, maximumWidth=100)
         self.attrcb.setModel(model)
+
+        self.areaform = QFormLayout()
+        self.limitcb = QComboBox()
+        self.limitcb.addItems(["Full Range", "Within Limits"])
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+        self.lspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=self.lower, enabled=self.limits)
+        self.uspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=self.upper, enabled=self.limits)
+        self.areaform.addRow("Normalize region", self.limitcb)
+        self.areaform.addRow("Lower limit", self.lspin)
+        self.areaform.addRow("Upper limit", self.uspin)
 
         self.__group = group = QButtonGroup(self)
 
@@ -682,29 +693,12 @@ class NormalizeEditor(BaseEditor):
             layout.addWidget(rb)
             if method is Normalize.Attribute:
                 layout.addWidget(self.attrcb)
+            elif method is Normalize.Area:
+                layout.addLayout(self.areaform)
             group.addButton(rb, method)
 
         group.buttonClicked.connect(self.__on_buttonClicked)
         self.attrcb.activated.connect(self.edited)
-
-        form = QFormLayout()
-
-        self.limitcb = QComboBox()
-        self.limitcb.addItems(["Full Range", "Within Limits"])
-
-        minf,maxf = -sys.float_info.max, sys.float_info.max
-
-        self.lspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.lower, enabled=self.limits)
-        self.uspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.upper, enabled=self.limits)
-
-        form.addRow("Normalize region", self.limitcb)
-        form.addRow("Lower limit", self.lspin)
-        form.addRow("Upper limit", self.uspin)
-        self.layout().addLayout(form)
 
         self.lspin.focusIn = self.activateOptions
         self.uspin.focusIn = self.activateOptions
@@ -735,7 +729,7 @@ class NormalizeEditor(BaseEditor):
     def setParameters(self, params):
         if params: #parameters were manually set somewhere else
             self.user_changed = True
-        method = params.get("method", Normalize.MinMax)
+        method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)
@@ -805,7 +799,7 @@ class NormalizeEditor(BaseEditor):
 
     @staticmethod
     def createinstance(params):
-        method = params.get("method", Normalize.MinMax)
+        method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         limits = params.get("limits", 0)

@@ -272,22 +272,11 @@ class _NormalizeCommon:
         else:
             y_s = data.X
 
-        if self.method == Normalize.MinMax:
-            data.X /= nanmax(np.abs(y_s), axis=1).reshape((-1,1))
-        elif self.method == Normalize.MeanOffset:
-            # zero offset correction applies to entire spectrum, regardless of limits
-            y_offsets = nanmean(data.X, axis=1).reshape((-1,1))
-            data.X -= y_offsets
-        elif self.method == Normalize.Vector:
+        if self.method == Normalize.Vector:
             data.X = sknormalize(data.X, norm='l2', axis=1)
-        elif self.method == Normalize.MeanVector:
-            # zero offset correction applies to entire spectrum, regardless of limits
-            # TODO refactor methods into separate functions
-            y_offsets = nanmean(data.X, axis=1).reshape((-1,1))
-            data.X -= y_offsets
-            data.X = sknormalize(data.X, norm='l2', axis=1)
-        elif self.method == Normalize.Offset:
-            data.X -= nanmin(y_s, axis=1).reshape((-1,1))
+        elif self.method == Normalize.Area:
+            # Not implemented yet
+            pass
         elif self.method == Normalize.Attribute:
             # attr normalization applies to entire spectrum, regardless of limits
             # meta indices are -ve and start at -1
@@ -300,9 +289,9 @@ class _NormalizeCommon:
 
 class Normalize(Preprocess):
     # Normalization methods
-    MinMax, Vector, Offset, Attribute, MeanVector, MeanOffset = 0, 1, 2, 3, 4, 5
+    Vector, Area, Attribute = 0, 1, 2
 
-    def __init__(self, method=MinMax, lower=float, upper=float, limits=0, attr=None):
+    def __init__(self, method=Vector, lower=float, upper=float, limits=0, attr=None):
         self.method = method
         self.lower = lower
         self.upper = upper
