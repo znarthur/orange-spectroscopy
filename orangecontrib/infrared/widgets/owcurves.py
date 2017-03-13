@@ -842,10 +842,8 @@ class CurvePlot(QWidget, OWComponent):
 
     def resample_curves(self, seed):
         self.sample_seed = seed
-        if self.viewtype == INDIVIDUAL:
-            self.show_individual()
-        elif self.viewtype == AVERAGE:
-            self.show_average()
+        #self.make_selection([], add=True)
+        self.update_view()
 
     def rescale_current_view_y(self):
         if self.curves_plotted:
