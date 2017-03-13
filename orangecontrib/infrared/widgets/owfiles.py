@@ -19,9 +19,6 @@ from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
 from warnings import catch_warnings
 
 
-OLD_DOMAINEDITOR = not hasattr(DomainEditor, "set_domain")
-
-
 class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     name = "Files"
     id = "orangecontrib.infrared.widgets.files"
@@ -98,10 +95,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         layout.setColumnStretch(3, 2)
 
         box = gui.widgetBox(self.controlArea, "View loaded columns")
-        if OLD_DOMAINEDITOR:
-            self.domain_editor = DomainEditor(self.variables)
-        else:
-            self.domain_editor = DomainEditor(self)
+        self.domain_editor = DomainEditor(self)
         self.editor_model = self.domain_editor.model()
         box.layout().addWidget(self.domain_editor)
 
@@ -252,16 +246,10 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
                 data, **{"metas": [(source_var, source_values),
                                    (label_var, label_values)]})
             self.data = data
-            if OLD_DOMAINEDITOR:
-                self.editor_model.set_domain(data.domain)
-            else:
-                self.openContext(data.domain)
+            self.openContext(data.domain)
         else:
             self.data = None
-            if OLD_DOMAINEDITOR:
-                self.editor_model.reset()
-            else:
-                self.domain_editor.set_domain(None)
+            self.domain_editor.set_domain(None)
 
         self.send("Data", self.data)
 
