@@ -94,7 +94,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
         layout.setColumnStretch(3, 2)
 
-        box = gui.widgetBox(self.controlArea, "View loaded columns")
+        box = gui.widgetBox(self.controlArea, "Columns (Double click to edit)")
         self.domain_editor = DomainEditor(self)
         self.editor_model = self.domain_editor.model()
         box.layout().addWidget(self.domain_editor)
@@ -103,6 +103,18 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             self.lb.addItem(rp.abspath)
 
         # TODO unresolved paths just disappear! Modify _relocate_recent_files
+
+        box = gui.hBox(self.controlArea)
+        gui.rubber(box)
+        box.layout().addWidget(self.report_button)
+        self.report_button.setFixedWidth(170)
+
+        self.apply_button = gui.button(
+            box, self, "Apply", callback=self.apply_domain_edit)
+        self.apply_button.setEnabled(False)
+        self.apply_button.setFixedWidth(170)
+        self.editor_model.dataChanged.connect(
+            lambda: self.apply_button.setEnabled(True))
 
         self._update_sheet_combo()
         self.load_data()
@@ -251,7 +263,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             self.data = None
             self.domain_editor.set_domain(None)
 
-        self.send("Data", self.data)
+        self.apply_domain_edit()  # sends data
 
 
 if __name__ == "__main__":
