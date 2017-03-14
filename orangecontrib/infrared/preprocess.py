@@ -266,7 +266,7 @@ class _NormalizeCommon:
         data = data.copy()
 
         if self.method == Normalize.Vector:
-            data.X = sknormalize(data.X, norm='l2', axis=1)
+            data.X = sknormalize(data.X, norm='l2', axis=1, copy=False)
         elif self.method == Normalize.Area:
             norm_data = Integrate(method=self.int_method,
                                   limits=[[self.lower, self.upper]])(data)
