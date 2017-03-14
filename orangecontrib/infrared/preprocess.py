@@ -261,6 +261,8 @@ class _NormalizeCommon:
 
         x = getx(data)
 
+        if data.X.shape[0] is 0:
+            return data.X
         data = data.copy()
 
         if self.method == Normalize.Vector:
