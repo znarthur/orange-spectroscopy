@@ -723,7 +723,9 @@ class NormalizeEditor(BaseEditor):
         if self.__method == Normalize.Area:
             if self.lline not in self.parent_widget.curveplot.markings:
                 self.parent_widget.curveplot.add_marking(self.lline)
-            if self.uline not in self.parent_widget.curveplot.markings:
+            if (self.uline not in self.parent_widget.curveplot.markings
+                    and IntegrateEditor.Integrators_classes[self.int_method]
+                        is not Integrate.PeakAt):
                 self.parent_widget.curveplot.add_marking(self.uline)
 
     def setParameters(self, params):
@@ -755,6 +757,7 @@ class NormalizeEditor(BaseEditor):
                 self.attrcb.setVisible(True)
             else:
                 self.attrcb.setVisible(False)
+            self.activateOptions()
             self.changed.emit()
 
     def setL(self, lower, user=True):
@@ -778,6 +781,9 @@ class NormalizeEditor(BaseEditor):
             self.changed.emit()
 
     def reorderLimits(self):
+        if (IntegrateEditor.Integrators_classes[self.int_method]
+                is Integrate.PeakAt):
+            self.upper = self.lower + 10
         limits = [self.lower, self.upper]
         self.lower, self.upper = min(limits), max(limits)
         self.lspin.setValue(self.lower)
@@ -789,6 +795,7 @@ class NormalizeEditor(BaseEditor):
     def setinttype(self):
         if self.int_method != self.int_method_cb.currentIndex():
             self.int_method = self.int_method_cb.currentIndex()
+            self.reorderLimits()
             self.activateOptions()
             self.changed.emit()
 
@@ -1138,8 +1145,8 @@ PREPROCESSORS = [
         RubberbandBaselineEditor
     ),
     PreprocessAction(
-        "Normalization", "orangecontrib.infrared.normalize", "Normalization",
-        Description("Normalization",
+        "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
+        Description("Normalize Spectra",
         icon_path("Normalize.svg")),
         NormalizeEditor
     ),
