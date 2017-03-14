@@ -666,19 +666,21 @@ class NormalizeEditor(BaseEditor):
 
         model = VariableListModel()
         model.wrap(self.attrs)
-        self.attrcb = QComboBox(visible=False, maximumWidth=100)
+        self.attrform = QFormLayout()
+        self.attrcb = QComboBox(enabled=False)
         self.attrcb.setModel(model)
+        self.attrform.addRow("Normalize to", self.attrcb)
 
         self.areaform = QFormLayout()
-        self.int_method_cb = QComboBox()
+        self.int_method_cb = QComboBox(enabled=False)
         self.int_method_cb.addItems(IntegrateEditor.Integrators)
         minf,maxf = -sys.float_info.max, sys.float_info.max
         self.lspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.lower)
+            value=self.lower, enabled=False)
         self.uspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.upper)
+            value=self.upper, enabled=False)
         self.areaform.addRow("Normalize to", self.int_method_cb)
         self.areaform.addRow("Lower limit", self.lspin)
         self.areaform.addRow("Upper limit", self.uspin)
@@ -692,7 +694,7 @@ class NormalizeEditor(BaseEditor):
                         )
             layout.addWidget(rb)
             if method is Normalize.Attribute:
-                layout.addWidget(self.attrcb)
+                layout.addLayout(self.attrform)
             elif method is Normalize.Area:
                 layout.addLayout(self.areaform)
             group.addButton(rb, method)
@@ -753,10 +755,14 @@ class NormalizeEditor(BaseEditor):
             self.__method = method
             b = self.__group.button(method)
             b.setChecked(True)
+            for widget in [self.attrcb, self.int_method_cb, self.lspin, self.uspin]:
+                widget.setEnabled(False)
             if method is Normalize.Attribute:
-                self.attrcb.setVisible(True)
-            else:
-                self.attrcb.setVisible(False)
+                self.attrcb.setEnabled(True)
+            elif method is Normalize.Area:
+                self.int_method_cb.setEnabled(True)
+                self.lspin.setEnabled(True)
+                self.uspin.setEnabled(True)
             self.activateOptions()
             self.changed.emit()
 
