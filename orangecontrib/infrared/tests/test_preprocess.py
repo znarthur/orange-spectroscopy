@@ -1,7 +1,9 @@
 import unittest
 
 import numpy as np
+import random
 import Orange
+from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
@@ -28,6 +30,21 @@ PREPROCESSORS_GROUPS_OF_SAMPLES = [
 ]
 
 PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
+
+
+def shuffle_attr(data):
+    natts = list(data.domain.attributes)
+    random.Random(0).shuffle(natts)
+    ndomain = Orange.data.Domain(natts, data.domain.class_vars,
+                             metas=data.domain.metas)
+    return Orange.data.Table(ndomain, data)
+
+
+def reverse_attr(data):
+    natts = reversed(data.domain.attributes)
+    ndomain = Orange.data.Domain(natts, data.domain.class_vars,
+                             metas=data.domain.metas)
+    return Orange.data.Table(ndomain, data)
 
 
 class TestTransmittance(unittest.TestCase):
@@ -174,6 +191,20 @@ class TestCommon(unittest.TestCase):
                 metas=data.domain.metas), data)
         for proc in PREPROCESSORS:
             d2 = proc(data)
+
+    def test_unordered_features(self):
+        data = self.collagen
+        data_reversed = reverse_attr(data)
+        data_shuffle = shuffle_attr(data)
+        for proc in PREPROCESSORS:
+            pdata = proc(data)
+            X = pdata.X[:, np.argsort(getx(pdata))]
+            pdata_reversed = proc(data_reversed)
+            X_reversed = pdata_reversed.X[:, np.argsort(getx(pdata_reversed))]
+            np.testing.assert_equal(X, X_reversed)
+            pdata_shuffle = proc(data_shuffle)
+            X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
+            np.testing.assert_equal(X, X_shuffle)
 
 
 class TestPCADenoising(unittest.TestCase):
