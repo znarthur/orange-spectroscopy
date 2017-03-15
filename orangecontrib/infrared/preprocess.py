@@ -12,6 +12,11 @@ from bottleneck import nanmax, nanmin, nansum, nanmean
 from orangecontrib.infrared.data import getx
 
 
+def is_monotonic(a):
+    diffs = np.diff(a)
+    return np.all(diffs >= 0) or np.all(diffs <= 0)
+
+
 class SelectColumn(SharedComputeValue):
     
     def __init__(self, feature, commonfn):
@@ -80,7 +85,9 @@ class _GaussianCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        return gaussian_filter1d(data.X, sigma=self.sd, mode="nearest")
+        xsind, mon, X = _transform_to_sorted_features(data)
+        X = gaussian_filter1d(X, sigma=self.sd, mode="nearest")
+        return _transform_back_to_features(xsind, mon, X)
 
 
 class GaussianSmoothing(Preprocess):
@@ -122,6 +129,18 @@ class SavitzkyGolayFeature(SelectColumn):
     pass
 
 
+def _transform_to_sorted_features(data):
+    xsind = np.argsort(getx(data))
+    mon = is_monotonic(xsind)
+    X = data.X
+    X = X if mon else X[:, xsind]
+    return xsind, mon, X
+
+
+def _transform_back_to_features(xsind, mon, X):
+    return X if mon else X[:, np.argsort(xsind)]
+
+
 class _SavitzkyGolayCommon:
 
     def __init__(self, window, polyorder, deriv, domain):
@@ -133,9 +152,11 @@ class _SavitzkyGolayCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        return savgol_filter(data.X, window_length=self.window,
+        xsind, mon, X = _transform_to_sorted_features(data)
+        X = savgol_filter(X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
+        return _transform_back_to_features(xsind, mon, X)
 
 
 class SavitzkyGolayFiltering(Preprocess):
@@ -171,9 +192,10 @@ class _RubberbandBaselineCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        x = getx(data)
+        xsind, mon, X = _transform_to_sorted_features(data)
+        x = getx(data)[xsind]
         newd = np.zeros_like(data.X)
-        for rowi, row in enumerate(data.X):
+        for rowi, row in enumerate(X):
             # remove NaNs which ConvexHull can not handle
             source = np.column_stack((x, row))
             source = source[~np.isnan(source).any(axis=1)]
@@ -199,7 +221,7 @@ class _RubberbandBaselineCommon:
                     newd[rowi] = row - baseline
                 else:
                     newd[rowi] = baseline
-        return newd
+        return _transform_back_to_features(xsind, mon, newd)
 
 
 class RubberbandBaseline(Preprocess):
