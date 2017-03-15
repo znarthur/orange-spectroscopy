@@ -127,8 +127,12 @@ class TestConversion(unittest.TestCase):
             test = odd_attr(test)
             train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
             train = proc(train)
+            # explicit domain conversion test to catch exceptions that would
+            # otherwise be silently handled in TestOnTestData
+            _ = Orange.data.Table(train.domain, test)
             aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.02)
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
+            _ = Orange.data.Table(train.domain, test)  # explicit call again
             aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight
