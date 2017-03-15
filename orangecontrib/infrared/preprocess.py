@@ -259,9 +259,7 @@ class _NormalizeCommon:
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
 
-        x = getx(data)
-
-        if data.X.shape[0] is 0:
+        if data.X.shape[0] == 0:
             return data.X
         data = data.copy()
 
