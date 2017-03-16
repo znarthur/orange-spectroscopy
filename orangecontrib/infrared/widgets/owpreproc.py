@@ -648,9 +648,8 @@ class NormalizeEditor(BaseEditor):
     """
     # Normalization methods
     Normalizers = [
-        ("Min-Max Scaling", Normalize.MinMax),
         ("Vector Normalization", Normalize.Vector),
-        ("Offset Correction", Normalize.Offset),
+        ("Area Normalization", Normalize.Area),
         ("Attribute Normalization", Normalize.Attribute)]
 
 
@@ -659,16 +658,32 @@ class NormalizeEditor(BaseEditor):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        self.__method = Normalize.MinMax
+        self.__method = Normalize.Vector
         self.lower = 0
         self.upper = 4000
-        self.limits = 0
+        self.int_method = 0
         self.attrs = ['None']
 
         model = VariableListModel()
         model.wrap(self.attrs)
-        self.attrcb = QComboBox(visible=False, maximumWidth=100)
+        self.attrform = QFormLayout()
+        self.attrcb = QComboBox(enabled=False)
         self.attrcb.setModel(model)
+        self.attrform.addRow("Normalize to", self.attrcb)
+
+        self.areaform = QFormLayout()
+        self.int_method_cb = QComboBox(enabled=False)
+        self.int_method_cb.addItems(IntegrateEditor.Integrators)
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+        self.lspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=self.lower, enabled=False)
+        self.uspin = SetXDoubleSpinBox(
+            minimum=minf, maximum=maxf, singleStep=0.5,
+            value=self.upper, enabled=False)
+        self.areaform.addRow("Normalize to", self.int_method_cb)
+        self.areaform.addRow("Lower limit", self.lspin)
+        self.areaform.addRow("Upper limit", self.uspin)
 
         self.__group = group = QButtonGroup(self)
 
@@ -679,30 +694,13 @@ class NormalizeEditor(BaseEditor):
                         )
             layout.addWidget(rb)
             if method is Normalize.Attribute:
-                layout.addWidget(self.attrcb)
+                layout.addLayout(self.attrform)
+            elif method is Normalize.Area:
+                layout.addLayout(self.areaform)
             group.addButton(rb, method)
 
         group.buttonClicked.connect(self.__on_buttonClicked)
         self.attrcb.activated.connect(self.edited)
-
-        form = QFormLayout()
-
-        self.limitcb = QComboBox()
-        self.limitcb.addItems(["Full Range", "Within Limits"])
-
-        minf,maxf = -sys.float_info.max, sys.float_info.max
-
-        self.lspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.lower, enabled=self.limits)
-        self.uspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.upper, enabled=self.limits)
-
-        form.addRow("Normalize region", self.limitcb)
-        form.addRow("Lower limit", self.lspin)
-        form.addRow("Upper limit", self.uspin)
-        self.layout().addLayout(form)
 
         self.lspin.focusIn = self.activateOptions
         self.uspin.focusIn = self.activateOptions
@@ -712,8 +710,8 @@ class NormalizeEditor(BaseEditor):
         self.lspin.editingFinished.connect(self.reorderLimits)
         self.uspin.valueChanged[float].connect(self.setU)
         self.uspin.editingFinished.connect(self.reorderLimits)
-        self.limitcb.currentIndexChanged.connect(self.setlimittype)
-        self.limitcb.activated.connect(self.edited)
+        self.int_method_cb.currentIndexChanged.connect(self.setinttype)
+        self.int_method_cb.activated.connect(self.edited)
 
         self.lline = MovableVlineWD(position=self.lower, label="Low limit",
                                     setvalfn=self.setL, confirmfn=self.reorderLimits)
@@ -724,27 +722,32 @@ class NormalizeEditor(BaseEditor):
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        if self.limits:
+        if self.__method == Normalize.Area:
             if self.lline not in self.parent_widget.curveplot.markings:
                 self.parent_widget.curveplot.add_marking(self.lline)
-            if self.uline not in self.parent_widget.curveplot.markings:
+            if (self.uline not in self.parent_widget.curveplot.markings
+                    and IntegrateEditor.Integrators_classes[self.int_method]
+                        is not Integrate.PeakAt):
                 self.parent_widget.curveplot.add_marking(self.uline)
 
     def setParameters(self, params):
         if params: #parameters were manually set somewhere else
             self.user_changed = True
-        method = params.get("method", Normalize.MinMax)
+        method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
-        limits = params.get("limits", 0)
+        int_method = params.get("int_method", 0)
+        if method not in [method for name,method in self.Normalizers]:
+            # handle old worksheets
+            method = Normalize.Vector
         self.setMethod(method)
-        self.limitcb.setCurrentIndex(limits)
+        self.int_method_cb.setCurrentIndex(int_method)
         self.setL(lower, user=False)
         self.setU(upper, user=False)
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
-                "upper": self.upper, "limits": self.limits,
+                "upper": self.upper, "int_method": self.int_method,
                 "attr": self.attrcb.currentText()}
 
     def setMethod(self, method):
@@ -752,10 +755,15 @@ class NormalizeEditor(BaseEditor):
             self.__method = method
             b = self.__group.button(method)
             b.setChecked(True)
+            for widget in [self.attrcb, self.int_method_cb, self.lspin, self.uspin]:
+                widget.setEnabled(False)
             if method is Normalize.Attribute:
-                self.attrcb.setVisible(True)
-            else:
-                self.attrcb.setVisible(False)
+                self.attrcb.setEnabled(True)
+            elif method is Normalize.Area:
+                self.int_method_cb.setEnabled(True)
+                self.lspin.setEnabled(True)
+                self.uspin.setEnabled(True)
+            self.activateOptions()
             self.changed.emit()
 
     def setL(self, lower, user=True):
@@ -779,6 +787,9 @@ class NormalizeEditor(BaseEditor):
             self.changed.emit()
 
     def reorderLimits(self):
+        if (IntegrateEditor.Integrators_classes[self.int_method]
+                is Integrate.PeakAt):
+            self.upper = self.lower + 10
         limits = [self.lower, self.upper]
         self.lower, self.upper = min(limits), max(limits)
         self.lspin.setValue(self.lower)
@@ -787,11 +798,10 @@ class NormalizeEditor(BaseEditor):
         self.uline.setValue(self.upper)
         self.edited.emit()
 
-    def setlimittype(self):
-        if self.limits != self.limitcb.currentIndex():
-            self.limits = self.limitcb.currentIndex()
-            self.lspin.setEnabled(self.limits)
-            self.uspin.setEnabled(self.limits)
+    def setinttype(self):
+        if self.int_method != self.int_method_cb.currentIndex():
+            self.int_method = self.int_method_cb.currentIndex()
+            self.reorderLimits()
             self.activateOptions()
             self.changed.emit()
 
@@ -803,12 +813,14 @@ class NormalizeEditor(BaseEditor):
 
     @staticmethod
     def createinstance(params):
-        method = params.get("method", Normalize.MinMax)
+        method = params.get("method", Normalize.Vector)
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
-        limits = params.get("limits", 0)
+        int_method_index = params.get("int_method", 0)
+        int_method = IntegrateEditor.Integrators_classes[int_method_index]
         attr = params.get("attr", None)
-        return Normalize(method=method, lower=lower, upper=upper, limits=limits, attr=attr)
+        return Normalize(method=method, lower=lower, upper=upper,
+                         int_method=int_method, attr=attr)
 
     def set_preview_data(self, data):
         if not self.user_changed:
@@ -1139,8 +1151,8 @@ PREPROCESSORS = [
         RubberbandBaselineEditor
     ),
     PreprocessAction(
-        "Normalization", "orangecontrib.infrared.normalize", "Normalization",
-        Description("Normalization",
+        "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
+        Description("Normalize Spectra",
         icon_path("Normalize.svg")),
         NormalizeEditor
     ),

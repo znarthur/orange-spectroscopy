@@ -156,19 +156,38 @@ class TestRubberbandBaseline(unittest.TestCase):
 
 class TestNormalize(unittest.TestCase):
 
-    def test_minmax(self):
+    def test_vector_norm(self):
         data = Orange.data.Table([[2, 1, 2, 2, 3]])
-        p = Normalize(method=Normalize.MinMax)(data)
-        np.testing.assert_equal(p.X, data.X/3)
-        p = Normalize(method=Normalize.MinMax, limits=True, lower=0, upper=4)(data)
-        np.testing.assert_equal(p.X, data.X / 3)
+        p = Normalize(method=Normalize.Vector)(data)
+        q = data.X / np.sqrt((data.X * data.X).sum(axis=1))
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.Vector, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.Vector, lower=0, upper=2)(data)
+        np.testing.assert_equal(p.X, q)
 
-    def test_offset(self):
+    def test_area_norm(self):
         data = Orange.data.Table([[2, 1, 2, 2, 3]])
-        p = Normalize(method=Normalize.Offset)(data)
-        np.testing.assert_equal(p.X, data.X - 1)
-        p = Normalize(method=Normalize.Offset, limits=True, lower=0, upper=4)(data)
-        np.testing.assert_equal(p.X, data.X - 1)
+        p = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 3)
+        p = Normalize(method=Normalize.Area, int_method=Integrate.Simple, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 7.5)
+        p = Normalize(method=Normalize.Area, int_method=Integrate.Simple, lower=0, upper=2)(data)
+        q = Integrate(method=Integrate.Simple, limits=[[0, 2]])(p)
+        np.testing.assert_equal(q.X, np.ones_like(q.X))
+
+    def test_attribute_norm(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
+        p = Normalize(method=Normalize.Attribute)(data)
+        np.testing.assert_equal(p.X, data.X)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0])(data)
+        np.testing.assert_equal(p.X, data.X / 2)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
+                lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 2)
+        p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
+                lower=2, upper=4)(data)
+        np.testing.assert_equal(p.X, data.X / 2)
 
 
 class TestCommon(unittest.TestCase):
