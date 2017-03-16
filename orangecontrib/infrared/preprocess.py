@@ -264,7 +264,17 @@ class _NormalizeCommon:
         data = data.copy()
 
         if self.method == Normalize.Vector:
+            nans = np.isnan(data.X)
+            nan_num = nans.sum(axis=1, keepdims=True)
+            if any(nan_num > 0):
+                data.X = np.nan_to_num(data.X)
             data.X = sknormalize(data.X, norm='l2', axis=1, copy=False)
+            if any(nan_num > 0):
+                # in case of nans fewer values were used for for estimation of norm
+                # and therefore we have to decrease normalized values accordingly
+                values_used = data.X.shape[1] - nan_num
+                data.X *= (values_used / data.X.shape[1])**0.5  #because of L2
+                data.X[nans] = float("nan")
         elif self.method == Normalize.Area:
             norm_data = Integrate(method=self.int_method,
                                   limits=[[self.lower, self.upper]])(data)

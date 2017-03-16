@@ -166,6 +166,20 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.Vector, lower=0, upper=2)(data)
         np.testing.assert_equal(p.X, q)
 
+    def test_vector_norm_nan_correction(self):
+        # even though some values are unknown the other values
+        # should be normalized to the same results
+        data = Orange.data.Table([[2, 2, 2, 2]])
+        p = Normalize(method=Normalize.Vector)(data)
+        self.assertAlmostEqual(p.X[0, 0], 0.5)
+        data.X[0, 3] = float("nan")
+        p = Normalize(method=Normalize.Vector)(data)
+        self.assertAlmostEqual(p.X[0, 0], 0.5)
+        data.X[0, 2] = float("nan")
+        p = Normalize(method=Normalize.Vector)(data)
+        self.assertAlmostEqual(p.X[0, 0], 0.5)
+        self.assertTrue(np.all(np.isnan(p.X[0, 2:])))
+
     def test_area_norm(self):
         data = Orange.data.Table([[2, 1, 2, 2, 3]])
         p = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=4)(data)
