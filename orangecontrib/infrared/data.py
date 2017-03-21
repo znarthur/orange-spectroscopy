@@ -26,10 +26,6 @@ class DptReader(FileFormat):
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
 
-    @staticmethod
-    def write_file(filename, data):
-        pass #not implemented
-
 
 def _table_from_image(X, features, x_locs, y_locs):
     """
@@ -89,10 +85,6 @@ class EnviMapReader(FileFormat):
 
         return _table_from_image(X, features, x_locs, y_locs)
 
-    @staticmethod
-    def write_file(filename, data):
-        pass #not implemented
-
 
 class OmnicMapReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
@@ -124,11 +116,6 @@ class OmnicMapReader(FileFormat):
             y_locs = None
 
         return _table_from_image(X, features, x_locs, y_locs)
-
-
-    @staticmethod
-    def write_file(filename, data):
-        pass #not implemented
 
 
 class OPUSReader(FileFormat):
@@ -354,10 +341,6 @@ class SPAReader(FileFormat):
             domvals = range(len(data))
             domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
             return Orange.data.Table(domain, np.array([data]))
-
-    @staticmethod
-    def write_file(filename, data):
-        pass #not implemented
 
 
 class GSFReader(FileFormat):
