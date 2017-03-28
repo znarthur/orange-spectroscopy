@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import Orange
 from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.data import getx
 
 
 class TestInterpolate(unittest.TestCase):
@@ -62,3 +63,10 @@ class TestInterpolate(unittest.TestCase):
         interpolated = Interpolate(range(-1, len(data.domain.attributes)+1))(data)
         np.testing.assert_allclose(interpolated.X[:, 1:5], data.X)
         np.testing.assert_equal(interpolated.X[:, [0, -1]], np.nan)
+
+    def test_unknown_middle(self):
+        data = Orange.data.Table("iris")
+        # whole column in the middle should be interpolated
+        data.X[:, 1] = np.nan
+        interpolated = Interpolate(getx(data))(data)
+        self.assertFalse(np.any(np.isnan(interpolated.X)))

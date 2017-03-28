@@ -473,6 +473,15 @@ class InterpolatedFeature(SelectColumn):
     pass
 
 
+def remove_whole_nan_ys(x, ys):
+    """Remove whole NaN columns of ys with corresponding x coordinates."""
+    whole_nan_columns = np.isnan(ys).all(axis=0)
+    if np.any(whole_nan_columns):
+        x = x[~whole_nan_columns]
+        ys = ys[:, ~whole_nan_columns]
+    return x, ys
+
+
 class _InterpolateCommon:
 
     def __init__(self, points, kind, domain):
@@ -489,7 +498,8 @@ class _InterpolateCommon:
         x = getx(data)
         if len(x) == 0:
             return np.ones((len(data), len(self.points)))*np.nan
-        f = interp1d(x, data.X, fill_value=np.nan,
+        x, ys = remove_whole_nan_ys(x, data.X)
+        f = interp1d(x, ys, fill_value=np.nan,
                      bounds_error=False, kind=self.kind)
         inter = f(self.points)
         return inter
