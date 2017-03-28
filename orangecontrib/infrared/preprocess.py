@@ -385,12 +385,11 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
         y_s = y_s - self.compute_baseline(x_s, y_s)
         if len(x_s) == 0:
             return np.zeros((y_s.shape[0], 1)) * np.nan
-        # FIXME test for NaN
-        return np.max(y_s, axis=1)
+        return np.nanmax(y_s, axis=1)
 
     def compute_draw_info(self, x, ys):
         bs = self.compute_baseline(x, ys)
-        im = np.argmax(ys-bs, axis=1)
+        im = np.nanargmax(ys-bs, axis=1)
         lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
         return {"baseline": (x, self.compute_baseline(x, ys)),
                 "curve": (x, ys),

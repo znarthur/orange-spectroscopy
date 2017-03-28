@@ -21,6 +21,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Integrate(limits=[[900, 100], [1100, 1200], [1200, 1300]]),
     RubberbandBaseline(),
     Normalize(method=Normalize.Vector),
+    Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
 ]
 
 # Preprocessors that use groups of input samples to infer
@@ -101,11 +102,12 @@ class TestIntegrate(unittest.TestCase):
                                 [[1, 1, 1, 1, 1, 1]])
 
     def test_peakmax(self):
-        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
-        i = Integrate(method=Integrate.PeakMax, limits=[[0, 5]])(data)
-        self.assertEqual(i[0][0], 3)
-        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
-                                [[0, 0, 0, 0, 0, 0]])
+        d1 = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        d2 = Orange.data.Table([[1, 2, 3, np.nan, 1, 1]])
+        for data in d1, d2:
+            i = Integrate(method=Integrate.PeakMax, limits=[[0, 5]])(data)
+            self.assertEqual(i[0][0], 3)
+            np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 0)
 
     def test_peakbaseline(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
