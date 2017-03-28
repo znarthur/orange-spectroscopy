@@ -7,7 +7,6 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
-from bottleneck import nanmax, nanmin, nansum, nanmean
 from sklearn.preprocessing import normalize as sknormalize
 
 from orangecontrib.infrared.data import getx
@@ -496,9 +495,9 @@ class _InterpolateCommon:
                 and any(at.compute_value for at in self.domain.attributes):
             data = data.from_table(self.domain, data)
         x = getx(data)
+        x, ys = remove_whole_nan_ys(x, data.X)
         if len(x) == 0:
             return np.ones((len(data), len(self.points)))*np.nan
-        x, ys = remove_whole_nan_ys(x, data.X)
         f = interp1d(x, ys, fill_value=np.nan,
                      bounds_error=False, kind=self.kind)
         inter = f(self.points)
