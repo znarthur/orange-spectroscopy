@@ -88,18 +88,21 @@ class TestAbsorbance(unittest.TestCase):
 class TestIntegrate(unittest.TestCase):
 
     def test_simple(self):
-        data = Orange.data.Table([[ 1, 2, 3, 1, 1, 1 ]])
-        i = Integrate(method=Integrate.Simple, limits=[[0, 5]])(data)
-        self.assertEqual(i[0][0], 8)
-        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
-                                [[0, 0, 0, 0, 0, 0]])
+        d1 = Orange.data.Table([[ 1, 2, 3, 1, 1, 1 ]])
+        d2 = Orange.data.Table([[ 1, 2, 3, 1, np.nan, 1 ]])
+        for data in d1, d2:
+            i = Integrate(method=Integrate.Simple, limits=[[0, 5]])(data)
+            self.assertEqual(i[0][0], 8)
+            np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
+                                    [[0, 0, 0, 0, 0, 0]])
 
     def test_baseline(self):
-        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
-        i = Integrate(method=Integrate.Baseline, limits=[[0, 5]])(data)
-        self.assertEqual(i[0][0], 3)
-        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
-                                [[1, 1, 1, 1, 1, 1]])
+        d1 = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        d2 = Orange.data.Table([[1, 2, 3, 1, np.nan, 1]])
+        for data in d1, d2:
+            i = Integrate(method=Integrate.Baseline, limits=[[0, 5]])(data)
+            self.assertEqual(i[0][0], 3)
+            np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 1)
 
     def test_peakmax(self):
         d1 = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
