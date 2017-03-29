@@ -1,14 +1,18 @@
 import itertools
 import struct
+from functools import reduce
+from _collections import defaultdict
 
 import Orange
 import numpy as np
 import spectral.io.envi
 from Orange.data import \
-    ContinuousVariable, StringVariable, TimeVariable
+    ContinuousVariable, StringVariable, TimeVariable, Domain, Table
 from Orange.data.io import FileFormat
 import Orange.data.io
 from scipy.interpolate import interp1d
+from scipy.io import matlab
+import numbers
 
 from .pymca5 import OmnicMap
 
@@ -63,6 +67,75 @@ def _table_from_image(X, features, x_locs, y_locs):
     data = Orange.data.Table(domain, spectra, metas=metas)
 
     return data
+
+
+class MatlabReader(FileFormat):
+    EXTENSIONS = ('.mat',)
+    DESCRIPTION = "Matlab"
+
+    # Matlab 7.3+ files are not handled by scipy reader
+
+    def read(self):
+        who = matlab.whosmat(self.filename)
+        if not who:
+            raise IOError("Couldn't load matlab file " + self.filename)
+        else:
+            ml = matlab.loadmat(self.filename, chars_as_strings=True)
+
+            ml = {a: b for a, b in ml.items() if isinstance(b, np.ndarray)}
+
+            # X is the biggest numeric array
+            numarrays = []
+            for name, con in ml.items():
+                 if issubclass(con.dtype.type, numbers.Number):
+                    numarrays.append((name, reduce(lambda x, y: x*y, con.shape, 1)))
+            X = None
+            if numarrays:
+                nameX = max(numarrays, key=lambda x: x[1])[0]
+                X = ml.pop(nameX)
+
+            # find an array with compatible shapes
+            attributes = []
+            if X is not None:
+                nameattributes = None
+                for name, con in ml.items():
+                    if con.shape in [(X.shape[1],), (1, X.shape[1])]:
+                        nameattributes = name
+                        break
+                attributenames = ml.pop(nameattributes).ravel() if nameattributes else range(X.shape[1])
+                attributenames = [str(a).strip() for a in attributenames]  # strip because of numpy char array
+                attributes = [ContinuousVariable(name=a) for a in attributenames]
+
+            metas = []
+            metaattributes = []
+
+            sizemetas = None
+            if X is None:
+                counts = defaultdict(list)
+                for name, con in ml.items():
+                    counts[len(con)].append(name)
+                if counts:
+                    sizemetas = max(counts.keys(), key=lambda x: len(counts[x]))
+            else:
+                sizemetas = len(X)
+            if sizemetas:
+                for name, con in ml.items():
+                    if len(con) == sizemetas:
+                        metas.append(name)
+
+            metadata = []
+            for m in sorted(metas):
+                f = ml[m]
+                metaattributes.append(StringVariable(m))
+                f.resize(sizemetas, 1)
+                metadata.append(f)
+
+            metadata = np.hstack(tuple(metadata))
+
+            domain = Domain(attributes, metas=metaattributes)
+            if X is None:
+                X = np.zeros((sizemetas, 0))
+            return Orange.data.Table.from_numpy(domain, X, Y=None, metas=metadata)
 
 
 class EnviMapReader(FileFormat):
