@@ -13,3 +13,7 @@ localfiles = serverfiles.LocalFiles(
 
 def spectra20nea():
     return localfiles.localpath_download("spectra20.nea")
+
+def dust():
+    localfiles.localpath_download("20160831_06_Paris_25x_highmag.dat")
+    return localfiles.localpath_download("20160831_06_Paris_25x_highmag.hdr")

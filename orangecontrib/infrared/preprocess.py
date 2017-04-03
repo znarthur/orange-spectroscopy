@@ -459,8 +459,8 @@ class Integrate(Preprocess):
         return data.from_table(domain, data)
 
 
-def features_with_interpolation(points, kind="linear", domain=None):
-    common = _InterpolateCommon(points, kind, domain)
+def features_with_interpolation(points, kind="linear", domain=None, handle_nans=True, interpfn=None):
+    common = _InterpolateCommon(points, kind, domain, handle_nans=handle_nans, interpfn=interpfn)
     atts = []
     for i, p in enumerate(points):
         atts.append(
@@ -482,12 +482,47 @@ def remove_whole_nan_ys(x, ys):
     return x, ys
 
 
+def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
+    if kind != "linear":
+        raise NotImplementedError
+    out = np.zeros((len(ys), len(points)))
+    sorti = np.argsort(x)
+    x = x[sorti]
+    for i, y in enumerate(ys):
+        y = y[sorti]
+        nan = np.isnan(y)
+        xt = x[~nan]
+        yt = y[~nan]
+        out[i] = np.interp(points, xt, yt)
+    return out
+
+
+def interp1d_with_unknowns_scipy(x, ys, points, kind="linear"):
+    out = np.zeros((len(ys), len(points)))
+    sorti = np.argsort(x)
+    x = x[sorti]
+    for i, y in enumerate(ys):
+        y = y[sorti]
+        nan = np.isnan(y)
+        xt = x[~nan]
+        yt = y[~nan]
+        out[i] = interp1d(xt, yt, fill_value=np.nan, assume_sorted=True,
+                          bounds_error=False, kind=kind, copy=False)(points)
+    return out
+
+
+def interp1d_wo_unknowns_scipy(x, ys, points, kind="linear"):
+    return interp1d(x, ys, fill_value=np.nan, kind=kind, bounds_error=False)(points)
+
+
 class _InterpolateCommon:
 
-    def __init__(self, points, kind, domain):
+    def __init__(self, points, kind, domain, handle_nans=True, interpfn=None):
         self.points = points
         self.kind = kind
         self.domain = domain
+        self.handle_nans = handle_nans
+        self.interpfn = interpfn
 
     def __call__(self, data):
         # convert to data domain if any conversion is possible,
@@ -496,13 +531,23 @@ class _InterpolateCommon:
                 and any(at.compute_value for at in self.domain.attributes):
             data = data.from_table(self.domain, data)
         x = getx(data)
-        x, ys = remove_whole_nan_ys(x, data.X)
+        # removing whole NaN columns from the data will effectively replace
+        # NaNs that are not on the edges with interpolated values
+        ys = data.X
+        if self.handle_nans:
+            x, ys = remove_whole_nan_ys(x, ys)  # relatively fast
         if len(x) == 0:
             return np.ones((len(data), len(self.points)))*np.nan
-        f = interp1d(x, ys, fill_value=np.nan,
-                     bounds_error=False, kind=self.kind)
-        inter = f(self.points)
-        return inter
+        interpfn = self.interpfn
+        if interpfn is None:
+            if self.handle_nans and np.isnan(ys).any():
+                if self.kind == "linear":
+                    interpfn = interp1d_with_unknowns_numpy
+                else:
+                    interpfn = interp1d_with_unknowns_scipy
+            else:
+                interpfn = interp1d_wo_unknowns_scipy
+        return interpfn(x, ys, self.points, kind=self.kind)
 
 
 class Interpolate(Preprocess):
@@ -516,12 +561,15 @@ class Interpolate(Preprocess):
              scipy.interpolate.interp1d)
     """
 
-    def __init__(self, points, kind="linear"):
+    def __init__(self, points, kind="linear", handle_nans=True):
         self.points = np.asarray(points)
         self.kind = kind
+        self.handle_nans = handle_nans
+        self.interpfn = None
 
     def __call__(self, data):
-        atts = features_with_interpolation(self.points, self.kind, data.domain)
+        atts = features_with_interpolation(self.points, self.kind, data.domain,
+                                           self.handle_nans, interpfn=self.interpfn)
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)

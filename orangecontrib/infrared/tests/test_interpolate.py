@@ -2,7 +2,9 @@ import unittest
 
 import numpy as np
 import Orange
-from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.preprocess import Interpolate, \
+    interp1d_with_unknowns_numpy, interp1d_with_unknowns_scipy, \
+    interp1d_wo_unknowns_scipy
 from orangecontrib.infrared.data import getx
 
 
@@ -70,3 +72,42 @@ class TestInterpolate(unittest.TestCase):
         data.X[:, 1] = np.nan
         interpolated = Interpolate(getx(data))(data)
         self.assertFalse(np.any(np.isnan(interpolated.X)))
+
+    def test_unknown_elsewhere(self):
+        data = Orange.data.Table("iris")
+        data.X[0, 1] = np.nan
+        data.X[1, 1] = np.nan
+        data.X[1, 2] = np.nan
+        im = Interpolate(getx(data))
+        interpolated = im(data)
+        self.assertAlmostEqual(interpolated.X[0, 1], 3.25)
+        self.assertAlmostEqual(interpolated.X[1, 1], 3.333333333333334)
+        self.assertAlmostEqual(interpolated.X[1, 2], 1.766666666666667)
+        self.assertFalse(np.any(np.isnan(interpolated.X)))
+
+    def test_unknown_elsewhere_different(self):
+        data = Orange.data.Table("iris")
+        data.X[0, 1] = np.nan
+        data.X[1, 1] = np.nan
+        data.X[1, 2] = np.nan
+        im = Interpolate(getx(data))
+        im.interpfn = interp1d_with_unknowns_numpy
+        interpolated = im(data)
+        self.assertAlmostEqual(interpolated.X[0, 1], 3.25)
+        self.assertAlmostEqual(interpolated.X[1, 1], 3.333333333333334)
+        self.assertAlmostEqual(interpolated.X[1, 2], 1.766666666666667)
+        self.assertFalse(np.any(np.isnan(interpolated.X)))
+        im.interpfn = interp1d_with_unknowns_scipy
+        interpolated = im(data)
+        self.assertAlmostEqual(interpolated.X[0, 1], 3.25)
+        self.assertAlmostEqual(interpolated.X[1, 1], 3.333333333333334)
+        self.assertAlmostEqual(interpolated.X[1, 2], 1.766666666666667)
+        self.assertFalse(np.any(np.isnan(interpolated.X)))
+        save_X = interpolated.X
+        im.interpfn = interp1d_wo_unknowns_scipy
+        interpolated = im(data)
+        self.assertTrue(np.any(np.isnan(interpolated.X)))
+        # parts without unknown should be the same
+        np.testing.assert_almost_equal(data.X[2:], save_X[2:])
+
+
