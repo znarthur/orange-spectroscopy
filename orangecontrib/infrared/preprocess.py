@@ -489,7 +489,7 @@ def remove_whole_nan_ys(x, ys):
 def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
     if kind != "linear":
         raise NotImplementedError
-    out = np.zeros((len(ys), len(points)))
+    out = np.zeros((len(ys), len(points)))*np.nan
     sorti = np.argsort(x)
     x = x[sorti]
     for i, y in enumerate(ys):
@@ -498,12 +498,13 @@ def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
         xt = x[~nan]
         yt = y[~nan]
         # do not interpolate unknowns at the edges
-        out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
+        if len(xt):  # check if all values are removed
+            out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
     return out
 
 
 def interp1d_with_unknowns_scipy(x, ys, points, kind="linear"):
-    out = np.zeros((len(ys), len(points)))
+    out = np.zeros((len(ys), len(points)))*np.nan
     sorti = np.argsort(x)
     x = x[sorti]
     for i, y in enumerate(ys):
@@ -511,8 +512,9 @@ def interp1d_with_unknowns_scipy(x, ys, points, kind="linear"):
         nan = np.isnan(y)
         xt = x[~nan]
         yt = y[~nan]
-        out[i] = interp1d(xt, yt, fill_value=np.nan, assume_sorted=True,
-                          bounds_error=False, kind=kind, copy=False)(points)
+        if len(xt):  # check if all values are removed
+            out[i] = interp1d(xt, yt, fill_value=np.nan, assume_sorted=True,
+                              bounds_error=False, kind=kind, copy=False)(points)
     return out
 
 

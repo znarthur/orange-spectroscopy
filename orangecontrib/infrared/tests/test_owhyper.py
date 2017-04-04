@@ -42,7 +42,7 @@ class TestReadCoordinates(unittest.TestCase):
         np.testing.assert_equal(lv, [-1, 0, 1])
 
 
-class TestOWCurves(WidgetTest):
+class TestOWHyper(WidgetTest):
 
     @classmethod
     def setUpClass(cls):
