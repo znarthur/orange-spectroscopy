@@ -361,6 +361,9 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
     def compute_integral(self, x, y_s):
         y_s = y_s - self.compute_baseline(x, y_s)
         x, y_s = remove_whole_nan_ys(x, y_s)
+        if np.any(np.isnan(y_s)):
+            # interpolate unknowns as trapz can not handle them
+            y_s = interp1d_with_unknowns_numpy(x, y_s, x)
         return np.trapz(y_s, x, axis=1)
 
     def compute_draw_info(self, x, ys):
