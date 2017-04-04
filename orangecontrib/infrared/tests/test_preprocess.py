@@ -177,12 +177,15 @@ class TestNormalize(unittest.TestCase):
         data = Orange.data.Table([[2, 2, 2, 2]])
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 0.5)
-        data.X[0, 3] = float("nan")
-        p = Normalize(method=Normalize.Vector)(data)
-        self.assertAlmostEqual(p.X[0, 0], 0.5)
+        # unknown in between that can be interpolated does not change results
         data.X[0, 2] = float("nan")
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 0.5)
+        self.assertTrue(np.isnan(p.X[0, 2]))
+        # unknowns at the edges do not get interpolated
+        data.X[0, 3] = float("nan")
+        p = Normalize(method=Normalize.Vector)(data)
+        self.assertAlmostEqual(p.X[0, 0], 2**0.5/2)
         self.assertTrue(np.all(np.isnan(p.X[0, 2:])))
 
     def test_area_norm(self):

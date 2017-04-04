@@ -265,14 +265,15 @@ class _NormalizeCommon:
         if self.method == Normalize.Vector:
             nans = np.isnan(data.X)
             nan_num = nans.sum(axis=1, keepdims=True)
-            if any(nan_num > 0):
-                data.X = np.nan_to_num(data.X)
-            data.X = sknormalize(data.X, norm='l2', axis=1, copy=False)
-            if any(nan_num > 0):
-                # in case of nans fewer values were used for for estimation of norm
-                # and therefore we have to decrease normalized values accordingly
-                values_used = data.X.shape[1] - nan_num
-                data.X *= (values_used / data.X.shape[1])**0.5  #because of L2
+            ys = data.X
+            if np.any(nan_num > 0):
+                # interpolate nan elements for normalization
+                x = getx(data)
+                ys = interp1d_with_unknowns_numpy(x, ys, x)
+                ys = np.nan_to_num(ys)  # edge elements can still be zero
+            data.X = sknormalize(ys, norm='l2', axis=1, copy=False)
+            if np.any(nan_num > 0):
+                # keep nans where they were
                 data.X[nans] = float("nan")
         elif self.method == Normalize.Area:
             norm_data = Integrate(method=self.int_method,
@@ -493,7 +494,8 @@ def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
         nan = np.isnan(y)
         xt = x[~nan]
         yt = y[~nan]
-        out[i] = np.interp(points, xt, yt)
+        # do not interpolate unknowns at the edges
+        out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
     return out
 
 
