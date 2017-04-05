@@ -12,7 +12,7 @@ from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
 # Preprocessors that work per sample and should return the same
 # result for a sample independent of the other samples
 PREPROCESSORS_INDEPENDENT_SAMPLES = [
-    Interpolate(np.linspace(1000, 1800, 100)),
+    Interpolate(np.linspace(1000, 1700, 100)),
     SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2),
     Cut(lowlim=1000, highlim=1800),
     GaussianSmoothing(sd=3.),

@@ -98,9 +98,6 @@ class TestConversion(unittest.TestCase):
             train = proc(train)
             test_transformed = Orange.data.Table(train.domain, test)
             np.testing.assert_equal(test_transformed.X, test1.X)
-            aucorig = AUC(TestOnTestData(train1, test1, [LogisticRegressionLearner()]))
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
-            self.assertEqual(aucorig, aucnow)
 
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
@@ -119,20 +116,24 @@ class TestConversion(unittest.TestCase):
     def test_slightly_different_domain(self):
         """ If test data has a slightly different domain then (with interpolation)
         we should obtain a similar classification score. """
+        learner = LogisticRegressionLearner(preprocessors=[])
         for proc in PREPROCESSORS:
+            # LR that can not handle unknown values
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)
-            aucorig = AUC(TestOnTestData(train1, test, [LogisticRegressionLearner()]))
+            aucorig = AUC(TestOnTestData(train1, test, [learner]))
             test = destroy_atts_conversion(test)
             test = odd_attr(test)
-            train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
+            # a subset of points for training so that all test sets points
+            # are within the train set points, which gives no unknowns
+            train = Interpolate(points=getx(train)[1:-3])(train)  # make train capable of interpolation
             train = proc(train)
             # explicit domain conversion test to catch exceptions that would
             # otherwise be silently handled in TestOnTestData
             _ = Orange.data.Table(train.domain, test)
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            aucnow = AUC(TestOnTestData(train, test, [learner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.02)
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             _ = Orange.data.Table(train.domain, test)  # explicit call again
-            aucnow = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            aucnow = AUC(TestOnTestData(train, test, [learner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight
