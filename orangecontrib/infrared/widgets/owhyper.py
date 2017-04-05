@@ -648,6 +648,7 @@ class OWHyper(OWWidget):
         self.imageplot.set_data(data)
         self.openContext(data)
         self.curveplot.update_view()
+        self.imageplot.show_data()
 
 
 def main(argv=None):
