@@ -585,6 +585,7 @@ class OWHyper(OWWidget):
         else:
             self.send("Selection", None)
             self.curveplot.set_data(None)
+        self.curveplot.update_view()
 
     def selection_changed(self):
         self.redraw_data()

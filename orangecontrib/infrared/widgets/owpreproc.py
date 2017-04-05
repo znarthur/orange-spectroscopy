@@ -1312,6 +1312,7 @@ class OWPreprocess(OWWidget):
             self.curveplot.set_data(preview_data)
         else:
             self.curveplot.set_data(None)
+        self.curveplot.update_view()
 
     def _initialize(self):
         for i,pp_def in enumerate(PREPROCESSORS):

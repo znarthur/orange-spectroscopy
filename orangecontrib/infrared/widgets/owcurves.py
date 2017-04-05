@@ -372,6 +372,9 @@ class CurvePlot(QWidget, OWComponent):
         self.curves_cont = PlotCurvesItem()
         self.important_decimals = 4, 4
 
+        # whether to rescale at next update
+        self.rescale_next = True
+
         self.MOUSE_RADIUS = 20
 
         self.clear_graph()
@@ -829,17 +832,17 @@ class CurvePlot(QWidget, OWComponent):
 
     def show_individual(self):
         self.set_pen_colors()
+        self.clear_graph()
         if not self.data:
             return
         self.viewtype = INDIVIDUAL
-        self.clear_graph()
         self.add_curves(self.data_x, self.data.X)
         self.set_curve_pens()
         self.curves_cont.update()
+        self.plot.vb.set_mode_panning()
 
     def resample_curves(self, seed):
         self.sample_seed = seed
-        #self.make_selection([], add=True)
         self.update_view()
 
     def rescale_current_view_y(self):
@@ -869,10 +872,10 @@ class CurvePlot(QWidget, OWComponent):
 
     def show_average(self):
         self.set_pen_colors()
+        self.clear_graph()
         if not self.data:
             return
         self.viewtype = AVERAGE
-        self.clear_graph()
         x = self.data_x
         if self.data:
             ysall = []
@@ -906,15 +909,17 @@ class CurvePlot(QWidget, OWComponent):
                     self.add_fill_curve(x, mean + std, mean - std, pen=penc)
             self.curves.append((x, np.array(ysall)))
         self.curves_cont.update()
+        self.plot.vb.set_mode_panning()
 
     def update_view(self):
         if self.viewtype == INDIVIDUAL:
             self.show_individual()
         elif self.viewtype == AVERAGE:
             self.show_average()
+        if self.rescale_next:
+            self.plot.vb.autoRange()
 
-    def set_data(self, data, rescale="auto"):
-        self.clear_graph()
+    def set_data(self, data):
         self.clear_data()
         self.attrs[:] = []
         if data is not None:
@@ -924,11 +929,10 @@ class CurvePlot(QWidget, OWComponent):
                 if isinstance(var, str) or var.is_discrete]
             self.color_attr = 0
         if data is not None:
-            if rescale == "auto":
-                if self.data:
-                    rescale = not data.domain == self.data.domain
-                else:
-                    rescale = True
+            if self.data:
+                self.rescale_next = not data.domain == self.data.domain
+            else:
+                self.rescale_next = True
             self.data = data
             # reset selection if dataset sizes do not match
             if self.selected_indices and \
@@ -940,17 +944,12 @@ class CurvePlot(QWidget, OWComponent):
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_xsind = xsind
-            self.update_view()
-            if rescale == True:
-                self.plot.vb.autoRange()
-        self.plot.vb.set_mode_panning()
 
     def update_display(self):
         self.curves_cont.update()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
-        self.set_curve_pens()
         self.update_view()
 
     def select_by_click(self, pos, add):
