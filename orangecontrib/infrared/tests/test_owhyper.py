@@ -106,3 +106,11 @@ class TestOWHyper(WidgetTest):
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)
         self.widget.curveplot.make_selection([0], False)
+
+    def test_settings_curves(self):
+        self.send_signal("Data", self.iris)
+        self.widget.curveplot.color_attr = 1
+        self.send_signal("Data", self.whitelight)
+        self.assertEqual(self.widget.curveplot.color_attr, 0)
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.curveplot.color_attr, 1)

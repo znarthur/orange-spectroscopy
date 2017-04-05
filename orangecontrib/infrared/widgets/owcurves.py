@@ -501,7 +501,7 @@ class CurvePlot(QWidget, OWComponent):
         label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.attrCombo = gui.comboBox(
             choose_color_box, self, value="color_attr", contentsLength=12,
-            callback=self.change_color_attr)
+            callback=self.update_view)
         self.attrCombo.setModel(model)
         choose_color_box.setFocusProxy(self.attrCombo)
         choose_color_action.setDefaultWidget(choose_color_box)
@@ -808,10 +808,6 @@ class CurvePlot(QWidget, OWComponent):
             pass
         return color_var
 
-    def change_color_attr(self):
-        self.set_pen_colors()
-        self.update_view()
-
     def set_pen_colors(self):
         self.pen_normal.clear()
         self.pen_subset.clear()
@@ -832,6 +828,7 @@ class CurvePlot(QWidget, OWComponent):
                 self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
 
     def show_individual(self):
+        self.set_pen_colors()
         if not self.data:
             return
         self.viewtype = INDIVIDUAL
@@ -871,6 +868,7 @@ class CurvePlot(QWidget, OWComponent):
         return rd
 
     def show_average(self):
+        self.set_pen_colors()
         if not self.data:
             return
         self.viewtype = AVERAGE
@@ -925,7 +923,6 @@ class CurvePlot(QWidget, OWComponent):
                                      data.domain.metas)
                 if isinstance(var, str) or var.is_discrete]
             self.color_attr = 0
-        self.set_pen_colors()
         if data is not None:
             if rescale == "auto":
                 if self.data:
@@ -1016,8 +1013,7 @@ class OWCurves(OWWidget):
                 and len(self.curveplot.sampled_indices) != len(self.curveplot.data):
             self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
         self.openContext(data)
-        self.curveplot.set_pen_colors()
-        self.curveplot.set_curve_pens()  # mark the selection
+        self.curveplot.update_view()
         self.selection_changed()
 
     def set_subset(self, data):

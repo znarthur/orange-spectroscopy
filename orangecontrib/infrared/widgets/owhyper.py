@@ -647,6 +647,7 @@ class OWHyper(OWWidget):
                 self.line2.setValue(self.highlim)
         self.imageplot.set_data(data)
         self.openContext(data)
+        self.curveplot.update_view()
 
 
 def main(argv=None):
