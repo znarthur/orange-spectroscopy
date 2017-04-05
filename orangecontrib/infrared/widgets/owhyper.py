@@ -270,7 +270,7 @@ class ImagePlot(QWidget, OWComponent):
                 self.img.setLookupTable(dat.colors)
 
     def update_attr(self):
-        self.show_data()
+        self.update_view()
 
     def init_attr_values(self):
         domain = self.data.domain if self.data is not None else None
@@ -292,10 +292,9 @@ class ImagePlot(QWidget, OWComponent):
         else:
             self.data = None
             self.data_ids = {}
-        self.show_data()
 
     def set_integral_limits(self):
-        self.show_data()
+        self.update_view()
 
     def refresh_markings(self, di):
 
@@ -344,7 +343,7 @@ class ImagePlot(QWidget, OWComponent):
             line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
             add_marking(line)
 
-    def show_data(self):
+    def update_view(self):
         self.img.clear()
         self.img.setSelection(None)
         self.lsx = None
@@ -649,7 +648,7 @@ class OWHyper(OWWidget):
         self.imageplot.set_data(data)
         self.openContext(data)
         self.curveplot.update_view()
-        self.imageplot.show_data()
+        self.imageplot.update_view()
 
 
 def main(argv=None):
