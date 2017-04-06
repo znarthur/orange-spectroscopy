@@ -269,6 +269,19 @@ class TestCommon(unittest.TestCase):
             X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
             comparison(X, X_shuffle)
 
+    def test_unknown_no_propagate(self):
+        data = self.collagen.copy()
+        # one unknown in line
+        for i in range(200):
+            data.X[i, i] = np.nan
+        for proc in PREPROCESSORS:
+            # TODO methods to fix
+            if isinstance(proc, (GaussianSmoothing, Integrate)):
+                continue
+            pdata = proc(data)
+            sumnans = np.sum(np.isnan(pdata.X), axis=0)
+            self.assertFalse(np.any(sumnans > 1))
+
 
 class TestPCADenoising(unittest.TestCase):
 
