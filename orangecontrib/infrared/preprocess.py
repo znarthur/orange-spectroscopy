@@ -75,6 +75,21 @@ class GaussianFeature(SelectColumn):
     pass
 
 
+def _nan_extend_edges_and_interpolate(xs, X):
+    """
+    Handle NaNs at the edges are handled as with savgol_filter mode nearest:
+    the edge values are interpolated. NaNs in the middle are interpolated
+    so that they do not propagate.
+    """
+    nans = None
+    if np.any(np.isnan(X)):
+        nans = np.isnan(X)
+        X = X.copy()
+        _fill_edges(X)
+        X = interp1d_with_unknowns_numpy(xs, X, xs)
+    return X, nans
+
+
 class _GaussianCommon:
 
     def __init__(self, sd, domain):
@@ -84,8 +99,11 @@ class _GaussianCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        _, xsind, mon, X = _transform_to_sorted_features(data)
+        xs, xsind, mon, X = _transform_to_sorted_features(data)
+        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
         X = gaussian_filter1d(X, sigma=self.sd, mode="nearest")
+        if nans is not None:
+            X[nans] = np.nan
         return _transform_back_to_features(xsind, mon, X)
 
 
@@ -163,16 +181,7 @@ class _SavitzkyGolayCommon:
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
         xs, xsind, mon, X = _transform_to_sorted_features(data)
-        nans = None
-        # NaNs at the edges are handled as with savgol_filter mode nearest:
-        # the edge values is interpolated
-        # NaNs in the middle are interpolated so that they do not propagate.
-        if np.any(np.isnan(X)):
-            nans = np.isnan(X)
-            X = X.copy()
-            _fill_edges(X)
-            xss = xs[xsind]
-            X = interp1d_with_unknowns_numpy(xss, X, xss)
+        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
         X = savgol_filter(X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")

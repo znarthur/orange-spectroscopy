@@ -106,6 +106,27 @@ class TestSavitzkyGolay(unittest.TestCase):
             [[4.86857143, 3.47428571, 1.49428571, 0.32857143]])
 
 
+class TestGaussian(unittest.TestCase):
+
+    def test_unknown_no_propagate(self):
+        data = Orange.data.Table("iris")
+        f = GaussianSmoothing()
+        data = data[:5]
+        for i in range(4):
+            data.X[i, i] = np.nan
+        data.X[4] = np.nan
+        fdata = f(data)
+        np.testing.assert_equal(np.sum(np.isnan(fdata.X), axis=1), [1, 1, 1, 1, 4])
+
+    def test_simple(self):
+        data = Orange.data.Table("iris")
+        f = GaussianSmoothing(sd=1.)
+        data = data[:1]
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+            [[4.4907066, 3.2794677, 1.7641664, 0.6909083]])
+
+
 class TestIntegrate(unittest.TestCase):
 
     def test_simple(self):
@@ -276,7 +297,7 @@ class TestCommon(unittest.TestCase):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
             # TODO methods to fix
-            if isinstance(proc, (GaussianSmoothing, Integrate)):
+            if isinstance(proc, (Integrate)):
                 continue
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=0)
