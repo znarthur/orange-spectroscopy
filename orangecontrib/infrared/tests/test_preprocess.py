@@ -296,11 +296,8 @@ class TestCommon(unittest.TestCase):
         for i in range(200):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
-            # TODO methods to fix
-            if isinstance(proc, (Integrate)):
-                continue
             pdata = proc(data)
-            sumnans = np.sum(np.isnan(pdata.X), axis=0)
+            sumnans = np.sum(np.isnan(pdata.X), axis=1)
             self.assertFalse(np.any(sumnans > 1))
 
 
