@@ -85,6 +85,27 @@ class TestAbsorbance(unittest.TestCase):
         np.testing.assert_allclose(data.X, calcdata.X)
 
 
+class TestSavitzkyGolay(unittest.TestCase):
+
+    def test_unknown_no_propagate(self):
+        data = Orange.data.Table("iris")
+        f = SavitzkyGolayFiltering()
+        data = data[:5]
+        for i in range(4):
+            data.X[i, i] = np.nan
+        data.X[4] = np.nan
+        fdata = f(data)
+        np.testing.assert_equal(np.sum(np.isnan(fdata.X), axis=1), [1, 1, 1, 1, 4])
+
+    def test_simple(self):
+        data = Orange.data.Table("iris")
+        f = SavitzkyGolayFiltering()
+        data = data[:1]
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+            [[4.86857143, 3.47428571, 1.49428571, 0.32857143]])
+
+
 class TestIntegrate(unittest.TestCase):
 
     def test_simple(self):

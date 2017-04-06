@@ -12,9 +12,8 @@ from sklearn.preprocessing import normalize as sknormalize
 from orangecontrib.infrared.data import getx
 
 
-def is_monotonic(a):
-    diffs = np.diff(a)
-    return np.all(diffs >= 0) or np.all(diffs <= 0)
+def is_increasing(a):
+    return np.all(np.diff(a) >= 0)
 
 
 class SelectColumn(SharedComputeValue):
@@ -85,7 +84,7 @@ class _GaussianCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        xsind, mon, X = _transform_to_sorted_features(data)
+        _, xsind, mon, X = _transform_to_sorted_features(data)
         X = gaussian_filter1d(X, sigma=self.sd, mode="nearest")
         return _transform_back_to_features(xsind, mon, X)
 
@@ -130,15 +129,26 @@ class SavitzkyGolayFeature(SelectColumn):
 
 
 def _transform_to_sorted_features(data):
-    xsind = np.argsort(getx(data))
-    mon = is_monotonic(xsind)
+    xs = getx(data)
+    xsind = np.argsort(xs)
+    mon = is_increasing(xsind)
     X = data.X
     X = X if mon else X[:, xsind]
-    return xsind, mon, X
+    return xs, xsind, mon, X
 
 
 def _transform_back_to_features(xsind, mon, X):
     return X if mon else X[:, np.argsort(xsind)]
+
+
+def _fill_edges(mat):
+    """Replace (inplace!) NaN at sides with the closest value"""
+    for l in mat:
+        loc = np.where(~np.isnan(l))[0]
+        if len(loc):
+            fi, li = loc[[0, -1]]
+            l[:fi] = l[fi]
+            l[li + 1:] = l[li]
 
 
 class _SavitzkyGolayCommon:
@@ -152,10 +162,23 @@ class _SavitzkyGolayCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        xsind, mon, X = _transform_to_sorted_features(data)
+        xs, xsind, mon, X = _transform_to_sorted_features(data)
+        nans = None
+        # NaNs at the edges are handled as with savgol_filter mode nearest:
+        # the edge values is interpolated
+        # NaNs in the middle are interpolated so that they do not propagate.
+        if np.any(np.isnan(X)):
+            nans = np.isnan(X)
+            X = X.copy()
+            _fill_edges(X)
+            xss = xs[xsind]
+            X = interp1d_with_unknowns_numpy(xss, X, xss)
         X = savgol_filter(X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
+        # set NaNs where there were NaNs in the original array
+        if nans is not None:
+            X[nans] = np.nan
         return _transform_back_to_features(xsind, mon, X)
 
 
@@ -192,8 +215,8 @@ class _RubberbandBaselineCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        xsind, mon, X = _transform_to_sorted_features(data)
-        x = getx(data)[xsind]
+        xs, xsind, mon, X = _transform_to_sorted_features(data)
+        x = xs[xsind]
         newd = np.zeros_like(data.X)
         for rowi, row in enumerate(X):
             # remove NaNs which ConvexHull can not handle
