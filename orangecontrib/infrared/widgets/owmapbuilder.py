@@ -4,11 +4,8 @@ import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.widgets import gui, settings
-from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 from orangecontrib.infrared.widgets.gui import lineEditIntOrNone
-from orangecontrib.infrared.data import getx
 from AnyQt.QtCore import Qt
-from orangecontrib.infrared.data import _table_from_image
 
 
 class OWMapBuilder(OWWidget):
@@ -37,7 +34,6 @@ class OWMapBuilder(OWWidget):
     xpoints = settings.Setting(None)
     ypoints = settings.Setting(None)
 
-
     class Warning(OWWidget.Warning):
         wrong_div = Msg("Wrong divisor for {} curves.")
         nodata = Msg("No useful data on input!")
@@ -45,67 +41,62 @@ class OWMapBuilder(OWWidget):
     def __init__(self):
         super().__init__()
 
-        box = gui.widgetBox(self.controlArea, "Buil map grid")
+        box = gui.widgetBox(self.controlArea, "Map grid")
 
         self.le1 = lineEditIntOrNone(box, self, "xpoints",
             label="X dimension", labelWidth=80, orientation=Qt.Horizontal,
             callback=self.le1_changed)
-        self.le3 = lineEditFloatOrNone(box, self, "ypoints",
+        self.le3 = lineEditIntOrNone(box, self, "ypoints",
             label="Y dimension", labelWidth=80, orientation=Qt.Horizontal,
             callback=self.le3_changed)
 
-        gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
+        self.data = None
+        self.set_data(self.data)  # show warning
 
+        gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
     def set_data(self, dataset):
         self.Warning.wrong_div.clear()
         if dataset is not None:
             self.Warning.nodata.clear()
             self.data = dataset
-
-            # add new variables for X and Y dimension ot the data domain
-            metas = self.data.domain.metas + (self.xmeta, self.ymeta)
-            domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
-            self.data = Orange.data.Table(domain, self.data)
-
         else:
             self.Warning.nodata()
-
         self.commit()
 
     # maybe doable with one callback...
     def le1_changed(self): # X dimension
-        if self.data is not None:
+        if self.data is not None and self.xpoints:
             self.Warning.wrong_div.clear()
-            ytemp = len(self.data.X)/self.xpoints
-
+            ytemp = len(self.data.X)//self.xpoints
             if len(self.data.X) % self.xpoints == 0:
-                self.ypoints = int(ytemp)
+                self.ypoints = ytemp
                 self.commit()
             else:
                 self.Warning.wrong_div(len(self.data.X))
 
     def le3_changed(self): # Y dimension
-        if self.data is not None:
+        if self.data is not None and self.ypoints:
             self.Warning.wrong_div.clear()
-            xtemp = len(self.data.X)/self.ypoints
+            xtemp = len(self.data.X)//self.ypoints
             if len(self.data.X) % self.ypoints == 0:
-                self.xpoints = int(xtemp)
+                self.xpoints = xtemp
                 self.commit()
             else:
                 self.Warning.wrong_div(len(self.data.X))
                 # it would be nice to turn the bkg red at this point
 
     def commit(self):
-        if self.xpoints is not None and self.ypoints is not None: # maybe this is unnecessary
-            reshaped_data = self.data[:]
-            reshaped_data.X = np.resize(self.data.X, (self.xpoints, self.ypoints, self.data.X.shape[1]))
-            reshaped_data.domain.attributes = Orange.data.Domain(self.data.domain.attributes)
-
-            data_send = _table_from_image(reshaped_data.X, getx(self.data),
-                                          np.arange(self.ypoints), np.arange(self.xpoints))
-
-            self.send("Map data", data_send)
+        map_data = None
+        if self.data and self.xpoints is not None and self.ypoints is not None \
+                and self.xpoints * self.ypoints == len(self.data):
+            # add new variables for X and Y dimension ot the data domain
+            metas = self.data.domain.metas + (self.xmeta, self.ymeta)
+            domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
+            map_data = Orange.data.Table(domain, self.data)
+            map_data[:, self.xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
+            map_data[:, self.ymeta] = np.tile(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
+        self.send("Map data", map_data)
 
     def send_report(self):
         if self.xpoints and self.ypoints is not None:
@@ -116,13 +107,14 @@ class OWMapBuilder(OWWidget):
         else:
             return
 
+
 def main(argv=sys.argv):
     from AnyQt.QtWidgets import QApplication
     app = QApplication(list(argv))
     ow = OWMapBuilder()
     ow.show()
     ow.raise_()
-    dataset = Orange.data.Table("/Users/borondics/Google Drive/@Soleil/Infrared Orange/TestData/Series/collagene.csv")
+    dataset = Orange.data.Table("collagen.csv")
     ow.set_data(dataset)
     app.exec_()
     return 0

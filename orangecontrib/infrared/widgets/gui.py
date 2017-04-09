@@ -1,5 +1,5 @@
 from AnyQt.QtCore import QLocale
-from AnyQt.QtGui import QDoubleValidator, QValidator
+from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
 
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
@@ -23,16 +23,12 @@ class FloatOrEmptyValidator(QValidator):
 class IntOrEmptyValidator(QValidator):
     def __init__(self, parent):
         super().__init__(parent)
-        self.dv = QDoubleValidator(parent)
+        self.dv = QIntValidator(parent)
         self.dv.setLocale(QLocale.c())
 
     def validate(self, s, pos):
         if len(s) == 0:
             return (QValidator.Acceptable, s, pos)
-        if "," in s:
-            return (QValidator.Invalid, s, pos)
-        if "." in s:
-            return (QValidator.Invalid, s, pos)
         else:
             return self.dv.validate(s, pos)
 
