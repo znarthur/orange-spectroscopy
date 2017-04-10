@@ -95,7 +95,7 @@ class OWMapBuilder(OWWidget):
             domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
             map_data = Orange.data.Table(domain, self.data)
             map_data[:, self.xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
-            map_data[:, self.ymeta] = np.tile(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
+            map_data[:, self.ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
         self.send("Map data", map_data)
 
     def send_report(self):
