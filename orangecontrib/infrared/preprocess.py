@@ -237,12 +237,12 @@ class _RubberbandBaselineCommon:
                 # FIXME notify user
                 baseline = np.zeros_like(row)
             else:
-                if self.peak_dir == 0:
-                    v = np.roll(v, -v.argmax())
-                    v = v[:v.argmin() + 1]
-                elif self.peak_dir == 1:
+                if self.peak_dir == RubberbandBaseline.PeakPositive:
                     v = np.roll(v, -v.argmin())
                     v = v[:v.argmax() + 1]
+                elif self.peak_dir == RubberbandBaseline.PeakNegative:
+                    v = np.roll(v, -v.argmax())
+                    v = v[:v.argmin() + 1]
                 # If there are NaN values at the edges of data then convex hull
                 # does not include the endpoints. Because the same values are also
                 # NaN in the current row, we can fill them with NaN (bounds_error
@@ -258,7 +258,14 @@ class _RubberbandBaselineCommon:
 
 class RubberbandBaseline(Preprocess):
 
-    def __init__(self, peak_dir=0, sub=0):
+    PeakPositive, PeakNegative = 0, 1
+    Subtract, View = 0, 1
+
+    def __init__(self, peak_dir=PeakPositive, sub=Subtract):
+        """
+        :param peak_dir: PeakPositive or PeakNegative
+        :param sub: Subtract (baseline is subtracted) or View
+        """
         self.peak_dir = peak_dir
         self.sub = sub
 

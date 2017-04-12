@@ -181,21 +181,21 @@ class TestRubberbandBaseline(unittest.TestCase):
 
     def test_whole(self):
         """ Every point belongs in the convex region. """
-        data = Orange.data.Table([[1, 2, 1]])
+        data = Orange.data.Table([[2, 1, 2]])
         i = RubberbandBaseline()(data)
         np.testing.assert_equal(i.X, 0)
-        data = Orange.data.Table([[2, 1, 2]])
-        i = RubberbandBaseline(peak_dir=1)(data)
+        data = Orange.data.Table([[1, 2, 1]])
+        i = RubberbandBaseline(peak_dir=RubberbandBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, 0)
 
     def test_simple(self):
         """ Just one point is not in the convex region. """
         data = Orange.data.Table([[1, 2, 1, 1]])
         i = RubberbandBaseline()(data)
+        np.testing.assert_equal(i.X, [[0, 1, 0, 0]])
+        data = Orange.data.Table([[1, 2, 1, 1]])
+        i = RubberbandBaseline(peak_dir=RubberbandBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, [[0, 0, -0.5, 0]])
-        data = Orange.data.Table([[2, 1, 2, 2]])
-        i = RubberbandBaseline(peak_dir=1)(data)
-        np.testing.assert_equal(i.X, [[0, 0, 0.5, 0]])
 
 
 class TestNormalize(unittest.TestCase):
