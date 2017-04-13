@@ -146,8 +146,11 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         sheets = Counter()
 
         for fn in self.current_filenames():
-            reader = FileFormat.get_reader(fn)
-            sheets.update(reader.sheets)
+            try:
+                reader = FileFormat.get_reader(fn)
+                sheets.update(reader.sheets)
+            except:
+                pass
 
         sheets = sorted(sheets.items(), key=lambda x: x[0])
 
@@ -222,12 +225,12 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
         for fn in fns:
             reader = FileFormat.get_reader(fn)
-            if self.sheet in reader.sheets:
-                reader.select_sheet(self.sheet)
 
             errors = []
             with catch_warnings(record=True) as warnings:
                 try:
+                    if self.sheet in reader.sheets:
+                        reader.select_sheet(self.sheet)
                     data_list.append(reader.read())
                     fnok_list.append(fn)
                 except Exception as ex:
