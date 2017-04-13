@@ -4,6 +4,7 @@ import numpy as np
 import Orange
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import features_with_interpolation
+from orangecontrib.infrared.data import SPAReader
 
 from .bigdata import spectra20nea
 
@@ -53,3 +54,15 @@ class TestNea(unittest.TestCase):
         data = Orange.data.Table(spectra20nea())
         self.assertEqual(len(data), 12)
         # FIXME check contents
+
+
+class TestSpa(unittest.TestCase):
+
+    def test_open(self):
+        data = Orange.data.Table("sample1.spa")
+
+    def test_read_header(self):
+        fn = Orange.data.Table("sample1.spa").__file__
+        r = SPAReader(fn)
+        points, _, _ = r.read_spec_header()
+        self.assertEqual(points, 1738)

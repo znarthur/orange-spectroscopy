@@ -361,7 +361,7 @@ class OPUSReader(FileFormat):
 class SPAReader(FileFormat):
     #based on code by Zack Gainsforth
 
-    EXTENSIONS = (".spa",)
+    EXTENSIONS = (".spa", ".SPA")
     DESCRIPTION = 'SPA'
 
     def sections(self):
@@ -377,7 +377,14 @@ class SPAReader(FileFormat):
                 sections.append((i, type))
         return sections
 
+    SPEC_HEADER = 2
+
     TYPE_NAMES = [(3, "result"), (102, "processed")]
+
+    def find_indextype(self, t):
+        for i, a in self.sections():
+            if a == t:
+                return i
 
     @property
     def sheets(self):
@@ -385,19 +392,7 @@ class SPAReader(FileFormat):
         d = dict(self.TYPE_NAMES)
         return [ "%s" % d.get(b, b) for a, b in self.sections() ]
 
-    def read(self):
-
-        if self.sheet is None:
-            type = 3
-        else:
-            db = {b:a for a,b in self.TYPE_NAMES}
-            type = int(db.get(self.sheet, self.sheet))
-
-        sectionind = 0
-        for i, t in self.sections():
-            if t == type:
-                sectionind = i
-
+    def read_section_index(self, sectionind):
         with open(self.filename, 'rb') as f:
             f.seek(304 + 16*sectionind)
 
@@ -407,11 +402,36 @@ class SPAReader(FileFormat):
 
             # length seemed off by this factor in code sample
             length = length//256
+        return offset, length
 
+    def read_spec_header(self):
+        info = self.find_indextype(self.SPEC_HEADER)
+        offset, length = self.read_section_index(info)
+        with open(self.filename, 'rb') as f:
+            f.seek(offset)
+            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('iiiifff', f.read(28))
+            return numPoints, firstX, lastX,
+
+    def read(self):
+
+        if self.sheet is None:
+            type = 3
+        else:
+            db = {b:a for a,b in self.TYPE_NAMES}
+            type = int(db.get(self.sheet, self.sheet))
+
+        numPoints, firstX, lastX = self.read_spec_header()
+
+        offset, length = self.read_section_index(self.find_indextype(type))
+
+        with open(self.filename, 'rb') as f:
             f.seek(offset)
             data = np.fromfile(f, dtype='float32', count=length//4)
 
-            domvals = range(len(data))
+            if len(data) == numPoints:
+                domvals = np.linspace(firstX, lastX, numPoints)
+            else:
+                domvals = range(len(data))
             domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
             return Orange.data.Table(domain, np.array([data]))
 
