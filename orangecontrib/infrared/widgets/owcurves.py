@@ -358,6 +358,8 @@ class CurvePlot(QWidget, OWComponent):
         self.selection_type = select
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data(init=True)
+        self.subset = None  # current subset input
+        self.subset_indices = None  # boolean index array with indices in self.data
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
@@ -607,7 +609,6 @@ class CurvePlot(QWidget, OWComponent):
         self.viewhelpers_show()
 
     def clear_data(self, init=True):
-        self.subset_ids = set()
         self.data = None
         self.data_x = None  # already sorted x-axis
         self.data_xsind = None  # sorting indices for x-axis
@@ -747,7 +748,7 @@ class CurvePlot(QWidget, OWComponent):
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
-        insubset = not self.subset_ids or self.data[idcdata].id in self.subset_ids
+        insubset = self.subset_indices[idcdata]
         inselected = self.selection_type and idcdata in self.selected_indices
         thispen = self.pen_subset if insubset else self.pen_normal
         if inselected:
@@ -905,15 +906,14 @@ class CurvePlot(QWidget, OWComponent):
         x = self.data_x
         if self.data:
             ysall = []
-            subset_indices = np.in1d(self.data.ids, list(self.subset_ids))
-            selected_indices = np.full(len(subset_indices), False, dtype=bool)
+            selected_indices = np.full(self.data_size, False, dtype=bool)
             selected_indices[list(self.selected_indices)] = True
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
                 for part in ["everything", "subset", "selection"]:
                     if part == "everything":
                         ys = self.data.X[indices]
-                        pen = self.pen_normal if len(subset_indices) else self.pen_subset
+                        pen = self.pen_normal if np.any(self.subset_indices) else self.pen_subset
                     elif part == "selection" and self.selection_type:
                         current_selected = indices & selected_indices
                         if not np.any(current_selected):
@@ -921,7 +921,7 @@ class CurvePlot(QWidget, OWComponent):
                         ys = self.data.X[current_selected]
                         pen = self.pen_selected
                     elif part == "subset":
-                        current_subset = indices & subset_indices
+                        current_subset = indices & self.subset_indices
                         if not np.any(current_subset):
                             continue
                         ys = self.data.X[current_subset]
@@ -972,9 +972,16 @@ class CurvePlot(QWidget, OWComponent):
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_xsind = xsind
+            self._set_subset_indices(self.subset)  # refresh subset indices according to the current subset
+
+    def _set_subset_indices(self, ids):
+        self.subset = ids
+        if ids is None:
+            ids = []
+        self.subset_indices = np.in1d(self.data.ids, ids)
 
     def set_data_subset(self, ids):
-        self.subset_ids = set(ids) if ids is not None else set()
+        self._set_subset_indices(ids)
         self.update_view()
 
     def select_by_click(self, pos, add):
