@@ -658,9 +658,9 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWHyper()
     w.show()
+    from orangecontrib.infrared.tests.bigdata import dust
     #data = Orange.data.Table("whitelight.gsf")
-    # data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
-    data = Orange.data.Table("/Users/borondics/Google Drive/@Soleil/Infrared Orange/TestData/AGILENT data/dust/20160831_06_Paris_25x_highmag.hdr")
+    data = Orange.data.Table(dust())
     #data = Orange.data.Table("iris.tab")
     w.set_data(data)
     w.handleNewSignals()

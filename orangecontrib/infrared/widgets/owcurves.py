@@ -1057,8 +1057,9 @@ def main(argv=None):
     app = QApplication(argv)
     w = OWCurves()
     w.show()
+    from orangecontrib.infrared.tests.bigdata import dust
+    # data = Orange.data.Table(dust())
     data = Orange.data.Table("collagen.csv")
-    # data = Orange.data.Table("/home/marko/dust/20160831_06_Paris_25x_highmag.hdr")
     w.set_data(data)
     w.set_subset(data[:40])
     # w.set_subset(None)
