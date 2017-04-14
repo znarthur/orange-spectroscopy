@@ -346,6 +346,7 @@ class CurvePlot(QWidget, OWComponent):
     invertX = Setting(False)
     selected_indices = Setting(set())
     data_size = Setting(None)  # to invalidate selected_indices
+    viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent=None, select=SELECTNONE):
         QWidget.__init__(self)
@@ -390,7 +391,6 @@ class CurvePlot(QWidget, OWComponent):
         self.markclosest = True  # mark
         self.crosshair = True
         self.crosshair_hidden = True
-        self.viewtype = INDIVIDUAL
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -427,17 +427,13 @@ class CurvePlot(QWidget, OWComponent):
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
             triggered=self.rescale_current_view_y
         )
+
         actions.append(rescale_y)
-        view_individual = QAction(
-            "Show individual", self, shortcut=Qt.Key_I,
-            triggered=lambda x: self.show_individual()
+        self.view_average_menu = QAction(
+            "Show averages", self, shortcut=Qt.Key_A, checkable=True,
+            triggered=lambda x: self.viewtype_changed()
         )
-        actions.append(view_individual)
-        view_average = QAction(
-            "Show averages", self, shortcut=Qt.Key_A,
-            triggered=lambda x: self.show_average()
-        )
-        actions.append(view_average)
+        actions.append(self.view_average_menu)
 
         self.show_grid = False
         self.show_grid_a = QAction(
@@ -837,11 +833,12 @@ class CurvePlot(QWidget, OWComponent):
                 self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
 
     def show_individual(self):
+        self.view_average_menu.setChecked(False)
         self.set_pen_colors()
         self.clear_graph()
+        self.viewtype = INDIVIDUAL
         if not self.data:
             return
-        self.viewtype = INDIVIDUAL
         self.add_curves(self.data_x, self.data.X)
         self.set_curve_pens()
         self.curves_cont.update()
@@ -876,12 +873,20 @@ class CurvePlot(QWidget, OWComponent):
             rd[value].append(i)
         return rd
 
+    def viewtype_changed(self):
+        if self.viewtype == AVERAGE:
+            self.viewtype = INDIVIDUAL
+        else:
+            self.viewtype = AVERAGE
+        self.update_view()
+
     def show_average(self):
+        self.view_average_menu.setChecked(True)
         self.set_pen_colors()
         self.clear_graph()
+        self.viewtype = AVERAGE
         if not self.data:
             return
-        self.viewtype = AVERAGE
         x = self.data_x
         if self.data:
             ysall = []
