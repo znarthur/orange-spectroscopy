@@ -874,10 +874,18 @@ class CurvePlot(QWidget, OWComponent):
 
     def _split_by_color_value(self, data):
         color_var = self._current_color_var()
-        rd = defaultdict(list)
-        for i, inst in enumerate(data):
-            value = None if isinstance(color_var, str) else str(inst[color_var])
-            rd[value].append(i)
+        rd = {}
+        if isinstance(color_var, str):
+            rd[None] = np.arange(len(data.X))
+        else:
+            cvd = Orange.data.Table(Orange.data.Domain([color_var]), data)
+            for v in range(len(color_var.values)):
+                v1 = np.where(np.in1d(cvd.X, v))[0]
+                if len(v1):
+                    rd[color_var.values[v]] = v1
+            nanind = np.where(np.isnan(cvd.X))[0]
+            if len(nanind):
+                rd[None] = nanind
         return rd
 
     def viewtype_changed(self):
@@ -897,22 +905,23 @@ class CurvePlot(QWidget, OWComponent):
         x = self.data_x
         if self.data:
             ysall = []
-            subset_indices = [i for i, id in enumerate(self.data.ids) if id in self.subset_ids]
+            subset_indices = np.where(np.in1d(self.data.ids, list(self.subset_ids)))[0]
+            selected_indices = np.array(list(self.selected_indices))
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
                 for part in ["everything", "subset", "selection"]:
                     if part == "everything":
                         ys = self.data.X[indices]
-                        pen = self.pen_normal if subset_indices else self.pen_subset
+                        pen = self.pen_normal if len(subset_indices) else self.pen_subset
                     elif part == "selection" and self.selection_type:
-                        current_selected = sorted(set(self.selected_indices) & set(indices))
-                        if not current_selected:
+                        current_selected = np.intersect1d(indices, selected_indices)
+                        if not len(current_selected):
                             continue
                         ys = self.data.X[current_selected]
                         pen = self.pen_selected
                     elif part == "subset":
-                        current_subset = sorted(set(subset_indices) & set(indices))
-                        if not current_subset:
+                        current_subset = np.intersect1d(indices, subset_indices)
+                        if not len(current_subset):
                             continue
                         ys = self.data.X[current_subset]
                         pen = self.pen_subset
