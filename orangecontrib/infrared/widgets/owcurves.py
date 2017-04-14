@@ -399,11 +399,17 @@ class CurvePlot(QWidget, OWComponent):
 
         actions = []
 
+        resample_curves = QAction(
+            "Resample curves", self, shortcut=Qt.Key_R,
+            triggered=lambda x: self.resample_curves(self.sample_seed+1)
+        )
+        actions.append(resample_curves)
         reset_curves = QAction(
-            "Reset display", self, shortcut=Qt.Key_R,
+            "Resampling reset", self, shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_R),
             triggered=lambda x: self.resample_curves(0)
         )
         actions.append(reset_curves)
+
         zoom_in = QAction(
             "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
         )
@@ -432,12 +438,6 @@ class CurvePlot(QWidget, OWComponent):
             triggered=lambda x: self.show_average()
         )
         actions.append(view_average)
-
-        resample_curves = QAction(
-            "Resample curves", self, shortcut=Qt.Key_C,
-            triggered=lambda x: self.resample_curves(self.sample_seed+1)
-        )
-        actions.append(resample_curves)
 
         self.show_grid = False
         self.show_grid_a = QAction(
