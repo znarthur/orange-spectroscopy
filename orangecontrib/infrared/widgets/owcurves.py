@@ -782,7 +782,15 @@ class CurvePlot(QWidget, OWComponent):
         """ Add multiple curves with the same x domain. """
         if len(ys) > MAX_INSTANCES_DRAWN:
             sample_selection = random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
-            self.sampled_indices = sorted(sample_selection)
+
+            # with random selection also show at most MAX_INSTANCES_DRAW elements from the subset
+            subset = set(np.where(self.subset_indices)[0])
+            subset_to_show = subset - set(sample_selection)
+            subset_additional = MAX_INSTANCES_DRAWN - (len(subset) - len(subset_to_show))
+            if len(subset_to_show) > subset_additional:
+                subset_to_show = random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
+
+            self.sampled_indices = sorted(sample_selection + list(subset_to_show))
             self.sampling = True
         else:
             self.sampled_indices = list(range(len(ys)))

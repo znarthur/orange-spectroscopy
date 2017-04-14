@@ -219,6 +219,23 @@ class TestOWCurves(WidgetTest):
         self.widget.curveplot.grid_changed()
         self.assertTrue(self.widget.curveplot.show_grid)
 
+    def test_subset(self):
+        self.send_signal("Data", self.collagen)
+        sinds = self.widget.curveplot.sampled_indices
+        self.assertEqual(len(sinds), MAX_INSTANCES_DRAWN)
+
+        # the whole subset is drawn
+        add_subset = self.collagen[:MAX_INSTANCES_DRAWN]
+        self.send_signal("Data subset", add_subset)
+        sinds = self.widget.curveplot.sampled_indices
+        self.assertTrue(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+
+        # the whole subset can not be drawn anymore
+        add_subset = self.collagen[:MAX_INSTANCES_DRAWN+1]
+        self.send_signal("Data subset", add_subset)
+        sinds = self.widget.curveplot.sampled_indices
+        self.assertFalse(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+
     def test_subset_connect_disconnect(self):
         self.send_signal("Data", self.collagen)
         self.assertFalse(np.any(self.widget.curveplot.subset_indices))
