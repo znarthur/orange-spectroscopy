@@ -7,7 +7,8 @@ import warnings
 import math
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel
+    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
+    QShortcut
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -512,6 +513,8 @@ class CurvePlot(QWidget, OWComponent):
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)
 
+        cycle_colors = QShortcut(Qt.Key_C, self, self.cycle_color_attr, context=Qt.WidgetWithChildrenShortcut)
+
         labels_action = QWidgetAction(self)
         layout = QGridLayout()
         labels_box = gui.widgetBox(self, margin=0, orientation=layout)
@@ -548,6 +551,10 @@ class CurvePlot(QWidget, OWComponent):
             pass  # ok if it was already removed
         if not self.reports:
             pass
+
+    def cycle_color_attr(self):
+        self.color_attr = (self.color_attr + 1) % len(self.attrs)
+        self.update_view()
 
     def set_limits(self):
         vr = self.plot.vb.viewRect()
@@ -955,9 +962,6 @@ class CurvePlot(QWidget, OWComponent):
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_xsind = xsind
-
-    def update_display(self):
-        self.curves_cont.update()
 
     def set_data_subset(self, ids):
         self.subset_ids = set(ids) if ids is not None else set()
