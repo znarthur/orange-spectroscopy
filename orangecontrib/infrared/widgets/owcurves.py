@@ -209,9 +209,6 @@ class InteractiveViewBox(ViewBox):
                                       y=[p1.y(), p2.y(), p2.y(), p1.y(), p1.y()])
         self.selection_square.show()
 
-    def wheelEvent(self, ev, axis=None):
-        ev.accept()  # ignore wheel zoom
-
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
                 (self.action == ZOOMING or self.action == SELECT):
@@ -316,6 +313,15 @@ class InteractiveViewBox(ViewBox):
         self.setCursor(Qt.CrossCursor)
 
 
+class InteractiveViewBoxC(InteractiveViewBox):
+
+    def wheelEvent(self, ev, axis=None):
+        # separate axis handling with modifier keys
+        if axis is None:
+            axis = 1 if ev.modifiers() & Qt.ControlModifier else 0
+        super().wheelEvent(ev, axis=axis)
+
+
 class SelectRegion(pg.LinearRegionItem):
     def __init__(self, *args, **kwargs):
         pg.LinearRegionItem.__init__(self, *args, **kwargs)
@@ -351,7 +357,7 @@ class CurvePlot(QWidget, OWComponent):
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data(init=True)
 
-        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
+        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
 
