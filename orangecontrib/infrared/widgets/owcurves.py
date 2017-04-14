@@ -876,15 +876,15 @@ class CurvePlot(QWidget, OWComponent):
         color_var = self._current_color_var()
         rd = {}
         if isinstance(color_var, str):
-            rd[None] = np.arange(len(data.X))
+            rd[None] = np.full((len(data.X),), True, dtype=bool)
         else:
             cvd = Orange.data.Table(Orange.data.Domain([color_var]), data)
             for v in range(len(color_var.values)):
-                v1 = np.where(np.in1d(cvd.X, v))[0]
-                if len(v1):
+                v1 = np.in1d(cvd.X, v)
+                if np.any(v1):
                     rd[color_var.values[v]] = v1
-            nanind = np.where(np.isnan(cvd.X))[0]
-            if len(nanind):
+            nanind = np.isnan(cvd.X)
+            if np.any(nanind):
                 rd[None] = nanind
         return rd
 
@@ -905,8 +905,9 @@ class CurvePlot(QWidget, OWComponent):
         x = self.data_x
         if self.data:
             ysall = []
-            subset_indices = np.where(np.in1d(self.data.ids, list(self.subset_ids)))[0]
-            selected_indices = np.array(list(self.selected_indices))
+            subset_indices = np.in1d(self.data.ids, list(self.subset_ids))
+            selected_indices = np.full(len(subset_indices), False, dtype=bool)
+            selected_indices[list(self.selected_indices)] = True
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
                 for part in ["everything", "subset", "selection"]:
@@ -914,14 +915,14 @@ class CurvePlot(QWidget, OWComponent):
                         ys = self.data.X[indices]
                         pen = self.pen_normal if len(subset_indices) else self.pen_subset
                     elif part == "selection" and self.selection_type:
-                        current_selected = np.intersect1d(indices, selected_indices)
-                        if not len(current_selected):
+                        current_selected = indices & selected_indices
+                        if not np.any(current_selected):
                             continue
                         ys = self.data.X[current_selected]
                         pen = self.pen_selected
                     elif part == "subset":
-                        current_subset = np.intersect1d(indices, subset_indices)
-                        if not len(current_subset):
+                        current_subset = indices & subset_indices
+                        if not np.any(current_subset):
                             continue
                         ys = self.data.X[current_subset]
                         pen = self.pen_subset
