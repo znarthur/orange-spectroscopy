@@ -218,3 +218,17 @@ class TestOWCurves(WidgetTest):
         self.assertFalse(self.widget.curveplot.show_grid)
         self.widget.curveplot.grid_changed()
         self.assertTrue(self.widget.curveplot.show_grid)
+
+    def test_subset_connect_disconnect(self):
+        self.send_signal("Data", self.collagen)
+        self.assertFalse(np.any(self.widget.curveplot.subset_indices))
+        self.send_signal("Data subset", self.collagen[:1])
+        self.assertTrue(self.widget.curveplot.subset_indices[0])
+        self.assertFalse(np.any(self.widget.curveplot.subset_indices[1:]))
+        # connect some other data set
+        self.send_signal("Data", self.iris)
+        self.assertFalse(np.any(self.widget.curveplot.subset_indices))
+        # reconnecting correct data set should have the same subset
+        self.send_signal("Data", self.collagen)
+        self.assertTrue(self.widget.curveplot.subset_indices[0])
+        self.assertFalse(np.any(self.widget.curveplot.subset_indices[1:]))
