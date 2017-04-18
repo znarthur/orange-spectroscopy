@@ -980,16 +980,18 @@ class CurvePlot(QWidget, OWComponent):
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_xsind = xsind
-            self._set_subset_indices(self.subset)  # refresh subset indices according to the current subset
+            self._set_subset_indices()  # refresh subset indices according to the current subset
 
-    def _set_subset_indices(self, ids):
-        self.subset = ids
+    def _set_subset_indices(self):
+        ids = self.subset
         if ids is None:
             ids = []
-        self.subset_indices = np.in1d(self.data.ids, ids)
+        if self.data:
+            self.subset_indices = np.in1d(self.data.ids, ids)
 
     def set_data_subset(self, ids):
-        self._set_subset_indices(ids)
+        self.subset = ids
+        self._set_subset_indices()
         self.update_view()
 
     def select_by_click(self, pos, add):

@@ -249,3 +249,9 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", self.collagen)
         self.assertTrue(self.widget.curveplot.subset_indices[0])
         self.assertFalse(np.any(self.widget.curveplot.subset_indices[1:]))
+
+    def test_subset_first(self):
+        self.send_signal("Data subset", self.collagen[:1])
+        self.send_signal("Data", self.collagen)
+        self.assertTrue(self.widget.curveplot.subset_indices[0])
+        self.assertFalse(np.any(self.widget.curveplot.subset_indices[1:]))
