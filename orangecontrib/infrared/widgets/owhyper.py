@@ -26,7 +26,7 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL
+    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 
 
@@ -504,6 +504,10 @@ class ImagePlot(QWidget, OWComponent):
                 self.make_selection(None, add)
 
 
+class CurvePlotHyper(CurvePlot):
+    viewtype = Setting(AVERAGE)  # average view by default
+
+
 class OWHyper(OWWidget):
     name = "Hyperspectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
@@ -513,7 +517,7 @@ class OWHyper(OWWidget):
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
-    curveplot = SettingProvider(CurvePlot)
+    curveplot = SettingProvider(CurvePlotHyper)
 
     integration_method = Setting(0)
     integration_methods = [Integrate.Simple, Integrate.Baseline,
@@ -564,7 +568,7 @@ class OWHyper(OWWidget):
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
         self.imageplot = ImagePlot(self, self.image_selection_changed)
-        self.curveplot = CurvePlot(self, select=SELECTONE)
+        self.curveplot = CurvePlotHyper(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
