@@ -10,6 +10,7 @@ from AnyQt.QtTest import QTest
 
 import numpy as np
 import pyqtgraph as pg
+import colorcet
 
 from Orange.canvas.registry.description import Default
 import Orange.data
@@ -18,7 +19,6 @@ from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel
-from Orange.widgets.visualize.owheatmap import color_palette_table
 from Orange.data import DiscreteVariable
 
 from orangecontrib.infrared.data import getx
@@ -119,6 +119,29 @@ class ImageItemNan(pg.ImageItem):
             alpha = True
             argb[:, :, 3] = np.maximum(self.selection*255, 100)
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
+
+
+def color_palette_table(colors, threshold_low=0.0, threshold_high=1.0,
+                        underflow=None, overflow=None):
+    N = len(colors)
+    low, high = threshold_low * 255, threshold_high * 255
+    points = np.linspace(low, high, N)
+    space = np.linspace(0, 255, 256)
+
+    if underflow is None:
+        underflow = [None, None, None]
+
+    if overflow is None:
+        overflow = [None, None, None]
+
+    r = np.interp(space, points, colors[:, 0],
+                  left=underflow[0], right=overflow[0])
+    g = np.interp(space, points, colors[:, 1],
+                  left=underflow[1], right=overflow[1])
+    b = np.interp(space, points, colors[:, 2],
+                  left=underflow[2], right=overflow[2])
+
+    return np.c_[r, g, b]
 
 
 class ImagePlot(QWidget, OWComponent):
@@ -225,15 +248,9 @@ class ImagePlot(QWidget, OWComponent):
             box, self, "threshold_high", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_color_schema)
-        gammaslider = gui.hSlider(
-            box, self, "gamma", minValue=0.0, maxValue=20.0,
-            step=1.0, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_color_schema
-        )
 
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
-        form.addRow("Gamma:", gammaslider)
 
         box.layout().addLayout(form)
 
@@ -256,11 +273,12 @@ class ImagePlot(QWidget, OWComponent):
         else:
             self.parent.Warning.threshold_error.clear()
         # TODO add color chooser
-        colors = [(0, 0, 255), (255, 255, 0)]
+        # bgy color scheme
+        colors = np.array(colorcet.linear_bgy_10_95_c74)*255
         cols = color_palette_table(
             colors, threshold_low=self.threshold_low,
-            threshold_high=self.threshold_high,
-            gamma=self.gamma)
+            threshold_high=self.threshold_high)
+
         self.img.setLookupTable(cols)
 
         # use defined discrete palette

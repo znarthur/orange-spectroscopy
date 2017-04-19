@@ -76,6 +76,7 @@ if __name__ == '__main__':
             'serverfiles>=0.2',
             'AnyQt>=0.0.6',
             'pyqtgraph>=0.10.0',
+            'colorcet',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
