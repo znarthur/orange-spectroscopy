@@ -163,9 +163,13 @@ class TestIntegrate(unittest.TestCase):
         i = Integrate(method=Integrate.PeakAt, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 1)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
-                                [[0, 0, 0, 0, 0, 0]])
+                                [[0]])
+        i = Integrate(method=Integrate.PeakAt, limits=[[1.4, None]])(data)
+        self.assertEqual(i[0][0], 2)
+        i = Integrate(method=Integrate.PeakAt, limits=[[1.6, None]])(data)
+        self.assertEqual(i[0][0], 3)
 
-    def test_empty(self):
+    def test_empty_interval(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         i = Integrate(method=Integrate.Simple, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], 0)
@@ -175,6 +179,8 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i[0][0], np.nan)
         i = Integrate(method=Integrate.PeakBaseline, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], np.nan)
+        i = Integrate(method=Integrate.PeakAt, limits=[[10, 16]])(data)
+        self.assertEqual(i[0][0], 1)  # get the rightmost one
 
 
 class TestRubberbandBaseline(unittest.TestCase):

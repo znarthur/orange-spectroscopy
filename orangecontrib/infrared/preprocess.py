@@ -447,14 +447,18 @@ class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
 
 
 class IntegrateFeatureAtPeak(IntegrateFeature):
-    """ Peak height at the first limit. """
+    """ Find the closest x and return the value there. """
+
+    def extract_data(self, data, common):
+        data, x, x_sorter = common
+        return x, data.X
 
     def compute_baseline(self, x, y):
-        return np.zeros(y.shape)
+        return np.zeros((y.shape[0], 1))
 
     def compute_integral(self, x_s, y_s):
-        # FIXME should return the closest peak height
-        return y_s[:, 0]
+        closer = np.argmin(abs(x_s - self.limits[0]))
+        return y_s[:, closer]
 
 
 def _edge_baseline(x, y):
