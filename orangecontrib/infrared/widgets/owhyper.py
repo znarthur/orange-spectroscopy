@@ -302,6 +302,9 @@ class ImagePlot(QWidget, OWComponent):
             self.parent.curveplot.remove_marking(m)
         self.markings_integral = []
 
+        if di is None:
+            return  # nothing to draw
+
         color = Qt.red
 
         def add_marking(a):
@@ -366,8 +369,11 @@ class ImagePlot(QWidget, OWComponent):
             else:
                 self.parent.Error.image_too_big.clear()
 
+            di = {}
             if self.parent.value_type == 0:  # integrals
-                l1, l2 = self.parent.lowlim, self.parent.highlim
+                imethod = self.parent.integration_methods[self.parent.integration_method]
+
+                l1, l2, l3 = self.parent.lowlim, self.parent.highlim, self.parent.choose
 
                 gx = getx(self.data)
 
@@ -378,22 +384,25 @@ class ImagePlot(QWidget, OWComponent):
 
                 l1, l2 = min(l1, l2), max(l1, l2)
 
-                imethod = self.parent.integration_methods[self.parent.integration_method]
-                datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
+                if l3 is None:
+                    l3 = (l1 + l2)/2
 
-                di = {}
+                if imethod != Integrate.PeakAt:
+                    datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
+                else:
+                    datai = Integrate(method=imethod, limits=[[l3, l3]])(self.data)
+
                 if self.parent.curveplot.selected_indices:
                     # curveplot can have a subset of curves on the input> match IDs
                     ind = list(self.parent.curveplot.selected_indices)[0]
                     dind = self.data_ids[self.parent.curveplot.data[ind].id]
                     di = datai.domain.attributes[0].compute_value.draw_info(self.data[dind:dind+1])
-                self.refresh_markings(di)
-
                 d = datai.X[:, 0]
             else:
                 dat = self.data.domain[self.parent.attr_value]
                 ndom = Orange.data.Domain([dat])
                 d = Orange.data.Table(ndom, self.data).X[:, 0]
+            self.refresh_markings(di)
 
             # set data
             imdata = np.ones((lsy[2], lsx[2])) * float("nan")
@@ -508,12 +517,13 @@ class OWHyper(OWWidget):
 
     integration_method = Setting(0)
     integration_methods = [Integrate.Simple, Integrate.Baseline,
-                           Integrate.PeakMax, Integrate.PeakBaseline]
+                           Integrate.PeakMax, Integrate.PeakBaseline, Integrate.PeakAt]
     value_type = Setting(0)
     attr_value = ContextSetting(None)
 
     lowlim = Setting(None)
     highlim = Setting(None)
+    choose = Setting(None)
 
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
@@ -536,7 +546,7 @@ class OWHyper(OWWidget):
         gui.comboBox(
             self.box_values_spectra, self, "integration_method", valueType=int,
             items=("Integral from 0", "Integral from baseline",
-                   "Peak from 0", "Peak from baseline"),
+                   "Peak from 0", "Peak from baseline", "Value at"),
             callback=self._change_integral_type)
         gui.rubber(self.controlArea)
 
@@ -544,7 +554,7 @@ class OWHyper(OWWidget):
 
         self.box_values_feature = gui.indentedBox(rbox)
 
-        self.feature_value_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES | DomainModel.ATTRIBUTES,
+        self.feature_value_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
                                                valid_types=DomainModel.PRIMITIVE)
         self.feature_value = gui.comboBox(
             self.box_values_feature, self, "attr_value",
@@ -564,8 +574,14 @@ class OWHyper(OWWidget):
                                     confirmfn=self.edited, report=self.curveplot)
         self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim,
                                     confirmfn=self.edited, report=self.curveplot)
+        self.line3 = MovableVlineWD(position=self.choose, label="", setvalfn=self.set_choose,
+                                    confirmfn=self.edited, report=self.curveplot)
         self.curveplot.add_marking(self.line1)
         self.curveplot.add_marking(self.line2)
+        self.curveplot.add_marking(self.line3)
+        self.line1.hide()
+        self.line2.hide()
+        self.line3.hide()
 
         self.data = None
 
@@ -600,6 +616,9 @@ class OWHyper(OWWidget):
     def set_highlim(self, v):
         self.highlim = v
 
+    def set_choose(self, v):
+        self.choose = v
+
     def redraw_data(self):
         self.imageplot.set_integral_limits()
 
@@ -607,15 +626,24 @@ class OWHyper(OWWidget):
         self.redraw_data()
 
     def _update_integration_type(self):
+        self.line1.hide()
+        self.line2.hide()
+        self.line3.hide()
         if self.value_type == 0:
             self.box_values_spectra.setDisabled(False)
             self.box_values_feature.setDisabled(True)
+            if self.integration_methods[self.integration_method] != Integrate.PeakAt:
+                self.line1.show()
+                self.line2.show()
+            else:
+                self.line3.show()
         elif self.value_type == 1:
             self.box_values_spectra.setDisabled(True)
             self.box_values_feature.setDisabled(False)
         QTest.qWait(1)  # first update the interface
 
     def _change_integration(self):
+        # change what to show on the image
         self._update_integration_type()
         self.redraw_data()
 
@@ -623,7 +651,7 @@ class OWHyper(OWWidget):
         self.redraw_data()
 
     def _change_integral_type(self):
-        self.redraw_data()
+        self._change_integration()
 
     def set_data(self, data):
         self.closeContext()
@@ -639,12 +667,23 @@ class OWHyper(OWWidget):
         if self.curveplot.data_x is not None:
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
+
             if self.lowlim is None or not minx <= self.lowlim <= maxx:
-                self.lowlim = min(self.curveplot.data_x)
-                self.line1.setValue(self.lowlim)
+                self.lowlim = minx
+            self.line1.setValue(self.lowlim)
+
             if self.highlim is None or not minx <= self.highlim <= maxx:
-                self.highlim = max(self.curveplot.data_x)
-                self.line2.setValue(self.highlim)
+                self.highlim = maxx
+            self.line2.setValue(self.highlim)
+
+            if self.choose is None:
+                self.choose = (minx + maxx)/2
+            elif self.choose < minx:
+                self.choose = minx
+            elif self.choose > maxx:
+                self.choose = maxx
+            self.line3.setValue(self.choose)
+
         self.imageplot.set_data(data)
         self.openContext(data)
         self.curveplot.update_view()
