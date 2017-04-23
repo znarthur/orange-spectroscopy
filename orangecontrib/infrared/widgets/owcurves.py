@@ -1025,7 +1025,7 @@ class OWCurves(OWWidget):
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/curves.svg"
 
-    settingsHandler = DomainContextHandler()
+    settingsHandler = DomainContextHandler(metas_in_res=True)
 
     curveplot = SettingProvider(CurvePlot)
 

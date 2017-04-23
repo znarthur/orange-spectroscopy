@@ -532,7 +532,7 @@ class OWHyper(OWWidget):
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/hyper.svg"
 
-    settingsHandler = DomainContextHandler()
+    settingsHandler = DomainContextHandler(metas_in_res=True)
 
     imageplot = SettingProvider(ImagePlot)
     curveplot = SettingProvider(CurvePlotHyper)
