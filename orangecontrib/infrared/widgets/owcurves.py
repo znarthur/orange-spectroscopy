@@ -1048,13 +1048,13 @@ class OWCurves(OWWidget):
         self.Warning.no_x.clear()
         self.closeContext()
         self.curveplot.set_data(data)
+        self.openContext(data)
+        self.curveplot.update_view()
         if data is not None and not len(self.curveplot.data_x):
             self.Warning.no_x()
         if self.curveplot.sampled_indices \
                 and len(self.curveplot.sampled_indices) != len(self.curveplot.data):
             self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
-        self.openContext(data)
-        self.curveplot.update_view()
         self.selection_changed()
 
     def set_subset(self, data):
