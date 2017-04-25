@@ -750,7 +750,8 @@ class CurvePlot(QWidget, OWComponent):
         idcdata = self.sampled_indices[idc]
         insubset = self.subset_indices[idcdata]
         inselected = self.selection_type and idcdata in self.selected_indices
-        thispen = self.pen_subset if insubset else self.pen_normal
+        have_subset = np.any(self.subset_indices)
+        thispen = self.pen_subset if insubset or not have_subset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
         color_var = self._current_color_var()
