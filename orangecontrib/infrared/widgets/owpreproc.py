@@ -21,7 +21,8 @@ from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
-    QMenu, QApplication, QAction, QDockWidget, QScrollArea
+    QMenu, QApplication, QAction, QDockWidget, QScrollArea, QGridLayout,
+    QToolButton
 )
 from AnyQt.QtGui import (
     QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
@@ -68,12 +69,47 @@ class ViewController(Controller):
 
 class FocusFrame(owpreprocess.SequenceFlow.Frame):
 
+    def __init__(self, parent=None, **kwargs):
+        self.title_label = None
+        super().__init__(parent=parent, **kwargs)
+        tw = self._build_tw()
+        self.setTitleBarWidget(tw)
+
+    def _build_tw(self):
+        tw = QWidget(self)
+        tl = QGridLayout(tw)
+        self.title_label = QLabel(self._title, tw)
+        self.title_label.setMinimumWidth(100)
+        tl.addWidget(self.title_label, 0, 1)
+        close_button = QToolButton(self)
+        ca = QAction("x", self, triggered=self.closeRequested)
+        close_button.setDefaultAction(ca)
+        preview_button = QToolButton(self)
+        pa = QAction("p", self, triggered=self.show_preview)
+        preview_button.setDefaultAction(pa)
+        tl.addWidget(close_button, 0, 0)
+        tl.addWidget(preview_button, 0, 2)
+        tl.setColumnStretch(1, 1)
+        tl.setSpacing(2)
+        tl.setContentsMargins(0, 0, 0, 0)
+        tw.setLayout(tl)
+        return tw
+
+    def show_preview(self):
+        pass
+
     def focusInEvent(self, event):
         super().focusInEvent(event)
         try: #active selection on preview
             self.widget().activateOptions()
         except AttributeError:
             pass
+
+    def setTitle(self, title):
+        self._title = title
+        super().setTitle(title)
+        if self.title_label:
+            self.title_label.setText(title)
 
 
 class PreviewFrame(owpreprocess.SequenceFlow.Frame):
