@@ -152,6 +152,14 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", self.iris)
         self.assertFalse(self.widget.Warning.no_x.is_shown())
 
+    def test_information(self):
+        self.send_signal("Data", self.iris[:100])
+        self.assertFalse(self.widget.Information.showing_sample.is_shown())
+        self.send_signal("Data", self.iris)
+        self.assertTrue(self.widget.Information.showing_sample.is_shown())
+        self.send_signal("Data", self.iris[:100])
+        self.assertFalse(self.widget.Information.showing_sample.is_shown())
+
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
         x, cys = self.widget.curveplot.curves[0]
