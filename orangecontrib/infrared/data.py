@@ -361,20 +361,20 @@ class OPUSReader(FileFormat):
 class SPAReader(FileFormat):
     #based on code by Zack Gainsforth
 
-    EXTENSIONS = (".spa", ".SPA")
+    EXTENSIONS = (".spa", ".SPA", ".srs")
     DESCRIPTION = 'SPA'
 
     def sections(self):
         with open(self.filename, 'rb') as f:
-            # offset 294 tells us the number of sections in the file.
-            f.seek(294)
-            n = struct.unpack('h', f.read(2))[0]
+            f.seek(288)
+            ft, v, _, n = struct.unpack('<hhhh', f.read(8))
             sections = []
             for i in range(n):
                 # Go to the section start.  Each section is 16 bytes, and starts after offset 304.
                 f.seek(304 + 16 * i)
-                type = struct.unpack('h', f.read(2))[0]
-                sections.append((i, type))
+                type = struct.unpack('<h', f.read(2))[0]
+                if type != 0 and type != 1:
+                    sections.append((i, type))
         return sections
 
     SPEC_HEADER = 2
@@ -394,14 +394,8 @@ class SPAReader(FileFormat):
 
     def read_section_index(self, sectionind):
         with open(self.filename, 'rb') as f:
-            f.seek(304 + 16*sectionind)
-
-            _ = struct.unpack('h', f.read(2))[0]
-            offset = struct.unpack('i', f.read(3) + b'\x00')[0]
-            length = struct.unpack('i', f.read(3) + b'\x00')[0]
-
-            # length seemed off by this factor in code sample
-            length = length//256
+            f.seek(304 + 16 * sectionind)
+            t, offset, length = struct.unpack('<hii', f.read(10))
         return offset, length
 
     def read_spec_header(self):
@@ -409,7 +403,7 @@ class SPAReader(FileFormat):
         offset, length = self.read_section_index(info)
         with open(self.filename, 'rb') as f:
             f.seek(offset)
-            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('iiiifff', f.read(28))
+            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('<iiiifff', f.read(28))
             return numPoints, firstX, lastX,
 
     def read(self):
