@@ -935,8 +935,8 @@ class CurvePlot(QWidget, OWComponent):
                             continue
                         ys = self.data.X[current_subset]
                         pen = self.pen_subset
-                    std = np.std(ys, axis=0)
-                    mean = np.mean(ys, axis=0)
+                    std = np.nanstd(ys, axis=0)
+                    mean = np.nanmean(ys, axis=0)
                     std = std[self.data_xsind]
                     mean = mean[self.data_xsind]
                     ysall.append(mean)
