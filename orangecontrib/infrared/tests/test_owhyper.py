@@ -58,7 +58,10 @@ class TestOWHyper(WidgetTest):
         iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
-        cls.strange_data = [None, iris1, iris0, irisunknown]
+        # dataset without any attributes, but XY
+        whitelight0 = Orange.data.Table(Orange.data.Domain([], None,
+            metas=cls.whitelight.domain.metas), cls.whitelight)
+        cls.strange_data = [None, iris1, iris0, irisunknown, whitelight0]
 
     def setUp(self):
         self.widget = self.create_widget(OWHyper)
