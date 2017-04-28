@@ -532,6 +532,7 @@ class OWHyper(OWWidget):
     outputs = [("Selection", Orange.data.Table)]
     icon = "icons/hyper.svg"
 
+    settings_version = 2
     settingsHandler = DomainContextHandler(metas_in_res=True)
 
     imageplot = SettingProvider(ImagePlot)
@@ -552,6 +553,15 @@ class OWHyper(OWWidget):
 
     class Error(OWWidget.Warning):
         image_too_big = Msg("Image for chosen features is too big ({} x {}).")
+
+    @classmethod
+    def migrate_settings(cls, settings_, version):
+        if version < 2:
+            # delete the saved attr_value to prevent crashes
+            try:
+                del settings_["context_settings"][0].values["attr_value"]
+            except:
+                pass
 
     def __init__(self):
         super().__init__()
