@@ -7,6 +7,7 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
     index_values, OWHyper, location_values
+from orangecontrib.infrared.preprocess import Interpolate
 
 NAN = float("nan")
 
@@ -51,6 +52,13 @@ class TestOWHyper(WidgetTest):
         cls.whitelight = Orange.data.Table("whitelight.gsf")
         cls.whitelight_unknown = cls.whitelight.copy()
         cls.whitelight_unknown[0]["value"] = NAN
+        # dataset with a single attribute
+        iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
+        # dataset without any attributes
+        iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
+        # dataset with large blank regions
+        irisunknown = Interpolate(np.arange(20))(cls.iris)
+        cls.strange_data = [None, iris1, iris0, irisunknown]
 
     def setUp(self):
         self.widget = self.create_widget(OWHyper)
@@ -60,9 +68,10 @@ class TestOWHyper(WidgetTest):
         self.widget.imageplot.make_selection(None, False)
         self.widget.imageplot.make_selection(None, True)
 
-    def test_empty(self):
-        self.send_signal("Data", None)
-        self.try_big_selection()
+    def test_strange(self):
+        for data in self.strange_data:
+            self.send_signal("Data", data)
+            self.try_big_selection()
 
     def test_no_samples(self):
         self.send_signal("Data", self.whitelight[:0])

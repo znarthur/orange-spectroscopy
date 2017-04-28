@@ -371,7 +371,7 @@ class ImagePlot(QWidget, OWComponent):
         self.lsy = None
         self.selection_matrix = None
         self.selection_indices = None
-        if self.data:
+        if self.data and self.attr_x and self.attr_y:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
 
@@ -447,7 +447,7 @@ class ImagePlot(QWidget, OWComponent):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
-        if self.data:
+        if self.data and self.selection_matrix is not None:
             if selected is None and not add:
                 self.selection_matrix[:, :] = 0
             elif selected is not None:
@@ -459,7 +459,7 @@ class ImagePlot(QWidget, OWComponent):
         self.send_selection()
 
     def send_selection(self):
-        if self.data:
+        if self.data and self.selection_matrix is not None:
             selected = self.selection_indices[np.where(self.selection_matrix)]
             selected = selected[selected >= 0]  # filter undefined values
             selected.sort()
@@ -471,7 +471,7 @@ class ImagePlot(QWidget, OWComponent):
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
         A selection square needs to contain whole pixels """
-        if self.data:
+        if self.data and self.lsx and self.lsy:
             # get edges
             x1, x2 = min(p1.x(), p2.x()), max(p1.x(), p2.x())
             y1, y2 = min(p1.y(), p2.y()), max(p1.y(), p2.y())
@@ -686,7 +686,7 @@ class OWHyper(OWWidget):
                 self.init_attr_values()
         else:
             self.data = None
-        if self.curveplot.data_x is not None:
+        if self.curveplot.data_x is not None and len(self.curveplot.data_x):
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
 
