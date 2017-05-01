@@ -130,17 +130,21 @@ class TestGaussian(unittest.TestCase):
 class TestIntegrate(unittest.TestCase):
 
     def test_simple(self):
-        data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1]])
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1],
+                                  [1, 2, 3, 1, 1, np.nan]])
         i = Integrate(method=Integrate.Simple, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 8)
         self.assertEqual(i[1][0], 8)
+        self.assertEqual(i[2][0], 8)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 0)
 
     def test_baseline(self):
-        data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1]])
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1],
+                                  [1, 2, 3, 1, 1, np.nan]])
         i = Integrate(method=Integrate.Baseline, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 3)
         self.assertEqual(i[1][0], 3)
+        self.assertEqual(i[2][0], 3)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 1)
 
     def test_peakmax(self):
