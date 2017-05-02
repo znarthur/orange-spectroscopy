@@ -364,43 +364,40 @@ class SPAReader(FileFormat):
     EXTENSIONS = (".spa", ".SPA", ".srs")
     DESCRIPTION = 'SPA'
 
+    saved_sections = None
+    type = None
+
     def sections(self):
-        with open(self.filename, 'rb') as f:
-            f.seek(288)
-            ft, v, _, n = struct.unpack('<hhhh', f.read(8))
-            sections = []
-            for i in range(n):
-                # Go to the section start.  Each section is 16 bytes, and starts after offset 304.
-                f.seek(304 + 16 * i)
-                type = struct.unpack('<h', f.read(2))[0]
-                if type != 0 and type != 1:
-                    sections.append((i, type))
-        return sections
+        if self.saved_sections is None:
+            with open(self.filename, 'rb') as f:
+                name = struct.unpack("30s", f.read(30))[0].decode("ascii")
+                extended = "Exte" in name
+                f.seek(288)
+                ft, v, _, n = struct.unpack('<hhhh', f.read(8))
+                self.saved_sections = []
+                self.type = ft
+                for i in range(n):
+                    # Go to the section start.
+                    f.seek(304 + (22 if extended else 16) * i)
+                    t, offset, length = struct.unpack('<hqi' if extended else '<hii',
+                                                      f.read(14 if extended else 10))
+                    self.saved_sections.append((i, t, offset, length))
+        return self.saved_sections
 
     SPEC_HEADER = 2
 
-    TYPE_NAMES = [(3, "result"), (102, "processed")]
-
     def find_indextype(self, t):
-        for i, a in self.sections():
+        for i, a, _, _ in self.sections():
             if a == t:
                 return i
 
     @property
     def sheets(self):
-        # assume that section types can not repeat
-        d = dict(self.TYPE_NAMES)
-        return [ "%s" % d.get(b, b) for a, b in self.sections() ]
-
-    def read_section_index(self, sectionind):
-        with open(self.filename, 'rb') as f:
-            f.seek(304 + 16 * sectionind)
-            t, offset, length = struct.unpack('<hii', f.read(10))
-        return offset, length
+        return ()
 
     def read_spec_header(self):
         info = self.find_indextype(self.SPEC_HEADER)
-        offset, length = self.read_section_index(info)
+        _, _, offset, length = self.sections()[info]
         with open(self.filename, 'rb') as f:
             f.seek(offset)
             dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('<iiiifff', f.read(28))
@@ -408,15 +405,16 @@ class SPAReader(FileFormat):
 
     def read(self):
 
-        if self.sheet is None:
+        self.sections()
+
+        if self.type == 1:
             type = 3
         else:
-            db = {b:a for a,b in self.TYPE_NAMES}
-            type = int(db.get(self.sheet, self.sheet))
+            type = 3  # TODO handle others differently
 
         numPoints, firstX, lastX = self.read_spec_header()
 
-        offset, length = self.read_section_index(self.find_indextype(type))
+        _, _, offset, length = self.sections()[self.find_indextype(type)]
 
         with open(self.filename, 'rb') as f:
             f.seek(offset)
