@@ -2,6 +2,7 @@ import numpy as np
 import Orange
 import pyqtgraph as pg
 from Orange.widgets.tests.base import WidgetTest
+from Orange.data import Table, Domain, ContinuousVariable
 from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem
 from orangecontrib.infrared.data import getx
@@ -23,18 +24,21 @@ class TestOWCurves(WidgetTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.iris = Orange.data.Table("iris")
-        cls.collagen = Orange.data.Table("collagen")
+        cls.iris = Table("iris")
+        cls.collagen = Table("collagen")
         cls.normal_data = [cls.iris, cls.collagen]
         # dataset with a single attribute
-        iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
+        iris1 = Table(Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
-        iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
+        iris0 = Table(Domain([]), cls.iris)
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         cls.unknown_last_instance = cls.iris.copy()
         cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
-        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance]
+        # a data set with features with the same names
+        sfdomain = Domain([ContinuousVariable("1"), ContinuousVariable("1")])
+        cls.same_features = Table(sfdomain, [[0, 1]])
+        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features]
 
     def setUp(self):
         self.widget = self.create_widget(OWCurves)
