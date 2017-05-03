@@ -13,6 +13,7 @@ import Orange.data.io
 from scipy.interpolate import interp1d
 from scipy.io import matlab
 import numbers
+import h5py
 
 from .pymca5 import OmnicMap
 
@@ -158,6 +159,23 @@ class EnviMapReader(FileFormat):
 
         return _table_from_image(X, features, x_locs, y_locs)
 
+class HDF5Reader_HERMES(FileFormat):
+    """ A very case specific reader for HDF5 files from the HEREMES beamline in SOLEIL"""
+    EXTENSIONS = ('.hdf5',)
+    DESCRIPTION = 'HDF5 file @HERMRES/SOLEIL'
+
+    def read(self):
+        try:
+            hdf5_file = h5py.File(self.filename)
+            energy = np.array(hdf5_file['entry1/Counter0/energy'])
+            intensities = np.array(hdf5_file['entry1/Counter0/data']).T
+            x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
+            y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
+        except KeyError:
+            x_locs = None
+            y_locs = None
+
+        return _table_from_image(intensities, energy, x_locs, y_locs)
 
 class OmnicMapReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
