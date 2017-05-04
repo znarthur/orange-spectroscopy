@@ -77,6 +77,7 @@ if __name__ == '__main__':
             'AnyQt>=0.0.6',
             'pyqtgraph>=0.10.0',
             'colorcet',
+            'h5py',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
