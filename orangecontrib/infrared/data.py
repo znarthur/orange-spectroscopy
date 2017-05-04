@@ -167,10 +167,14 @@ class HDF5Reader_HERMES(FileFormat):
     def read(self):
         try:
             hdf5_file = h5py.File(self.filename)
-            energy = np.array(hdf5_file['entry1/Counter0/energy'])
-            intensities = np.array(hdf5_file['entry1/Counter0/data']).T
+        except Exception:
+            raise IOError("Couldn't load HDF5 file using " + self.filename)
+
+        try:
             x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
             y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
+            energy = np.array(hdf5_file['entry1/Counter0/energy'])
+            intensities = np.array(hdf5_file['entry1/Counter0/data']).T
         except KeyError:
             x_locs = None
             y_locs = None
