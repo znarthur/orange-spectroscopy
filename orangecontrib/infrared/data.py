@@ -159,31 +159,21 @@ class EnviMapReader(FileFormat):
 
         return _table_from_image(X, features, x_locs, y_locs)
 
+
 class HDF5Reader_HERMES(FileFormat):
     """ A very case specific reader for HDF5 files from the HEREMES beamline in SOLEIL"""
     EXTENSIONS = ('.hdf5',)
     DESCRIPTION = 'HDF5 file @HERMRES/SOLEIL'
 
     def read(self):
-        try:
-            hdf5_file = h5py.File(self.filename)
-        except Exception:
-            raise IOError("Couldn't load HDF5 file using " + self.filename)
-
-        try:
-            if hdf5_file['entry1/collection/beamline'].value.astype('str') == 'Hermes':
-                x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
-                y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
-                energy = np.array(hdf5_file['entry1/Counter0/energy'])
-                intensities = np.array(hdf5_file['entry1/Counter0/data']).T
-        except KeyError:
-            print('Problem with HDF5 structure...')
-            x_locs = None
-            y_locs = None
-            energy = None
-            intensities = None
-
+        hdf5_file = h5py.File(self.filename)
+        if hdf5_file['entry1/collection/beamline'].value.astype('str') == 'Hermes':
+            x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
+            y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
+            energy = np.array(hdf5_file['entry1/Counter0/energy'])
+            intensities = np.array(hdf5_file['entry1/Counter0/data']).T
         return _table_from_image(intensities, energy, x_locs, y_locs)
+
 
 class OmnicMapReader(FileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
