@@ -8,6 +8,8 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
     index_values, OWHyper, location_values
 from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.widgets.line_geometry import in_polygon
+
 
 NAN = float("nan")
 
@@ -41,6 +43,16 @@ class TestReadCoordinates(unittest.TestCase):
         lsc = values_to_linspace(np.array([1, 1, 1]))  # a constant
         lv = location_values([0,1,2], lsc)
         np.testing.assert_equal(lv, [-1, 0, 1])
+
+
+class TestPolygonSelection(unittest.TestCase):
+
+    def test_point(self):
+        poly = [(0, 1), (1, 0), (2, 1), (3, 0), (3, 2), (0, 1)]  # non-convex
+        self.assertFalse(in_polygon([0, 0], poly))
+        self.assertTrue(in_polygon([1, 1.1], poly))
+        self.assertTrue(in_polygon([1, 0.5], poly))
+        # self.assertTrue(in_polygon([1, 1], poly))  # edge case not working
 
 
 class TestOWHyper(WidgetTest):

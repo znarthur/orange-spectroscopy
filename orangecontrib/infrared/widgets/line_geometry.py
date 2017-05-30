@@ -134,6 +134,20 @@ def distance_curves(x, ys, q1):
     return r
 
 
+def in_polygon(point, polygon):
+    """
+    Test if a point is inside polygon with a crossing number algorithm.
+    """
+    polygon = np.asarray(polygon)
+    point = np.asarray(point)
+    x = point[..., 0]
+    y = point[..., 1]
+    minx = np.min(polygon[:, 0]) - 1.  # eps
+    pp = rolling_window(polygon.T, 2)
+    crossseg = intersect_line_segments(minx, y, x, y, pp[0][:, 0], pp[1][:, 0], pp[0][:, 1], pp[1][:, 1])
+    return np.sum(crossseg, axis=-1) % 2 == 1
+
+
 if __name__ == "__main__":
 
     import Orange
