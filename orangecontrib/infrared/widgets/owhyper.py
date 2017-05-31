@@ -225,7 +225,6 @@ class ImagePlot(QWidget, OWComponent):
         box = gui.vBox(self)
         box.setFocusPolicy(Qt.TabFocus)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES, valid_types=DomainModel.PRIMITIVE)
-        self.models = [self.xy_model]
         self.cb_attr_x = gui.comboBox(
             box, self, "attr_x", label="Axis x:", callback=self.update_attr,
             model=self.xy_model, **common_options)
@@ -292,8 +291,7 @@ class ImagePlot(QWidget, OWComponent):
 
     def init_attr_values(self):
         domain = self.data.domain if self.data is not None else None
-        for model in self.models:
-            model.set_domain(domain)
+        self.xy_model.set_domain(domain)
         self.attr_x = self.xy_model[0] if self.xy_model else None
         self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
             else self.attr_x
