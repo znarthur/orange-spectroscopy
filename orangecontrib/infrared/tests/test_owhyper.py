@@ -8,7 +8,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
     index_values, OWHyper, location_values
 from orangecontrib.infrared.preprocess import Interpolate
-from orangecontrib.infrared.widgets.line_geometry import in_polygon
+from orangecontrib.infrared.widgets.line_geometry import in_polygon, is_left
 
 
 NAN = float("nan")
@@ -47,12 +47,22 @@ class TestReadCoordinates(unittest.TestCase):
 
 class TestPolygonSelection(unittest.TestCase):
 
+    def test_is_left(self):
+        self.assertGreater(is_left(0, 0, 0, 1, -1, 0), 0)
+        self.assertLess(is_left(0, 0, 0, -1, -1, 0), 0)
+
     def test_point(self):
         poly = [(0, 1), (1, 0), (2, 1), (3, 0), (3, 2), (0, 1)]  # non-convex
+
         self.assertFalse(in_polygon([0, 0], poly))
         self.assertTrue(in_polygon([1, 1.1], poly))
+        self.assertTrue(in_polygon([1, 1], poly))
         self.assertTrue(in_polygon([1, 0.5], poly))
-        # self.assertTrue(in_polygon([1, 1], poly))  # edge case not working
+        self.assertFalse(in_polygon([2, 0], poly))
+        self.assertFalse(in_polygon([0, 2], poly))
+
+        # multiple points at once
+        np.testing.assert_equal([False, True], in_polygon([[0, 0], [1, 1]], poly))
 
 
 class TestOWHyper(WidgetTest):

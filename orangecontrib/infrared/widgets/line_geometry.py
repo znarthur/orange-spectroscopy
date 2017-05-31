@@ -134,18 +134,36 @@ def distance_curves(x, ys, q1):
     return r
 
 
+def is_left(l0x, l0y, l1x, l1y, px, py):
+    return (l1x - l0x)*(py - l0y) \
+           - (px - l0x)*(l1y - l0y)
+
+
 def in_polygon(point, polygon):
     """
-    Test if a point is inside polygon with a crossing number algorithm.
+    Test if a point is inside a polygon with a winding number algorithm.
+
+    After "Inclusion of a Point in a Polygon" by Dan Sunday,
+    http://geomalgorithms.com/a03-_inclusion.html
+
+    :param point: a 2D point or list of points
+    :param polygon: a list of polygon edges
+    :return: if a point is inside a polygon
     """
     polygon = np.asarray(polygon)
     point = np.asarray(point)
     x = point[..., 0]
     y = point[..., 1]
-    minx = np.min(polygon[:, 0]) - 1.  # eps
+    if x.shape:  # to support multiple points
+        x = x.reshape(-1, 1)
+        y = y.reshape(-1, 1)
     pp = rolling_window(polygon.T, 2)
-    crossseg = intersect_line_segments(minx, y, x, y, pp[0][:, 0], pp[1][:, 0], pp[0][:, 1], pp[1][:, 1])
-    return np.sum(crossseg, axis=-1) % 2 == 1
+    left = is_left(pp[0][:, 0], pp[1][:, 0], pp[0][:, 1], pp[1][:, 1], x, y)
+    upward_crossing = (pp[1][:, 0] <= y) * (y < pp[1][:, 1])
+    downward_crossing = (pp[1][:, 0] > y) * (y >= pp[1][:, 1])
+    wn = np.sum((left > 0) * (upward_crossing), axis=-1) \
+         - np.sum((left < 0) * (downward_crossing), axis=-1)
+    return wn > 0
 
 
 if __name__ == "__main__":
