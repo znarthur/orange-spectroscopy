@@ -132,10 +132,36 @@ class TestOWHyper(WidgetTest):
         out = self.get_output("Selection")
         self.assertEqual(len(self.whitelight), len(out))
 
+        # test if mixing increasing and decreasing works
+        self.widget.imageplot.select_square(QPointF(1000, -100), QPointF(-100, 1000), False)
+        out = self.get_output("Selection")
+        self.assertEqual(len(self.whitelight), len(out))
+
         # deselect
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(-100, -100), False)
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
+
+        # select specific points
+        self.widget.imageplot.select_square(QPointF(9.4, 9.4), QPointF(11.6, 10.6), False)
+        out = self.get_output("Selection")
+        np.testing.assert_equal(out.metas, [[10, 10], [11, 10]])
+
+    def test_select_polygon(self):
+        # rectangle and a polygon need to give the same results
+        self.send_signal("Data", self.whitelight)
+        self.widget.imageplot.select_square(QPointF(5, 5), QPointF(15, 10), False)
+        out = self.get_output("Selection")
+        self.widget.imageplot.select_polygon([QPointF(5, 5), QPointF(15, 5), QPointF(15, 10),
+                                              QPointF(5, 10), QPointF(5, 5)], False)
+        outpoly = self.get_output("Selection")
+        self.assertEqual(list(out), list(outpoly))
+
+    def test_select_click(self):
+        self.send_signal("Data", self.whitelight)
+        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        out = self.get_output("Selection")
+        np.testing.assert_equal(out.metas, [[1, 2]])
 
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)

@@ -5,7 +5,7 @@ import collections
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter
 from AnyQt.QtGui import QColor, QKeySequence
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtTest import QTest
 
 import numpy as np
@@ -28,6 +28,7 @@ from orangecontrib.infrared.preprocess import Integrate
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
+from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
 
 IMAGE_TOO_BIG = 1024*1024
@@ -164,8 +165,9 @@ class ImagePlot(QWidget, OWComponent):
         self.selection_enabled = True
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
-        self.selection_matrix = None
-        self.selection_indices = None
+        self.data_points = None
+        self.data_imagepixels = None
+        self.selection = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -367,8 +369,8 @@ class ImagePlot(QWidget, OWComponent):
         self.img.setSelection(None)
         self.lsx = None
         self.lsy = None
-        self.selection_matrix = None
-        self.selection_indices = None
+        self.data_points = None
+        self.data_imagepixels = None
         if self.data and self.attr_x and self.attr_y:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
@@ -377,6 +379,7 @@ class ImagePlot(QWidget, OWComponent):
             datam = Orange.data.Table(ndom, self.data)
             coorx = datam.X[:, 0]
             coory = datam.X[:, 1]
+            self.data_points = datam.X
             self.lsx = lsx = values_to_linspace(coorx)
             self.lsy = lsy = values_to_linspace(coory)
             if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
@@ -422,12 +425,11 @@ class ImagePlot(QWidget, OWComponent):
 
             # set data
             imdata = np.ones((lsy[2], lsx[2])) * float("nan")
-            self.selection_indices = np.ones((lsy[2], lsx[2]), dtype=int)*-1
-            self.selection_matrix = np.zeros((lsy[2], lsx[2]), dtype=bool)
+            self.selection = np.zeros(len(self.data), dtype="bool")
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
-            self.selection_indices[yindex, xindex] = np.arange(0, len(d), dtype=int)
+            self.data_imagepixels = np.vstack((yindex, xindex)).T
 
             levels = get_levels(imdata)
             self.update_color_schema()
@@ -445,22 +447,25 @@ class ImagePlot(QWidget, OWComponent):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
-        if self.data and self.selection_matrix is not None:
+        if self.data and self.lsx and self.lsy:
             if selected is None and not add:
-                self.selection_matrix[:, :] = 0
+                self.selection *= False  # set all to False
             elif selected is not None:
                 if add:
-                    self.selection_matrix = np.logical_or(self.selection_matrix, selected)
+                    self.selection = np.logical_or(self.selection, selected)
                 else:
-                    self.selection_matrix = selected
-            self.img.setSelection(self.selection_matrix)
+                    self.selection = selected
+
+            # set selection mask
+            selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
+            selected_px_ind = self.data_imagepixels[self.selection]
+            selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
+            self.img.setSelection(selected_px)
         self.send_selection()
 
     def send_selection(self):
-        if self.data and self.selection_matrix is not None:
-            selected = self.selection_indices[np.where(self.selection_matrix)]
-            selected = selected[selected >= 0]  # filter undefined values
-            selected.sort()
+        if self.data and self.selection is not None:
+            selected = np.where(self.selection)[0]
         else:
             selected = []
         if self.select_fn:
@@ -468,56 +473,37 @@ class ImagePlot(QWidget, OWComponent):
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
-        A selection square needs to contain whole pixels """
-        if self.data and self.lsx and self.lsy:
-            # get edges
-            x1, x2 = min(p1.x(), p2.x()), max(p1.x(), p2.x())
-            y1, y2 = min(p1.y(), p2.y()), max(p1.y(), p2.y())
+        A selection needs to contain whole pixels """
+        x1, y1 = p1.x(), p1.y()
+        x2, y2 = p2.x(), p2.y()
+        # currently the order of points in a polygon is important
+        x1, x2 = min(x1, x2), max(x1, x2)
+        y1, y2 = min(y1, y2), max(y1, y2)
+        polygon = [QPointF(x1, y1), QPointF(x2, y1), QPointF(x2, y2), QPointF(x1, y2), QPointF(x1, y1)]
+        self.select_polygon(polygon, add)
 
-            # here we change edges of the square so that next
-            # pixel centers need to be in the square x1, x2, y1, y2
+    def select_polygon(self, polygon, add):
+        """ Select by a polygon which has to contain whole pixels. """
+        if self.data and self.lsx and self.lsy:
+            polygon = [(p.x(), p.y()) for p in polygon]
+            # a polygon should contain all pixel
             shiftx = _shift(self.lsx)
             shifty = _shift(self.lsy)
-            x1 += shiftx
-            x2 -= shiftx
-            y1 += shifty
-            y2 -= shifty
-
-            # get locations in image pixels
-            x1 = location_values(x1, self.lsx)
-            x2 = location_values(x2, self.lsx)
-            y1 = location_values(y1, self.lsy)
-            y2 = location_values(y2, self.lsy)
-
-            # pixel centre need to within the square to be selected
-            x1, x2 = np.ceil(x1).astype(int), np.floor(x2).astype(int)
-            y1, y2 = np.ceil(y1).astype(int), np.floor(y2).astype(int)
-
-            # select a range
-            x1 = max(x1, 0)
-            y1 = max(y1, 0)
-            x2 = max(x2+1, 0)
-            y2 = max(y2+1, 0)
-            select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-            select_data[y1:y2, x1:x2] = 1
-            self.make_selection(select_data, add)
+            points_edges = [self.data_points + [[shiftx, shifty]],
+                            self.data_points + [[-shiftx, shifty]],
+                            self.data_points + [[shiftx, -shifty]],
+                            self.data_points + [[-shiftx, -shifty]]]
+            inp = in_polygon(points_edges[0], polygon)
+            for p in points_edges[1:]:
+                inp *= in_polygon(p, polygon)
+            self.make_selection(inp, add)
 
     def select_by_click(self, pos, add):
-        if self.data:
+        if self.data and self.lsx and self.lsy:
             x, y = pos.x(), pos.y()
-
-            x = location_values(x, self.lsy)
-            y = location_values(y, self.lsy)
-
-            x = np.round(x).astype(int)
-            y = np.round(y).astype(int)
-
-            if 0 <= x < self.lsx[2] and 0 <= y < self.lsy[2]:
-                select_data = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-                select_data[y, x] = 1
-                self.make_selection(select_data, add)
-            else:
-                self.make_selection(None, add)
+            distance = np.abs(self.data_points - [[x, y]])
+            sel = (distance[:, 0] < _shift(self.lsx)) * (distance[:, 1] < _shift(self.lsy))
+            self.make_selection(sel, add)
 
 
 class CurvePlotHyper(CurvePlot):
