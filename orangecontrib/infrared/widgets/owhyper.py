@@ -216,6 +216,13 @@ class ImagePlot(QWidget, OWComponent):
         select_square.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(select_square)
 
+        select_polygon = QAction(
+            "Select (polygon)", self, triggered=self.plot.vb.set_mode_select_polygon,
+        )
+        select_polygon.setShortcuts([Qt.Key_P])
+        select_polygon.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        actions.append(select_polygon)
+
         view_menu.addActions(actions)
         self.addActions(actions)
 

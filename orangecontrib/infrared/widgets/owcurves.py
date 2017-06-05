@@ -34,6 +34,7 @@ from orangecontrib.infrared.widgets.line_geometry import \
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 SELECT_SQUARE = 123
+SELECT_POLYGON = 124
 
 # view types
 INDIVIDUAL = 0
@@ -46,6 +47,9 @@ SELECTMANY = 2
 
 MAX_INSTANCES_DRAWN = 100
 NAN = float("nan")
+
+# distance to the first point in pixels that finishes the polygon
+SELECT_POLYGON_TOLERANCE = 10
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -143,24 +147,28 @@ class InteractiveViewBox(ViewBox):
         self.graph = graph
         self.setMouseMode(self.PanMode)
         self.zoomstartpoint = None
-        self.selection_start = None
+        self.current_selection = None
         self.action = PANNING
         self.y_padding = 0.02
         self.x_padding = 0
 
-        # line for line selection
+        # line for marking selection
         self.selection_line = pg.PlotCurveItem()
         self.selection_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
         self.selection_line.setZValue(1e9)
         self.selection_line.hide()
         self.addItem(self.selection_line, ignoreBounds=True)
 
-        # square for square selection
-        self.selection_square = pg.PlotCurveItem()
-        self.selection_square.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
-        self.selection_square.setZValue(1e9)
-        self.selection_square.hide()
-        self.addItem(self.selection_square, ignoreBounds=True)
+        # yellow marker for ending the polygon
+        self.selection_poly_marker = pg.ScatterPlotItem()
+        self.selection_poly_marker.setPen(pg.mkPen(color=QColor(Qt.yellow), width=2))
+        self.selection_poly_marker.setSize(SELECT_POLYGON_TOLERANCE*2)
+        self.selection_poly_marker.setBrush(None)
+        self.selection_poly_marker.setZValue(1e9+1)
+        self.selection_poly_marker.hide()
+        self.selection_poly_marker.mouseClickEvent = lambda x: x  # ignore mouse clicks
+        self.addItem(self.selection_poly_marker, ignoreBounds=True)
+
 
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
@@ -190,43 +198,62 @@ class InteractiveViewBox(ViewBox):
         if self.action == ZOOMING and self.zoomstartpoint:
             pos = self.mapFromView(self.mapSceneToView(ev))
             self.updateScaleBox(self.zoomstartpoint, pos)
-        if (self.action == SELECT or self.action == SELECT_SQUARE) and self.selection_start:
-            pos = self.mapFromView(self.mapSceneToView(ev))
+        if self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] and self.current_selection:
+            # ev is a position of the whole component (with axes)
+            pos = self.childGroup.mapFromParent(self.mapFromView(self.mapSceneToView(ev)))
             if self.action == SELECT:
-                self.updateSelectionLine(self.selection_start, pos)
+                self.updateSelectionLine(pos)
             elif self.action == SELECT_SQUARE:
-                self.updateSelectionSquare(self.selection_start, pos)
+                self.updateSelectionSquare(pos)
+            elif self.action == SELECT_POLYGON:
+                self.updateSelectionPolygon(pos)
 
-    def updateSelectionLine(self, p1, p2):
-        p1 = self.childGroup.mapFromParent(p1)
-        p2 = self.childGroup.mapFromParent(p2)
+    def updateSelectionLine(self, p2):
+        p1 = self.current_selection[0]
         self.selection_line.setData(x=[p1.x(), p2.x()], y=[p1.y(), p2.y()])
         self.selection_line.show()
 
-    def updateSelectionSquare(self, p1, p2):
-        p1 = self.childGroup.mapFromParent(p1)
-        p2 = self.childGroup.mapFromParent(p2)
-        self.selection_square.setData(x=[p1.x(), p1.x(), p2.x(), p2.x(), p1.x()],
-                                      y=[p1.y(), p2.y(), p2.y(), p1.y(), p1.y()])
-        self.selection_square.show()
+    def updateSelectionSquare(self, p2):
+        p1 = self.current_selection[0]
+        self.selection_line.setData(x=[p1.x(), p1.x(), p2.x(), p2.x(), p1.x()],
+                                    y=[p1.y(), p2.y(), p2.y(), p1.y(), p1.y()])
+        self.selection_line.show()
+
+    def _distance_pixels(self, p1, p2):
+        xpixel, ypixel = self.viewPixelSize()
+        dx = (p1.x() - p2.x()) / xpixel
+        dy = (p1.y() - p2.y()) / ypixel
+        return (dx**2 + dy**2)**0.5
+
+    def updateSelectionPolygon(self, p):
+        first = self.current_selection[0]
+        polygon = self.current_selection + [p]
+        self.selection_line.setData(x=[e.x() for e in polygon],
+                                    y=[e.y() for e in polygon])
+        self.selection_line.show()
+        if self._distance_pixels(first, p) < SELECT_POLYGON_TOLERANCE:
+            self.selection_poly_marker.setData(x=[first.x()], y=[first.y()])
+            self.selection_poly_marker.show()
+        else:
+            self.selection_poly_marker.hide()
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
-                (self.action == ZOOMING or self.action == SELECT):
+                (self.action == ZOOMING or self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON]):
             ev.accept()
             self.set_mode_panning()
         elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
         add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
-        if self.action != ZOOMING and self.action != SELECT and self.action != SELECT_SQUARE \
+        if self.action != ZOOMING and self.action not in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type \
                 and self.graph.viewtype == INDIVIDUAL:
             pos = self.childGroup.mapFromParent(ev.pos())
             self.graph.select_by_click(pos, add)
             ev.accept()
         if self.action == ZOOMING and ev.button() == Qt.LeftButton:
-            if self.zoomstartpoint == None:
+            if self.zoomstartpoint is None:
                 self.zoomstartpoint = ev.pos()
             else:
                 self.updateScaleBox(self.zoomstartpoint, ev.pos())
@@ -238,19 +265,31 @@ class InteractiveViewBox(ViewBox):
                 self.axHistory = self.axHistory[:self.axHistoryPointer] + [ax]
                 self.set_mode_panning()
             ev.accept()
-        if (self.action == SELECT or self.action == SELECT_SQUARE) \
+        if self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type:
-            if self.selection_start is None:
-                self.selection_start = ev.pos()
+            pos = self.childGroup.mapFromParent(ev.pos())
+            if self.current_selection is None:
+                self.current_selection = [pos]
             else:
-                startp = self.childGroup.mapFromParent(self.selection_start)
-                endp = self.childGroup.mapFromParent(ev.pos())
+                startp = self.current_selection[0]
                 if self.action == SELECT:
-                    self.graph.select_line(startp, endp, add)
+                    self.graph.select_line(startp, pos, add)
+                    self.set_mode_panning()
                 elif self.action == SELECT_SQUARE:
-                    self.graph.select_square(startp, endp, add)
-                self.set_mode_panning()
+                    self.graph.select_square(startp, pos, add)
+                    self.set_mode_panning()
+                elif self.action == SELECT_POLYGON:
+                    self.polygon_point_click(pos, add)
             ev.accept()
+
+    def polygon_point_click(self, p, add):
+        first = self.current_selection[0]
+        if self._distance_pixels(first, p) < SELECT_POLYGON_TOLERANCE:
+            self.current_selection.append(first)
+            self.graph.select_polygon(self.current_selection, add)
+            self.set_mode_panning()
+        else:
+            self.current_selection.append(p)
 
     def showAxRect(self, ax):
         super().showAxRect(ax)
@@ -292,8 +331,8 @@ class InteractiveViewBox(ViewBox):
     def cancel_select(self):
         self.setMouseMode(self.PanMode)
         self.selection_line.hide()
-        self.selection_square.hide()
-        self.selection_start = None
+        self.selection_poly_marker.hide()
+        self.current_selection = None
         self.action = PANNING
         self.unsetCursor()
 
@@ -307,6 +346,12 @@ class InteractiveViewBox(ViewBox):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT_SQUARE
+        self.setCursor(Qt.CrossCursor)
+
+    def set_mode_select_polygon(self):
+        self.set_mode_panning()
+        self.setMouseMode(self.RectMode)
+        self.action = SELECT_POLYGON
         self.setCursor(Qt.CrossCursor)
 
 
