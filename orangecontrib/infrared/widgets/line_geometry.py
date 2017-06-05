@@ -163,7 +163,7 @@ def in_polygon(point, polygon):
     downward_crossing = (pp[1][:, 0] > y) * (y >= pp[1][:, 1])
     wn = np.sum((left > 0) * (upward_crossing), axis=-1) \
          - np.sum((left < 0) * (downward_crossing), axis=-1)
-    return wn > 0
+    return wn != 0
 
 
 if __name__ == "__main__":

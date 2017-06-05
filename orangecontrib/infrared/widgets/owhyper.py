@@ -483,9 +483,6 @@ class ImagePlot(QWidget, OWComponent):
         A selection needs to contain whole pixels """
         x1, y1 = p1.x(), p1.y()
         x2, y2 = p2.x(), p2.y()
-        # currently the order of points in a polygon is important
-        x1, x2 = min(x1, x2), max(x1, x2)
-        y1, y2 = min(y1, y2), max(y1, y2)
         polygon = [QPointF(x1, y1), QPointF(x2, y1), QPointF(x2, y2), QPointF(x1, y2), QPointF(x1, y1)]
         self.select_polygon(polygon, add)
 

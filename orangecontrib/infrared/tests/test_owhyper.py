@@ -64,6 +64,11 @@ class TestPolygonSelection(unittest.TestCase):
         # multiple points at once
         np.testing.assert_equal([False, True], in_polygon([[0, 0], [1, 1]], poly))
 
+    def test_order(self):
+        poly = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]  # square
+        self.assertTrue(in_polygon([0.5, 0.5], poly))
+        self.assertTrue(in_polygon([0.5, 0.5], list(reversed(poly))))
+
 
 class TestOWHyper(WidgetTest):
 
@@ -147,7 +152,7 @@ class TestOWHyper(WidgetTest):
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[10, 10], [11, 10]])
 
-    def test_select_polygon(self):
+    def test_select_polygon_as_rectangle(self):
         # rectangle and a polygon need to give the same results
         self.send_signal("Data", self.whitelight)
         self.widget.imageplot.select_square(QPointF(5, 5), QPointF(15, 10), False)

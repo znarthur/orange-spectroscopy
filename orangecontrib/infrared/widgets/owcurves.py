@@ -169,7 +169,6 @@ class InteractiveViewBox(ViewBox):
         self.selection_poly_marker.mouseClickEvent = lambda x: x  # ignore mouse clicks
         self.addItem(self.selection_poly_marker, ignoreBounds=True)
 
-
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
         if buttonDownPos[0] == x:
