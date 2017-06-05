@@ -304,10 +304,6 @@ class InteractiveViewBox(ViewBox):
         self.setCursor(Qt.CrossCursor)
 
     def set_mode_select_square(self):
-        self.set_mode_select()
-        self.action = SELECT_SQUARE
-
-    def set_mode_select_square(self):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT_SQUARE
