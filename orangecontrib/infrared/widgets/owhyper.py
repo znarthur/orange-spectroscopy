@@ -162,6 +162,7 @@ class ImagePlot(QWidget, OWComponent):
         self.select_fn = select_fn
 
         self.selection_type = SELECTMANY
+        self.saving_enabled = hasattr(self.parent, "save_graph")
         self.selection_enabled = True
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
@@ -216,12 +217,20 @@ class ImagePlot(QWidget, OWComponent):
         select_square.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(select_square)
 
+
         select_polygon = QAction(
             "Select (polygon)", self, triggered=self.plot.vb.set_mode_select_polygon,
         )
         select_polygon.setShortcuts([Qt.Key_P])
         select_polygon.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(select_polygon)
+
+        if self.saving_enabled:
+            save_graph = QAction(
+                "Save graph", self, triggered=self.save_graph,
+            )
+            save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_I)])
+            actions.append(save_graph)
 
         view_menu.addActions(actions)
         self.addActions(actions)
@@ -304,6 +313,9 @@ class ImagePlot(QWidget, OWComponent):
         self.attr_x = self.xy_model[0] if self.xy_model else None
         self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
             else self.attr_x
+
+    def save_graph(self):
+        self.parent.save_graph()
 
     def set_data(self, data):
         self.img.clear()
