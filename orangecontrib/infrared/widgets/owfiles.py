@@ -5,6 +5,7 @@ from collections import Counter
 
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QMessageBox, QFileDialog, QApplication, QStyle
+import numpy as np
 
 import Orange
 import orangecontrib.infrared
@@ -12,11 +13,27 @@ from Orange.data.table import get_sample_datasets_dir
 from Orange.data.io import FileFormat
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
-from Orange.widgets.data.owconcatenate import domain_union, concat, append_columns
 from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
 
 from warnings import catch_warnings
+
+
+def unique(seq):
+    seen_set = set()
+    for el in seq:
+        if el not in seen_set:
+            yield el
+            seen_set.add(el)
+
+
+def domain_union(A, B):
+    union = Orange.data.Domain(
+        tuple(unique(A.attributes + B.attributes)),
+        tuple(unique(A.class_vars + B.class_vars)),
+        tuple(unique(A.metas + B.metas))
+    )
+    return union
 
 
 class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
@@ -244,22 +261,21 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             tables = data_list
             domain = reduce(domain_union,
                         (table.domain for table in tables))
+            source_var = Orange.data.StringVariable.make("Filename")
+            label_var = Orange.data.StringVariable.make("Label")
+            domain = Orange.data.Domain(domain.attributes, domain.class_vars,
+                                        domain.metas + (source_var, label_var))
             tables = [Orange.data.Table.from_table(domain, table)
                       for table in tables]
-            data = concat(tables)
-            source_var = Orange.data.StringVariable.make("Filename")
-            source_values = list(
+            data = type(tables[0]).concatenate(tables, axis=0)
+            data[:, source_var] = np.array(list(
                 chain(*(repeat(fn, len(table))
                         for fn, table in zip(fnok_list, tables)))
-                )
-            label_var = Orange.data.StringVariable.make("Label")
-            label_values = list(
+                )).reshape(-1, 1)
+            data[:, label_var] = np.array(list(
                 chain(*(repeat(self.label, len(table))
                         for fn, table in zip(fnok_list, tables)))
-            )
-            data = append_columns(
-                data, **{"metas": [(source_var, source_values),
-                                   (label_var, label_values)]})
+                )).reshape(-1, 1)
             self.data = data
             self.openContext(data.domain)
         else:
