@@ -4,8 +4,10 @@ import collections
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter
-from AnyQt.QtGui import QColor, QKeySequence
-from AnyQt.QtCore import Qt, QRectF, QPointF
+from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemModel, \
+    QStandardItem, QLinearGradient, QPixmap, QIcon
+
+from AnyQt.QtCore import Qt, QRectF, QPointF, QSize
 from AnyQt.QtTest import QTest
 
 import numpy as np
@@ -145,6 +147,62 @@ def color_palette_table(colors, threshold_low=0.0, threshold_high=1.0,
     return np.c_[r, g, b]
 
 
+_color_palettes = [
+    # linear
+    ("bgy", {0: np.array(colorcet.linear_bgy_10_95_c74) * 255}),
+    ("inferno", {0: np.array(colorcet.linear_bmy_10_95_c78) * 255}),
+    ("dimgray", {0: np.array(colorcet.linear_grey_10_95_c0) * 255}),
+    ("blues", {0: np.array(colorcet.linear_blue_95_50_c20) * 255}),
+    ("fire", {0: np.array(colorcet.linear_kryw_0_100_c71) * 255}),
+
+    # diverging - TODO set point
+    ("bkr", {0: np.array(colorcet.diverging_bkr_55_10_c35) * 255}),
+    ("bky", {0: np.array(colorcet.diverging_bky_60_10_c30) * 255}),
+    ("coolwarm", {0: np.array(colorcet.diverging_bwr_40_95_c42) * 255}),
+    ("bjy", {0: np.array(colorcet.diverging_linear_bjy_30_90_c45) * 255}),
+
+    # misc
+    ("rainbow", {0: np.array(colorcet.rainbow_bgyr_35_85_c73) * 255}),
+    ("isolum", {0: np.array(colorcet.isoluminant_cgo_80_c38) * 255}),
+]
+
+
+def palette_gradient(colors):
+    n = len(colors)
+    stops = np.linspace(0.0, 1.0, n, endpoint=True)
+    gradstops = [(float(stop), color) for stop, color in zip(stops, colors)]
+    grad = QLinearGradient(QPointF(0, 0), QPointF(1, 0))
+    grad.setStops(gradstops)
+    return grad
+
+
+def palette_pixmap(colors, size):
+    img = QPixmap(size)
+    img.fill(Qt.transparent)
+
+    grad = palette_gradient(colors)
+    grad.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
+
+    painter = QPainter(img)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QBrush(grad))
+    painter.drawRect(0, 0, size.width(), size.height())
+    painter.end()
+    return img
+
+
+def color_palette_model(palettes, iconsize=QSize(64, 16)):
+    model = QStandardItemModel()
+    for name, palette in palettes:
+        _, colors = max(palette.items())
+        colors = [QColor(*c) for c in colors]
+        item = QStandardItem(name)
+        item.setIcon(QIcon(palette_pixmap(colors, iconsize)))
+        item.setData(palette, Qt.UserRole)
+        model.appendRow([item])
+    return model
+
+
 class ImagePlot(QWidget, OWComponent):
 
     attr_x = ContextSetting(None)
@@ -152,6 +210,7 @@ class ImagePlot(QWidget, OWComponent):
     gamma = Setting(0)
     threshold_low = Setting(0.0)
     threshold_high = Setting(1.0)
+    palette_index = Setting(0)
 
     def __init__(self, parent, select_fn=None):
         QWidget.__init__(self)
@@ -251,6 +310,20 @@ class ImagePlot(QWidget, OWComponent):
             model=self.xy_model, **common_options)
         box.setFocusProxy(self.cb_attr_x)
 
+        self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
+                                     labelWidth=50, orientation=Qt.Horizontal)
+        self.color_cb.setIconSize(QSize(64, 16))
+        palettes = _color_palettes
+
+        self.palette_index = min(self.palette_index, len(palettes) - 1)
+
+        model = color_palette_model(palettes, self.color_cb.iconSize())
+        model.setParent(self)
+        self.color_cb.setModel(model)
+        self.color_cb.activated.connect(self.update_color_schema)
+
+        self.color_cb.setCurrentIndex(self.palette_index)
+
         form = QFormLayout(
             formAlignment=Qt.AlignLeft,
             labelAlignment=Qt.AlignLeft,
@@ -289,9 +362,8 @@ class ImagePlot(QWidget, OWComponent):
             return
         else:
             self.parent.Warning.threshold_error.clear()
-        # TODO add color chooser
-        # bgy color scheme
-        colors = np.array(colorcet.linear_bgy_10_95_c74)*255
+        data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
+        _, colors = max(data.items())
         cols = color_palette_table(
             colors, threshold_low=self.threshold_low,
             threshold_high=self.threshold_high)
