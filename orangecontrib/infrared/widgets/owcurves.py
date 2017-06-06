@@ -236,6 +236,15 @@ class InteractiveViewBox(ViewBox):
         else:
             self.selection_poly_marker.hide()
 
+    def keyPressEvent(self, ev):
+        # cancel current selection process
+        if self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] and \
+                ev.key() in [Qt.Key_Escape]:
+            self.set_mode_panning()
+            ev.accept()
+        else:
+            ev.ignore()
+
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
                 (self.action == ZOOMING or self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON]):
