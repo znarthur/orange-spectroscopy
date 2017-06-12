@@ -16,6 +16,13 @@ import Orange.widgets.data.owfile
 from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
 
+try:
+    from Orange.widgets.utils.filedialogs import dialog_formats
+except ImportError:
+    # before Orange 3.4.4
+    def dialog_formats():
+        return Orange.widgets.data.owfile.OWFile.dlg_formats
+
 from warnings import catch_warnings
 
 
@@ -214,7 +221,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             start_file = self.last_path() or os.path.expanduser("~/")
 
         filenames = QFileDialog.getOpenFileNames(
-            self, 'Open Multiple Data Files', start_file, self.dlg_formats)
+            self, 'Open Multiple Data Files', start_file, dialog_formats())
 
         if isinstance(filenames, tuple):  # has a file description
             filenames = filenames[0]
