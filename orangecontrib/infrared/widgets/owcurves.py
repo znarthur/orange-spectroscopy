@@ -259,8 +259,7 @@ class InteractiveViewBox(ViewBox):
             self.autoRange()
         add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
         if self.action != ZOOMING and self.action not in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
-                and ev.button() == Qt.LeftButton and self.graph.selection_type \
-                and self.graph.viewtype == INDIVIDUAL:
+                and ev.button() == Qt.LeftButton and self.graph.selection_type:
             pos = self.childGroup.mapFromParent(ev.pos())
             self.graph.select_by_click(pos, add)
             ev.accept()
@@ -1085,9 +1084,16 @@ class CurvePlot(QWidget, OWComponent):
     def select_by_click(self, pos, add):
         clicked_curve = self.highlighted
         if clicked_curve is not None:
-            self.make_selection([self.sampled_indices[clicked_curve]], add)
+            if self.viewtype == INDIVIDUAL:
+                self.make_selection([self.sampled_indices[clicked_curve]], add)
+            elif self.viewtype == AVERAGE:
+                sel = np.where(self.multiple_curves_info[clicked_curve][2])[0]
+                self.make_selection(sel, add)
         else:
             self.make_selection(None, add)
+        if self.viewtype == AVERAGE:
+            # reset average view
+            self.show_average()
 
     def select_line(self, startp, endp, add):
         intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
