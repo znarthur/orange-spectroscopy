@@ -5,10 +5,11 @@ import gc
 import random
 import warnings
 import math
+from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
-    QShortcut
+    QShortcut, QToolTip
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -28,10 +29,13 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 
+from Orange.widgets.visualize.owscatterplotgraph import HelpEventDelegate
+
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
+
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -431,6 +435,9 @@ class CurvePlot(QWidget, OWComponent):
         self.curves_cont = PlotCurvesItem()
         self.important_decimals = 4, 4
 
+        self.plot.scene().installEventFilter(
+            HelpEventDelegate(self.help_event, self))
+
         # whether to rescale at next update
         self.rescale_next = True
 
@@ -591,6 +598,16 @@ class CurvePlot(QWidget, OWComponent):
         self.reports = {}  # current reports
 
         self.viewhelpers_show()
+
+    def help_event(self, ev):
+        if self.highlighted:
+            datai = self.sampled_indices[self.highlighted]
+            text = str(self.highlighted)
+            ext = ('<span style="white-space:pre">{}</span>'
+                   .format(escape(text)))
+            QToolTip.showText(ev.screenPos(), text, widget=self.plotview)
+            return True
+        return True
 
     def report(self, reporter, contents):
         self.reports[id(reporter)] = contents
@@ -775,15 +792,18 @@ class CurvePlot(QWidget, OWComponent):
                     distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=self.MOUSE_RADIUS,
                                                  cache=cache)
                     try:
-                        bd = np.nanargmin(distances)
-                        bd = (bd, distances[bd])
+                        mindi = np.nanargmin(distances)
+                        if distances[mindi] < self.MOUSE_RADIUS:
+                            bd = mindi
                     except ValueError:  # if all distances are NaN
                         pass
-                if self.highlighted is not None:
+                if self.highlighted != bd:
+                    QToolTip.hideText()
+                if self.highlighted is not None and bd is None:
                     self.highlighted = None
                     self.highlighted_curve.hide()
-                if bd and bd[1] < self.MOUSE_RADIUS:
-                    self.highlighted = bd[0]
+                if bd is not None:
+                    self.highlighted = bd
                     x = self.curves[0][0]
                     y = self.curves[0][1][self.highlighted]
                     self.highlighted_curve.setData(x=x, y=y)
