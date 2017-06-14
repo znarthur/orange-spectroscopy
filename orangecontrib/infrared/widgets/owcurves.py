@@ -600,14 +600,22 @@ class CurvePlot(QWidget, OWComponent):
         self.viewhelpers_show()
 
     def help_event(self, ev):
-        if self.highlighted:
-            datai = self.sampled_indices[self.highlighted]
-            text = str(self.highlighted)
-            ext = ('<span style="white-space:pre">{}</span>'
-                   .format(escape(text)))
+        text = ""
+        if self.highlighted is not None:
+            if self.viewtype == INDIVIDUAL:
+                index = self.sampled_indices[self.highlighted]
+                variables = self.data.domain.metas + self.data.domain.class_vars
+                text += "".join(
+                    '{} = {}\n'.format(attr.name, self.data[index][attr])
+                    for attr in variables)
+        if text:
+            text = text.rstrip()
+            text = ('<span style="white-space:pre">{}</span>'
+                    .format(escape(text)))
             QToolTip.showText(ev.screenPos(), text, widget=self.plotview)
             return True
-        return True
+        else:
+            return False
 
     def report(self, reporter, contents):
         self.reports[id(reporter)] = contents
