@@ -506,7 +506,7 @@ class CurvePlot(QWidget, OWComponent):
         actions.append(self.invertX_menu)
         if self.selection_type == SELECTMANY:
             select_curves = QAction(
-                "Select (line)", self, triggered=self.plot.vb.set_mode_select,
+                "Select (line)", self, triggered=self.line_select_start,
             )
             select_curves.setShortcuts([Qt.Key_S])
             select_curves.setShortcutContext(Qt.WidgetWithChildrenShortcut)
@@ -597,6 +597,10 @@ class CurvePlot(QWidget, OWComponent):
         self.reports = {}  # current reports
 
         self.viewhelpers_show()
+
+    def line_select_start(self):
+        if self.viewtype == INDIVIDUAL:
+            self.plot.vb.set_mode_select()
 
     def help_event(self, ev):
         text = ""
