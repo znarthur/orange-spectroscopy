@@ -608,6 +608,16 @@ class CurvePlot(QWidget, OWComponent):
                 text += "".join(
                     '{} = {}\n'.format(attr.name, self.data[index][attr])
                     for attr in variables)
+            elif self.viewtype == AVERAGE:
+                c = self.multiple_curves_info[self.highlighted]
+                nc = sum(c[2])
+                if c[0] is not None:
+                    text += str(c[0]) + " "
+                if c[1]:
+                    text += "({})".format(c[1])
+                if text:
+                    text += "\n"
+                text += "{} curves".format(nc)
         if text:
             text = text.rstrip()
             text = ('<span style="white-space:pre">{}</span>'
@@ -702,6 +712,7 @@ class CurvePlot(QWidget, OWComponent):
         self.curves_cont.clear()
         self.curves_cont.update()
         self.plotview.clear()
+        self.multiple_curves_info = []
         self.curves_plotted = []  # currently plotted elements (for rescale)
         self.curves = []  # for finding closest curve
         self.plotview.addItem(self.label, ignoreBounds=True)
@@ -992,36 +1003,35 @@ class CurvePlot(QWidget, OWComponent):
         x = self.data_x
         if self.data:
             ysall = []
+            cinfo = []
             selected_indices = np.full(self.data_size, False, dtype=bool)
             selected_indices[list(self.selected_indices)] = True
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
-                for part in ["everything", "subset", "selection"]:
-                    if part == "everything":
-                        ys = self.data.X[indices]
+                for part in [None, "subset", "selection"]:
+                    if part is None:
+                        part_selection = indices
                         pen = self.pen_normal if np.any(self.subset_indices) else self.pen_subset
                     elif part == "selection" and self.selection_type:
-                        current_selected = indices & selected_indices
-                        if not np.any(current_selected):
-                            continue
-                        ys = self.data.X[current_selected]
+                        part_selection = indices & selected_indices
                         pen = self.pen_selected
                     elif part == "subset":
-                        current_subset = indices & self.subset_indices
-                        if not np.any(current_subset):
-                            continue
-                        ys = self.data.X[current_subset]
+                        part_selection = indices & self.subset_indices
                         pen = self.pen_subset
-                    std = np.nanstd(ys, axis=0)
-                    mean = np.nanmean(ys, axis=0)
-                    std = std[self.data_xsind]
-                    mean = mean[self.data_xsind]
-                    ysall.append(mean)
-                    penc = QPen(pen[colorv])
-                    penc.setWidth(3)
-                    self.add_curve(x, mean, pen=penc)
-                    self.add_fill_curve(x, mean + std, mean - std, pen=penc)
+                    if np.any(part_selection):
+                        ys = self.data.X[part_selection]
+                        std = np.nanstd(ys, axis=0)
+                        mean = np.nanmean(ys, axis=0)
+                        std = std[self.data_xsind]
+                        mean = mean[self.data_xsind]
+                        ysall.append(mean)
+                        penc = QPen(pen[colorv])
+                        penc.setWidth(3)
+                        self.add_curve(x, mean, pen=penc)
+                        self.add_fill_curve(x, mean + std, mean - std, pen=penc)
+                        cinfo.append((colorv, part, part_selection))
             self.curves.append((x, np.array(ysall)))
+            self.multiple_curves_info = cinfo
         self.curves_cont.update()
         self.plot.vb.set_mode_panning()
 
