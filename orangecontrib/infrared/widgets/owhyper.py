@@ -1,9 +1,11 @@
 import sys
 import gc
 import collections
+from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
-    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter, \
+    QToolTip
 from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemModel, \
     QStandardItem, QLinearGradient, QPixmap, QIcon
 
@@ -28,7 +30,9 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE
+    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
+    HelpEventDelegate
+
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
@@ -226,11 +230,15 @@ class ImagePlot(QWidget, OWComponent):
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
         self.data_points = None
+        self.data_values = None
         self.data_imagepixels = None
         self.selection = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
+
+        self.plot.scene().installEventFilter(
+            HelpEventDelegate(self.help_event, self))
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -355,6 +363,27 @@ class ImagePlot(QWidget, OWComponent):
         self.data = None
         self.data_ids = {}
 
+    def help_event(self, ev):
+        pos = self.plot.vb.mapSceneToView(ev.scenePos())
+        sel = self._points_at_pos(pos)
+        prepared = []
+        if sel is not None:
+            data, vals, points = self.data[sel], self.data_values[sel], self.data_points[sel]
+            for d, v, p in zip(data, vals, points):
+                basic = "({}, {}): {}".format(p[0], p[1], v)
+                variables = [ v for v in self.data.domain.metas + self.data.domain.class_vars
+                              if v not in [self.attr_x, self.attr_y]]
+                features = ['{} = {}'.format(attr.name, d[attr]) for attr in variables]
+                prepared.append("\n".join([basic] + features))
+        text = "\n\n".join(prepared)
+        if text:
+            text = ('<span style="white-space:pre">{}</span>'
+                    .format(escape(text)))
+            QToolTip.showText(ev.screenPos(), text, widget=self.plotview)
+            return True
+        else:
+            return False
+
     def update_color_schema(self):
         if not self.threshold_low < self.threshold_high:
             # TODO this belongs here, not in the parent
@@ -461,6 +490,7 @@ class ImagePlot(QWidget, OWComponent):
         self.lsx = None
         self.lsy = None
         self.data_points = None
+        self.data_values = None
         self.data_imagepixels = None
         if self.data and self.attr_x and self.attr_y:
             xat = self.data.domain[self.attr_x]
@@ -520,6 +550,7 @@ class ImagePlot(QWidget, OWComponent):
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
+            self.data_values = d
             self.data_imagepixels = np.vstack((yindex, xindex)).T
 
             levels = get_levels(imdata)
@@ -586,12 +617,16 @@ class ImagePlot(QWidget, OWComponent):
                 inp *= in_polygon(p, polygon)
             self.make_selection(inp, add)
 
-    def select_by_click(self, pos, add):
+    def _points_at_pos(self, pos):
         if self.data and self.lsx and self.lsy:
             x, y = pos.x(), pos.y()
             distance = np.abs(self.data_points - [[x, y]])
             sel = (distance[:, 0] < _shift(self.lsx)) * (distance[:, 1] < _shift(self.lsy))
-            self.make_selection(sel, add)
+            return sel
+
+    def select_by_click(self, pos, add):
+        sel = self._points_at_pos(pos)
+        self.make_selection(sel, add)
 
 
 class CurvePlotHyper(CurvePlot):
