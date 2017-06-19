@@ -212,6 +212,15 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i.domain[0].name, "int")
         self.assertEqual(i.domain[1].name, "int (2)")
 
+    def test_metas_output(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
+                      limits=[[0, 5], [0, 6]], metas=True)(data)
+        metavars = [a.name for a in i.domain.metas]
+        self.assertTrue("0 - 5" in metavars and "0 - 6" in metavars)
+        self.assertEqual(i[0]["0 - 5"], 8)
+        self.assertEqual(i[0]["0 - 6"], 3)
+
 
 class TestRubberbandBaseline(unittest.TestCase):
 

@@ -493,10 +493,11 @@ class Integrate(Preprocess):
         IntegrateFeaturePeakEdgeBaseline, \
         IntegrateFeatureAtPeak
 
-    def __init__(self, methods=Baseline, limits=None, names=None):
+    def __init__(self, methods=Baseline, limits=None, names=None, metas=False):
         self.methods = methods
         self.limits = limits
         self.names = names
+        self.metas = metas
 
     def __call__(self, data):
         common = _IntegrateCommon(data.domain)
@@ -518,8 +519,12 @@ class Integrate(Preprocess):
                 atts.append(Orange.data.ContinuousVariable(
                     name=name,
                     compute_value=method(limits, common)))
-        domain = Orange.data.Domain(atts, data.domain.class_vars,
-                                    metas=data.domain.metas)
+        if not self.metas:
+            domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                        metas=data.domain.metas)
+        else:
+            domain = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
+                                        metas=data.domain.metas + tuple(atts))
         return data.from_table(domain, data)
 
 
