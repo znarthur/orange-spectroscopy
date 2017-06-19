@@ -12,6 +12,7 @@ from scipy.signal import savgol_filter
 from sklearn.preprocessing import normalize as sknormalize
 
 from orangecontrib.infrared.data import getx
+from Orange.widgets.utils.annotated_data import get_next_name
 
 
 def is_increasing(a):
@@ -492,9 +493,10 @@ class Integrate(Preprocess):
         IntegrateFeaturePeakEdgeBaseline, \
         IntegrateFeatureAtPeak
 
-    def __init__(self, methods=Baseline, limits=None):
+    def __init__(self, methods=Baseline, limits=None, names=None):
         self.methods = methods
         self.limits = limits
+        self.names = names
 
     def __call__(self, data):
         common = _IntegrateCommon(data.domain)
@@ -503,9 +505,18 @@ class Integrate(Preprocess):
             methods = self.methods
             if not isinstance(methods, Iterable):
                 methods = [methods] * len(self.limits)
-            for limits, method in zip(self.limits, methods):
+            names = self.names
+            if not names:
+                names = ["{0} - {1}".format(l[0], l[1]) for l in self.limits]
+            # no names in data should be repeated
+            used_names = [var.name for var in data.domain.variables + data.domain.metas]
+            for i, n in enumerate(names):
+                n = get_next_name(used_names, n)
+                names[i] = n
+                used_names.append(n)
+            for limits, method, name in zip(self.limits, methods, names):
                 atts.append(Orange.data.ContinuousVariable(
-                    name="{0} - {1}".format(limits[0], limits[1]),
+                    name=name,
                     compute_value=method(limits, common)))
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)

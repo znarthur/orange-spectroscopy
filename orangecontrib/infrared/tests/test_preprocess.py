@@ -194,6 +194,24 @@ class TestIntegrate(unittest.TestCase):
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 0)
         np.testing.assert_equal(i.domain[1].compute_value.baseline(data)[1], 1)
 
+    def test_names(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
+                      limits=[[0, 5], [0, 6]])(data)
+        self.assertEqual(i.domain[0].name, "0 - 5")
+        self.assertEqual(i.domain[1].name, "0 - 6")
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
+                      limits=[[0, 5], [0, 6]], names=["simple", "baseline"])(data)
+        self.assertEqual(i.domain[0].name, "simple")
+        self.assertEqual(i.domain[1].name, "baseline")
+
+    def test_repeated(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
+                      limits=[[0, 5], [0, 6]], names=["int", "int"])(data)
+        self.assertEqual(i.domain[0].name, "int")
+        self.assertEqual(i.domain[1].name, "int (2)")
+
 
 class TestRubberbandBaseline(unittest.TestCase):
 
