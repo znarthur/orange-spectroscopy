@@ -1045,7 +1045,7 @@ class IntegrateEditor(BaseEditor):
         methodindex = params.get("method", IntegrateEditor.Integrators_classes.index(Integrate.Baseline))
         method = IntegrateEditor.Integrators_classes[methodindex]
         limits = params.get("limits", None)
-        return Integrate(method=method, limits=limits)
+        return Integrate(methods=method, limits=limits)
 
     def set_preview_data(self, data):
         if not self.user_changed:

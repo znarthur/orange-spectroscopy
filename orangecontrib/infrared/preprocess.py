@@ -1,3 +1,5 @@
+from collections import Iterable
+
 import Orange
 import Orange.data
 import numpy as np
@@ -315,7 +317,7 @@ class _NormalizeCommon:
                 # keep nans where they were
                 data.X[nans] = float("nan")
         elif self.method == Normalize.Area:
-            norm_data = Integrate(method=self.int_method,
+            norm_data = Integrate(methods=self.int_method,
                                   limits=[[self.lower, self.upper]])(data)
             data.X /= norm_data.X
         elif self.method == Normalize.Attribute:
@@ -490,18 +492,21 @@ class Integrate(Preprocess):
         IntegrateFeaturePeakEdgeBaseline, \
         IntegrateFeatureAtPeak
 
-    def __init__(self, method=Baseline, limits=None):
-        self.method = method
+    def __init__(self, methods=Baseline, limits=None):
+        self.methods = methods
         self.limits = limits
 
     def __call__(self, data):
         common = _IntegrateCommon(data.domain)
         atts = []
         if self.limits:
-            for limits in self.limits:
+            methods = self.methods
+            if not isinstance(methods, Iterable):
+                methods = [methods] * len(self.limits)
+            for limits, method in zip(self.limits, methods):
                 atts.append(Orange.data.ContinuousVariable(
                     name="{0} - {1}".format(limits[0], limits[1]),
-                    compute_value=self.method(limits, common)))
+                    compute_value=method(limits, common)))
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     metas=data.domain.metas)
         return data.from_table(domain, data)

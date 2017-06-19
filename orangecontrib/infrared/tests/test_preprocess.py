@@ -132,7 +132,7 @@ class TestIntegrate(unittest.TestCase):
     def test_simple(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1],
                                   [1, 2, 3, 1, 1, np.nan]])
-        i = Integrate(method=Integrate.Simple, limits=[[0, 5]])(data)
+        i = Integrate(methods=Integrate.Simple, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 8)
         self.assertEqual(i[1][0], 8)
         self.assertEqual(i[2][0], 8)
@@ -141,7 +141,7 @@ class TestIntegrate(unittest.TestCase):
     def test_baseline(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1], [1, 2, 3, 1, np.nan, 1],
                                   [1, 2, 3, 1, 1, np.nan]])
-        i = Integrate(method=Integrate.Baseline, limits=[[0, 5]])(data)
+        i = Integrate(methods=Integrate.Baseline, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 3)
         self.assertEqual(i[1][0], 3)
         self.assertEqual(i[2][0], 3)
@@ -151,40 +151,48 @@ class TestIntegrate(unittest.TestCase):
         d1 = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
         d2 = Orange.data.Table([[1, 2, 3, np.nan, 1, 1]])
         for data in d1, d2:
-            i = Integrate(method=Integrate.PeakMax, limits=[[0, 5]])(data)
+            i = Integrate(methods=Integrate.PeakMax, limits=[[0, 5]])(data)
             self.assertEqual(i[0][0], 3)
             np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 0)
 
     def test_peakbaseline(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
-        i = Integrate(method=Integrate.PeakBaseline, limits=[[0, 5]])(data)
+        i = Integrate(methods=Integrate.PeakBaseline, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 2)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
                                 [[1, 1, 1, 1, 1, 1]])
 
     def test_peakat(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
-        i = Integrate(method=Integrate.PeakAt, limits=[[0, 5]])(data)
+        i = Integrate(methods=Integrate.PeakAt, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 1)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
                                 [[0]])
-        i = Integrate(method=Integrate.PeakAt, limits=[[1.4, None]])(data)
+        i = Integrate(methods=Integrate.PeakAt, limits=[[1.4, None]])(data)
         self.assertEqual(i[0][0], 2)
-        i = Integrate(method=Integrate.PeakAt, limits=[[1.6, None]])(data)
+        i = Integrate(methods=Integrate.PeakAt, limits=[[1.6, None]])(data)
         self.assertEqual(i[0][0], 3)
 
     def test_empty_interval(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
-        i = Integrate(method=Integrate.Simple, limits=[[10, 16]])(data)
+        i = Integrate(methods=Integrate.Simple, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], 0)
-        i = Integrate(method=Integrate.Baseline, limits=[[10, 16]])(data)
+        i = Integrate(methods=Integrate.Baseline, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], 0)
-        i = Integrate(method=Integrate.PeakMax, limits=[[10, 16]])(data)
+        i = Integrate(methods=Integrate.PeakMax, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], np.nan)
-        i = Integrate(method=Integrate.PeakBaseline, limits=[[10, 16]])(data)
+        i = Integrate(methods=Integrate.PeakBaseline, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], np.nan)
-        i = Integrate(method=Integrate.PeakAt, limits=[[10, 16]])(data)
+        i = Integrate(methods=Integrate.PeakAt, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], 1)  # get the rightmost one
+
+    def test_different_integrals(self):
+        data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
+                      limits=[[0, 5], [0, 5]])(data)
+        self.assertEqual(i[0][0], 8)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 0)
+        np.testing.assert_equal(i.domain[1].compute_value.baseline(data)[1], 1)
 
 
 class TestRubberbandBaseline(unittest.TestCase):
@@ -244,7 +252,7 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.Area, int_method=Integrate.Simple, lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 7.5)
         p = Normalize(method=Normalize.Area, int_method=Integrate.Simple, lower=0, upper=2)(data)
-        q = Integrate(method=Integrate.Simple, limits=[[0, 2]])(p)
+        q = Integrate(methods=Integrate.Simple, limits=[[0, 2]])(p)
         np.testing.assert_equal(q.X, np.ones_like(q.X))
 
     def test_attribute_norm(self):

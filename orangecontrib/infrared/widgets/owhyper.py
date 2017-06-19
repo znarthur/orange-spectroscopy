@@ -528,9 +528,9 @@ class ImagePlot(QWidget, OWComponent):
                     l3 = (l1 + l2)/2
 
                 if imethod != Integrate.PeakAt:
-                    datai = Integrate(method=imethod, limits=[[l1, l2]])(self.data)
+                    datai = Integrate(methods=imethod, limits=[[l1, l2]])(self.data)
                 else:
-                    datai = Integrate(method=imethod, limits=[[l3, l3]])(self.data)
+                    datai = Integrate(methods=imethod, limits=[[l3, l3]])(self.data)
 
                 if self.parent.curveplot.selected_indices:
                     # curveplot can have a subset of curves on the input> match IDs
