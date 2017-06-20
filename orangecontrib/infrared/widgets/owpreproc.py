@@ -1200,6 +1200,8 @@ class OWPreprocess(OWWidget):
 
     curveplot = settings.SettingProvider(CurvePlot)
 
+    PREPROCESSORS = PREPROCESSORS
+
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
 
@@ -1235,7 +1237,7 @@ class OWPreprocess(OWWidget):
             dragDropMode=QListView.DragOnly
         )
 
-        self._qname2ppdef = {ppdef.qualname: ppdef for ppdef in PREPROCESSORS}
+        self._qname2ppdef = {ppdef.qualname: ppdef for ppdef in self.PREPROCESSORS}
 
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
@@ -1315,7 +1317,7 @@ class OWPreprocess(OWWidget):
         self.curveplot.update_view()
 
     def _initialize(self):
-        for i,pp_def in enumerate(PREPROCESSORS):
+        for i,pp_def in enumerate(self.PREPROCESSORS):
             description = pp_def.description
             if description.icon:
                 icon = QIcon(description.icon)
@@ -1424,7 +1426,7 @@ class OWPreprocess(OWWidget):
         self.apply()
 
     def add_preprocessor(self, index):
-        action = PREPROCESSORS[index]
+        action = self.PREPROCESSORS[index]
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
