@@ -436,6 +436,12 @@ class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
 class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
     """ The maximum baseline-subtracted peak height in the provided window. """
 
+    @staticmethod
+    def parameters():
+        return (("Low limit", "Low limit for integration (inclusive)"),
+                ("High limit", "High limit for integration (inclusive)"),
+            )
+
     def compute_baseline(self, x, y):
         return _edge_baseline(x, y)
 
@@ -463,6 +469,11 @@ class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
 
 class IntegrateFeatureAtPeak(IntegrateFeature):
     """ Find the closest x and return the value there. """
+
+    @staticmethod
+    def parameters():
+        return (("Closest to", "Nearest value"),
+            )
 
     def extract_data(self, data, common):
         data, x, x_sorter = common
@@ -519,7 +530,7 @@ class Integrate(Preprocess):
                 methods = [methods] * len(self.limits)
             names = self.names
             if not names:
-                names = ["{0} - {1}".format(l[0], l[1]) for l in self.limits]
+                names = [" - ".join("{0}".format(e) for e in l) for l in self.limits]
             # no names in data should be repeated
             used_names = [var.name for var in data.domain.variables + data.domain.metas]
             for i, n in enumerate(names):

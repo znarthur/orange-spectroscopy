@@ -1,13 +1,7 @@
 from orangecontrib.infrared.widgets.owpreproc import *
 
 
-class IntegrateSimpleEditor(BaseEditor):
-    """
-    Editor to integrate defined regions.
-    """
-
-    name = "Simple intragral (y=0)"
-    integrator = Integrate.Simple
+class IntegrateOneEditor(BaseEditor):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -77,6 +71,12 @@ class IntegrateSimpleEditor(BaseEditor):
             values.append(params.get(name, 0.))
         return Integrate(methods=cls.integrator, limits=[values], metas=True)
 
+
+class IntegrateSimpleEditor(IntegrateOneEditor):
+    name = "Simple intragral (y=0)"
+    qualname = "orangecontrib.infrared.integrate.simple"
+    integrator = Integrate.Simple
+
     def set_preview_data(self, data):
         if not self.user_changed:
             x = getx(data)
@@ -86,13 +86,48 @@ class IntegrateSimpleEditor(BaseEditor):
                 self.edited.emit()
 
 
+class IntegrateBaselineEditor(IntegrateSimpleEditor):
+    name = "Integrate (baseline substracted)"
+    qualname = "orangecontrib.infrared.integrate.baseline"
+    integrator = Integrate.Baseline
+
+
+class IntegratePeakMaxEditor(IntegrateSimpleEditor):
+    name = "Peak Height"
+    qualname = "orangecontrib.infrared.integrate.peak_max"
+    integrator = Integrate.PeakMax
+
+
+class IntegratePeakMaxBaselineEditor(IntegrateSimpleEditor):
+    name = "Baseline-subtracted Peak"
+    qualname = "orangecontrib.infrared.integrate.peak_max_baseline"
+    integrator = Integrate.PeakBaseline
+
+
+class IntegrateAtEditor(IntegrateSimpleEditor):
+    name = "Closest value"
+    qualname = "orangecontrib.infrared.integrate.closest"
+    integrator = Integrate.PeakAt
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_value("Closest to", min(x))
+
+
 PREPROCESSORS = [
     PreprocessAction(
-        "Integrate", "orangecontrib.infrared.integrate.simple", "Integrate (y=0)",
-        Description(IntegrateSimpleEditor.name,
-                    icon_path("Discretize.svg")),
-        IntegrateSimpleEditor
-    ),
+        "Integrate", c.qualname, "Integration",
+        Description(c.name, icon_path("Discretize.svg")),
+        c
+    ) for c in [
+        IntegrateSimpleEditor,
+        IntegrateBaselineEditor,
+        IntegratePeakMaxEditor,
+        IntegratePeakMaxBaselineEditor,
+        IntegrateAtEditor,
+    ]
 ]
 
 
