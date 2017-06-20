@@ -12,100 +12,77 @@ class IntegrateSimpleEditor(BaseEditor):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.__lowlim = 0.
-        self.__highlim = 1.
-
         layout = QFormLayout()
-
         self.setLayout(layout)
 
-        minf,maxf = -sys.float_info.max, sys.float_info.max
+        minf, maxf = -sys.float_info.max, sys.float_info.max
 
-        self.__lowlime = SetXDoubleSpinBox(decimals=4,
-            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__lowlim)
-        self.__highlime = SetXDoubleSpinBox(decimals=4,
-            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__highlim)
+        self.__values = {}
+        self.__editors = {}
+        self.__lines = {}
 
-        layout.addRow("Low limit", self.__lowlime)
-        layout.addRow("High limit", self.__highlime)
+        for name, longname in self.integrator.parameters():
+            v = 0.
+            self.__values[name] = v
 
-        self.__lowlime.focusIn = self.activateOptions
-        self.__highlime.focusIn = self.activateOptions
+            e = SetXDoubleSpinBox(decimals=4, minimum=minf, maximum=maxf,
+                                  singleStep=0.5, value=v)
+            e.focusIn = self.activateOptions
+            e.editingFinished.connect(self.edited)
+            def cf(x, name=name):
+                return self.set_value(name, x)
+            e.valueChanged[float].connect(cf)
+            self.__editors[name] = e
+            layout.addRow(name, e)
+
+            l = MovableVlineWD(position=v, label=name, setvalfn=cf,
+                               confirmfn=self.edited)
+            self.__lines[name] = l
+
         self.focusIn = self.activateOptions
-
-        self.__lowlime.valueChanged[float].connect(self.set_lowlim)
-        self.__highlime.valueChanged[float].connect(self.set_highlim)
-        self.__lowlime.editingFinished.connect(self.edited)
-        self.__highlime.editingFinished.connect(self.edited)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-        self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
-        self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
-
-        self.focusIn = self.activateOptions
-
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.user_changed = False
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        if self.line1 not in self.parent_widget.curveplot.markings:
-            self.line1.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line1)
-        if self.line2 not in self.parent_widget.curveplot.markings:
-            self.line2.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line2)
+        for l in self.__lines.values():
+            if l not in self.parent_widget.curveplot.markings:
+                l.report = self.parent_widget.curveplot
+                self.parent_widget.curveplot.add_marking(l)
 
-
-    def set_lowlim(self, lowlim, user=True):
+    def set_value(self, name, v, user=True):
         if user:
             self.user_changed = True
-        if self.__lowlim != lowlim:
-            self.__lowlim = lowlim
-            with blocked(self.__lowlime):
-                self.__lowlime.setValue(lowlim)
-                self.line1.setValue(lowlim)
+        if self.__values[name] != v:
+            self.__values[name] = v
+            with blocked(self.__editors[name]):
+                self.__editors[name].setValue(v)
+                self.__lines[name].setValue(v)
             self.changed.emit()
-
-    def left(self):
-        return self.__lowlim
-
-    def set_highlim(self, highlim, user=True):
-        if user:
-            self.user_changed = True
-        if self.__highlim != highlim:
-            self.__highlim = highlim
-            with blocked(self.__highlime):
-                self.__highlime.setValue(highlim)
-                self.line2.setValue(highlim)
-            self.changed.emit()
-
-    def right(self):
-        return self.__highlim
 
     def setParameters(self, params):
         if params:  # parameters were set manually set
             self.user_changed = True
-        self.set_lowlim(params.get("lowlim", 0.), user=False)
-        self.set_highlim(params.get("highlim", 1.), user=False)
+        for name, _ in self.integrator.parameters():
+            self.set_value(name, params.get(name, 0.), user=False)
 
     def parameters(self):
-        return {"lowlim": self.__lowlim, "highlim": self.__highlim}
+        return self.__values
 
     @classmethod
     def createinstance(cls, params):
         params = dict(params)
-        lowlim = params.get("lowlim", 0.)
-        highlim = params.get("highlim", 1.)
-        lowlim, highlim = min(lowlim, highlim), max(lowlim, highlim)
-        return Integrate(methods=cls.integrator, limits=[[lowlim, highlim]], metas=True)
+        values = []
+        for ind, (name, _) in enumerate(cls.integrator.parameters()):
+            values.append(params.get(name, 0.))
+        return Integrate(methods=cls.integrator, limits=[values], metas=True)
 
     def set_preview_data(self, data):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                self.set_lowlim(min(x))
-                self.set_highlim(max(x))
+                self.set_value("Low limit", min(x))
+                self.set_value("High limit", max(x))
                 self.edited.emit()
 
 

@@ -383,6 +383,11 @@ class IntegrateFeature(SharedComputeValue):
     def compute_draw_info(self, x_s, y_s):
         return {}
 
+    @staticmethod
+    def parameters():
+        """ Return parameters for this type of integral """
+        raise NotImplementedError
+
     def compute_baseline(self, x_s, y_s):
         raise NotImplementedError
 
@@ -396,6 +401,12 @@ class IntegrateFeature(SharedComputeValue):
 
 class IntegrateFeatureEdgeBaseline(IntegrateFeature):
     """ A linear edge-to-edge baseline subtraction. """
+
+    @staticmethod
+    def parameters():
+        return (("Low limit", "Low limit for integration (inclusive)"),
+                ("High limit", "High limit for integration (inclusive)"),
+            )
 
     def compute_baseline(self, x, y):
         if np.any(np.isnan(y)):
