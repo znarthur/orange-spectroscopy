@@ -1,6 +1,25 @@
-from orangecontrib.infrared.widgets.owpreproc import *
+import sys
+
+from AnyQt.QtWidgets import (
+    QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
+    QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
+    QStylePainter, QApplication, QPushButton, QLabel,
+    QMenu, QApplication, QAction, QDockWidget, QScrollArea
+)
+
+import Orange.data
+from Orange import preprocess
+from Orange.widgets.data.owpreprocess import (
+    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
+)
+
+from orangecontrib.infrared.data import getx
+from orangecontrib.infrared.preprocess import Integrate
+
 from orangecontrib.infrared.widgets.owcurves import SELECTONE
 from orangecontrib.infrared.widgets.owhyper import refresh_integral_markings
+from orangecontrib.infrared.widgets.owpreproc import SetXDoubleSpinBox, MovableVlineWD
+import orangecontrib.infrared.widgets.owpreproc
 
 
 class IntegrateOneEditor(BaseEditor):
@@ -139,7 +158,7 @@ PREPROCESSORS = [
 ]
 
 
-class OWIntegrate(OWPreprocess):
+class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
     name = "Integrate Spectra"
     id = "orangecontrib.infrared.widgets.integrate"
     description = "Integrate spectra in various ways."
