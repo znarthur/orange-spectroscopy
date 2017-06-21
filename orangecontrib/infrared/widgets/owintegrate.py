@@ -146,6 +146,10 @@ class OWIntegrate(OWPreprocess):
     icon = "icons/integrate.svg"
     priority = 2107
     PREPROCESSORS = PREPROCESSORS
+    BUTTON_ADD_LABEL = "Add integral..."
+
+    outputs = [("Integrated Data", Orange.data.Table),
+               ("Preprocessor", preprocess.preprocess.Preprocess)]
 
     def __init__(self):
         self.preview_integral = None

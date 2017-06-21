@@ -1188,6 +1188,7 @@ class OWPreprocess(OWWidget):
     description = "Construct a data preprocessing pipeline."
     icon = "icons/preprocess.svg"
     priority = 2105
+    id = "orangecontrib.infrared.widgets.owpreproc"
 
     inputs = [("Data", Orange.data.Table, "set_data")]
     outputs = [("Preprocessed Data", Orange.data.Table),
@@ -1200,6 +1201,7 @@ class OWPreprocess(OWWidget):
 
     curveplot = settings.SettingProvider(CurvePlot)
 
+    BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
 
     class Error(OWWidget.Error):
@@ -1225,7 +1227,7 @@ class OWPreprocess(OWWidget):
         # for mimeData delegate)
         self.preprocessors.mimeData = mimeData
 
-        self.button = QPushButton("Add preprocessor...", self)
+        self.button = QPushButton(self.BUTTON_ADD_LABEL, self)
         self.controlArea.layout().addWidget(self.button)
         self.preprocessor_menu = QMenu(self)
         self.button.setMenu(self.preprocessor_menu)
@@ -1472,7 +1474,7 @@ class OWPreprocess(OWWidget):
             data = None
 
         self.send("Preprocessor", preprocessor)
-        self.send("Preprocessed Data", data)
+        self.send(self.outputs[0].name, data)
 
     def commit(self):
         if not self._invalidated:
