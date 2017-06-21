@@ -96,14 +96,16 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
     """
-    def __init__(self, *args, preview_callback=None, **kwargs):
+    def __init__(self, *args, preview_callback=None, show_preview=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.preview_callback = preview_callback
+        self.show_preview = show_preview
 
     def clear(self):
         super().clear()
         self.__preview_widget = PreviewWidget()
         self.__preview_frame = PreviewFrame(widget=self.__preview_widget, title="Preview")
+        self.__preview_frame.hide()
         self.__preview_frame.installEventFilter(self)
 
     def __preview_position(self):
@@ -131,7 +133,8 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         if self.__preview_position() == -1:
             index = len(self.widgets())
             self.__flowlayout.insertWidget(index, self.__preview_frame)
-            self.__preview_frame.show()
+            if self.show_preview:
+                self.__preview_frame.show()
 
     def insertWidget(self, index, widget, title):
         """ Mostly copied to get different kind of frame """
@@ -1204,6 +1207,8 @@ class OWPreprocess(OWWidget):
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
 
+    preview_choose = True
+
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
 
@@ -1244,7 +1249,7 @@ class OWPreprocess(OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow(preview_callback=self.show_preview)
+        self.flow_view = SequenceFlow(preview_callback=self.show_preview, show_preview=self.preview_choose)
         self.controler = ViewController(self.flow_view, parent=self)
 
         self.scroll_area = QScrollArea(

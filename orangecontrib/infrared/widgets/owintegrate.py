@@ -174,6 +174,8 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
 
     output_metas = settings.Setting(True)
 
+    preview_choose = False
+
     def __init__(self):
         self.preview_integral = None
         self.preview_integral_obj = None
