@@ -1270,8 +1270,8 @@ class OWPreprocess(OWWidget):
 
         gui.spin(box, self, "preview_curves", 1, 10, label="Show curves", callback=self.show_preview)
 
-        box = gui.widgetBox(self.controlArea, "Output")
-        gui.auto_commit(box, self, "autocommit", "Commit", box=False)
+        self.output_box = gui.widgetBox(self.controlArea, "Output")
+        gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
 
         self._initialize()
 

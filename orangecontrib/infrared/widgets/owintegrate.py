@@ -12,6 +12,7 @@ from Orange import preprocess
 from Orange.widgets.data.owpreprocess import (
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
 )
+from Orange.widgets import gui, settings
 
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Integrate
@@ -164,17 +165,22 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
     description = "Integrate spectra in various ways."
     icon = "icons/integrate.svg"
     priority = 2107
+
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add integral..."
 
     outputs = [("Integrated Data", Orange.data.Table),
                ("Preprocessor", preprocess.preprocess.Preprocess)]
 
+    output_metas = settings.Setting(True)
+
     def __init__(self):
         self.preview_integral = None
         self.preview_integral_obj = None
         self.markings_list = []
         super().__init__()
+        cb = gui.checkBox(self.output_box, self, "output_metas", "Output as metas", callback=self.commit)
+        self.output_box.layout().insertWidget(0, cb)  # move to top of the box
         self.curveplot.selection_type = SELECTONE
 
     def redraw_integral(self):
@@ -196,6 +202,39 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
 
     def selection_changed(self):
         self.redraw_integral()
+
+    def buildpreproc(self):
+        plist = []
+        for i in range(self.preprocessormodel.rowCount()):
+            item = self.preprocessormodel.item(i)
+            desc = item.data(DescriptionRole)
+            params = item.data(ParametersRole)
+
+            if not isinstance(params, dict):
+                params = {}
+
+            create = desc.viewclass.createinstance
+            plist.append(create(params))
+
+        return PreprocessorListMoveMetas(not self.output_metas, preprocessors=plist)
+
+
+class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):
+    """Move added meta variables to features if needed."""
+
+    def __init__(self, move_metas, **kwargs):
+        super().__init__(**kwargs)
+        self.move_metas = move_metas
+
+    def __call__(self, data):
+        tdata = super().__call__(data)
+        if self.move_metas:
+            oldmetas = set(data.domain.metas)
+            newmetas = [m for m in tdata.domain.metas if m not in oldmetas]
+            domain = Orange.data.Domain(newmetas, data.domain.class_vars,
+                                        metas=data.domain.metas)
+            tdata = Orange.data.Table(domain, tdata)
+        return tdata
 
 
 def test_main(argv=sys.argv):
