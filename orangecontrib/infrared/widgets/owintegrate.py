@@ -101,7 +101,7 @@ class IntegrateOneEditor(BaseEditor):
 
 
 class IntegrateSimpleEditor(IntegrateOneEditor):
-    name = "Simple intragral (y=0)"
+    name = "Simple integral (y=0)"
     qualname = "orangecontrib.infrared.integrate.simple"
     integrator = Integrate.Simple
 
