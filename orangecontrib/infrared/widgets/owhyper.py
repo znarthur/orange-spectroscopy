@@ -40,6 +40,57 @@ from orangecontrib.infrared.widgets.line_geometry import in_polygon
 IMAGE_TOO_BIG = 1024*1024
 
 
+def refresh_integral_markings(di, markings_list, curveplot):
+    for m in markings_list:
+        if m in curveplot.markings:
+            curveplot.remove_marking(m)
+    markings_list.clear()
+
+    if di is None:
+        return  # nothing to draw
+
+    color = Qt.red
+
+    def add_marking(a):
+        markings_list.append(a)
+        curveplot.add_marking(a)
+
+    if "baseline" in di:
+        bs_x, bs_ys = di["baseline"]
+        baseline = pg.PlotCurveItem()
+        baseline.setPen(pg.mkPen(color=QColor(color), width=2, style=Qt.DotLine))
+        baseline.setZValue(10)
+        baseline.setData(x=bs_x, y=bs_ys[0])
+        add_marking(baseline)
+
+    if "curve" in di:
+        bs_x, bs_ys = di["curve"]
+        curve = pg.PlotCurveItem()
+        curve.setPen(pg.mkPen(color=QColor(color), width=2))
+        curve.setZValue(10)
+        curve.setData(x=bs_x, y=bs_ys[0])
+        add_marking(curve)
+
+    if "fill" in di:
+        (x1, ys1), (x2, ys2) = di["fill"]
+        phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
+        plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
+        color = QColor(color)
+        color.setAlphaF(0.5)
+        cc = pg.mkBrush(color)
+        pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
+        pfill.setZValue(9)
+        add_marking(pfill)
+
+    if "line" in di:
+        (x1, y1), (x2, y2) = di["line"]
+        line = pg.PlotCurveItem()
+        line.setPen(pg.mkPen(color=QColor(color), width=4))
+        line.setZValue(10)
+        line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
+        add_marking(line)
+
+
 def values_to_linspace(vals):
     """Find a near maching linspace for the values given.
     The problem is that some values can be missing and
@@ -435,54 +486,7 @@ class ImagePlot(QWidget, OWComponent):
         self.update_view()
 
     def refresh_markings(self, di):
-
-        for m in self.markings_integral:
-            self.parent.curveplot.remove_marking(m)
-        self.markings_integral = []
-
-        if di is None:
-            return  # nothing to draw
-
-        color = Qt.red
-
-        def add_marking(a):
-            self.markings_integral.append(a)
-            self.parent.curveplot.add_marking(a)
-
-        if "baseline" in di:
-            bs_x, bs_ys = di["baseline"]
-            baseline = pg.PlotCurveItem()
-            baseline.setPen(pg.mkPen(color=QColor(color), width=2, style=Qt.DotLine))
-            baseline.setZValue(10)
-            baseline.setData(x=bs_x, y=bs_ys[0])
-            add_marking(baseline)
-
-        if "curve" in di:
-            bs_x, bs_ys = di["curve"]
-            curve = pg.PlotCurveItem()
-            curve.setPen(pg.mkPen(color=QColor(color), width=2))
-            curve.setZValue(10)
-            curve.setData(x=bs_x, y=bs_ys[0])
-            add_marking(curve)
-
-        if "fill" in di:
-            (x1, ys1), (x2, ys2) = di["fill"]
-            phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
-            plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
-            color = QColor(color)
-            color.setAlphaF(0.5)
-            cc = pg.mkBrush(color)
-            pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
-            pfill.setZValue(9)
-            add_marking(pfill)
-
-        if "line" in di:
-            (x1, y1), (x2, y2) = di["line"]
-            line = pg.PlotCurveItem()
-            line.setPen(pg.mkPen(color=QColor(color), width=4))
-            line.setZValue(10)
-            line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
-            add_marking(line)
+        refresh_integral_markings(di, self.markings_integral, self.parent.curveplot)
 
     def update_view(self):
         self.img.clear()

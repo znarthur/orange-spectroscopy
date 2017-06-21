@@ -1,4 +1,6 @@
 from orangecontrib.infrared.widgets.owpreproc import *
+from orangecontrib.infrared.widgets.owcurves import SELECTONE
+from orangecontrib.infrared.widgets.owhyper import refresh_integral_markings
 
 
 class IntegrateOneEditor(BaseEditor):
@@ -39,6 +41,9 @@ class IntegrateOneEditor(BaseEditor):
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
+        self.parent_widget.preview_integral = self
+        self.parent_widget.preview_integral_obj = self.createinstance(self.parameters())
+        self.parent_widget.redraw_integral()
         for l in self.__lines.values():
             if l not in self.parent_widget.curveplot.markings:
                 l.report = self.parent_widget.curveplot
@@ -52,6 +57,9 @@ class IntegrateOneEditor(BaseEditor):
             with blocked(self.__editors[name]):
                 self.__editors[name].setValue(v)
                 self.__lines[name].setValue(v)
+            if self.parent_widget.preview_integral == self:
+                self.parent_widget.preview_integral_obj = self.createinstance(self.parameters())
+                self.parent_widget.redraw_integral()
             self.changed.emit()
 
     def setParameters(self, params):
@@ -138,6 +146,33 @@ class OWIntegrate(OWPreprocess):
     icon = "icons/integrate.svg"
     priority = 2107
     PREPROCESSORS = PREPROCESSORS
+
+    def __init__(self):
+        self.preview_integral = None
+        self.preview_integral_obj = None
+        self.markings_list = []
+        super().__init__()
+        self.curveplot.selection_type = SELECTONE
+
+    def redraw_integral(self):
+        di = {}
+        if self.curveplot.selected_indices and self.curveplot.data \
+                and self.preview_integral in self.flow_view.widgets() \
+                and self.preview_integral_obj:
+            ind = list(self.curveplot.selected_indices)[0]
+            show = self.curveplot.data[ind:ind+1]
+            self.preview_integral_obj.metas = False
+            datai = self.preview_integral_obj(show)
+            di = datai.domain.attributes[0].compute_value.draw_info(show)
+        refresh_integral_markings(di, self.markings_list, self.curveplot)
+
+    def show_preview(self):
+        # redraw integrals if number of preview curves was changed
+        super().show_preview()
+        self.redraw_integral()
+
+    def selection_changed(self):
+        self.redraw_integral()
 
 
 def test_main(argv=sys.argv):
