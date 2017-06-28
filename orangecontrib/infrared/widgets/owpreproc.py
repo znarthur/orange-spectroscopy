@@ -935,11 +935,7 @@ class IntegrateEditor(BaseEditor):
                            Integrate.PeakBaseline,
                            Integrate.PeakAt]
 
-    Integrators = ["Simple y=0 Int",
-                   "Baseline-subtracted Int",
-                   "Peak Height",
-                   "Baseline-subtracted Peak",
-                   "Low limit value"]
+    Integrators = [a.name for a in Integrators_classes]
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)

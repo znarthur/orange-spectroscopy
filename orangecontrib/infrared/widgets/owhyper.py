@@ -688,8 +688,7 @@ class OWHyper(OWWidget):
 
         gui.comboBox(
             self.box_values_spectra, self, "integration_method", valueType=int,
-            items=("Integral from 0", "Integral from baseline",
-                   "Peak from 0", "Peak from baseline", "Value at"),
+            items=(a.name for a in self.integration_methods),
             callback=self._change_integral_type)
         gui.rubber(self.controlArea)
 

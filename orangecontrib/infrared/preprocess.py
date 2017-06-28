@@ -402,6 +402,8 @@ class IntegrateFeature(SharedComputeValue):
 class IntegrateFeatureEdgeBaseline(IntegrateFeature):
     """ A linear edge-to-edge baseline subtraction. """
 
+    name = "Integral from baseline"
+
     @staticmethod
     def parameters():
         return (("Low limit", "Low limit for integration (inclusive)"),
@@ -429,12 +431,16 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
 class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
     """ A simple y=0 integration on the provided data window. """
 
+    name = "Integral from 0"
+
     def compute_baseline(self, x_s, y_s):
         return np.zeros(y_s.shape)
 
 
 class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
     """ The maximum baseline-subtracted peak height in the provided window. """
+
+    name = "Peak from baseline"
 
     @staticmethod
     def parameters():
@@ -463,12 +469,16 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
 class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
     """ The maximum peak height in the provided data window. """
 
+    name = "Peak from 0"
+
     def compute_baseline(self, x_s, y_s):
         return np.zeros(y_s.shape)
 
 
 class IntegrateFeatureAtPeak(IntegrateFeature):
     """ Find the closest x and return the value there. """
+
+    name = "Closest value"
 
     @staticmethod
     def parameters():

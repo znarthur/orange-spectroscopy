@@ -101,7 +101,6 @@ class IntegrateOneEditor(BaseEditor):
 
 
 class IntegrateSimpleEditor(IntegrateOneEditor):
-    name = "Simple integral (y=0)"
     qualname = "orangecontrib.infrared.integrate.simple"
     integrator = Integrate.Simple
 
@@ -115,25 +114,21 @@ class IntegrateSimpleEditor(IntegrateOneEditor):
 
 
 class IntegrateBaselineEditor(IntegrateSimpleEditor):
-    name = "Integrate (baseline substracted)"
     qualname = "orangecontrib.infrared.integrate.baseline"
     integrator = Integrate.Baseline
 
 
 class IntegratePeakMaxEditor(IntegrateSimpleEditor):
-    name = "Peak Height"
     qualname = "orangecontrib.infrared.integrate.peak_max"
     integrator = Integrate.PeakMax
 
 
 class IntegratePeakMaxBaselineEditor(IntegrateSimpleEditor):
-    name = "Baseline-subtracted Peak"
     qualname = "orangecontrib.infrared.integrate.peak_max_baseline"
     integrator = Integrate.PeakBaseline
 
 
 class IntegrateAtEditor(IntegrateSimpleEditor):
-    name = "Closest value"
     qualname = "orangecontrib.infrared.integrate.closest"
     integrator = Integrate.PeakAt
 
@@ -147,7 +142,7 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
 PREPROCESSORS = [
     PreprocessAction(
         "Integrate", c.qualname, "Integration",
-        Description(c.name, icon_path("Discretize.svg")),
+        Description(c.integrator.name, icon_path("Discretize.svg")),
         c
     ) for c in [
         IntegrateSimpleEditor,
