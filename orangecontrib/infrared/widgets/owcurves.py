@@ -77,7 +77,7 @@ class PlotCurvesItem(GraphicsObject):
         for o in sorted(self.objs, key=lambda x: x.zValue()):
             o.paint(p, *args)
 
-    def add_curve(self, c):
+    def add_bounds(self, c):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # NaN warnings are expected
             cb = c.boundingRect()
@@ -86,6 +86,10 @@ class PlotCurvesItem(GraphicsObject):
             self.bounds[1] = np.nanmin([cb.top(), self.bounds[1]])
             self.bounds[2] = np.nanmax([cb.right(), self.bounds[2]])
             self.bounds[3] = np.nanmax([cb.bottom(), self.bounds[3]])
+
+    def add_curve(self, c, ignore_bounds=False):
+        if not ignore_bounds:
+            self.add_bounds(c)
         self.objs.append(c)
 
     def boundingRect(self):
@@ -909,7 +913,9 @@ class CurvePlot(QWidget, OWComponent):
         cc = pg.mkBrush(color)
         pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
         pfill.setZValue(10)
-        self.curves_cont.add_curve(pfill)
+        self.curves_cont.add_bounds(phigh)
+        self.curves_cont.add_bounds(plow)
+        self.curves_cont.add_curve(pfill, ignore_bounds=True)
         # for zoom to work correctly
         self.curves_plotted.append((x, np.array([ylow, yhigh])))
 
