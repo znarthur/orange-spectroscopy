@@ -490,11 +490,18 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
         return x, data.X
 
     def compute_baseline(self, x, y):
-        return np.zeros((y.shape[0], 1))
+        return np.zeros(y.shape)
 
     def compute_integral(self, x_s, y_s):
         closer = np.argmin(abs(x_s - self.limits[0]))
         return y_s[:, closer]
+
+    def compute_draw_info(self, x, ys):
+        bs = self.compute_baseline(x, ys)
+        im = np.array([np.argmin(abs(x - self.limits[0]))])
+        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
+        return {"curve": (x, ys),
+                "line": lines}
 
 
 def _edge_baseline(x, y):

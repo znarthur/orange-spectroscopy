@@ -167,7 +167,7 @@ class TestIntegrate(unittest.TestCase):
         i = Integrate(methods=Integrate.PeakAt, limits=[[0, 5]])(data)
         self.assertEqual(i[0][0], 1)
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
-                                [[0]])
+                                0)
         i = Integrate(methods=Integrate.PeakAt, limits=[[1.4, None]])(data)
         self.assertEqual(i[0][0], 2)
         i = Integrate(methods=Integrate.PeakAt, limits=[[1.6, None]])(data)
