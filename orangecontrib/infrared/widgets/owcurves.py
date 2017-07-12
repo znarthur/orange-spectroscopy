@@ -36,6 +36,10 @@ from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
+from Orange.widgets.utils.annotated_data import (create_annotated_table,
+                                                 ANNOTATED_DATA_SIGNAL_NAME,
+                                                 get_next_name)
+
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -1126,7 +1130,7 @@ class OWCurves(OWWidget):
     name = "Curves"
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
-    outputs = [("Selection", Orange.data.Table)]
+    outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
     icon = "icons/curves.svg"
 
     settingsHandler = DomainContextHandler(metas_in_res=True)
@@ -1165,10 +1169,12 @@ class OWCurves(OWWidget):
         self.curveplot.set_data_subset(data.ids if data else None)
 
     def selection_changed(self):
+        annotated = create_annotated_table(self.curveplot.data, sorted(self.curveplot.selected_indices))
+        self.send("Data", annotated)
+        selected = None
         if self.curveplot.selected_indices and self.curveplot.data:
-            self.send("Selection", self.curveplot.data[sorted(self.curveplot.selected_indices)])
-        else:
-            self.send("Selection", None)
+            selected = self.curveplot.data[sorted(self.curveplot.selected_indices)]
+        self.send("Selection", selected)
 
 
 def main(argv=None):

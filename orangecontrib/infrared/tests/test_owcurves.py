@@ -110,9 +110,16 @@ class TestOWCurves(WidgetTest):
             self.send_signal("Data", data)
             out = self.get_output("Selection")
             self.assertIsNone(out, None)
+            out = self.get_output("Data")
+            sa = out.transform(Orange.data.Domain([out.domain["Selected"]]))
+            np.testing.assert_equal(sa.X, 0)
             self.select_diagonal()
             out = self.get_output("Selection")
             self.assertEqual(len(data), len(out))
+            out = self.get_output("Data")
+            self.assertEqual(len(data), len(out))
+            sa = out.transform(Orange.data.Domain([out.domain["Selected"]]))
+            np.testing.assert_equal(sa.X, 1)
         self.widget.hide()
 
     def test_zoom_rect(self):
