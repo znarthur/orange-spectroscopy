@@ -552,7 +552,11 @@ class ImagePlot(QWidget, OWComponent):
 
             # set data
             imdata = np.ones((lsy[2], lsx[2])) * float("nan")
-            self.selection = np.zeros(len(self.data), dtype="bool")
+
+            # if previous or saved selection is valid for this data set keep it
+            if self.selection is None or len(self.selection) != len(self.data):
+                self.selection = np.zeros(len(self.data), dtype="bool")
+
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
@@ -573,6 +577,15 @@ class ImagePlot(QWidget, OWComponent):
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
 
+            self.send_selection()
+            self.refresh_img_selection()
+
+    def refresh_img_selection(self):
+        selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
+        selected_px_ind = self.data_imagepixels[self.selection]
+        selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
+        self.img.setSelection(selected_px)
+
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
         if self.data and self.lsx and self.lsy:
@@ -583,12 +596,7 @@ class ImagePlot(QWidget, OWComponent):
                     self.selection = np.logical_or(self.selection, selected)
                 else:
                     self.selection = selected
-
-            # set selection mask
-            selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-            selected_px_ind = self.data_imagepixels[self.selection]
-            selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
-            self.img.setSelection(selected_px)
+            self.refresh_img_selection()
         self.send_selection()
 
     def send_selection(self):
@@ -834,6 +842,19 @@ class OWHyper(OWWidget):
         self.openContext(data)
         self.curveplot.update_view()
         self.imageplot.update_view()
+
+    # store selection as a list due to a bug in checking if numpy settings changed
+    def storeSpecificSettings(self):
+        selection = self.imageplot.selection
+        if selection is not None:
+            selection = list(selection)
+        self.current_context.selection = selection
+
+    def retrieveSpecificSettings(self):
+        selection = getattr(self.current_context, "selection", None)
+        if selection is not None:
+            selection = np.array(selection, dtype="bool")
+        self.imageplot.selection = selection
 
 
 def main(argv=None):
