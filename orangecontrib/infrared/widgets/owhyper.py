@@ -36,6 +36,8 @@ from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
 from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
+from Orange.widgets.utils.annotated_data import create_annotated_table
+
 
 IMAGE_TOO_BIG = 1024*1024
 
@@ -640,7 +642,7 @@ class CurvePlotHyper(CurvePlot):
 class OWHyper(OWWidget):
     name = "Hyperspectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    outputs = [("Selection", Orange.data.Table)]
+    outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
     icon = "icons/hyper.svg"
 
     settings_version = 2
@@ -732,6 +734,8 @@ class OWHyper(OWWidget):
         self._update_integration_type()
 
     def image_selection_changed(self, indices):
+        annotated = create_annotated_table(self.data, indices)
+        self.send("Data", annotated)
         if self.data:
             selected = self.data[indices]
             self.send("Selection", selected if selected else None)
