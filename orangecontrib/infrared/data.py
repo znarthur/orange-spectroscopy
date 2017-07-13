@@ -256,10 +256,9 @@ class OmnicMapReader(FileFormat):
         return _table_from_image(X, features, x_locs, y_locs)
 
 class SPCReader(FileFormat):
-    EXTENSIONS = ('.spc',)
+    EXTENSIONS = ('.spc', '.SPC',)
     DESCRIPTION = 'Galactic SPC format'
 
-    @property
     def read(self):
         spc_file = spc.File(self.filename)
         #
@@ -272,26 +271,22 @@ class SPCReader(FileFormat):
             print("use fcatxt axis not fxtype")
 
         if spc_file.tmulti:
-            print('multiplr y values')
+            # multiple y values
+            domvals = spc_file.x  # first column is attribute name
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+            y_data = [[sub.y] for sub in spc_file.sub]
+            y_data = np.array(y_data)
+            table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1))
+
         else:
-            print('single set of y values')
+            # single set of y values
+            domvals = spc_file.x  # first column is attribute name
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+            y_data = spc_file.sub[0].y
+            table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(1, -1))
 
-        print('SPCReader')
-        domvals = spc_file.x  # first column is attribute name
-        print(domvals.shape)
-        domvals = domvals.reshape(1, -1)
-        print(domvals.shape)
-        from orangecontrib.infrared.preprocess import features_with_interpolation
-        # domain = Orange.data.Domain(features_with_interpolation(domvals), None)
-        # domain = Orange.data.Domain(domvals, None)
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-        y_data = spc_file.sub[0].y
 
-        table = Orange.data.Table.from_numpy(domain,
-                                             y_data.astype(float, order='C').reshape(1, -1))
-
-        return Orange.data.Table(domain, datavals)
-
+        return table
 
 
 class OPUSReader(FileFormat):
