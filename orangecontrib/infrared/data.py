@@ -14,6 +14,7 @@ from scipy.interpolate import interp1d
 from scipy.io import matlab
 import numbers
 import h5py
+import spc
 
 from .pymca5 import OmnicMap
 
@@ -253,6 +254,44 @@ class OmnicMapReader(FileFormat):
             y_locs = None
 
         return _table_from_image(X, features, x_locs, y_locs)
+
+class SPCReader(FileFormat):
+    EXTENSIONS = ('.spc',)
+    DESCRIPTION = 'Galactic SPC format'
+
+    @property
+    def read(self):
+        spc_file = spc.File(self.filename)
+        #
+        # if len(spc_file.x.shape)==1:
+        #
+        # else if len(spc_file.x.shape)==2:
+
+        ### we need to handle these cases
+        if spc_file.talabs:
+            print("use fcatxt axis not fxtype")
+
+        if spc_file.tmulti:
+            print('multiplr y values')
+        else:
+            print('single set of y values')
+
+        print('SPCReader')
+        domvals = spc_file.x  # first column is attribute name
+        print(domvals.shape)
+        domvals = domvals.reshape(1, -1)
+        print(domvals.shape)
+        from orangecontrib.infrared.preprocess import features_with_interpolation
+        # domain = Orange.data.Domain(features_with_interpolation(domvals), None)
+        # domain = Orange.data.Domain(domvals, None)
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        y_data = spc_file.sub[0].y
+
+        table = Orange.data.Table.from_numpy(domain,
+                                             y_data.astype(float, order='C').reshape(1, -1))
+
+        return Orange.data.Table(domain, datavals)
+
 
 
 class OPUSReader(FileFormat):
