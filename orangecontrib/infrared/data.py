@@ -15,6 +15,8 @@ from scipy.io import matlab
 import numbers
 import h5py
 import spc
+from Orange.widgets import widget
+import orangecontrib.infrared
 
 from .pymca5 import OmnicMap
 
@@ -268,25 +270,59 @@ class SPCReader(FileFormat):
 
         ### we need to handle these cases
         if spc_file.talabs:
-            print("use fcatxt axis not fxtype")
-
-        if spc_file.tmulti:
-            # multiple y values
-            domvals = spc_file.x  # first column is attribute name
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-            y_data = [[sub.y] for sub in spc_file.sub]
-            y_data = np.array(y_data)
-            table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1))
+            print("each y has its own x ")
+            table = self.multi_x_reader(spc_file)
 
         else:
-            # single set of y values
-            domvals = spc_file.x  # first column is attribute name
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-            y_data = spc_file.sub[0].y
-            table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(1, -1))
+            if spc_file.tmulti:
+                # multiple y values
+                table = self.single_x_reader(spc_file)
 
+            else:
+                # single set of y values
+                table = self.single_x_reader(spc_file)
 
         return table
+
+    def single_x_reader(self, spc_file):
+
+        domvals = spc_file.x  # first column is attribute name
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        y_data = [[sub.y] for sub in spc_file.sub]
+        y_data = np.array(y_data)
+        table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1))
+
+        return table
+
+    def multi_x_reader(self, spc_file):
+        print(self.filename)
+
+        data_list = []
+
+        for sub in spc_file.sub:
+            domvals = sub.x  # first column is attribute name
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+            y_data = sub.y
+            # print(y_data)
+            sub_pair = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1).T)
+
+            data_list.append(sub_pair)
+            # reader = FileFormat.get_reader(fn)
+            #
+            # errors = []
+            # with catch_warnings(record=True) as warnings:
+            #     try:
+            #         if self.sheet in reader.sheets:
+            #             reader.select_sheet(self.sheet)
+            #         data_list.append(reader.read())
+            #         fnok_list.append(fn)
+            #     except Exception as ex:
+            #         errors.append("An error occurred:")
+            #         errors.append(str(ex))
+            #         #FIXME show error in the list of data
+            #     self.warning(warnings[-1].message.args[0] if warnings else '')
+
+        print(len(data_list))
 
 
 class OPUSReader(FileFormat):
