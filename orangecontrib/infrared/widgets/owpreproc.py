@@ -68,10 +68,12 @@ class ViewController(Controller):
 
 
 class FocusFrame(owpreprocess.SequenceFlow.Frame):
+    preview_changed = Signal()
 
     def __init__(self, parent=None, **kwargs):
         self.title_label = None
         super().__init__(parent=parent, **kwargs)
+        self.preview = False
         tw = self._build_tw()
         self.setTitleBarWidget(tw)
 
@@ -84,19 +86,22 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         close_button = QToolButton(self)
         ca = QAction("x", self, triggered=self.closeRequested)
         close_button.setDefaultAction(ca)
-        preview_button = QToolButton(self)
-        pa = QAction("p", self, triggered=self.show_preview)
-        preview_button.setDefaultAction(pa)
+        self.preview_button = QToolButton(self)
+        pa = QAction("p", self, triggered=self.toggle_preview, checkable=True)
+        self.preview_button.setDefaultAction(pa)
+        self.preview_button.setChecked(self.preview)
         tl.addWidget(close_button, 0, 0)
-        tl.addWidget(preview_button, 0, 2)
+        tl.addWidget(self.preview_button, 0, 2)
         tl.setColumnStretch(1, 1)
         tl.setSpacing(2)
         tl.setContentsMargins(0, 0, 0, 0)
         tw.setLayout(tl)
         return tw
 
-    def show_preview(self):
-        pass
+    def toggle_preview(self):
+        self.preview = not self.preview
+        self.preview_button.setChecked(self.preview)
+        self.preview_changed.emit()
 
     def focusInEvent(self, event):
         super().focusInEvent(event)
@@ -112,22 +117,6 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
             self.title_label.setText(title)
 
 
-class PreviewFrame(owpreprocess.SequenceFlow.Frame):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setFeatures(QDockWidget.DockWidgetMovable)
-        self.setStyleSheet("""QDockWidget::title {
-                              background:lightblue;
-                              padding: 10px;
-                              text-align: right;
-                              }""");
-
-
-class PreviewWidget(QWidget):
-    pass
-
-
 class SequenceFlow(owpreprocess.SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
@@ -137,49 +126,25 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         self.preview_callback = preview_callback
         self.show_preview = show_preview
 
-    def clear(self):
-        super().clear()
-        self.__preview_widget = PreviewWidget()
-        self.__preview_frame = PreviewFrame(widget=self.__preview_widget, title="Preview")
-        self.__preview_frame.hide()
-        self.__preview_frame.installEventFilter(self)
-
-    def __preview_position(self):
-        """ Return -1 if not fount """
-        return self.__flowlayout.indexOf(self.__preview_frame)
-
     def preview_n(self):
         """How many preprocessors to apply for the preview?"""
-        return max(self.__preview_position(), 0)
+        # TODO now it always shows the last preview
+        ppos = [i for i, item in enumerate(self.layout_iter(self.__flowlayout)) if item.widget().preview]
+        return ppos[-1] + 1 if ppos else 0
 
     def set_preview_n(self, n):
         """Set the preview position"""
-        oldindex = self.__preview_position()
-        if oldindex >= 0:
-            layout = self.__flowlayout
-            n = max(min(n, layout.count() - 1), 0)
-            if n != oldindex:
-                insertindex = n
-                if n >= oldindex:
-                    insertindex = n - 1
-                item = layout.takeAt(oldindex)
-                layout.insertWidget(insertindex, item.widget())
+        pass  # TODO
 
-    def __initPreview(self):
-        if self.__preview_position() == -1:
-            index = len(self.widgets())
-            self.__flowlayout.insertWidget(index, self.__preview_frame)
-            if self.show_preview:
-                self.__preview_frame.show()
+    def preview_changed(self):
+        # TODO disable other previews except current
+        self.preview_callback()
 
     def insertWidget(self, index, widget, title):
         """ Mostly copied to get different kind of frame """
-        self.__initPreview() #added
-        if index > self.__preview_position(): #added
-            index = index + 1 #added
-
         frame = FocusFrame(widget=widget, title=title) #changed
         frame.closeRequested.connect(self.__closeRequested)
+        frame.preview_changed.connect(self.preview_changed)
 
         layout = self.__flowlayout
 
@@ -200,96 +165,8 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         layout.insertWidget(insert_index, frame)
         frame.installEventFilter(self)
 
-    def removeWidget(self, widget):
-        """ Remove preview when empty. """
-        layout = self.__flowlayout
-        super().removeWidget(widget)
-
-        #remove preview if only preview is there
-        if not self.widgets() and layout.count() == 1:
-            w = layout.takeAt(0)
-            w.widget().hide()
-
-    def dropEvent(self, event):
-        """ FIXME Possible without complete reimplementation? """
-        layout = self.__flowlayout
-        index = self.__insertIndexAt(self.mapFromGlobal(QCursor.pos()))
-
-        if event.mimeData().hasFormat("application/x-internal-move") and \
-                        event.source() is self:
-            # Complete the internal move
-            frame, oldindex, _ = self.__dragstart
-            # Remove the drop indicator spacer item before re-inserting
-            # the frame
-            self.__setDropIndicatorAt(None)
-
-            ppos = self.__preview_position()
-
-            insertindex = index
-            if index > oldindex:
-                insertindex = index - 1
-
-            if insertindex != oldindex:
-                item = layout.takeAt(oldindex)
-                assert item.widget() is frame
-                layout.insertWidget(insertindex, frame)
-                if oldindex != ppos:
-                    movefrom = oldindex
-                    moveto = index
-                    if movefrom > ppos:
-                        movefrom = movefrom - 1
-                    if moveto > ppos:
-                        moveto = moveto - 1
-                    if moveto > movefrom:
-                        moveto = moveto - 1
-                    if movefrom != moveto:
-                        self.widgetMoved.emit(movefrom, moveto)
-                else:
-                    #preview was moved
-                    self.preview_callback()
-                event.accept()
-
-            self.__dragstart = None, None, None
-
-    def widgets(self):
-        widgets = super().widgets()
-        return [w for w in widgets if w != self.__preview_widget]
-
-    def eventFilter(self, obj, event):
-        """Needed to modify because it used indexOf."""
-        if isinstance(obj, SequenceFlow.Frame) and obj.parent() is self:
-            etype = event.type()
-            if etype == QEvent.MouseButtonPress and \
-                            event.button() == Qt.LeftButton:
-                # Is the mouse press on the dock title bar
-                # (assume everything above obj.widget is a title bar)
-                # TODO: Get the proper title bar geometry.
-                if event.pos().y() < obj.widget().y():
-                    #index = self.indexOf(obj.widget()) #remove indexOf usage
-                    index = self.__flowlayout.indexOf(obj)
-                    self.__dragstart = (obj, index, event.pos())
-            elif etype == QEvent.MouseMove and \
-                            event.buttons() & Qt.LeftButton and \
-                            obj is self.__dragstart[0]:
-                _, _, down = self.__dragstart
-                if (down - event.pos()).manhattanLength() >= \
-                        QApplication.startDragDistance():
-                    self.__startInternalDrag(obj, event.pos())
-                    self.__dragstart = None, None, None
-                    return True
-            elif etype == QEvent.MouseButtonRelease and \
-                            event.button() == Qt.LeftButton and \
-                            self.__dragstart[0] is obj:
-                self.__dragstart = None, None, None
-
-        return QWidget.eventFilter(self, obj, event)
-
     def insertIndexAt(self, pos):
-        index = self.__insertIndexAt(pos)
-        ppos = self.__preview_position()
-        if ppos >= 0 and index > ppos:
-            index = index - 1
-        return index
+        return self.__insertIndexAt(pos)
 
     def __closeRequested(self):
         self.sender().widget().parent_widget.curveplot.clear_markings()
@@ -1566,7 +1443,6 @@ class OWPreprocess(OWWidget):
 def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
-
     w = OWPreprocess()
     w.set_data(Orange.data.Table("collagen.csv"))
     w.show()
