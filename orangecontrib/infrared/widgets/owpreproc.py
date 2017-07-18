@@ -87,7 +87,7 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         pa = QAction("preview", self, triggered=self.toggle_preview, checkable=True,
                      icon=QIcon(self.style().standardPixmap(QStyle.SP_MediaPlay)))
         self.preview_button.setDefaultAction(pa)
-        self.preview_button.setChecked(self.preview)
+        self.set_preview(self.preview)
         tl.addWidget(close_button, 0, 0)
         tl.addWidget(self.preview_button, 0, 2)
         tl.setColumnStretch(1, 1)
@@ -96,9 +96,12 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         tw.setLayout(tl)
         return tw
 
-    def toggle_preview(self):
-        self.preview = not self.preview
+    def set_preview(self, p):
+        self.preview = p
         self.preview_button.setChecked(self.preview)
+
+    def toggle_preview(self):
+        self.set_preview(not self.preview)
         self.preview_changed.emit()
 
     def focusInEvent(self, event):
@@ -126,16 +129,24 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
     def preview_n(self):
         """How many preprocessors to apply for the preview?"""
-        # TODO now it always shows the last preview
         ppos = [i for i, item in enumerate(self.layout_iter(self.__flowlayout)) if item.widget().preview]
+        # show the last preview
         return ppos[-1] + 1 if ppos else 0
 
     def set_preview_n(self, n):
         """Set the preview position"""
-        pass  # TODO
+        for i, item in enumerate(self.layout_iter(self.__flowlayout)):
+            f = item.widget()
+            f.set_preview(i == n-1)
 
     def preview_changed(self):
-        # TODO disable other previews except current
+        # disable other previews
+        sender = self.sender()
+        for item in self.layout_iter(self.__flowlayout):
+            f = item.widget()
+            if sender != f:
+                f.set_preview(False)
+
         self.preview_callback()
 
     def insertWidget(self, index, widget, title):
