@@ -1064,10 +1064,12 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.vb.autoRange()
 
     def set_data(self, data):
+        old_domain = self.data.domain if self.data else None
         self.clear_data()
         domain = data.domain if data is not None else None
         self.feature_color_model.set_domain(domain)
-        self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
+        if old_domain and domain != old_domain:  # do not reset feature_color
+            self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
         if data is not None:
             if self.data:
                 self.rescale_next = not data.domain == self.data.domain
