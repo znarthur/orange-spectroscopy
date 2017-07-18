@@ -84,10 +84,12 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         self.title_label.setMinimumWidth(100)
         tl.addWidget(self.title_label, 0, 1)
         close_button = QToolButton(self)
-        ca = QAction("x", self, triggered=self.closeRequested)
+        ca = QAction("close", self, triggered=self.closeRequested,
+                     icon=QIcon(self.style().standardPixmap(QStyle.SP_DockWidgetCloseButton)))
         close_button.setDefaultAction(ca)
         self.preview_button = QToolButton(self)
-        pa = QAction("p", self, triggered=self.toggle_preview, checkable=True)
+        pa = QAction("preview", self, triggered=self.toggle_preview, checkable=True,
+                     icon=QIcon(self.style().standardPixmap(QStyle.SP_MediaPlay)))
         self.preview_button.setDefaultAction(pa)
         self.preview_button.setChecked(self.preview)
         tl.addWidget(close_button, 0, 0)
