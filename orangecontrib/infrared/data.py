@@ -347,7 +347,7 @@ class OPUSReader(FileFormat):
                     param_name = opusFC.paramDict[param_key]
                 except KeyError:
                     param_name = param_key
-                if param_name == 'SRT':
+                if param_key == 'SRT':
                     var = TimeVariable.make(param_name)
                 elif type(param) is float:
                     var = ContinuousVariable.make(param_name)
