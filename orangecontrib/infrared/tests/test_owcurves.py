@@ -274,3 +274,20 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", self.collagen)
         self.assertTrue(self.widget.curveplot.subset_indices[0])
         self.assertFalse(np.any(self.widget.curveplot.subset_indices[1:]))
+
+    def test_settings_color(self):
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.curveplot.feature_color, None)
+        self.widget.curveplot.feature_color = "iris"
+        self.send_signal("Data", Orange.data.Table("housing"))
+        self.assertEqual(self.widget.curveplot.feature_color, None)
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.curveplot.feature_color, "iris")
+
+    def test_cycle_color(self):
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.curveplot.feature_color, None)
+        self.widget.curveplot.cycle_color_attr()
+        self.assertEqual(self.widget.curveplot.feature_color, "iris")
+        self.widget.curveplot.cycle_color_attr()
+        self.assertEqual(self.widget.curveplot.feature_color, None)

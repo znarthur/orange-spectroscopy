@@ -20,11 +20,12 @@ from pyqtgraph import Point, GraphicsObject
 
 from Orange.canvas.registry.description import Default
 import Orange.data
+from Orange.data import DiscreteVariable, Variable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
-from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
@@ -403,7 +404,8 @@ class CurvePlot(QWidget, OWComponent):
     range_x2 = Setting(None)
     range_y1 = Setting(None)
     range_y2 = Setting(None)
-    color_attr = ContextSetting(0)
+    feature_color = ContextSetting(None)
+
     invertX = Setting(False)
     selected_indices = Setting(set())
     data_size = Setting(None)  # to invalidate selected_indices
@@ -565,16 +567,15 @@ class CurvePlot(QWidget, OWComponent):
         choose_color_action = QWidgetAction(self)
         choose_color_box = gui.hBox(self)
         choose_color_box.setFocusPolicy(Qt.TabFocus)
-        model = VariableListModel()
-        self.attrs = []
-        model.wrap(self.attrs)
         label = gui.label(choose_color_box, self, "Color by")
         label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.attrCombo = gui.comboBox(
-            choose_color_box, self, value="color_attr", contentsLength=12,
-            callback=self.update_view)
-        self.attrCombo.setModel(model)
-        choose_color_box.setFocusProxy(self.attrCombo)
+        self.feature_color_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+                                               valid_types=(DiscreteVariable,), placeholder="None")
+        self.feature_color_combo = gui.comboBox(
+            choose_color_box, self, "feature_color",
+            callback=self.update_view, model=self.feature_color_model,
+            valueType=str)
+        choose_color_box.setFocusProxy(self.feature_color_combo)
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)
 
@@ -650,7 +651,15 @@ class CurvePlot(QWidget, OWComponent):
             pass
 
     def cycle_color_attr(self):
-        self.color_attr = (self.color_attr + 1) % len(self.attrs)
+        elements = [(a.name if isinstance(a, Variable) else a)
+                    for a in self.feature_color_model]
+        currentind = 0
+        try:
+            currentind = elements.index(self.feature_color)
+        except ValueError:
+            pass
+        next = (currentind + 1) % len(self.feature_color_model)
+        self.feature_color = elements[next]
         self.update_view()
 
     def set_limits(self):
@@ -854,7 +863,7 @@ class CurvePlot(QWidget, OWComponent):
         if inselected:
             thispen = self.pen_selected
         color_var = self._current_color_var()
-        value = None if isinstance(color_var, str) else str(self.data[idcdata][color_var])
+        value = None if color_var is None else str(self.data[idcdata][color_var])
         self.curves_cont.objs[idc].setPen(thispen[value])
         self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
@@ -924,11 +933,9 @@ class CurvePlot(QWidget, OWComponent):
         self.curves_plotted.append((x, np.array([ylow, yhigh])))
 
     def _current_color_var(self):
-        color_var = "(Same color)"
-        try:
-            color_var = self.attrs[self.color_attr]
-        except IndexError:
-            pass
+        color_var = None
+        if self.feature_color and self.data:
+            color_var = self.data.domain[self.feature_color]
         return color_var
 
     def set_pen_colors(self):
@@ -936,7 +943,7 @@ class CurvePlot(QWidget, OWComponent):
         self.pen_subset.clear()
         self.pen_selected.clear()
         color_var = self._current_color_var()
-        if color_var != "(Same color)":
+        if color_var is not None:
             colors = color_var.colors
             discrete_palette = ColorPaletteGenerator(
                 number_of_colors=len(colors), rgb_colors=colors)
@@ -986,7 +993,7 @@ class CurvePlot(QWidget, OWComponent):
     def _split_by_color_value(self, data):
         color_var = self._current_color_var()
         rd = {}
-        if isinstance(color_var, str):
+        if color_var is None:
             rd[None] = np.full((len(data.X),), True, dtype=bool)
         else:
             cvd = Orange.data.Table(Orange.data.Domain([color_var]), data)
@@ -1058,13 +1065,9 @@ class CurvePlot(QWidget, OWComponent):
 
     def set_data(self, data):
         self.clear_data()
-        self.attrs[:] = []
-        if data is not None:
-            self.attrs[:] = ["(Same color)"] + [
-                var for var in chain(data.domain,
-                                     data.domain.metas)
-                if isinstance(var, str) or var.is_discrete]
-            self.color_attr = 0
+        domain = data.domain if data is not None else None
+        self.feature_color_model.set_domain(domain)
+        self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
         if data is not None:
             if self.data:
                 self.rescale_next = not data.domain == self.data.domain

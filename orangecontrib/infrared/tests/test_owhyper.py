@@ -174,8 +174,8 @@ class TestOWHyper(WidgetTest):
 
     def test_settings_curves(self):
         self.send_signal("Data", self.iris)
-        self.widget.curveplot.color_attr = 1
+        self.widget.curveplot.feature_color = "iris"
         self.send_signal("Data", self.whitelight)
-        self.assertEqual(self.widget.curveplot.color_attr, 0)
+        self.assertEqual(self.widget.curveplot.feature_color, None)
         self.send_signal("Data", self.iris)
-        self.assertEqual(self.widget.curveplot.color_attr, 1)
+        self.assertEqual(self.widget.curveplot.feature_color, "iris")
