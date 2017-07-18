@@ -38,10 +38,6 @@ from orangecontrib.infrared.widgets.owcurves import CurvePlot
 
 class ViewController(Controller):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._insertIndexAt = self.view.insertIndexAt
-
     def createWidgetFor(self, index):
         w = super().createWidgetFor(index)
         w.parent_widget = self.parent()
@@ -166,9 +162,6 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
         layout.insertWidget(insert_index, frame)
         frame.installEventFilter(self)
-
-    def insertIndexAt(self, pos):
-        return self.__insertIndexAt(pos)
 
     def __closeRequested(self):
         self.sender().widget().parent_widget.curveplot.clear_markings()
