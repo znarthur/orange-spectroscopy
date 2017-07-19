@@ -144,9 +144,6 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     xp = ((xp - x) / xpixel)
     yp = ((yp - y) / ypixel)
 
-    distancepx = (xp ** 2 + yp ** 2) ** 0.5
-    mini = np.argmin(distancepx)
-
     # add edge point so that distance_curves works if there is just one point
     xp = np.hstack((xp, float("nan")))
     yp = np.hstack((yp, np.zeros((yp.shape[0], 1)) * float("nan")))
