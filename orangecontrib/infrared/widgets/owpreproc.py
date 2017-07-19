@@ -85,7 +85,10 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         close_button.setDefaultAction(ca)
         self.preview_button = QToolButton(self)
         pa = QAction("preview", self, triggered=self.toggle_preview, checkable=True,
-                     icon=QIcon(self.style().standardPixmap(QStyle.SP_MediaPlay)))
+                     icon=QIcon(self.style().standardPixmap(QStyle.SP_MediaPlay)),
+                     shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_P))
+        pa.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.addAction(pa)
         self.preview_button.setDefaultAction(pa)
         self.set_preview(self.preview)
         tl.addWidget(close_button, 0, 0)
