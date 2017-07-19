@@ -70,11 +70,11 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         self.title_label = None
         super().__init__(parent=parent, **kwargs)
         self.preview = False
-        tw = self._build_tw()
-        self.setTitleBarWidget(tw)
+        self._build_tw()
+        self.setTitleBarWidget(self.tw)
 
     def _build_tw(self):
-        tw = QWidget(self)
+        self.tw = tw = QWidget(self)
         tl = QGridLayout(tw)
         self.title_label = QLabel(self._title, tw)
         self.title_label.setMinimumWidth(100)
@@ -97,11 +97,11 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         tl.setSpacing(2)
         tl.setContentsMargins(0, 0, 0, 0)
         tw.setLayout(tl)
-        return tw
 
     def set_preview(self, p):
         self.preview = p
         self.preview_button.setChecked(self.preview)
+        self.tw.setStyleSheet("""background:lightblue;""" if self.preview else "");
 
     def toggle_preview(self):
         self.set_preview(not self.preview)
