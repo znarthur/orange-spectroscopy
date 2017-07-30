@@ -648,7 +648,7 @@ class CurvePlotHyper(CurvePlot):
 
 
 class OWHyper(OWWidget):
-    name = "Hyperspectra"
+    name = "HyperSpectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
     outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
     icon = "icons/hyper.svg"

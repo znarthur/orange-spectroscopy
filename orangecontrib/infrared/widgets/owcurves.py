@@ -1129,7 +1129,7 @@ class CurvePlot(QWidget, OWComponent):
 
 
 class OWCurves(OWWidget):
-    name = "Curves"
+    name = "Spectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
     outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
