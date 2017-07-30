@@ -259,6 +259,11 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         self.sender().widget().parent_widget.curveplot.clear_markings()
         super().__closeRequested()
 
+    def minimumSizeHint(self):
+        """ Add space below so that dragging to bottom works """
+        psh = super().minimumSizeHint()
+        return QSize(psh.width(), psh.height() + 100)
+
 
 class GaussianSmoothingEditor(BaseEditor):
     """
