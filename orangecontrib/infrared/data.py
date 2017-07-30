@@ -105,7 +105,7 @@ class MatlabReader(FileFormat):
                         break
                 attributenames = ml.pop(nameattributes).ravel() if nameattributes else range(X.shape[1])
                 attributenames = [str(a).strip() for a in attributenames]  # strip because of numpy char array
-                attributes = [ContinuousVariable(name=a) for a in attributenames]
+                attributes = [ContinuousVariable.make(a) for a in attributenames]
 
             metas = []
             metaattributes = []
@@ -127,7 +127,7 @@ class MatlabReader(FileFormat):
             metadata = []
             for m in sorted(metas):
                 f = ml[m]
-                metaattributes.append(StringVariable(m))
+                metaattributes.append(StringVariable.make(m))
                 f.resize(sizemetas, 1)
                 metadata.append(f)
 
@@ -488,7 +488,7 @@ class GSFReader(FileFormat):
             YRr = np.arange(YR)
             indices = np.transpose([np.tile(XRr, len(YRr)), np.repeat(YRr, len(XRr))])
 
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable("value")], None, metas=metas)
+            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("value")], None, metas=metas)
             data = Orange.data.Table(domain,
                                      X.reshape(meta["XRes"]*meta["YRes"], 1),
                                      metas=np.array(indices, dtype="object"))
@@ -600,7 +600,7 @@ class NeaReader(FileFormat):
                      Orange.data.StringVariable.make("channel")]
 
             domain = Orange.data.Domain(
-                [Orange.data.ContinuousVariable("%f" % f) for f in X],
+                [Orange.data.ContinuousVariable.make("%f" % f) for f in X],
                 None, metas=metas)
             final_metas = np.array(final_metas, dtype=object)
             return Orange.data.Table(domain, final_data, metas=final_metas)
