@@ -14,15 +14,7 @@ from Orange.data.io import FileFormat
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
 from Orange.widgets.utils.domaineditor import DomainEditor
-from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath
-
-try:
-    from Orange.widgets.utils.filedialogs import dialog_formats
-except ImportError:
-    # before Orange 3.4.4
-    def dialog_formats():
-        return Orange.widgets.data.owfile.OWFile.dlg_formats
-
+from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, dialog_formats
 from warnings import catch_warnings
 
 
