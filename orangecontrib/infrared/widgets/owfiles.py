@@ -9,7 +9,6 @@ import numpy as np
 
 import Orange
 import orangecontrib.infrared
-from Orange.data.table import get_sample_datasets_dir
 from Orange.data.io import FileFormat
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
@@ -202,15 +201,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         self.load_data()
 
     def browse_files(self, in_demos=False):
-        if in_demos:
-            start_file = get_sample_datasets_dir()
-            if not os.path.exists(start_file):
-                QMessageBox.information(
-                    None, "File",
-                    "Cannot find the directory with documentation data sets")
-                return
-        else:
-            start_file = self.last_path() or os.path.expanduser("~/")
+        start_file = self.last_path() or os.path.expanduser("~/")
 
         filenames = QFileDialog.getOpenFileNames(
             self, 'Open Multiple Data Files', start_file, dialog_formats())
@@ -218,6 +209,9 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         if isinstance(filenames, tuple):  # has a file description
             filenames = filenames[0]
 
+        self.load_files(filenames)
+
+    def load_files(self, filenames):
         if not filenames:
             return
 
