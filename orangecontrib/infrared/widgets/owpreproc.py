@@ -133,14 +133,14 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     def preview_n(self):
         """How many preprocessors to apply for the preview?"""
         ppos = [i for i, item in enumerate(self.layout_iter(self.__flowlayout)) if item.widget().preview]
-        # show the last preview
-        return ppos[-1] + 1 if ppos else 0
+        # if any, show the chosen preview
+        return ppos[-1] if ppos else -1
 
     def set_preview_n(self, n):
         """Set the preview position"""
         for i, item in enumerate(self.layout_iter(self.__flowlayout)):
             f = item.widget()
-            f.set_preview(i == n-1)
+            f.set_preview(i == n)
 
     def preview_changed(self):
         # disable other previews
@@ -1192,11 +1192,12 @@ class OWPreprocess(OWWidget):
         self.topbox.layout().addWidget(self.curveplot)
         self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(self.topbox)
+
         self.flow_view.installEventFilter(self)
 
         box = gui.widgetBox(self.controlArea, "Preview")
-
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show curves", callback=self.show_preview)
+        self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed)
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self.show_preview)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
         gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
@@ -1238,8 +1239,11 @@ class OWPreprocess(OWWidget):
 
                 data = preproc(data)
 
-            if preview_pos == len(widgets):
+            if preview_data is None:  # show final result
                 preview_data = data
+                self.final_preview.setStyleSheet("""background:lightblue;""")
+            else:
+                self.final_preview.setStyleSheet("");
 
             self.curveplot.set_data(preview_data)
         else:
