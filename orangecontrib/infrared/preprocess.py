@@ -454,7 +454,7 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
     def compute_integral(self, x_s, y_s):
         y_s = y_s - self.compute_baseline(x_s, y_s)
         if len(x_s) == 0:
-            return np.zeros((y_s.shape[0], 1)) * np.nan
+            return np.zeros((y_s.shape[0],)) * np.nan
         return np.nanmax(y_s, axis=1)
 
     def compute_draw_info(self, x, ys):
@@ -494,7 +494,7 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
 
     def compute_integral(self, x_s, y_s):
         if len(x_s) == 0:
-            return np.zeros((y_s.shape[0], 1)) * np.nan
+            return np.zeros((y_s.shape[0],)) * np.nan
         closer = np.nanargmin(abs(x_s - self.limits[0]))
         return y_s[:, closer]
 
