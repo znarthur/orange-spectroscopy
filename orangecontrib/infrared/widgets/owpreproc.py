@@ -22,7 +22,7 @@ from AnyQt.QtWidgets import (
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
     QMenu, QApplication, QAction, QDockWidget, QScrollArea, QGridLayout,
-    QToolButton
+    QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
     QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
@@ -1126,6 +1126,7 @@ class OWPreprocess(OWWidget):
     preview_n = settings.Setting(0)
 
     curveplot = settings.SettingProvider(CurvePlot)
+    curveplot_after = settings.SettingProvider(CurvePlot)
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
@@ -1185,13 +1186,18 @@ class OWPreprocess(OWWidget):
         self.flow_view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
         self.scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Expanding)
 
+        splitter = QSplitter(self)
+        splitter.setOrientation(Qt.Vertical)
         self.curveplot = CurvePlot(self)
-        self.curveplot.plot.vb.x_padding = 0.005  # so that lines on the edges are visible
+        self.curveplot_after = CurvePlot(self)
+        self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
+        self.curveplot_after.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
+        splitter.addWidget(self.curveplot)
+        splitter.addWidget(self.curveplot_after)
+        self.mainArea.layout().addWidget(splitter)
 
-        self.topbox = gui.hBox(self)
-        self.topbox.layout().addWidget(self.curveplot)
         self.controlArea.layout().addWidget(self.scroll_area)
-        self.mainArea.layout().addWidget(self.topbox)
+        self.mainArea.layout().addWidget(splitter)
 
         self.flow_view.installEventFilter(self)
 
@@ -1219,6 +1225,7 @@ class OWPreprocess(OWWidget):
             n = self.preprocessormodel.rowCount()
 
             preview_data = None
+            after_data = None
 
             for i in range(n):
                 if preview_pos == i:
@@ -1239,6 +1246,9 @@ class OWPreprocess(OWWidget):
 
                 data = preproc(data)
 
+                if preview_pos == i:
+                    after_data = data
+
             if preview_data is None:  # show final result
                 preview_data = data
                 self.final_preview.setStyleSheet("""background:lightblue;""")
@@ -1246,9 +1256,17 @@ class OWPreprocess(OWWidget):
                 self.final_preview.setStyleSheet("");
 
             self.curveplot.set_data(preview_data)
+            if after_data is not None:
+                self.curveplot_after.set_data(after_data)
+                self.curveplot_after.show()
+            else:
+                self.curveplot_after.hide()
         else:
             self.curveplot.set_data(None)
+            self.curveplot_after.set_data(None)
+            self.curveplot_after.hide()
         self.curveplot.update_view()
+        self.curveplot_after.update_view()
 
     def _initialize(self):
         for i,pp_def in enumerate(self.PREPROCESSORS):
