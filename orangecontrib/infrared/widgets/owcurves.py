@@ -430,6 +430,7 @@ class CurvePlot(QWidget, OWComponent):
         self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
         self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
         self.plot.vb.sigRangeChanged.connect(self.resized)
+        self.plot.vb.sigResized.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
         self.pen_normal = defaultdict(lambda: pg.mkPen(color=(200, 200, 200, 127), width=1))
         self.pen_subset = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=1))
@@ -745,8 +746,12 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.addItem(m, ignoreBounds=True)
 
     def resized(self):
-        vr = self.plot.vb.viewRect()
-        xpixel, ypixel = self.plot.vb.viewPixelSize()
+        try:
+            vr = self.plot.vb.viewRect()
+            xpixel, ypixel = self.plot.vb.viewPixelSize()
+        except:
+            # if vb is not shown we can not get viewPixelSize
+            return
 
         def important_decimals(n):
             return max(-int(math.floor(math.log10(n))) + 1, 0)
