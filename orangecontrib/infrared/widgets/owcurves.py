@@ -469,11 +469,13 @@ class CurvePlot(QWidget, OWComponent):
             "Resample curves", self, shortcut=Qt.Key_R,
             triggered=lambda x: self.resample_curves(self.sample_seed+1)
         )
+        resample_curves.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(resample_curves)
         reset_curves = QAction(
             "Resampling reset", self, shortcut=QKeySequence(Qt.ControlModifier | Qt.Key_R),
             triggered=lambda x: self.resample_curves(0)
         )
+        reset_curves.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(reset_curves)
 
         zoom_in = QAction(
@@ -493,12 +495,14 @@ class CurvePlot(QWidget, OWComponent):
             "Rescale Y to fit", self, shortcut=Qt.Key_D,
             triggered=self.rescale_current_view_y
         )
-
+        rescale_y.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(rescale_y)
+
         self.view_average_menu = QAction(
             "Show averages", self, shortcut=Qt.Key_A, checkable=True,
             triggered=lambda x: self.viewtype_changed()
         )
+        self.view_average_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(self.view_average_menu)
 
         self.show_grid = False
@@ -506,11 +510,13 @@ class CurvePlot(QWidget, OWComponent):
             "Show grid", self, shortcut=Qt.Key_G, checkable=True,
             triggered=self.grid_changed
         )
+        self.show_grid_a.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(self.show_grid_a)
         self.invertX_menu = QAction(
             "Invert X", self, shortcut=Qt.Key_X, checkable=True,
             triggered=self.invertX_changed
         )
+        self.invertX_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(self.invertX_menu)
         if self.selection_type == SELECTMANY:
             select_curves = QAction(
@@ -524,6 +530,7 @@ class CurvePlot(QWidget, OWComponent):
                 "Save graph", self, triggered=self.save_graph,
             )
             save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_S)])
+            save_graph.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             actions.append(save_graph)
 
         range_menu = MenuFocus("Define view range", self)
