@@ -125,16 +125,19 @@ class SequenceFlow(owpreprocess.SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
     """
-    def __init__(self, *args, preview_callback=None, show_preview=True, **kwargs):
+    def __init__(self, *args, preview_callback=None, multiple_previews=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.preview_callback = preview_callback
-        self.show_preview = show_preview
+        self.multiple_previews = multiple_previews
 
     def preview_n(self):
         """How many preprocessors to apply for the preview?"""
         ppos = [i for i, item in enumerate(self.layout_iter(self.__flowlayout)) if item.widget().preview]
         # if any, show the chosen preview
-        return ppos[-1] if ppos else -1
+        if not self.multiple_previews:
+            return ppos[-1] if ppos else None
+        else:
+            return ppos
 
     def set_preview_n(self, n):
         """Set the preview position"""
@@ -143,12 +146,12 @@ class SequenceFlow(owpreprocess.SequenceFlow):
             f.set_preview(i == n)
 
     def preview_changed(self):
-        # disable other previews
-        sender = self.sender()
-        for item in self.layout_iter(self.__flowlayout):
-            f = item.widget()
-            if sender != f:
-                f.set_preview(False)
+        if not self.multiple_previews:  # disable other previews
+            sender = self.sender()
+            for item in self.layout_iter(self.__flowlayout):
+                f = item.widget()
+                if sender != f:
+                    f.set_preview(False)
 
         self.preview_callback()
 
@@ -1131,7 +1134,8 @@ class OWPreprocess(OWWidget):
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
 
-    preview_choose = True
+    # draw preview on top of current image
+    preview_on_image = False
 
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
@@ -1173,7 +1177,7 @@ class OWPreprocess(OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow(preview_callback=self.show_preview, show_preview=self.preview_choose)
+        self.flow_view = SequenceFlow(preview_callback=self.show_preview, multiple_previews=self.preview_on_image)
         self.controler = ViewController(self.flow_view, parent=self)
 
         self.scroll_area = QScrollArea(
@@ -1202,7 +1206,8 @@ class OWPreprocess(OWWidget):
         self.flow_view.installEventFilter(self)
 
         box = gui.widgetBox(self.controlArea, "Preview")
-        self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed)
+        if not self.preview_on_image:
+            self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed)
         gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self.show_preview)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
@@ -1251,8 +1256,9 @@ class OWPreprocess(OWWidget):
 
             if preview_data is None:  # show final result
                 preview_data = data
-                self.final_preview.setStyleSheet("""background:lightblue;""")
-            else:
+                if not self.preview_on_image:
+                    self.final_preview.setStyleSheet("""background:lightblue;""")
+            elif not self.preview_on_image:
                 self.final_preview.setStyleSheet("");
 
             self.curveplot.set_data(preview_data)
