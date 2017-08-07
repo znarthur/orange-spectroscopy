@@ -61,8 +61,6 @@ class IntegrateOneEditor(BaseEditor):
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        self.parent_widget.preview_integral = self
-        self.parent_widget.preview_integral_obj = self.createinstance(self.parameters())
         self.parent_widget.redraw_integral()
         for l in self.__lines.values():
             if l not in self.parent_widget.curveplot.markings:
@@ -77,9 +75,7 @@ class IntegrateOneEditor(BaseEditor):
             with blocked(self.__editors[name]):
                 self.__editors[name].setValue(v)
                 self.__lines[name].setValue(v)
-            if self.parent_widget.preview_integral == self:
-                self.parent_widget.preview_integral_obj = self.createinstance(self.parameters())
-                self.parent_widget.redraw_integral()
+            self.parent_widget.redraw_integral()
             self.changed.emit()
 
     def setParameters(self, params):
@@ -172,8 +168,6 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
     preview_on_image = True
 
     def __init__(self):
-        self.preview_integral = None
-        self.preview_integral_obj = None
         self.markings_list = []
         super().__init__()
         cb = gui.checkBox(self.output_box, self, "output_metas", "Output as metas", callback=self.commit)
@@ -181,16 +175,26 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
         self.curveplot.selection_type = SELECTONE
 
     def redraw_integral(self):
-        di = {}
-        if self.curveplot.selected_indices and self.curveplot.data \
-                and self.preview_integral in self.flow_view.widgets() \
-                and self.preview_integral_obj:
+        dis = []
+        if self.curveplot.selected_indices and self.curveplot.data:
+            # select data
             ind = list(self.curveplot.selected_indices)[0]
             show = self.curveplot.data[ind:ind+1]
-            self.preview_integral_obj.metas = False
-            datai = self.preview_integral_obj(show)
-            di = datai.domain.attributes[0].compute_value.draw_info(show)
-        refresh_integral_markings(di, self.markings_list, self.curveplot)
+
+            previews = self.flow_view.preview_n()
+            for i in range(self.preprocessormodel.rowCount()):
+                if i in previews:
+                    item = self.preprocessormodel.item(i)
+                    desc = item.data(DescriptionRole)
+                    params = item.data(ParametersRole)
+                    if not isinstance(params, dict):
+                        params = {}
+                    preproc = desc.viewclass.createinstance(params)
+                    preproc.metas = False
+                    datai = preproc(show)
+                    di = datai.domain.attributes[0].compute_value.draw_info(show)
+                    dis.append(di)
+        refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
     def show_preview(self):
         # redraw integrals if number of preview curves was changed
