@@ -196,9 +196,9 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
                     dis.append(di)
         refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
-    def show_preview(self):
+    def show_preview(self, show_info=False):
         # redraw integrals if number of preview curves was changed
-        super().show_preview()
+        super().show_preview(False)
         self.redraw_integral()
 
     def selection_changed(self):

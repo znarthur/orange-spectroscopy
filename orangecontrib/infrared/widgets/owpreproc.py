@@ -15,18 +15,18 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.sql import check_sql_input
 
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QMimeData, QTimer
+    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QPoint, QBasicTimer
 )
 from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
     QMenu, QApplication, QAction, QDockWidget, QScrollArea, QGridLayout,
-    QToolButton, QSplitter
+    QToolButton, QSplitter, QGraphicsEffect
 )
 from AnyQt.QtGui import (
     QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
-    QDrag, QKeySequence
+    QDrag, QKeySequence, QTransform, QColor, QFont
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -153,7 +153,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
                 if sender != f:
                     f.set_preview(False)
 
-        self.preview_callback()
+        self.preview_callback(show_info=True)
 
     def insertWidget(self, index, widget, title):
         """ Mostly copied to get different kind of frame """
@@ -1112,6 +1112,38 @@ PREPROCESSORS = [
     ]
 
 
+class PreviewInfoEffect(QGraphicsEffect):
+    """ An overlay with info that appears when the info is changed and
+     stays for 1 second. """
+
+    def __init__(self):
+        super().__init__()
+        self.text = ""
+        self.timer = QBasicTimer()
+
+    def set_text(self, t):
+        self.text = t
+        self.update()
+        self.timer.start(1000, self)
+
+    def timerEvent(self, event):
+        self.timer.stop()
+        self.text = ""
+        self.update()
+
+    def draw(self, painter):
+        pixmap, offset = self.sourcePixmap(Qt.DeviceCoordinates)
+        painter.setWorldTransform(QTransform())
+        painter.drawPixmap(offset, pixmap)
+        painter.setPen(QColor("lightblue"))
+        font = QFont()
+        font.setPointSize(24)
+        painter.setFont(font)
+        rect = pixmap.rect()
+        rect.moveTo(offset)
+        painter.drawText(rect, Qt.AlignCenter, self.text)
+
+
 class OWPreprocess(OWWidget):
     name = "Preprocess Spectra"
     description = "Construct a data preprocessing pipeline."
@@ -1200,6 +1232,12 @@ class OWPreprocess(OWWidget):
         splitter.addWidget(self.curveplot_after)
         self.mainArea.layout().addWidget(splitter)
 
+        # descriptions of preview windows
+        self.curveplot_effect = PreviewInfoEffect()
+        self.curveplot.setGraphicsEffect(self.curveplot_effect)
+        self.curveplot_after_effect = PreviewInfoEffect()
+        self.curveplot_after.setGraphicsEffect(self.curveplot_after_effect)
+
         self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(splitter)
 
@@ -1215,7 +1253,7 @@ class OWPreprocess(OWWidget):
 
         self._initialize()
 
-    def show_preview(self):
+    def show_preview(self, show_info=False):
         """ Shows preview and also passes preview data to the widgets """
         #self.storeSpecificSettings()
 
@@ -1253,6 +1291,10 @@ class OWPreprocess(OWWidget):
 
                 if preview_pos == i:
                     after_data = data
+                    if show_info:
+                        current_name = desc.description.title
+                        self.curveplot_effect.set_text("Input to " + current_name)
+                        self.curveplot_after_effect.set_text("Output of " + current_name)
 
             if preview_data is None:  # show final result
                 preview_data = data
@@ -1378,7 +1420,7 @@ class OWPreprocess(OWWidget):
     def set_data(self, data=None):
         """Set the input data set."""
         self.data = data
-        self.show_preview()
+        self.show_preview(True)
 
     def handleNewSignals(self):
         self.apply()
