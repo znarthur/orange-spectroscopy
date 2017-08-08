@@ -13,20 +13,21 @@ from Orange.widgets.data.owpreprocess import (
 )
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.utils.sql import check_sql_input
+from Orange.widgets.utils.overlay import OverlayWidget
 
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QPoint, QBasicTimer
+    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QBasicTimer
 )
 from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
     QMenu, QApplication, QAction, QDockWidget, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QGraphicsEffect
+    QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
     QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
-    QDrag, QKeySequence, QTransform, QColor, QFont
+    QDrag, QKeySequence, QFont
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -1112,36 +1113,19 @@ PREPROCESSORS = [
     ]
 
 
-class PreviewInfoEffect(QGraphicsEffect):
-    """ An overlay with info that appears when the info is changed and
-     stays for 1 second. """
+class TimeoutLabel(QLabel):
+    """ A label that disappears after one second. """
 
-    def __init__(self):
-        super().__init__()
-        self.text = ""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.timer = QBasicTimer()
 
-    def set_text(self, t):
-        self.text = t
-        self.update()
+    def setText(self, t):
+        super().setText(t)
         self.timer.start(1000, self)
 
     def timerEvent(self, event):
-        self.timer.stop()
-        self.text = ""
-        self.update()
-
-    def draw(self, painter):
-        pixmap, offset = self.sourcePixmap(Qt.DeviceCoordinates)
-        painter.setWorldTransform(QTransform())
-        painter.drawPixmap(offset, pixmap)
-        painter.setPen(QColor("lightblue"))
-        font = QFont()
-        font.setPointSize(24)
-        painter.setFont(font)
-        rect = pixmap.rect()
-        rect.moveTo(offset)
-        painter.drawText(rect, Qt.AlignCenter, self.text)
+        super().setText("")
 
 
 class OWPreprocess(OWWidget):
@@ -1228,15 +1212,26 @@ class OWPreprocess(OWWidget):
         self.curveplot_after = CurvePlot(self)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         self.curveplot_after.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
+
         splitter.addWidget(self.curveplot)
         splitter.addWidget(self.curveplot_after)
         self.mainArea.layout().addWidget(splitter)
 
-        # descriptions of preview windows
-        self.curveplot_effect = PreviewInfoEffect()
-        self.curveplot.setGraphicsEffect(self.curveplot_effect)
-        self.curveplot_after_effect = PreviewInfoEffect()
-        self.curveplot_after.setGraphicsEffect(self.curveplot_after_effect)
+        def overlay(widget):
+            o = OverlayWidget(self)
+            o.setAttribute(Qt.WA_TransparentForMouseEvents)
+            o.setWidget(widget)
+            o.setLayout(QVBoxLayout())
+            l = TimeoutLabel("")
+            font = QFont()
+            font.setPointSize(20)
+            l.setFont(font)
+            l.setStyleSheet("color: lightblue")
+            o.layout().addWidget(l)
+            return l
+
+        self.curveplot_info = overlay(self.curveplot)
+        self.curveplot_after_info = overlay(self.curveplot_after)
 
         self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(splitter)
@@ -1293,8 +1288,8 @@ class OWPreprocess(OWWidget):
                     after_data = data
                     if show_info:
                         current_name = desc.description.title
-                        self.curveplot_effect.set_text("Input to " + current_name)
-                        self.curveplot_after_effect.set_text("Output of " + current_name)
+                        self.curveplot_info.setText('Input to "' + current_name + '"')
+                        self.curveplot_after_info.setText('Output of "' + current_name + '"')
 
             if preview_data is None:  # show final result
                 preview_data = data
