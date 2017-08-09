@@ -4,6 +4,7 @@ import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg
 from Orange.widgets import gui, settings
+from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.infrared.widgets.gui import lineEditIntOrNone
 from AnyQt.QtCore import Qt
 
@@ -27,9 +28,6 @@ class OWMapBuilder(OWWidget):
 
     want_main_area = False
     resizing_enabled = False
-
-    xmeta = Orange.data.ContinuousVariable("X")
-    ymeta = Orange.data.ContinuousVariable("Y")
 
     xpoints = settings.Setting(None)
     ypoints = settings.Setting(None)
@@ -90,12 +88,15 @@ class OWMapBuilder(OWWidget):
         map_data = None
         if self.data and self.xpoints is not None and self.ypoints is not None \
                 and self.xpoints * self.ypoints == len(self.data):
+            used_names = [var.name for var in self.data.domain.variables + self.data.domain.metas]
+            xmeta = Orange.data.ContinuousVariable.make(get_next_name(used_names, "X"))
+            ymeta = Orange.data.ContinuousVariable.make(get_next_name(used_names, "Y"))
             # add new variables for X and Y dimension ot the data domain
-            metas = self.data.domain.metas + (self.xmeta, self.ymeta)
+            metas = self.data.domain.metas + (xmeta, ymeta)
             domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
             map_data = Orange.data.Table(domain, self.data)
-            map_data[:, self.xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
-            map_data[:, self.ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
+            map_data[:, xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
+            map_data[:, ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
         self.send("Map data", map_data)
 
     def send_report(self):

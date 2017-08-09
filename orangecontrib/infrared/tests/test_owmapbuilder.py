@@ -61,3 +61,15 @@ class TestOWFiles(WidgetTest):
         self.assertEqual(m[2]["Y"].value, 0)
         self.assertEqual(m[102]["X"].value, 2)
         self.assertEqual(m[102]["Y"].value, 20)
+
+    def test_var_name_exists(self):
+        self.send_signal("Data", self.collagen[:500])
+        self.widget.controls.xpoints.setText("5")
+        self.widget.le1_changed()
+        self.widget.commit()
+        m = self.get_output("Map data")
+        self.send_signal("Data", m)
+        self.widget.commit()
+        m = self.get_output("Map data")
+        np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, "X (2)"].metas[:, 0])
+        np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, "Y (2)"].metas[:, 0])
