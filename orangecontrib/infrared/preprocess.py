@@ -354,8 +354,10 @@ class Normalize(Preprocess):
 
 
 INTEGRATE_DRAW_CURVE_WIDTH = 2
+INTEGRATE_DRAW_EDGE_WIDTH = 1
 INTEGRATE_DRAW_BASELINE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH, "style": Qt.DotLine}
 INTEGRATE_DRAW_CURVE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH}
+INTEGRATE_DRAW_EDGE_PENARGS = {"width": INTEGRATE_DRAW_EDGE_WIDTH}
 
 
 class IntegrateFeature(SharedComputeValue):
@@ -507,9 +509,10 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
     def compute_draw_info(self, x, ys):
         bs = self.compute_baseline(x, ys)
         im = np.array([np.nanargmin(abs(x - self.limits[0]))])
-        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
-        return [("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("line", lines)]
+        dx = [self.limits[0], self.limits[0]]
+        dys = np.hstack((bs[:, im], ys[:, im]))
+        return [("curve", (dx, dys, INTEGRATE_DRAW_EDGE_PENARGS)),  # line to value
+                ("dot", (x[im], ys[:, im]))]
 
 
 def _edge_baseline(x, y):

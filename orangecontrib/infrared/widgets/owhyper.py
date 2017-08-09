@@ -88,6 +88,13 @@ def refresh_integral_markings(dis, markings_list, curveplot):
                 line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
                 add_marking(line)
 
+            elif el[0] == "dot":
+                (x, ys) = el[1]
+                dot = pg.ScatterPlotItem(x=x, y=ys[0])
+                dot.setPen(pg.mkPen(color=QColor(color), width=5))
+                dot.setZValue(10)
+                add_marking(dot)
+
 
 def values_to_linspace(vals):
     """Find a near maching linspace for the values given.
