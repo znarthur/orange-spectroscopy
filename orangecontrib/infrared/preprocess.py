@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
 from sklearn.preprocessing import normalize as sknormalize
+from AnyQt.QtCore import Qt
 
 from orangecontrib.infrared.data import getx
 from Orange.widgets.utils.annotated_data import get_next_name
@@ -352,6 +353,11 @@ class Normalize(Preprocess):
         return data.from_table(domain, data)
 
 
+INTEGRATE_DRAW_CURVE_WIDTH = 2
+INTEGRATE_DRAW_BASELINE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH, "style": Qt.DotLine}
+INTEGRATE_DRAW_CURVE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH}
+
+
 class IntegrateFeature(SharedComputeValue):
 
     def __init__(self, limits, commonfn):
@@ -423,9 +429,9 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
         return np.trapz(y_s, x, axis=1)
 
     def compute_draw_info(self, x, ys):
-        return {"baseline": (x, self.compute_baseline(x, ys)),
-                "curve": (x, ys),
-                "fill": ((x, self.compute_baseline(x, ys)), (x, ys))}
+        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("fill", ((x, self.compute_baseline(x, ys)), (x, ys)))]
 
 
 class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
@@ -461,9 +467,9 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
         bs = self.compute_baseline(x, ys)
         im = np.nanargmax(ys-bs, axis=1)
         lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
-        return {"baseline": (x, self.compute_baseline(x, ys)),
-                "curve": (x, ys),
-                "line": lines}
+        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("line", lines)]
 
 
 class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
@@ -502,8 +508,8 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
         bs = self.compute_baseline(x, ys)
         im = np.array([np.nanargmin(abs(x - self.limits[0]))])
         lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
-        return {"curve": (x, ys),
-                "line": lines}
+        return [("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("line", lines)]
 
 
 def _edge_baseline(x, y):

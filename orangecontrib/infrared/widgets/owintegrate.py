@@ -193,7 +193,7 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
                     preproc.metas = False
                     datai = preproc(show)
                     di = datai.domain.attributes[0].compute_value.draw_info(show)
-                    dis.append(di)
+                    dis.append({"draw": di})
         refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
     def show_preview(self, show_info=False):

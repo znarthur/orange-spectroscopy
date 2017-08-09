@@ -48,51 +48,45 @@ def refresh_integral_markings(dis, markings_list, curveplot):
             curveplot.remove_marking(m)
     markings_list.clear()
 
+    def add_marking(a):
+        markings_list.append(a)
+        curveplot.add_marking(a)
+
     for di in dis:
 
         if di is None:
             continue  # nothing to draw
 
-        color = Qt.red
+        color = QColor(di.get("color", "red"))
 
-        def add_marking(a):
-            markings_list.append(a)
-            curveplot.add_marking(a)
+        for el in di["draw"]:
 
-        if "baseline" in di:
-            bs_x, bs_ys = di["baseline"]
-            baseline = pg.PlotCurveItem()
-            baseline.setPen(pg.mkPen(color=QColor(color), width=2, style=Qt.DotLine))
-            baseline.setZValue(10)
-            baseline.setData(x=bs_x, y=bs_ys[0])
-            add_marking(baseline)
+            if el[0] == "curve":
+                bs_x, bs_ys, penargs = el[1]
+                curve = pg.PlotCurveItem()
+                curve.setPen(pg.mkPen(color=QColor(color), **penargs))
+                curve.setZValue(10)
+                curve.setData(x=bs_x, y=bs_ys[0])
+                add_marking(curve)
 
-        if "curve" in di:
-            bs_x, bs_ys = di["curve"]
-            curve = pg.PlotCurveItem()
-            curve.setPen(pg.mkPen(color=QColor(color), width=2))
-            curve.setZValue(10)
-            curve.setData(x=bs_x, y=bs_ys[0])
-            add_marking(curve)
+            elif el[0] == "fill":
+                (x1, ys1), (x2, ys2) = el[1]
+                phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
+                plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
+                color = QColor(color)
+                color.setAlphaF(0.5)
+                cc = pg.mkBrush(color)
+                pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
+                pfill.setZValue(9)
+                add_marking(pfill)
 
-        if "fill" in di:
-            (x1, ys1), (x2, ys2) = di["fill"]
-            phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
-            plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
-            color = QColor(color)
-            color.setAlphaF(0.5)
-            cc = pg.mkBrush(color)
-            pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
-            pfill.setZValue(9)
-            add_marking(pfill)
-
-        if "line" in di:
-            (x1, y1), (x2, y2) = di["line"]
-            line = pg.PlotCurveItem()
-            line.setPen(pg.mkPen(color=QColor(color), width=4))
-            line.setZValue(10)
-            line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
-            add_marking(line)
+            elif el[0] == "line":
+                (x1, y1), (x2, y2) = el[1]
+                line = pg.PlotCurveItem()
+                line.setPen(pg.mkPen(color=QColor(color), width=4))
+                line.setZValue(10)
+                line.setData(x=[x1[0], x2[0]], y=[y1[0], y2[0]])
+                add_marking(line)
 
 
 def values_to_linspace(vals):
@@ -490,7 +484,7 @@ class ImagePlot(QWidget, OWComponent):
         self.update_view()
 
     def refresh_markings(self, di):
-        refresh_integral_markings([di], self.markings_integral, self.parent.curveplot)
+        refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
 
     def update_view(self):
         self.img.clear()
