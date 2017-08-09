@@ -1258,6 +1258,8 @@ class OWPreprocess(OWWidget):
                 sampled_indices = sorted(random.Random(0).sample(range(len(data)), self.preview_curves))
                 data = data[sampled_indices]
 
+            orig_data = data
+
             widgets = self.flow_view.widgets()
             preview_pos = self.flow_view.preview_n()
             n = self.preprocessormodel.rowCount()
@@ -1292,9 +1294,12 @@ class OWPreprocess(OWWidget):
                         self.curveplot_after_info.setText('Output of "' + current_name + '"')
 
             if preview_data is None:  # show final result
-                preview_data = data
+                preview_data = orig_data
                 if not self.preview_on_image:
+                    after_data = data
                     self.final_preview.setStyleSheet("""background:lightblue;""")
+                    self.curveplot_info.setText('Original data')
+                    self.curveplot_after_info.setText('Preprocessed data')
             elif not self.preview_on_image:
                 self.final_preview.setStyleSheet("");
 
