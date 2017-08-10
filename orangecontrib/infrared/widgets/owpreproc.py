@@ -27,7 +27,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtGui import (
     QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
-    QDrag, QKeySequence, QFont
+    QDrag, QKeySequence, QFont, QColor
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
@@ -35,6 +35,12 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
     RubberbandBaseline, Normalize, Integrate, Absorbance, Transmittance
 from orangecontrib.infrared.widgets.owcurves import CurvePlot
+
+from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
+
+
+PREVIEW_COLORS = [ QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
+
 
 
 class ViewController(Controller):
@@ -53,15 +59,22 @@ class ViewController(Controller):
 
     def _rowsInserted(self, parent, start, end):
         super()._rowsInserted(parent, start, end)
+        self.view.reset_preview_colors()
         self.parent().on_modelchanged()
 
     def _rowsRemoved(self, parent, start, end):
         super()._rowsRemoved(parent, start, end)
+        self.view.reset_preview_colors()
         self.parent().on_modelchanged()
 
     def _widgetMoved(self, from_, to):
         super()._widgetMoved(from_, to)
+        self.view.reset_preview_colors()
         self.parent().on_modelchanged()
+
+    def setModel(self, model):
+        super().setModel(model)
+        self.view.reset_preview_colors()
 
 
 class FocusFrame(owpreprocess.SequenceFlow.Frame):
@@ -71,6 +84,7 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
         self.title_label = None
         super().__init__(parent=parent, **kwargs)
         self.preview = False
+        self.color = "lightblue"
         self._build_tw()
         self.setTitleBarWidget(self.tw)
 
@@ -101,8 +115,15 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
 
     def set_preview(self, p):
         self.preview = p
+        self.update_status()
+
+    def set_color(self, c):
+        self.color = c
+        self.update_status()
+
+    def update_status(self):
         self.preview_button.setChecked(self.preview)
-        self.tw.setStyleSheet("""background:lightblue;""" if self.preview else "");
+        self.tw.setStyleSheet("background:" + self.color + ";" if self.preview else "");
 
     def toggle_preview(self):
         self.set_preview(not self.preview)
@@ -130,6 +151,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         super().__init__(*args, **kwargs)
         self.preview_callback = preview_callback
         self.multiple_previews = multiple_previews
+        self.preview_colors = multiple_previews
 
     def preview_n(self):
         """How many preprocessors to apply for the preview?"""
@@ -189,6 +211,17 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         """ Add space below so that dragging to bottom works """
         psh = super().minimumSizeHint()
         return QSize(psh.width(), psh.height() + 100)
+
+    def reset_preview_colors(self):
+        if self.preview_colors:
+            for i, item in enumerate(self.layout_iter(self.__flowlayout)):
+                item = item.widget()
+                item.set_color(PREVIEW_COLORS[i % len(PREVIEW_COLORS)])
+
+    def preview_color(self, i):
+        """ Return preview color of a specific widget. """
+        w = self.__flowlayout.itemAt(i).widget()
+        return w.color
 
 
 class GaussianSmoothingEditor(BaseEditor):
