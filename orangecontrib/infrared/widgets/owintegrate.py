@@ -173,6 +173,7 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
         cb = gui.checkBox(self.output_box, self, "output_metas", "Output as metas", callback=self.commit)
         self.output_box.layout().insertWidget(0, cb)  # move to top of the box
         self.curveplot.selection_type = SELECTONE
+        self.curveplot.select_at_least_1 = True
 
     def redraw_integral(self):
         dis = []

@@ -415,6 +415,7 @@ class CurvePlot(QWidget, OWComponent):
         self.parent = parent
 
         self.selection_type = select
+        self.select_at_least_1 = False
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data(init=True)
         self.subset = None  # current subset input
@@ -790,6 +791,10 @@ class CurvePlot(QWidget, OWComponent):
                 selected_indices.clear()
                 selected_indices.update(data_indices)
                 self.set_curve_pens([invd[a] for a in (oldids | selected_indices) if a in invd])
+        if self.select_at_least_1 and not selected_indices and len(self.data) > 0:  # no selection
+            selected_indices.update([0])
+            if 0 in invd:
+                self.set_curve_pens([invd[0]])
         self.selection_changed()
 
     def selection_changed(self):
@@ -1089,6 +1094,8 @@ class CurvePlot(QWidget, OWComponent):
             if self.selected_indices and \
                     (max(self.selected_indices) >= len(self.data) or self.data_size != len(self.data)):
                 self.selected_indices.clear()
+            if self.select_at_least_1:
+                self.make_selection([], add=True)  # make selection valid
             self.data_size = len(self.data)
             # get and sort input data
             x = getx(self.data)
@@ -1214,6 +1221,7 @@ def main(argv=None):
     region.sigRegionChanged.connect(update)
     w.curveplot.add_marking(region)
     rval = app.exec_()
+    w.saveSettings()
     w.set_data(None)
     w.handleNewSignals()
     w.deleteLater()
