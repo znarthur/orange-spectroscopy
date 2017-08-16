@@ -15,8 +15,6 @@ from scipy.io import matlab
 import numbers
 import h5py
 import spc
-from Orange.widgets import widget
-import orangecontrib.infrared
 
 from .pymca5 import OmnicMap
 
@@ -257,72 +255,46 @@ class OmnicMapReader(FileFormat):
 
         return _table_from_image(X, features, x_locs, y_locs)
 
+
 class SPCReader(FileFormat):
     EXTENSIONS = ('.spc', '.SPC',)
     DESCRIPTION = 'Galactic SPC format'
 
     def read(self):
         spc_file = spc.File(self.filename)
-        #
-        # if len(spc_file.x.shape)==1:
-        #
-        # else if len(spc_file.x.shape)==2:
-
-        ### we need to handle these cases
         if spc_file.talabs:
-            print("each y has its own x ")
             table = self.multi_x_reader(spc_file)
-
         else:
-            if spc_file.tmulti:
-                # multiple y values
-                table = self.single_x_reader(spc_file)
-
-            else:
-                # single set of y values
-                table = self.single_x_reader(spc_file)
-
+            table = self.single_x_reader(spc_file)
         return table
 
     def single_x_reader(self, spc_file):
-
         domvals = spc_file.x  # first column is attribute name
         domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-        y_data = [[sub.y] for sub in spc_file.sub]
+        y_data = [sub.y for sub in spc_file.sub]
         y_data = np.array(y_data)
-        table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1))
-
+        table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C'))
         return table
 
     def multi_x_reader(self, spc_file):
-        print(self.filename)
-
-        data_list = []
-
+        # use x-values as domain
+        all_x = []
         for sub in spc_file.sub:
-            domvals = sub.x  # first column is attribute name
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-            y_data = sub.y
-            # print(y_data)
-            sub_pair = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C').reshape(len(y_data), -1).T)
+            x = sub.x
+            # assume values in x do not repeat
+            all_x = np.union1d(all_x, x)
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in all_x], None)
 
-            data_list.append(sub_pair)
-            # reader = FileFormat.get_reader(fn)
-            #
-            # errors = []
-            # with catch_warnings(record=True) as warnings:
-            #     try:
-            #         if self.sheet in reader.sheets:
-            #             reader.select_sheet(self.sheet)
-            #         data_list.append(reader.read())
-            #         fnok_list.append(fn)
-            #     except Exception as ex:
-            #         errors.append("An error occurred:")
-            #         errors.append(str(ex))
-            #         #FIXME show error in the list of data
-            #     self.warning(warnings[-1].message.args[0] if warnings else '')
+        instances = []
+        for sub in spc_file.sub:
+            x, y = sub.x, sub.y
+            newinstance = np.ones(len(all_x))*np.nan
+            ss = np.searchsorted(all_x, x)  # find positions to set
+            newinstance[ss] = y
+            instances.append(newinstance)
 
-        print(len(data_list))
+        y_data = np.array(instances).astype(float, order='C')
+        return Orange.data.Table.from_numpy(domain, y_data)
 
 
 class OPUSReader(FileFormat):

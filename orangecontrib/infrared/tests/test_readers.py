@@ -116,3 +116,11 @@ class TestSpa(unittest.TestCase):
         r = SPAReader(fn)
         points, _, _ = r.read_spec_header()
         self.assertEqual(points, 1738)
+
+class TestSpc(unittest.TestCase):
+
+    def test_multiple_x(self):
+        data = Orange.data.Table("m_xyxy.spc")
+        self.assertEqual(len(data), 512)
+        self.assertAlmostEqual(float(data.domain[0].name), 8401.800003)
+        self.assertAlmostEqual(float(data.domain[len(data.domain)-1].name), 137768.800049)
