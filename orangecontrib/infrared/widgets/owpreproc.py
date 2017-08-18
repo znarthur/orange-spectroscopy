@@ -1157,7 +1157,7 @@ class TimeoutLabel(QLabel):
         self.effect = QGraphicsOpacityEffect(self)
         self.effect.setOpacity(0)
         self.setGraphicsEffect(self.effect)
-        self.animation = QPropertyAnimation(self.effect, "opacity")
+        self.animation = QPropertyAnimation(self.effect, b"opacity")
         self.animation.setDuration(300)
         self.animation.setStartValue(1)
         self.animation.setEndValue(0)
