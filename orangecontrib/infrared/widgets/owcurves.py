@@ -404,8 +404,7 @@ class CurvePlot(QWidget, OWComponent):
     feature_color = ContextSetting(None)
 
     invertX = Setting(False)
-    selected_indices = Setting(set())
-    data_size = Setting(None)  # to invalidate selected_indices
+    selected_indices = Setting(set(), schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent=None, select=SELECTNONE):
@@ -1038,7 +1037,7 @@ class CurvePlot(QWidget, OWComponent):
         if self.data:
             ysall = []
             cinfo = []
-            selected_indices = np.full(self.data_size, False, dtype=bool)
+            selected_indices = np.full(len(self.data), False, dtype=bool)
             selected_indices[list(self.selected_indices)] = True
             dsplit = self._split_by_color_value(self.data)
             for colorv, indices in dsplit.items():
@@ -1090,13 +1089,8 @@ class CurvePlot(QWidget, OWComponent):
             else:
                 self.rescale_next = True
             self.data = data
-            # reset selection if dataset sizes do not match
-            if self.selected_indices and \
-                    (max(self.selected_indices) >= len(self.data) or self.data_size != len(self.data)):
-                self.selected_indices.clear()
             if self.select_at_least_1:
                 self.make_selection([], add=True)  # make selection valid
-            self.data_size = len(self.data)
             # get and sort input data
             x = getx(self.data)
             xsind = np.argsort(x)

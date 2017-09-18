@@ -41,7 +41,7 @@ class TestOWCurves(WidgetTest):
         cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features]
 
     def setUp(self):
-        self.widget = self.create_widget(OWCurves)
+        self.widget = self.create_widget(OWCurves)  # OWCurves
 
     def test_PlotCurvesItem_bounds(self):
         pc = PlotCurvesItem()
@@ -291,3 +291,15 @@ class TestOWCurves(WidgetTest):
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
         self.widget.curveplot.cycle_color_attr()
         self.assertEqual(self.widget.curveplot.feature_color, None)
+
+    def test_open_selection(self):
+        # saved selection in the file should be reloaded
+        self.widget.curveplot.selected_indices = set([0])
+        self.widget.curveplot.data_size = 150
+        self.send_signal("Data", self.iris)
+        out = self.get_output("Selection")
+        self.assertEqual(out[0], self.iris[0])
+        # other data set should clear the selection
+        self.send_signal("Data", self.collagen)
+        out = self.get_output("Selection")
+        self.assertIsNone(out, None)
