@@ -49,9 +49,9 @@ class AsciiMapReader(FileFormat):
     DESCRIPTION = 'Hyperspectral map ASCII'
 
     def read(self):
-        with open(self.filename, "rt") as f:
+        with open(self.filename, "rb") as f:
             # read first row separately because of two empty columns
-            header = f.readline().rstrip().split("\t")
+            header = f.readline().decode("ascii").rstrip().split("\t")
             header = [a.strip() for a in header]
             assert header[0] == header[1] == ""
             dom_vals = [float(v) for v in header[2:]]
@@ -65,6 +65,19 @@ class AsciiMapReader(FileFormat):
             data[:, metas[0]] = tbl[:, 0].reshape(-1, 1)
             data[:, metas[1]] = tbl[:, 1].reshape(-1, 1)
             return data
+
+    @staticmethod
+    def write_file(filename, data):
+        wavelengths = getx(data)
+        try:
+            ndom = Domain([data.domain["map_x"], data.domain["map_y"]] + list(data.domain.attributes))
+        except KeyError:
+            raise RuntimeError('Data needs to include meta variables "map_x" and "map_y"')
+        data = data.transform(ndom)
+        with open(filename, "wb") as f:
+            header = ["", ""] + [("%g" % w) for w in wavelengths]
+            f.write(('\t'.join(header) + '\n').encode("ascii"))
+            np.savetxt(f, data.X, delimiter="\t", fmt="%g")
 
 
 def _table_from_image(X, features, x_locs, y_locs):

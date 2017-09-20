@@ -71,6 +71,21 @@ class TestAsciiMapReader(unittest.TestCase):
         self.assertEqual(min(getx(d)), 1634.84)
         self.assertEqual(max(getx(d)), 1641.69)
 
+    def test_roundtrip(self):
+        d1 = Orange.data.Table("map_test.yxz")
+        _, fn = tempfile.mkstemp(suffix=".yxz")
+        d1.save(fn)
+        d2 = Orange.data.Table(fn)
+        np.testing.assert_equal(d1.X, d2.X)
+        np.testing.assert_equal(getx(d1), getx(d2))
+        np.testing.assert_equal(d1.metas, d2.metas)
+        os.remove(fn)
+
+    def test_write_exception(self):
+        d = Orange.data.Table("iris")
+        with self.assertRaises(RuntimeError):
+            d.save("test.yxz")
+
 
 class TestGSF(unittest.TestCase):
 
