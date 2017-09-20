@@ -62,7 +62,7 @@ class TestDat(unittest.TestCase):
 class TestAsciiMapReader(unittest.TestCase):
 
     def test_read(self):
-        d = Orange.data.Table("map_test.yxz")
+        d = Orange.data.Table("map_test.xyz")
         self.assertEqual(len(d), 16)
         self.assertEqual(d[1]["map_x"], 1)
         self.assertEqual(d[1]["map_y"], 7)
@@ -72,8 +72,8 @@ class TestAsciiMapReader(unittest.TestCase):
         self.assertEqual(max(getx(d)), 1641.69)
 
     def test_roundtrip(self):
-        d1 = Orange.data.Table("map_test.yxz")
-        _, fn = tempfile.mkstemp(suffix=".yxz")
+        d1 = Orange.data.Table("map_test.xyz")
+        _, fn = tempfile.mkstemp(suffix=".xyz")
         d1.save(fn)
         d2 = Orange.data.Table(fn)
         np.testing.assert_equal(d1.X, d2.X)
@@ -84,7 +84,7 @@ class TestAsciiMapReader(unittest.TestCase):
     def test_write_exception(self):
         d = Orange.data.Table("iris")
         with self.assertRaises(RuntimeError):
-            d.save("test.yxz")
+            d.save("test.xyz")
 
 
 class TestGSF(unittest.TestCase):

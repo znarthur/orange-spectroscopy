@@ -45,7 +45,7 @@ class AsciiMapReader(FileFormat):
 
     First row contains wavelengths, then each row describes a spectrum, starting with (x, y)
     coordinates: http://www.cytospec.com/file.php#FileASCII3 """
-    EXTENSIONS = ('.yxz',)
+    EXTENSIONS = ('.xyz',)
     DESCRIPTION = 'Hyperspectral map ASCII'
 
     def read(self):
