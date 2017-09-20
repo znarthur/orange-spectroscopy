@@ -25,7 +25,7 @@ class DatReader(FileFormat):
     DESCRIPTION = 'Spectra ASCII'
 
     def read(self):
-        tbl = np.loadtxt(self.filename)
+        tbl = np.loadtxt(self.filename, ndmin=2)
         domvals = tbl.T[0]  # first column is attribute name
         from orangecontrib.infrared.preprocess import features_with_interpolation
         domain = Orange.data.Domain(features_with_interpolation(domvals), None)
@@ -38,6 +38,33 @@ class DatReader(FileFormat):
         xs = xs.reshape((-1, 1))
         table = np.hstack((xs, data.X.T))
         np.savetxt(filename, table, delimiter="\t", fmt="%g")
+
+
+class AsciiMapReader(FileFormat):
+    """ Reader ascii map files.
+
+    First row contains wavelengths, then each row describes a spectrum, starting with (x, y)
+    coordinates: http://www.cytospec.com/file.php#FileASCII3 """
+    EXTENSIONS = ('.yxz',)
+    DESCRIPTION = 'Hyperspectral map ASCII'
+
+    def read(self):
+        with open(self.filename, "rt") as f:
+            # read first row separately because of two empty columns
+            header = f.readline().rstrip().split("\t")
+            header = [a.strip() for a in header]
+            assert header[0] == header[1] == ""
+            dom_vals = [float(v) for v in header[2:]]
+            from orangecontrib.infrared.preprocess import features_with_interpolation
+            domain = Orange.data.Domain(features_with_interpolation(dom_vals), None)
+            tbl = np.loadtxt(f, ndmin=2)
+            data = Orange.data.Table(domain, tbl[:, 2:])
+            metas = [ContinuousVariable.make('map_x'), ContinuousVariable.make('map_y')]
+            domain = Orange.data.Domain(domain.attributes, None, metas=metas)
+            data = data.transform(domain)
+            data[:, metas[0]] = tbl[:, 0].reshape(-1, 1)
+            data[:, metas[1]] = tbl[:, 1].reshape(-1, 1)
+            return data
 
 
 def _table_from_image(X, features, x_locs, y_locs):

@@ -59,6 +59,19 @@ class TestDat(unittest.TestCase):
         os.remove(fn)
 
 
+class TestAsciiMapReader(unittest.TestCase):
+
+    def test_read(self):
+        d = Orange.data.Table("map_test.yxz")
+        self.assertEqual(len(d), 16)
+        self.assertEqual(d[1]["map_x"], 1)
+        self.assertEqual(d[1]["map_y"], 7)
+        self.assertEqual(d[1][1], 0.1243)
+        self.assertEqual(d[2][2], 0.1242)
+        self.assertEqual(min(getx(d)), 1634.84)
+        self.assertEqual(max(getx(d)), 1641.69)
+
+
 class TestGSF(unittest.TestCase):
 
     def test_open_line(self):
