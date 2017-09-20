@@ -10,6 +10,12 @@ from orangecontrib.infrared.data import SPAReader
 
 from .bigdata import spectra20nea
 
+try:
+    import spc
+except ImportError:
+    spc = None
+
+
 class TestReaders(unittest.TestCase):
 
     def test_autointerpolate(self):
@@ -117,6 +123,8 @@ class TestSpa(unittest.TestCase):
         points, _, _ = r.read_spec_header()
         self.assertEqual(points, 1738)
 
+
+@unittest.skipIf(spc is None, "spc module not installed")
 class TestSpc(unittest.TestCase):
 
     def test_multiple_x(self):

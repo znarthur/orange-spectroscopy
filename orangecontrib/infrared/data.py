@@ -14,7 +14,7 @@ from scipy.interpolate import interp1d
 from scipy.io import matlab
 import numbers
 import h5py
-import spc
+
 
 from .pymca5 import OmnicMap
 
@@ -261,6 +261,11 @@ class SPCReader(FileFormat):
     DESCRIPTION = 'Galactic SPC format'
 
     def read(self):
+        try:
+            import spc
+        except ImportError:
+            raise RuntimeError("To load spc files install spc python module (https://github.com/rohanisaac/spc)")
+
         spc_file = spc.File(self.filename)
         if spc_file.talabs:
             table = self.multi_x_reader(spc_file)
