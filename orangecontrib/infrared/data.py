@@ -18,10 +18,11 @@ import h5py
 from .pymca5 import OmnicMap
 
 
-class DptReader(FileFormat):
-    """ Reader for files with two columns of numbers (X and Y)"""
-    EXTENSIONS = ('.dpt',)
-    DESCRIPTION = 'X-Y pairs'
+class DatReader(FileFormat):
+    """ Reader for files with multiple columns of numbers. The first column
+    contains the wavelengths, the others contain the spectra. """
+    EXTENSIONS = ('.dat', '.dpt', '.xy',)
+    DESCRIPTION = 'Spectra ASCII'
 
     def read(self):
         tbl = np.loadtxt(self.filename)
@@ -30,6 +31,13 @@ class DptReader(FileFormat):
         domain = Orange.data.Domain(features_with_interpolation(domvals), None)
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
+
+    @staticmethod
+    def write_file(filename, data):
+        xs = getx(data)
+        xs = xs.reshape((-1, 1))
+        table = np.hstack((xs, data.X.T))
+        np.savetxt(filename, table, delimiter="\t", fmt="%g")
 
 
 def _table_from_image(X, features, x_locs, y_locs):

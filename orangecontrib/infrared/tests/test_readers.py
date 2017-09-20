@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+import os
 
 import numpy as np
 import Orange
@@ -9,12 +11,6 @@ from orangecontrib.infrared.data import SPAReader
 from .bigdata import spectra20nea
 
 class TestReaders(unittest.TestCase):
-
-    def test_peach_juice(self):
-        d1 = Orange.data.Table("peach_juice.dpt")
-        d2 = Orange.data.Table("peach_juice.0")
-        #dpt file has rounded values
-        np.testing.assert_allclose(d1.X, d2.X, atol=1e-5)
 
     def test_autointerpolate(self):
         d1 = Orange.data.Table("peach_juice.dpt")
@@ -35,6 +31,32 @@ class TestReaders(unittest.TestCase):
         dround = Orange.data.Table(ndom, d3)
         #edges are unknown, the rest roughly the same
         np.testing.assert_allclose(dround.X[:, 1:-1], d2.X[:, 1:-1], rtol=0.011)
+
+
+class TestDat(unittest.TestCase):
+
+    def test_peach_juice(self):
+        d1 = Orange.data.Table("peach_juice.dpt")
+        d2 = Orange.data.Table("peach_juice.0")
+        # dpt file has rounded values
+        np.testing.assert_allclose(d1.X, d2.X, atol=1e-5)
+
+    def test_roundtrip(self):
+        _, fn = tempfile.mkstemp(suffix=".dat")
+
+        # a single spectrum
+        d1 = Orange.data.Table("peach_juice.dpt")
+        d1.save(fn)
+        d2 = Orange.data.Table(fn)
+        np.testing.assert_equal(d1.X, d2.X)
+
+        # multiple spectra
+        d1 = Orange.data.Table("collagen.csv")
+        d1.save(fn)
+        d2 = Orange.data.Table(fn)
+        np.testing.assert_equal(d1.X, d2.X)
+
+        os.remove(fn)
 
 
 class TestGSF(unittest.TestCase):
