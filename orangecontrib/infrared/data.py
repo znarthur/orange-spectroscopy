@@ -15,6 +15,7 @@ from scipy.io import matlab
 import numbers
 import h5py
 
+
 from .pymca5 import OmnicMap
 
 
@@ -253,6 +254,52 @@ class OmnicMapReader(FileFormat):
             y_locs = None
 
         return _table_from_image(X, features, x_locs, y_locs)
+
+
+class SPCReader(FileFormat):
+    EXTENSIONS = ('.spc', '.SPC',)
+    DESCRIPTION = 'Galactic SPC format'
+
+    def read(self):
+        try:
+            import spc
+        except ImportError:
+            raise RuntimeError("To load spc files install spc python module (https://github.com/rohanisaac/spc)")
+
+        spc_file = spc.File(self.filename)
+        if spc_file.talabs:
+            table = self.multi_x_reader(spc_file)
+        else:
+            table = self.single_x_reader(spc_file)
+        return table
+
+    def single_x_reader(self, spc_file):
+        domvals = spc_file.x  # first column is attribute name
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        y_data = [sub.y for sub in spc_file.sub]
+        y_data = np.array(y_data)
+        table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C'))
+        return table
+
+    def multi_x_reader(self, spc_file):
+        # use x-values as domain
+        all_x = []
+        for sub in spc_file.sub:
+            x = sub.x
+            # assume values in x do not repeat
+            all_x = np.union1d(all_x, x)
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in all_x], None)
+
+        instances = []
+        for sub in spc_file.sub:
+            x, y = sub.x, sub.y
+            newinstance = np.ones(len(all_x))*np.nan
+            ss = np.searchsorted(all_x, x)  # find positions to set
+            newinstance[ss] = y
+            instances.append(newinstance)
+
+        y_data = np.array(instances).astype(float, order='C')
+        return Orange.data.Table.from_numpy(domain, y_data)
 
 
 class OPUSReader(FileFormat):
