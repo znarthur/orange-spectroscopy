@@ -17,6 +17,7 @@ class OWInterpolate(OWWidget):
     name = "Interpolate"
     description = "Interpolate spectra"
     icon = "icons/interpolate.svg"
+    priority = 990
 
     inputs = [("Data", Orange.data.Table, "set_data"),
               ("Points", Orange.data.Table, "set_points")]

@@ -1149,6 +1149,7 @@ class OWCurves(OWWidget):
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
     outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
     icon = "icons/curves.svg"
+    priority = 10
 
     settingsHandler = DomainContextHandler(metas_in_res=True)
 

@@ -655,6 +655,7 @@ class OWHyper(OWWidget):
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
     outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
     icon = "icons/hyper.svg"
+    priority = 20
 
     settings_version = 2
     settingsHandler = DomainContextHandler(metas_in_res=True)

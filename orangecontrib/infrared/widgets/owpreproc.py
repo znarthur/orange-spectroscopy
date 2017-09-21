@@ -1177,7 +1177,7 @@ class OWPreprocess(OWWidget):
     name = "Preprocess Spectra"
     description = "Construct a data preprocessing pipeline."
     icon = "icons/preprocess.svg"
-    priority = 2105
+    priority = 1000
     id = "orangecontrib.infrared.widgets.owpreproc"
 
     inputs = [("Data", Orange.data.Table, "set_data")]

@@ -40,6 +40,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     icon = "icons/files.svg"
     description = "Read data from input files " \
                   "and send a data table to the output."
+    priority = 10000
 
     file_idx = -1
 

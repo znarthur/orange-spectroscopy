@@ -155,7 +155,7 @@ class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
     id = "orangecontrib.infrared.widgets.integrate"
     description = "Integrate spectra in various ways."
     icon = "icons/integrate.svg"
-    priority = 2107
+    priority = 1010
 
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add integral..."
