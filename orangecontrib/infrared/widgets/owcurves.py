@@ -404,7 +404,7 @@ class CurvePlot(QWidget, OWComponent):
     feature_color = ContextSetting(None)
 
     invertX = Setting(False)
-    selected_indices = Setting(set(), schema_only=True)
+    selected_indices = Setting(None, schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent=None, select=SELECTNONE):
@@ -1083,6 +1083,8 @@ class CurvePlot(QWidget, OWComponent):
         self.feature_color_model.set_domain(domain)
         if old_domain and domain != old_domain:  # do not reset feature_color
             self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
+        if not self.selected_indices:  # either None or previously saved empty set
+            self.selected_indices = set()
         if data is not None:
             if self.data:
                 self.rescale_next = not data.domain == self.data.domain

@@ -298,7 +298,16 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", self.iris)
         out = self.get_output("Selection")
         self.assertEqual(out[0], self.iris[0])
-        # other data set should clear the selection
-        self.send_signal("Data", self.collagen)
+
+    def test_selection_changedata(self):
+        # select something in the widget and see if it is cleared
+        self.send_signal("Data", self.iris)
+        self.widget.curveplot.MOUSE_RADIUS = 1000
+        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        self.widget.curveplot.select_by_click(None, add=False)
+        out = self.get_output("Selection")
+        self.assertEqual(len(out), 1)
+        # resending the same data should clear the selection
+        self.send_signal("Data", self.iris)
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
