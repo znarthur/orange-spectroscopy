@@ -135,6 +135,16 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
                 self.set_value("Closest to", min(x))
 
 
+class IntegratePeakXEditor(IntegrateSimpleEditor):
+    qualname = "orangecontrib.infrared.integrate.peakx"
+    integrator = Integrate.PeakX
+
+
+class IntegratePeakXBaselineEditor(IntegrateSimpleEditor):
+    qualname = "orangecontrib.infrared.integrate.peakx_baseline"
+    integrator = Integrate.PeakXBaseline
+
+
 PREPROCESSORS = [
     PreprocessAction(
         "Integrate", c.qualname, "Integration",
@@ -146,6 +156,8 @@ PREPROCESSORS = [
         IntegratePeakMaxEditor,
         IntegratePeakMaxBaselineEditor,
         IntegrateAtEditor,
+        IntegratePeakXEditor,
+        IntegratePeakXBaselineEditor
     ]
 ]
 

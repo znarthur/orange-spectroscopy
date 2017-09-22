@@ -736,7 +736,7 @@ def getx(data):
     Return x of the data. If all attribute names are numbers,
     return their values. If not, return indices.
     """
-    x = np.arange(len(data.domain.attributes))
+    x = np.arange(len(data.domain.attributes), dtype="f")
     try:
         x = np.array([float(a.name) for a in data.domain.attributes])
     except:

@@ -894,12 +894,7 @@ class IntegrateEditor(BaseEditor):
     Editor to integrate defined regions.
     """
 
-    Integrators_classes = [Integrate.Simple,
-                           Integrate.Baseline,
-                           Integrate.PeakMax,
-                           Integrate.PeakBaseline,
-                           Integrate.PeakAt]
-
+    Integrators_classes = Integrate.INTEGRALS
     Integrators = [a.name for a in Integrators_classes]
 
     def __init__(self, parent=None, **kwargs):

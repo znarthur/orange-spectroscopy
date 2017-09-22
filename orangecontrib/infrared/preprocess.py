@@ -483,6 +483,51 @@ class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
         return np.zeros(y_s.shape)
 
 
+class IntegrateFeaturePeakXEdgeBaseline(IntegrateFeature):
+    """ The X-value of the maximum baseline-subtracted peak height in the provided window. """
+
+    name = "X-value of maximum from baseline"
+
+    @staticmethod
+    def parameters():
+        return (("Low limit", "Low limit for integration (inclusive)"),
+                ("High limit", "High limit for integration (inclusive)"),
+            )
+
+    def compute_baseline(self, x, y):
+        return _edge_baseline(x, y)
+
+    def compute_integral(self, x_s, y_s):
+        y_s = y_s - self.compute_baseline(x_s, y_s)
+        if len(x_s) == 0:
+            return np.zeros((y_s.shape[0],)) * np.nan
+        # avoid whole nan rows
+        whole_nan_rows = np.isnan(y_s).all(axis=1)
+        y_s[whole_nan_rows] = 0
+        # select positions
+        pos = x_s[np.nanargmax(y_s, axis=1)]
+        # set unknown results
+        pos[whole_nan_rows] = np.nan
+        return pos
+
+    def compute_draw_info(self, x, ys):
+        bs = self.compute_baseline(x, ys)
+        im = np.nanargmax(ys-bs, axis=1)
+        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
+        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("line", lines)]
+
+
+class IntegrateFeaturePeakXSimple(IntegrateFeaturePeakXEdgeBaseline):
+    """ The X-value of the maximum peak height in the provided data window. """
+
+    name = "X-value of maximum from 0"
+
+    def compute_baseline(self, x_s, y_s):
+        return np.zeros(y_s.shape)
+
+
 class IntegrateFeatureAtPeak(IntegrateFeature):
     """ Find the closest x and return the value there. """
 
@@ -535,13 +580,16 @@ class _IntegrateCommon:
 
 class Integrate(Preprocess):
 
+    INTEGRALS = [IntegrateFeatureSimple,
+                 IntegrateFeatureEdgeBaseline,
+                 IntegrateFeaturePeakSimple,
+                 IntegrateFeaturePeakEdgeBaseline,
+                 IntegrateFeatureAtPeak,
+                 IntegrateFeaturePeakXSimple,
+                 IntegrateFeaturePeakXEdgeBaseline]
+
     # Integration methods
-    Simple, Baseline, PeakMax, PeakBaseline, PeakAt = \
-        IntegrateFeatureSimple, \
-        IntegrateFeatureEdgeBaseline, \
-        IntegrateFeaturePeakSimple, \
-        IntegrateFeaturePeakEdgeBaseline, \
-        IntegrateFeatureAtPeak
+    Simple, Baseline, PeakMax, PeakBaseline, PeakAt, PeakX, PeakXBaseline = INTEGRALS
 
     def __init__(self, methods=Baseline, limits=None, names=None, metas=False):
         self.methods = methods

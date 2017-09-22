@@ -664,8 +664,7 @@ class OWHyper(OWWidget):
     curveplot = SettingProvider(CurvePlotHyper)
 
     integration_method = Setting(0)
-    integration_methods = [Integrate.Simple, Integrate.Baseline,
-                           Integrate.PeakMax, Integrate.PeakBaseline, Integrate.PeakAt]
+    integration_methods = Integrate.INTEGRALS
     value_type = Setting(0)
     attr_value = ContextSetting(None)
 
