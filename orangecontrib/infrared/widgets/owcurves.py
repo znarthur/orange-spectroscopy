@@ -407,7 +407,7 @@ class CurvePlot(QWidget, OWComponent):
     selected_indices = Setting(None, schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
-    def __init__(self, parent=None, select=SELECTNONE):
+    def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
 
@@ -462,6 +462,9 @@ class CurvePlot(QWidget, OWComponent):
         self.setLayout(layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.plotview)
+
+        # prepare interface according to the new context
+        self.parent.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
 
         actions = []
 
@@ -611,6 +614,14 @@ class CurvePlot(QWidget, OWComponent):
         self.reports = {}  # current reports
 
         self.viewhelpers_show()
+
+    def init_interface_data(self, data):
+        old_domain = self.data.domain if self.data else None
+        self.clear_data()
+        domain = data.domain if data is not None else None
+        self.feature_color_model.set_domain(domain)
+        if old_domain and domain != old_domain:  # do not reset feature_color
+            self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
 
     def line_select_start(self):
         if self.viewtype == INDIVIDUAL:
@@ -1077,12 +1088,6 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.vb.autoRange()
 
     def set_data(self, data):
-        old_domain = self.data.domain if self.data else None
-        self.clear_data()
-        domain = data.domain if data is not None else None
-        self.feature_color_model.set_domain(domain)
-        if old_domain and domain != old_domain:  # do not reset feature_color
-            self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
         if not self.selected_indices:  # either None or previously saved empty set
             self.selected_indices = set()
         if data is not None:
@@ -1170,11 +1175,11 @@ class OWCurves(OWWidget):
         self.graph_name = "curveplot.plotview"
 
     def set_data(self, data):
+        self.closeContext()  # resets schema_only settings
         self.Information.showing_sample.clear()
         self.Warning.no_x.clear()
-        self.closeContext()
-        self.curveplot.set_data(data)
         self.openContext(data)
+        self.curveplot.set_data(data)
         self.curveplot.update_view()
         if data is not None and not len(self.curveplot.data_x):
             self.Warning.no_x()

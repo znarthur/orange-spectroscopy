@@ -816,7 +816,6 @@ class OWHyper(OWWidget):
 
     def set_data(self, data):
         self.closeContext()
-        self.curveplot.set_data(data)
         if data is not None:
             same_domain = (self.data and
                            data.domain.checksum() == self.data.domain.checksum())
@@ -825,10 +824,11 @@ class OWHyper(OWWidget):
                 self.init_attr_values()
         else:
             self.data = None
-        self._init_integral_boundaries()
         self.imageplot.set_data(data)
         self.openContext(data)
+        self.curveplot.set_data(data)
         self.curveplot.update_view()
+        self._init_integral_boundaries()
         self.imageplot.update_view()
 
     def _init_integral_boundaries(self):
