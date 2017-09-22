@@ -1,4 +1,3 @@
-from itertools import chain
 import sys
 from collections import defaultdict
 import gc
@@ -6,6 +5,7 @@ import random
 import warnings
 import math
 from xml.sax.saxutils import escape
+from typing import Set
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
@@ -404,7 +404,8 @@ class CurvePlot(QWidget, OWComponent):
     feature_color = ContextSetting(None)
 
     invertX = Setting(False)
-    selected_indices = Setting(None, schema_only=True)
+    selected_indices = None  # Set[int]
+    saved_selected_indices = Setting(None, schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
@@ -421,7 +422,7 @@ class CurvePlot(QWidget, OWComponent):
         self.subset_indices = None  # boolean index array with indices in self.data
 
         # Remember the saved state to restore with the first open file
-        self.__pending_selection_restore = self.selected_indices
+        self.__pending_selection_restore = self.saved_selected_indices
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
@@ -812,7 +813,7 @@ class CurvePlot(QWidget, OWComponent):
         # reset average view; individual was already handled in make_selection
         if self.viewtype == AVERAGE:
             self.show_average()
-
+        self.prepare_settings_for_saving()
         if self.selection_type:
             self.parent.selection_changed()
 
@@ -886,7 +887,7 @@ class CurvePlot(QWidget, OWComponent):
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
         insubset = self.subset_indices[idcdata]
-        inselected = self.selection_type and idcdata in self.selected_indices
+        inselected = self.selected_indices is not None and self.selection_type and idcdata in self.selected_indices
         have_subset = np.any(self.subset_indices)
         thispen = self.pen_subset if insubset or not have_subset else self.pen_normal
         if inselected:
@@ -1163,6 +1164,18 @@ class CurvePlot(QWidget, OWComponent):
         sel = np.flatnonzero(intersect_curves_chunked(x, ys, self.data_xsind, q1, q2, xmin, xmax))
         return sel
 
+    @classmethod
+    def migrate_settings_sub(cls, settings, version):
+        # manually called from the parent
+        if "selected_indices" in settings:
+            settings["saved_selected_indices"] = settings["selected_indices"]
+
+    def after_loading_saved_settings(self):
+        self.selected_indices = self.saved_selected_indices
+
+    def prepare_settings_for_saving(self):
+        self.saved_selected_indices = self.selected_indices
+
 
 class OWSpectra(OWWidget):
     name = "Spectra"
@@ -1196,6 +1209,7 @@ class OWSpectra(OWWidget):
         self.Information.showing_sample.clear()
         self.Warning.no_x.clear()
         self.openContext(data)
+        self.curveplot.after_loading_saved_settings()
         self.curveplot.set_data(data)
         self.curveplot.update_view()
         if data is not None and not len(self.curveplot.data_x):
@@ -1215,6 +1229,10 @@ class OWSpectra(OWWidget):
         if self.curveplot.selected_indices and self.curveplot.data:
             selected = self.curveplot.data[sorted(self.curveplot.selected_indices)]
         self.send("Selection", selected)
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        CurvePlot.migrate_settings_sub(settings["curveplot"], version)
 
 
 def main(argv=None):
