@@ -727,11 +727,11 @@ class OWHyper(OWWidget):
         self.mainArea.layout().addWidget(splitter)
 
         self.line1 = MovableVlineWD(position=self.lowlim, label="", setvalfn=self.set_lowlim,
-                                    confirmfn=self.edited, report=self.curveplot)
+                                    confirmfn=self.changed_integral_range, report=self.curveplot)
         self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim,
-                                    confirmfn=self.edited, report=self.curveplot)
+                                    confirmfn=self.changed_integral_range, report=self.curveplot)
         self.line3 = MovableVlineWD(position=self.choose, label="", setvalfn=self.set_choose,
-                                    confirmfn=self.edited, report=self.curveplot)
+                                    confirmfn=self.changed_integral_range, report=self.curveplot)
         self.curveplot.add_marking(self.line1)
         self.curveplot.add_marking(self.line2)
         self.curveplot.add_marking(self.line3)
@@ -740,6 +740,7 @@ class OWHyper(OWWidget):
         self.line3.hide()
 
         self.data = None
+        self.disable_integral_range = False
 
         self.resize(900, 700)
         self.graph_name = "imageplot.plotview"
@@ -805,7 +806,9 @@ class OWHyper(OWWidget):
         self._update_integration_type()
         self.redraw_data()
 
-    def edited(self):
+    def changed_integral_range(self):
+        if self.disable_integral_range:
+            return
         self.redraw_data()
 
     def _change_integral_type(self):
@@ -822,6 +825,15 @@ class OWHyper(OWWidget):
                 self.init_attr_values()
         else:
             self.data = None
+        self._init_integral_boundaries()
+        self.imageplot.set_data(data)
+        self.openContext(data)
+        self.curveplot.update_view()
+        self.imageplot.update_view()
+
+    def _init_integral_boundaries(self):
+        # requires data in curveplot
+        self.disable_integral_range = True
         if self.curveplot.data_x is not None and len(self.curveplot.data_x):
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
@@ -841,11 +853,8 @@ class OWHyper(OWWidget):
             elif self.choose > maxx:
                 self.choose = maxx
             self.line3.setValue(self.choose)
-
-        self.imageplot.set_data(data)
-        self.openContext(data)
-        self.curveplot.update_view()
-        self.imageplot.update_view()
+        self.disable_integral_range = False
+        self.changed_integral_range()
 
     # store selection as a list due to a bug in checking if numpy settings changed
     def storeSpecificSettings(self):
