@@ -318,6 +318,9 @@ class ImagePlot(QWidget, OWComponent):
         view_menu = MenuFocus(self)
         self.button.setMenu(view_menu)
 
+        # prepare interface according to the new context
+        self.parent.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
+
         actions = []
 
         zoom_in = QAction(
@@ -419,6 +422,12 @@ class ImagePlot(QWidget, OWComponent):
         self.data = None
         self.data_ids = {}
 
+    def init_interface_data(self, data):
+        same_domain = (self.data and data and
+                       data.domain == self.data.domain)
+        if not same_domain:
+            self.init_attr_values(data)
+
     def help_event(self, ev):
         pos = self.plot.vb.mapSceneToView(ev.scenePos())
         sel = self._points_at_pos(pos)
@@ -464,8 +473,8 @@ class ImagePlot(QWidget, OWComponent):
     def update_attr(self):
         self.update_view()
 
-    def init_attr_values(self):
-        domain = self.data.domain if self.data is not None else None
+    def init_attr_values(self, data):
+        domain = data.domain if data is not None else None
         self.xy_model.set_domain(domain)
         self.attr_x = self.xy_model[0] if self.xy_model else None
         self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
@@ -476,16 +485,8 @@ class ImagePlot(QWidget, OWComponent):
 
     def set_data(self, data):
         self.img.clear()
-        if data is not None:
-            same_domain = (self.data and
-                           data.domain.checksum() == self.data.domain.checksum())
-            self.data = data
-            self.data_ids = {e: i for i, e in enumerate(data.ids)}
-            if not same_domain:
-                self.init_attr_values()
-        else:
-            self.data = None
-            self.data_ids = {}
+        self.data = data
+        self.data_ids = {e: i for i, e in enumerate(data.ids)} if data else {}
 
     def set_integral_limits(self):
         self.update_view()
@@ -745,6 +746,15 @@ class OWHyper(OWWidget):
         self.graph_name = "imageplot.plotview"
         self._update_integration_type()
 
+        # prepare interface according to the new context
+        self.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
+
+    def init_interface_data(self, data):
+        same_domain = (self.data and data and
+                       data.domain == self.data.domain)
+        if not same_domain:
+            self.init_attr_values(data)
+
     def image_selection_changed(self, indices):
         annotated = create_annotated_table(self.data, indices)
         self.send("Data", annotated)
@@ -763,8 +773,8 @@ class OWHyper(OWWidget):
     def selection_changed(self):
         self.redraw_data()
 
-    def init_attr_values(self):
-        domain = self.data.domain if self.data is not None else None
+    def init_attr_values(self, data):
+        domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
@@ -815,16 +825,9 @@ class OWHyper(OWWidget):
 
     def set_data(self, data):
         self.closeContext()
-        if data is not None:
-            same_domain = (self.data and
-                           data.domain.checksum() == self.data.domain.checksum())
-            self.data = data
-            if not same_domain:
-                self.init_attr_values()
-        else:
-            self.data = None
-        self.imageplot.set_data(data)
         self.openContext(data)
+        self.data = data
+        self.imageplot.set_data(data)
         self.curveplot.set_data(data)
         self.curveplot.update_view()
         self._init_integral_boundaries()
