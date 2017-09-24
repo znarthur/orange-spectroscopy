@@ -405,7 +405,7 @@ class CurvePlot(QWidget, OWComponent):
 
     invertX = Setting(False)
     selected_indices = None  # Set[int]
-    saved_selected_indices = Setting(None, schema_only=True)
+    selection_group_saved = Setting(None, schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
@@ -422,7 +422,7 @@ class CurvePlot(QWidget, OWComponent):
         self.subset_indices = None  # boolean index array with indices in self.data
 
         # Remember the saved state to restore with the first open file
-        self.__pending_selection_restore = self.saved_selected_indices
+        self.__pending_selection_restore = self.selection_group_saved
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
@@ -1109,9 +1109,8 @@ class CurvePlot(QWidget, OWComponent):
             self.data = data
 
             # restore pending selection from saved data
-            if self.__pending_selection_restore is not None:
-                self.selected_indices = self.__pending_selection_restore
-                self.__pending_selection_restore = None
+            self.restore_selection_settings(self.__pending_selection_restore)
+            self.__pending_selection_restore = None
 
             if self.select_at_least_1:
                 self.make_selection([], add=True)  # make selection valid
@@ -1168,13 +1167,19 @@ class CurvePlot(QWidget, OWComponent):
     def migrate_settings_sub(cls, settings, version):
         # manually called from the parent
         if "selected_indices" in settings:
-            settings["saved_selected_indices"] = settings["selected_indices"]
+            # transform into list-of-tuples as we do not have data size
+            if settings["selected_indices"]:
+                settings["selection_group_saved"] = [(a, 1) for a in settings["selected_indices"]]
 
-    def after_loading_saved_settings(self):
-        self.selected_indices = self.saved_selected_indices
+    def restore_selection_settings(self, settings):
+        if settings is not None:
+            self.selected_indices = set(a for a, _ in settings)
 
     def prepare_settings_for_saving(self):
-        self.saved_selected_indices = self.selected_indices
+        if self.selected_indices:
+            self.selection_group_saved = [(a, 1) for a in self.selected_indices]
+        else:
+            self.selection_group_saved = None
 
 
 class OWSpectra(OWWidget):
@@ -1209,7 +1214,6 @@ class OWSpectra(OWWidget):
         self.Information.showing_sample.clear()
         self.Warning.no_x.clear()
         self.openContext(data)
-        self.curveplot.after_loading_saved_settings()
         self.curveplot.set_data(data)
         self.curveplot.update_view()
         if data is not None and not len(self.curveplot.data_x):

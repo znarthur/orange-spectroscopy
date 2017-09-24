@@ -295,7 +295,7 @@ class TestOWCurves(WidgetTest):
     def test_open_selection(self):
         # saved selection in the file should be reloaded
         self.widget = self.create_widget(
-            OWSpectra, stored_settings={"curveplot": {"selected_indices": set([0])}}
+            OWSpectra, stored_settings={"curveplot": {"selection_group_saved": [(0, 1)]}}
         )
         self.send_signal("Data", self.iris)
         out = self.get_output("Selection")
