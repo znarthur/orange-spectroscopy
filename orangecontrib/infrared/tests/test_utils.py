@@ -29,7 +29,8 @@ class TestSelectionPacking(unittest.TestCase):
 
     def test_unpack(self):
         # None
-        self.assertEqual(unpack_selection(None), None)
+        self.assertTrue(isinstance(unpack_selection(None), np.ndarray))
+        np.testing.assert_equal(unpack_selection(None), [])
         # list of tuples
         r = unpack_selection([(2, 1), (4, 3)])
         np.testing.assert_equal(r, [0, 0, 1, 0, 3])

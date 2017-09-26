@@ -19,9 +19,10 @@ def pack_selection(selection_group):
 
 
 def unpack_selection(saved_selection):
-    """ Return an numpy array of np.uint8 """
-    if saved_selection is None:
-        return None
+    """ Return an numpy array of np.uint8 representing the selection.
+    The array can be smaller than the size of data."""
+    if saved_selection is None or len(saved_selection) == 0:
+        return np.array([], dtype=np.uint8)
     if isinstance(saved_selection, array.array):
         return np.array(saved_selection, dtype=np.uint8)
     else:  # a list of tuples
