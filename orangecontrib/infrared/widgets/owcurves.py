@@ -416,7 +416,7 @@ class CurvePlot(QWidget, OWComponent):
         self.selection_type = select
         self.select_at_least_1 = False
         self.saving_enabled = hasattr(self.parent, "save_graph")
-        self.clear_data(init=True)
+        self.clear_data()
         self.subset = None  # current subset input
         self.subset_indices = None  # boolean index array with indices in self.data
 
@@ -728,15 +728,13 @@ class CurvePlot(QWidget, OWComponent):
         self.plot.showAxis("right", False)
         self.viewhelpers_show()
 
-    def clear_data(self, init=True):
+    def clear_data(self):
         self.data = None
         self.data_x = None  # already sorted x-axis
         self.data_xsind = None  # sorting indices for x-axis
         self.sampled_indices = []
         self.sampled_indices_inverse = {}
         self.sampling = None
-        if not init:
-            self.selection_changed()
         self.discrete_palette = None
 
     def clear_graph(self):
