@@ -43,7 +43,6 @@ from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 PREVIEW_COLORS = [ QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
 
-
 class ViewController(Controller):
 
     def createWidgetFor(self, index):
@@ -1296,7 +1295,7 @@ class OWPreprocess(OWWidget):
         if self.data is not None:
             data = self.data
             if len(data) > self.preview_curves: #sample data
-                sampled_indices = sorted(random.Random(0).sample(range(len(data)), self.preview_curves))
+                sampled_indices = random.Random(0).sample(range(len(data)), self.preview_curves)
                 data = data[sampled_indices]
 
             orig_data = data
