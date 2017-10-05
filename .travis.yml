@@ -1,0 +1,17 @@
+language: python
+
+sudo: false
+
+python:
+    - "3.4"
+
+cache:
+    apt: true
+    pip: true
+
+install:
+    # Update pip to be able to install wheel dependencies
+    - pip install -U pip wheel
+    - pip install -e .
+
+script: python setup.py test
