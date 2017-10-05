@@ -1,5 +1,5 @@
 if [ "$PYQT5" ]; then
-    foldable pip install sip pyqt5
+    pip install sip pyqt5
     return $?;
 fi
 
