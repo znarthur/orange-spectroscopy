@@ -71,7 +71,7 @@ class CoverageCommand(Command):
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
 
-TEST_SUITE = "orangecontrib.infrared.tests"
+TEST_SUITE = "orangecontrib.infrared.tests.suite"
 
 
 def include_documentation(local_dir, install_dir):
