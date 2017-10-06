@@ -1,3 +1,7 @@
+import unittest
+
+import AnyQt
+
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.infrared.widgets.owfiles import OWFiles
 from Orange.data import FileFormat, dataset_dirs, Table
@@ -41,6 +45,7 @@ class TestOWFiles(WidgetTest):
         self.assertTrue(len(fns), 1)
         self.assertIn("titanic", fns.pop().lower())
 
+    @unittest.skipIf(AnyQt.USED_API == "pyqt5", "Test crashes with Ubuntu and pyqt5")
     def test_load_clear(self):
         self.load_files("iris")
         self.load_files("titanic")
