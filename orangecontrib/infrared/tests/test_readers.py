@@ -8,7 +8,7 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import features_with_interpolation
 from orangecontrib.infrared.data import SPAReader
 
-from .bigdata import spectra20nea
+from orangecontrib.infrared.tests.bigdata import spectra20nea
 
 try:
     import spc
