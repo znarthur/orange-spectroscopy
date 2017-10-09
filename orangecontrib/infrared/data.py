@@ -13,8 +13,6 @@ import Orange.data.io
 from scipy.interpolate import interp1d
 from scipy.io import matlab
 import numbers
-import h5py
-
 
 from .pymca5 import OmnicMap
 
@@ -215,6 +213,7 @@ class HDF5Reader_HERMES(FileFormat):
     DESCRIPTION = 'HDF5 file @HERMRES/SOLEIL'
 
     def read(self):
+        import h5py
         hdf5_file = h5py.File(self.filename)
         if hdf5_file['entry1/collection/beamline'].value.astype('str') == 'Hermes':
             x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
