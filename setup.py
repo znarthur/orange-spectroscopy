@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     setup(
         name="Orange-Infrared",
-        description='',
+        description='Extends Orange to handle spectral and hyperspectral data sets.',
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
         version="0.1.13",
