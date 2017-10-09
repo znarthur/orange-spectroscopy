@@ -102,7 +102,7 @@ if __name__ == '__main__':
         description='Extends Orange to handle spectral and hyperspectral data sets.',
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
-        version="0.1.13",
+        version="0.1.14",
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
         data_files=DATA_FILES,
