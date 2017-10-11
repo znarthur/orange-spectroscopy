@@ -488,9 +488,6 @@ class ImagePlot(QWidget, OWComponent):
         self.data = data
         self.data_ids = {e: i for i, e in enumerate(data.ids)} if data else {}
 
-    def set_integral_limits(self):
-        self.update_view()
-
     def refresh_markings(self, di):
         refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
 
@@ -787,7 +784,7 @@ class OWHyper(OWWidget):
         self.choose = v
 
     def redraw_data(self):
-        self.imageplot.set_integral_limits()
+        self.imageplot.update_view()
 
     def update_feature_value(self):
         self.redraw_data()
@@ -854,7 +851,6 @@ class OWHyper(OWWidget):
                 self.choose = maxx
             self.line3.setValue(self.choose)
         self.disable_integral_range = False
-        self.changed_integral_range()
 
     # store selection as a list due to a bug in checking if numpy settings changed
     def storeSpecificSettings(self):

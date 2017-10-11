@@ -1,6 +1,8 @@
 import unittest
 import numpy as np
 
+from unittest.mock import patch
+
 from AnyQt.QtCore import QPointF
 import Orange
 from Orange.widgets.tests.base import WidgetTest
@@ -179,3 +181,8 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(self.widget.curveplot.feature_color, None)
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
+
+    def test_single_update_view(self):
+        with patch("orangecontrib.infrared.widgets.owhyper.ImagePlot.update_view") as p:
+            self.send_signal("Data", self.iris)
+            self.assertEqual(p.call_count, 1)
