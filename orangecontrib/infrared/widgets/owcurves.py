@@ -417,7 +417,7 @@ class CurvePlot(QWidget, OWComponent):
         self.select_at_least_1 = False
         self.saving_enabled = hasattr(self.parent, "save_graph")
         self.clear_data()
-        self.subset = None  # current subset input
+        self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
@@ -806,6 +806,10 @@ class CurvePlot(QWidget, OWComponent):
         self.selection_changed()
 
     def selection_changed(self):
+        # reset average view; individual was already handled in make_selection
+        if self.viewtype == AVERAGE:
+            self.show_average()
+
         if self.selection_type:
             self.parent.selection_changed()
 
@@ -1085,9 +1089,11 @@ class CurvePlot(QWidget, OWComponent):
         if self.rescale_next:
             self.plot.vb.autoRange()
 
-    def set_data(self, data):
+    def set_data(self, data, auto_update=True):
         if not self.selected_indices:  # either None or previously saved empty set
             self.selected_indices = set()
+        if self.data is data:
+            return
         if data is not None:
             if self.data:
                 self.rescale_next = not data.domain == self.data.domain
@@ -1102,6 +1108,8 @@ class CurvePlot(QWidget, OWComponent):
             self.data_x = x[xsind]
             self.data_xsind = xsind
             self._set_subset_indices()  # refresh subset indices according to the current subset
+        if auto_update:
+            self.update_view()
 
     def _set_subset_indices(self):
         ids = self.subset
@@ -1110,10 +1118,11 @@ class CurvePlot(QWidget, OWComponent):
         if self.data:
             self.subset_indices = np.in1d(self.data.ids, ids)
 
-    def set_data_subset(self, ids):
-        self.subset = ids
+    def set_data_subset(self, ids, auto_update=True):
+        self.subset = ids  # an array of indices
         self._set_subset_indices()
-        self.update_view()
+        if auto_update:
+            self.update_view()
 
     def select_by_click(self, pos, add):
         clicked_curve = self.highlighted
@@ -1125,9 +1134,6 @@ class CurvePlot(QWidget, OWComponent):
                 self.make_selection(sel, add)
         else:
             self.make_selection(None, add)
-        if self.viewtype == AVERAGE:
-            # reset average view
-            self.show_average()
 
     def select_line(self, startp, endp, add):
         intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))

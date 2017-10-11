@@ -1353,8 +1353,6 @@ class OWPreprocess(OWWidget):
             self.curveplot.set_data(None)
             self.curveplot_after.set_data(None)
             self.curveplot_after.hide()
-        self.curveplot.update_view()
-        self.curveplot_after.update_view()
 
     def _initialize(self):
         for i,pp_def in enumerate(self.PREPROCESSORS):
