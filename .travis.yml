@@ -5,10 +5,10 @@ sudo: false
 matrix:
   include:
     - python: '3.4'
-      env: PYQT4=true ORANGE="3.4.4"
+      env: PYQT4=true ORANGE="3.5.0"
 
     - python: '3.5'
-      env: PYQT5=true ORANGE="3.4.4"
+      env: PYQT5=true ORANGE="3.5.0"
 
     - python: '3.5'
       env: PYQT5=true ORANGE="release"
