@@ -3,11 +3,13 @@ import unittest
 import numpy as np
 import random
 import Orange
+from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize
+
 
 # Preprocessors that work per sample and should return the same
 # result for a sample independent of the other samples
@@ -232,7 +234,9 @@ class TestIntegrate(unittest.TestCase):
         i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
                       limits=[[0, 5], [0, 6]], names=["int", "int"])(data)
         self.assertEqual(i.domain[0].name, "int")
-        self.assertEqual(i.domain[1].name, "int (2)")
+        # after Orange 3.6.0 get_next_name returned different results
+        nn = get_next_name(["int"], "int")
+        self.assertEqual(i.domain[1].name, nn)
 
     def test_metas_output(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])

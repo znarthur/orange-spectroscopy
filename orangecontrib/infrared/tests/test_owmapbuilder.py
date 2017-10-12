@@ -1,6 +1,7 @@
 import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
+from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.infrared.widgets.owmapbuilder import OWMapBuilder
 
 
@@ -71,5 +72,8 @@ class TestOWFiles(WidgetTest):
         self.send_signal("Data", m)
         self.widget.commit()
         m = self.get_output("Map data")
-        np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, "X (2)"].metas[:, 0])
-        np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, "Y (2)"].metas[:, 0])
+        # after Orange 3.6.0 get_next_name returned different results
+        next_X = get_next_name(["X"], "X")
+        next_Y = get_next_name(["Y"], "Y")
+        np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, next_X].metas[:, 0])
+        np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, next_Y].metas[:, 0])
