@@ -18,7 +18,7 @@ class OWMapBuilder(OWWidget):
         "Builds or modifies the shape of the input dataset to create 2D maps "
         "from series data or change the dimensions of existing 2D datasets.")
 
-    icon = ""
+    icon = "icons/reshape.svg"
 
     # Define inputs and outputs
     inputs = [("Data", Orange.data.Table, "set_data")]
