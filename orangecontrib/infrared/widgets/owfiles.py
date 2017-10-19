@@ -34,6 +34,27 @@ def domain_union(A, B):
     return union
 
 
+def concatenate_data(tables, filenames, label):
+    domain = reduce(domain_union,
+                    (table.domain for table in tables))
+    source_var = Orange.data.StringVariable.make("Filename")
+    label_var = Orange.data.StringVariable.make("Label")
+    domain = Orange.data.Domain(domain.attributes, domain.class_vars,
+                                domain.metas + (source_var, label_var))
+    tables = [Orange.data.Table.from_table(domain, table)
+              for table in tables]
+    data = type(tables[0]).concatenate(tables, axis=0)
+    data[:, source_var] = np.array(list(
+        chain(*(repeat(fn, len(table))
+                for fn, table in zip(filenames, tables)))
+    )).reshape(-1, 1)
+    data[:, label_var] = np.array(list(
+        chain(*(repeat(label, len(table))
+                for fn, table in zip(filenames, tables)))
+    )).reshape(-1, 1)
+    return data
+
+
 class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     name = "Files"
     id = "orangecontrib.infrared.widgets.files"
@@ -250,26 +271,8 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
                     #FIXME show error in the list of data
                 self.warning(warnings[-1].message.args[0] if warnings else '')
 
-        #code below is from concatenate widget
         if data_list:
-            tables = data_list
-            domain = reduce(domain_union,
-                        (table.domain for table in tables))
-            source_var = Orange.data.StringVariable.make("Filename")
-            label_var = Orange.data.StringVariable.make("Label")
-            domain = Orange.data.Domain(domain.attributes, domain.class_vars,
-                                        domain.metas + (source_var, label_var))
-            tables = [Orange.data.Table.from_table(domain, table)
-                      for table in tables]
-            data = type(tables[0]).concatenate(tables, axis=0)
-            data[:, source_var] = np.array(list(
-                chain(*(repeat(fn, len(table))
-                        for fn, table in zip(fnok_list, tables)))
-                )).reshape(-1, 1)
-            data[:, label_var] = np.array(list(
-                chain(*(repeat(self.label, len(table))
-                        for fn, table in zip(fnok_list, tables)))
-                )).reshape(-1, 1)
+            data = concatenate_data(data_list, fnok_list, self.label)
             self.data = data
             self.openContext(data.domain)
         else:
