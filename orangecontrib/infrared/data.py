@@ -468,7 +468,22 @@ class OPUSReader(FileFormat):
         return table
 
 
-class SPAReader(FileFormat):
+class SpectralFileFormat(FileFormat):
+
+    def read_spectra(self):
+        """ Fast reading of spectra. Return spectral information
+        in two arrays (wavelengths and values). Only additional
+        attributes (usually metas) are returned as a Table.
+
+        Return a triplet:
+            - 1D numpy array,
+            - 2D numpy array with the same last dimension as xs,
+            - Orange.data.Table with additional attributes
+        """
+        pass
+
+
+class SPAReader(SpectralFileFormat):
     #based on code by Zack Gainsforth
 
     EXTENSIONS = (".spa", ".SPA", ".srs")
@@ -513,7 +528,7 @@ class SPAReader(FileFormat):
             dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('<iiiifff', f.read(28))
             return numPoints, firstX, lastX,
 
-    def read(self):
+    def read_spectra(self):
 
         self.sections()
 
@@ -530,12 +545,18 @@ class SPAReader(FileFormat):
             f.seek(offset)
             data = np.fromfile(f, dtype='float32', count=length//4)
 
-            if len(data) == numPoints:
-                domvals = np.linspace(firstX, lastX, numPoints)
-            else:
-                domvals = range(len(data))
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-            return Orange.data.Table(domain, np.array([data]))
+        if len(data) == numPoints:
+            domvals = np.linspace(firstX, lastX, numPoints)
+        else:
+            domvals = np.arange(len(data))
+
+        data = np.array([data])
+        return domvals, data, None
+
+    def read(self):
+        domvals, data, _ = self.read_spectra()
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        return Orange.data.Table(domain, data)
 
 
 class GSFReader(FileFormat):

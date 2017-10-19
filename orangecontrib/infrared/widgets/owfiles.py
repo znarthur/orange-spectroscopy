@@ -9,6 +9,7 @@ import numpy as np
 
 import Orange
 import orangecontrib.infrared
+from orangecontrib.infrared.data import SpectralFileFormat, getx
 from Orange.data.io import FileFormat
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
@@ -34,23 +35,59 @@ def domain_union(A, B):
     return union
 
 
+def domain_union_for_spectra(tables):
+    """
+    Works with tables of spectra-specific 3-tuples
+    """
+    domains = [t.domain if isinstance(t, Orange.data.Table) else t[2].domain for t in tables]
+    xss = [t[0] for t in tables if not isinstance(t, Orange.data.Table)]
+
+    domain = reduce(domain_union, domains, Orange.data.Domain(attributes=[]))
+
+    # TODO rewrite so that it keeps similar order
+    xs = reduce(np.union1d, xss, np.array([]))
+
+    xsset = set("%f" % f for f in xs)  # future attribute names
+    attributes_name_set = set(a.name for a in domain.attributes)
+    if xsset & attributes_name_set:
+        # TODO test
+        raise RuntimeError("Mixing files of different times with overlapping domain values is not supported")
+
+    return domain, xs
+
+
 def concatenate_data(tables, filenames, label):
-    domain = reduce(domain_union,
-                    (table.domain for table in tables))
+    domain, xs = domain_union_for_spectra(tables)
+    ntables = [(table if isinstance(table, Orange.data.Table) else table[2]).transform(domain)
+              for table in tables]
+    data = type(ntables[0]).concatenate(ntables, axis=0)
     source_var = Orange.data.StringVariable.make("Filename")
     label_var = Orange.data.StringVariable.make("Label")
-    domain = Orange.data.Domain(domain.attributes, domain.class_vars,
+
+    # add other variables
+    xs_atts = tuple([Orange.data.ContinuousVariable.make("%f" % f) for f in xs])
+    domain = Orange.data.Domain(xs_atts + domain.attributes, domain.class_vars,
                                 domain.metas + (source_var, label_var))
-    tables = [Orange.data.Table.from_table(domain, table)
-              for table in tables]
-    data = type(tables[0]).concatenate(tables, axis=0)
+    data = data.transform(domain)
+
+    #fill in spectral data
+    xs_sind = np.argsort(xs)
+    xs_sorted = xs[xs_sind]
+    pos = 0
+    for table in tables:
+        t = table if isinstance(table, Orange.data.Table) else table[2]
+        if not isinstance(table, Orange.data.Table):
+            indices = xs_sind[np.searchsorted(xs_sorted, table[0])]
+            data.X[pos:pos+len(t), indices] = table[1]
+        pos += len(t)
+
     data[:, source_var] = np.array(list(
         chain(*(repeat(fn, len(table))
-                for fn, table in zip(filenames, tables)))
+                for fn, table in zip(filenames, ntables)))
     )).reshape(-1, 1)
     data[:, label_var] = np.array(list(
         chain(*(repeat(label, len(table))
-                for fn, table in zip(filenames, tables)))
+                for fn, table in zip(filenames, ntables)))
     )).reshape(-1, 1)
     return data
 
@@ -255,15 +292,21 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         data_list = []
         fnok_list = []
 
+        empty_domain = Orange.data.Domain(attributes=[])
         for fn in fns:
             reader = FileFormat.get_reader(fn)
-
             errors = []
             with catch_warnings(record=True) as warnings:
                 try:
                     if self.sheet in reader.sheets:
                         reader.select_sheet(self.sheet)
-                    data_list.append(reader.read())
+                    if isinstance(reader, SpectralFileFormat):
+                        xs, vals, additional = reader.read_spectra()
+                        if additional is None:
+                            additional = Orange.data.Table.from_domain(empty_domain, n_rows=len(vals))
+                        data_list.append((xs, vals, additional))
+                    else:
+                        data_list.append(reader.read())
                     fnok_list.append(fn)
                 except Exception as ex:
                     errors.append("An error occurred:")
