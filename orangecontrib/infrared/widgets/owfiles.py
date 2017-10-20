@@ -35,17 +35,31 @@ def domain_union(A, B):
     return union
 
 
+def numpy_union_keep_order(A, B):
+    """ Union of A and B. Elements not in A are
+    added in the same order as in B."""
+    # sorted list of elements missing in A
+    to_add = np.setdiff1d(B, A)
+
+    # find indices of new elements in the sorted array
+    orig_sind = np.argsort(B)
+    indices = np.searchsorted(B, to_add, sorter=orig_sind)
+
+    # take the missing elements in the correct order
+    to_add = B[sorted(orig_sind[indices])]
+
+    return np.concatenate((A, to_add))
+
+
 def domain_union_for_spectra(tables):
     """
     Works with tables of spectra-specific 3-tuples
     """
     domains = [t.domain if isinstance(t, Orange.data.Table) else t[2].domain for t in tables]
-    xss = [t[0] for t in tables if not isinstance(t, Orange.data.Table)]
-
     domain = reduce(domain_union, domains, Orange.data.Domain(attributes=[]))
 
-    # TODO rewrite so that it keeps similar order
-    xs = reduce(np.union1d, xss, np.array([]))
+    xss = [t[0] for t in tables if not isinstance(t, Orange.data.Table)]
+    xs = reduce(numpy_union_keep_order, xss, np.array([]))
 
     xsset = set("%f" % f for f in xs)  # future attribute names
     attributes_name_set = set(a.name for a in domain.attributes)

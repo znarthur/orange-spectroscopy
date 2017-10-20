@@ -1,10 +1,25 @@
 import unittest
 
 import AnyQt
+import numpy as np
 
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.infrared.widgets.owfiles import OWFiles
+from orangecontrib.infrared.widgets.owfiles import OWFiles, numpy_union_keep_order
 from Orange.data import FileFormat, dataset_dirs, Table
+
+
+class TestOWFilesAuxiliary(unittest.TestCase):
+
+    def test_numpy_union(self):
+        A = np.array([2, 1, 3])
+        B = np.array([1, 3])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3])
+        B = np.array([])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3])
+        B = np.array([5, 4, 6, 3])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3, 5, 4, 6])
+        A = np.array([])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [5, 4, 6, 3])
 
 
 class TestOWFiles(WidgetTest):
