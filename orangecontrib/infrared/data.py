@@ -468,7 +468,7 @@ class OPUSReader(FileFormat):
         return table
 
 
-class SpectralFileFormat(FileFormat):
+class SpectralFileFormat:
 
     def read_spectra(self):
         """ Fast reading of spectra. Return spectral information
@@ -482,8 +482,13 @@ class SpectralFileFormat(FileFormat):
         """
         pass
 
+    def read(self):
+        domvals, data, _ = self.read_spectra()
+        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        return Orange.data.Table(domain, data)
 
-class SPAReader(SpectralFileFormat):
+
+class SPAReader(FileFormat, SpectralFileFormat):
     #based on code by Zack Gainsforth
 
     EXTENSIONS = (".spa", ".SPA", ".srs")
@@ -552,11 +557,6 @@ class SPAReader(SpectralFileFormat):
 
         data = np.array([data])
         return domvals, data, None
-
-    def read(self):
-        domvals, data, _ = self.read_spectra()
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-        return Orange.data.Table(domain, data)
 
 
 class GSFReader(FileFormat):
