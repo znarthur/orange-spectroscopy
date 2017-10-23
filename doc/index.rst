@@ -12,7 +12,7 @@ Widgets
 .. toctree::
    :maxdepth: 1
 
-   widgets/curves
+   widgets/spectra
 
 Indices and tables
 ==================
