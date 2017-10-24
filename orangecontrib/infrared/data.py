@@ -17,6 +17,35 @@ import numbers
 from .pymca5 import OmnicMap
 
 
+class SpectralFileFormat:
+
+    def read_spectra(self):
+        """ Fast reading of spectra. Return spectral information
+        in two arrays (wavelengths and values). Only additional
+        attributes (usually metas) are returned as a Table.
+
+        Return a triplet:
+            - 1D numpy array,
+            - 2D numpy array with the same last dimension as xs,
+            - Orange.data.Table with only meta or class attributes
+        """
+        pass
+
+    def read(self):
+        domvals, data, additional_table = self.read_spectra()
+        features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
+        if additional_table is None:
+            domain = Orange.data.Domain(features, None)
+            return Orange.data.Table(domain, data)
+        else:
+            domain = Orange.data.Domain(features,
+                                        class_vars=additional_table.domain.class_vars,
+                                        metas=additional_table.domain.metas)
+            ret_data = additional_table.transform(domain)
+            ret_data.X = data
+            return ret_data
+
+
 class DatReader(FileFormat):
     """ Reader for files with multiple columns of numbers. The first column
     contains the wavelengths, the others contain the spectra. """
@@ -79,10 +108,10 @@ class AsciiMapReader(FileFormat):
             np.savetxt(f, data.X, delimiter="\t", fmt="%g")
 
 
-def _table_from_image(X, features, x_locs, y_locs):
+def _spectra_from_image(X, features, x_locs, y_locs):
     """
-    Create a Orange.data.Table from 3D image organized
-    [ rows, columns, wavelengths ]
+    Create a spectral format (returned by SpectralFileFormat.read_spectra)
+    from 3D image organized [ rows, columns, wavelengths ]
     """
     spectra = np.zeros((X.shape[0]*X.shape[1], X.shape[2]), dtype=np.float32)
     metadata = []
@@ -107,14 +136,12 @@ def _table_from_image(X, features, x_locs, y_locs):
         else:
             metas.append(Orange.data.StringVariable.make(mk))
 
-    domain = Orange.data.Domain(
-        [Orange.data.ContinuousVariable.make("%f" % f) for f in features],
-        None, metas=metas)
-    metas = np.array([[ row[ma.name] for ma in metas ]
-                            for row in metadata], dtype=object)
-    data = Orange.data.Table(domain, spectra, metas=metas)
+    domain = Orange.data.Domain([], None, metas=metas)
+    metas = np.array([[row[ma.name] for ma in metas]
+                      for row in metadata], dtype=object)
+    data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)), metas=metas)
 
-    return data
+    return features, spectra, data
 
 
 class MatlabReader(FileFormat):
@@ -186,17 +213,16 @@ class MatlabReader(FileFormat):
             return Orange.data.Table.from_numpy(domain, X, Y=None, metas=metadata)
 
 
-class EnviMapReader(FileFormat):
+class EnviMapReader(FileFormat, SpectralFileFormat):
     EXTENSIONS = ('.hdr',)
     DESCRIPTION = 'Envi'
 
-    def read(self):
-
+    def read_spectra(self):
         a = spectral.io.envi.open(self.filename)
         X = np.array(a.load())
         try:
             lv = a.metadata["wavelength"]
-            features = list(map(float, lv))
+            features = np.array(list(map(float, lv)))
         except KeyError:
             #just start counting from 0 when nothing is known
             features = np.arange(X.shape[-1])
@@ -204,15 +230,15 @@ class EnviMapReader(FileFormat):
         x_locs = np.arange(X.shape[1])
         y_locs = np.arange(X.shape[0])
 
-        return _table_from_image(X, features, x_locs, y_locs)
+        return _spectra_from_image(X, features, x_locs, y_locs)
 
 
-class HDF5Reader_HERMES(FileFormat):
+class HDF5Reader_HERMES(FileFormat, SpectralFileFormat):
     """ A very case specific reader for HDF5 files from the HEREMES beamline in SOLEIL"""
     EXTENSIONS = ('.hdf5',)
     DESCRIPTION = 'HDF5 file @HERMRES/SOLEIL'
 
-    def read(self):
+    def read_spectra(self):
         import h5py
         hdf5_file = h5py.File(self.filename)
         if hdf5_file['entry1/collection/beamline'].value.astype('str') == 'Hermes':
@@ -220,15 +246,15 @@ class HDF5Reader_HERMES(FileFormat):
             y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
             energy = np.array(hdf5_file['entry1/Counter0/energy'])
             intensities = np.array(hdf5_file['entry1/Counter0/data']).T
-        return _table_from_image(intensities, energy, x_locs, y_locs)
+        return _spectra_from_image(intensities, energy, x_locs, y_locs)
 
 
-class OmnicMapReader(FileFormat):
+class OmnicMapReader(FileFormat, SpectralFileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
     EXTENSIONS = ('.map',)
     DESCRIPTION = 'Omnic map'
 
-    def read(self):
+    def read_spectra(self):
         om = OmnicMap.OmnicMap(self.filename)
         info = om.info
         X = om.data
@@ -252,7 +278,7 @@ class OmnicMapReader(FileFormat):
             x_locs = None
             y_locs = None
 
-        return _table_from_image(X, features, x_locs, y_locs)
+        return _spectra_from_image(X, features, x_locs, y_locs)
 
 
 class SPCReader(FileFormat):
@@ -466,26 +492,6 @@ class OPUSReader(FileFormat):
                                              metas=meta_data)
 
         return table
-
-
-class SpectralFileFormat:
-
-    def read_spectra(self):
-        """ Fast reading of spectra. Return spectral information
-        in two arrays (wavelengths and values). Only additional
-        attributes (usually metas) are returned as a Table.
-
-        Return a triplet:
-            - 1D numpy array,
-            - 2D numpy array with the same last dimension as xs,
-            - Orange.data.Table with additional attributes
-        """
-        pass
-
-    def read(self):
-        domvals, data, _ = self.read_spectra()
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
-        return Orange.data.Table(domain, data)
 
 
 class SPAReader(FileFormat, SpectralFileFormat):
