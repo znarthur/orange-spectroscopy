@@ -1,10 +1,29 @@
 import unittest
+from unittest.mock import patch
 
 import AnyQt
+import numpy as np
 
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.infrared.widgets.owfiles import OWFiles
+from orangecontrib.infrared.widgets.owfiles import OWFiles, numpy_union_keep_order
 from Orange.data import FileFormat, dataset_dirs, Table
+
+from orangecontrib.infrared.data import SPAReader
+from Orange.data.io import TabReader
+
+
+class TestOWFilesAuxiliary(unittest.TestCase):
+
+    def test_numpy_union(self):
+        A = np.array([2, 1, 3])
+        B = np.array([1, 3])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3])
+        B = np.array([])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3])
+        B = np.array([5, 4, 6, 3])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3, 5, 4, 6])
+        A = np.array([])
+        np.testing.assert_equal(numpy_union_keep_order(A, B), [5, 4, 6, 3])
 
 
 class TestOWFiles(WidgetTest):
@@ -70,3 +89,36 @@ class TestOWFiles(WidgetTest):
         self.load_files("peach_juice.0")
         self.widget.sheet_combo.setCurrentIndex(1)
         self.widget.select_sheet()
+
+    def test_special_spectral_reading(self):
+
+        class CountTabReader(TabReader):
+            read_count = 0
+
+            def read(self):
+                type(self).read_count += 1
+                return super().read()
+
+        class CountSPAReader(SPAReader):
+            read_count = 0
+            read_spectra_count = 0
+
+            def read(self):
+                type(self).read_count += 1
+                return super().read()
+
+            def read_spectra(self):
+                type(self).read_spectra_count += 1
+                return super().read_spectra()
+
+        # can not patch readers directly as they are already in registry
+        with patch.object(FileFormat, "registry", {"TabReader": CountTabReader,
+                                                   "SPAReader": CountSPAReader}):
+            # clear LRU cache so that new classes get use
+            FileFormat._ext_to_attr_if_attr2.cache_clear()
+            self.load_files("titanic.tab", "sample1.spa")
+            self.assertEqual(CountSPAReader.read_count, 0)
+            self.assertEqual(CountSPAReader.read_spectra_count, 1)
+            self.assertEqual(CountTabReader.read_count, 1)
+            # clear cache so the new classes are thrown out
+            FileFormat._ext_to_attr_if_attr2.cache_clear()
