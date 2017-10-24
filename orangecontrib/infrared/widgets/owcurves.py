@@ -420,6 +420,9 @@ class CurvePlot(QWidget, OWComponent):
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
 
+        # Remember the saved state to restore with the first open file
+        self.__pending_selection_restore = self.selected_indices
+
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
@@ -1090,6 +1093,9 @@ class CurvePlot(QWidget, OWComponent):
             self.plot.vb.autoRange()
 
     def set_data(self, data, auto_update=True):
+        # after 20171023 selected indices are not reset on close context
+        self.selected_indices = None
+
         if not self.selected_indices:  # either None or previously saved empty set
             self.selected_indices = set()
         if self.data is data:
@@ -1100,6 +1106,12 @@ class CurvePlot(QWidget, OWComponent):
             else:
                 self.rescale_next = True
             self.data = data
+
+            # restore pending selection from saved data
+            if self.__pending_selection_restore is not None:
+                self.selected_indices = self.__pending_selection_restore
+                self.__pending_selection_restore = None
+
             if self.select_at_least_1:
                 self.make_selection([], add=True)  # make selection valid
             # get and sort input data
