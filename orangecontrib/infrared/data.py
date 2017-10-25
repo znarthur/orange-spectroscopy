@@ -33,6 +33,7 @@ class SpectralFileFormat:
 
     def read(self):
         domvals, data, additional_table = self.read_spectra()
+        data = np.asarray(data, dtype=np.float64)  # Orange assumes X to be float64
         features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
         if additional_table is None:
             domain = Orange.data.Domain(features, None)
