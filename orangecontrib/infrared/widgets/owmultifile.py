@@ -107,13 +107,14 @@ def concatenate_data(tables, filenames, label):
     return data
 
 
-class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
-    name = "Files"
+class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
+    name = "Multifile"
     id = "orangecontrib.infrared.widgets.files"
-    icon = "icons/files.svg"
+    icon = "icons/multifile.svg"
     description = "Read data from input files " \
                   "and send a data table to the output."
     priority = 10000
+    replaces = ["orangecontrib.infrared.widgets.owfiles.OWFiles"]
 
     file_idx = []
 
@@ -344,7 +345,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 if __name__ == "__main__":
     import sys
     a = QApplication(sys.argv)
-    ow = OWFiles()
+    ow = OWMultifile()
     ow.show()
     a.exec_()
     ow.saveSettings()

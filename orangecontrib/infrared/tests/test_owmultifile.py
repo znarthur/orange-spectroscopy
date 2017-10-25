@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.infrared.widgets.owfiles import OWFiles, numpy_union_keep_order
+from orangecontrib.infrared.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 from Orange.data import FileFormat, dataset_dirs, Table
 
 from orangecontrib.infrared.data import SPAReader
@@ -28,7 +28,7 @@ class TestOWFilesAuxiliary(unittest.TestCase):
 class TestOWFiles(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWFiles)  # type: OWFiles
+        self.widget = self.create_widget(OWMultifile)  # type: OWMultifile
 
     def test_load_unload(self):
         # just to load the widget (it has no inputs)
