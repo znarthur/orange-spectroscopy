@@ -19,8 +19,8 @@ from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owspectra import SELECTONE
 from orangecontrib.infrared.widgets.owhyper import refresh_integral_markings
-from orangecontrib.infrared.widgets.owpreproc import SetXDoubleSpinBox, MovableVlineWD
-import orangecontrib.infrared.widgets.owpreproc
+from orangecontrib.infrared.widgets.owpreprocess import SetXDoubleSpinBox, MovableVlineWD
+import orangecontrib.infrared.widgets.owpreprocess
 
 
 class IntegrateOneEditor(BaseEditor):
@@ -162,12 +162,13 @@ PREPROCESSORS = [
 ]
 
 
-class OWIntegrate(orangecontrib.infrared.widgets.owpreproc.OWPreprocess):
+class OWIntegrate(orangecontrib.infrared.widgets.owpreprocess.OWPreprocess):
     name = "Integrate Spectra"
     id = "orangecontrib.infrared.widgets.integrate"
     description = "Integrate spectra in various ways."
     icon = "icons/integrate.svg"
     priority = 1010
+    replaces = None  # prevent inheriting OWPreprocess's replaces
 
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add integral..."

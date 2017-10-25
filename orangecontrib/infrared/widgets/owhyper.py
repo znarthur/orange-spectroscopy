@@ -33,7 +33,7 @@ from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
     HelpEventDelegate
 
-from orangecontrib.infrared.widgets.owpreproc import MovableVlineWD
+from orangecontrib.infrared.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
 from Orange.widgets.utils.annotated_data import create_annotated_table

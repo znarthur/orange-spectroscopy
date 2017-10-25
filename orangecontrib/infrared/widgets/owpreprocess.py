@@ -1172,7 +1172,7 @@ class OWPreprocess(OWWidget):
     description = "Construct a data preprocessing pipeline."
     icon = "icons/preprocess.svg"
     priority = 1000
-    id = "orangecontrib.infrared.widgets.owpreproc"
+    replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess"]
 
     inputs = [("Data", Orange.data.Table, "set_data")]
     outputs = [("Preprocessed Data", Orange.data.Table),
