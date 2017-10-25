@@ -29,7 +29,7 @@ from orangecontrib.infrared.data import getx
 
 from orangecontrib.infrared.preprocess import Integrate
 
-from orangecontrib.infrared.widgets.owcurves import InteractiveViewBox, \
+from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
     HelpEventDelegate
 

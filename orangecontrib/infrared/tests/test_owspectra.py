@@ -3,7 +3,7 @@ import Orange
 import pyqtgraph as pg
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, Domain, ContinuousVariable
-from orangecontrib.infrared.widgets.owcurves import OWCurves, MAX_INSTANCES_DRAWN, \
+from orangecontrib.infrared.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves, \
@@ -41,7 +41,7 @@ class TestOWCurves(WidgetTest):
         cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features]
 
     def setUp(self):
-        self.widget = self.create_widget(OWCurves)  # OWCurves
+        self.widget = self.create_widget(OWSpectra)  # OWSpectra
 
     def test_PlotCurvesItem_bounds(self):
         pc = PlotCurvesItem()
@@ -295,7 +295,7 @@ class TestOWCurves(WidgetTest):
     def test_open_selection(self):
         # saved selection in the file should be reloaded
         self.widget = self.create_widget(
-            OWCurves, stored_settings={"curveplot": {"selected_indices": set([0])}}
+            OWSpectra, stored_settings={"curveplot": {"selected_indices": set([0])}}
         )
         self.send_signal("Data", self.iris)
         out = self.get_output("Selection")
