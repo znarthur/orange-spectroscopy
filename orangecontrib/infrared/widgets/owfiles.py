@@ -4,7 +4,8 @@ from itertools import chain, repeat
 from collections import Counter
 
 from AnyQt.QtCore import Qt
-from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QMessageBox, QFileDialog, QApplication, QStyle
+from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QMessageBox, QFileDialog, QApplication, QStyle,\
+    QListWidget
 import numpy as np
 
 import Orange
@@ -114,7 +115,7 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
                   "and send a data table to the output."
     priority = 10000
 
-    file_idx = -1
+    file_idx = []
 
     sheet = Orange.widgets.settings.Setting(None)
     label = Orange.widgets.settings.Setting("")
@@ -128,7 +129,8 @@ class OWFiles(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         self.loaded_file = ""
         self.sheets = []
 
-        self.lb = gui.listBox(self.controlArea, self, "file_idx")
+        self.lb = gui.listBox(self.controlArea, self, "file_idx",
+                              selectionMode=QListWidget.MultiSelection)
 
         layout = QGridLayout()
         gui.widgetBox(self.controlArea, margin=0, orientation=layout)
