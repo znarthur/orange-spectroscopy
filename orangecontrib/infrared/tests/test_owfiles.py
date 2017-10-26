@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch
 
-import AnyQt
 import numpy as np
 
 from Orange.widgets.tests.base import WidgetTest
@@ -29,7 +28,7 @@ class TestOWFilesAuxiliary(unittest.TestCase):
 class TestOWFiles(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWFiles)
+        self.widget = self.create_widget(OWFiles)  # type: OWFiles
 
     def test_load_unload(self):
         # just to load the widget (it has no inputs)
@@ -64,7 +63,6 @@ class TestOWFiles(WidgetTest):
         self.assertTrue(len(fns), 1)
         self.assertIn("titanic", fns.pop().lower())
 
-    @unittest.skipIf(AnyQt.USED_API == "pyqt5", "Test crashes with Ubuntu and pyqt5")
     def test_load_clear(self):
         self.load_files("iris")
         self.load_files("titanic")
