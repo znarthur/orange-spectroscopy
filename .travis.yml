@@ -29,9 +29,7 @@ install:
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
     - pip install -e .
 
-before_script:  # required for widget tests
-    - "export DISPLAY=:99.0"
-    - "sh -e /etc/init.d/xvfb start"
-    - sleep 3 # give xvfb some time to start
-
-script: python setup.py test
+script:
+    # Screen must be 24bpp lest pyqt5 crashes, see pytest-dev/pytest-qt/35
+    - export XVFBARGS="-screen 0 1280x1024x24"
+    - catchsegv xvfb-run -a -s "$XVFBARGS" python setup.py test
