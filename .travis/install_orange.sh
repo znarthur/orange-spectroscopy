@@ -5,10 +5,10 @@ fi
 
 if [ $ORANGE == "master" ]; then
     echo "Orange: from git master"
-    pip install git+git://github.com/biolab/orange3.git
+    pip install https://github.com/biolab/orange3/archive/master.zip
     return $?;
 fi
 
 PACKAGE="orange3==$ORANGE"
-echo "Orange: installing $PACKAGE"
+echo "Orange: installing version $PACKAGE"
 pip install $PACKAGE
