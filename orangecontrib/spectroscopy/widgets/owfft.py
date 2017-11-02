@@ -4,7 +4,7 @@ import numpy as np
 from AnyQt.QtWidgets import QGridLayout, QApplication
 
 import Orange.data
-from Orange.widgets.widget import OWWidget, Input, Output
+from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.data import build_spec_table
@@ -59,6 +59,14 @@ class OWFFT(OWWidget):
     want_main_area = False
     #   with a fixed non resizable geometry.
     resizing_enabled = False
+
+    class Warning(OWWidget.Warning):
+        # This is not actuully called anywhere at the moment
+        phase_res_limit_low = Msg("Phase resolution limit too low")
+
+    class Error(OWWidget.Error):
+        fft_error = Msg("FFT error:\n{}")
+        ifg_split_error = Msg("IFG Forward-Backward split error:\n{}")
 
     def __init__(self):
         super().__init__()
@@ -242,9 +250,8 @@ class OWFFT(OWWidget):
         self.phases = None
 
         # Reset info, error and warning dialogs
-        self.error(1)   # FFT ValueError, usually wrong sweep number
-        self.error(2)   # vsplit ValueError, odd number of data points
-        self.warning(4) # Phase resolution limit too low
+        self.Error.clear()
+        self.Warning.clear()
 
         for row in self.data.X:
             # Check to see if interferogram is single or double sweep
@@ -252,7 +259,7 @@ class OWFFT(OWWidget):
                 try:
                     spectrum_out, phase_out, self.wavenumbers = self.fft_single(row)
                 except ValueError as e:
-                    self.error(1, "FFT error: %s" % e)
+                    self.Error.fft_error(e)
                     return
 
             elif self.sweeps == 1:
@@ -261,7 +268,7 @@ class OWFFT(OWWidget):
                 try:
                     data = np.hsplit(row, 2)
                 except ValueError as e:
-                    self.error(2, "%s" % e)
+                    self.Error.ifg_split_error(e)
                     return
 
                 fwd = data[0]
@@ -273,7 +280,7 @@ class OWFFT(OWWidget):
                     spectrum_fwd, phase_fwd, self.wavenumbers = self.fft_single(fwd)
                     spectrum_back, phase_back, self.wavenumbers = self.fft_single(back)
                 except ValueError as e:
-                    self.error(1, "FFT error: %s" % e)
+                    self.Error.fft_error(e)
                     return
 
                 # Calculate the average of the forward and backward sweeps
