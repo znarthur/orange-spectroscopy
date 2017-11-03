@@ -4,6 +4,7 @@ import os
 
 import numpy as np
 import Orange
+from Orange.tests import named_file
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import features_with_interpolation
 from orangecontrib.infrared.data import SPAReader
@@ -48,21 +49,18 @@ class TestDat(unittest.TestCase):
         np.testing.assert_allclose(d1.X, d2.X, atol=1e-5)
 
     def test_roundtrip(self):
-        _, fn = tempfile.mkstemp(suffix=".dat")
+        with named_file("", suffix=".dat") as fn:
+            # a single spectrum
+            d1 = Orange.data.Table("peach_juice.dpt")
+            d1.save(fn)
+            d2 = Orange.data.Table(fn)
+            np.testing.assert_equal(d1.X, d2.X)
 
-        # a single spectrum
-        d1 = Orange.data.Table("peach_juice.dpt")
-        d1.save(fn)
-        d2 = Orange.data.Table(fn)
-        np.testing.assert_equal(d1.X, d2.X)
-
-        # multiple spectra
-        d1 = Orange.data.Table("collagen.csv")
-        d1.save(fn)
-        d2 = Orange.data.Table(fn)
-        np.testing.assert_equal(d1.X, d2.X)
-
-        os.remove(fn)
+            # multiple spectra
+            d1 = Orange.data.Table("collagen.csv")
+            d1.save(fn)
+            d2 = Orange.data.Table(fn)
+            np.testing.assert_equal(d1.X, d2.X)
 
 
 class TestAsciiMapReader(unittest.TestCase):
@@ -79,13 +77,12 @@ class TestAsciiMapReader(unittest.TestCase):
 
     def test_roundtrip(self):
         d1 = Orange.data.Table("map_test.xyz")
-        _, fn = tempfile.mkstemp(suffix=".xyz")
-        d1.save(fn)
-        d2 = Orange.data.Table(fn)
-        np.testing.assert_equal(d1.X, d2.X)
-        np.testing.assert_equal(getx(d1), getx(d2))
-        np.testing.assert_equal(d1.metas, d2.metas)
-        os.remove(fn)
+        with named_file("", suffix=".xyz") as fn:
+            d1.save(fn)
+            d2 = Orange.data.Table(fn)
+            np.testing.assert_equal(d1.X, d2.X)
+            np.testing.assert_equal(getx(d1), getx(d2))
+            np.testing.assert_equal(d1.metas, d2.metas)
 
     def test_write_exception(self):
         d = Orange.data.Table("iris")
