@@ -14,6 +14,9 @@ PACKAGE_DATA = {
 #    'orangecontrib.example.widgets': ['icons/*'],
 }
 
+README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
+LONG_DESCRIPTION = open(README_FILE).read()
+
 DATA_FILES = [
     # Data files that will be installed outside site-packages folder
 ]
@@ -99,7 +102,8 @@ if __name__ == '__main__':
 
     setup(
         name="Orange-Infrared",
-        description='Extends Orange to handle spectral and hyperspectral data sets.',
+        description='Extends Orange to handle spectral and hyperspectral analysis.',
+        long_description=LONG_DESCRIPTION,
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
         version="0.1.14",
