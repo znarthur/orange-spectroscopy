@@ -1164,13 +1164,14 @@ class CurvePlot(QWidget, OWComponent):
         return sel
 
 
-class OWCurves(OWWidget):
+class OWSpectra(OWWidget):
     name = "Spectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default),
               ("Data subset", Orange.data.Table, 'set_subset', Default)]
     outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
-    icon = "icons/curves.svg"
+    icon = "icons/spectra.svg"
     priority = 10
+    replaces = ["orangecontrib.infrared.widgets.owcurves.OWCurves"]
 
     settingsHandler = DomainContextHandler(metas_in_res=True)
 
@@ -1221,7 +1222,7 @@ def main(argv=None):
         argv = sys.argv
     argv = list(argv)
     app = QApplication(argv)
-    w = OWCurves()
+    w = OWSpectra()
     w.show()
     from orangecontrib.infrared.tests.bigdata import dust
     # data = Orange.data.Table(dust())

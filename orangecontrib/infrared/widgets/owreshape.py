@@ -9,7 +9,7 @@ from orangecontrib.infrared.widgets.gui import lineEditIntOrNone
 from AnyQt.QtCore import Qt
 
 
-class OWMapBuilder(OWWidget):
+class OWReshape(OWWidget):
     # Widget's name as displayed in the canvas
     name = "Reshape Map"
 
@@ -19,6 +19,8 @@ class OWMapBuilder(OWWidget):
         "from series data or change the dimensions of existing 2D datasets.")
 
     icon = "icons/reshape.svg"
+
+    replaces = ["orangecontrib.infrared.widgets.owmapbuilder.OWMapBuilder"]
 
     # Define inputs and outputs
     inputs = [("Data", Orange.data.Table, "set_data")]
@@ -112,7 +114,7 @@ class OWMapBuilder(OWWidget):
 def main(argv=sys.argv):
     from AnyQt.QtWidgets import QApplication
     app = QApplication(list(argv))
-    ow = OWMapBuilder()
+    ow = OWReshape()
     ow.show()
     ow.raise_()
     dataset = Orange.data.Table("collagen.csv")

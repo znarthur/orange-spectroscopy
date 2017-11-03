@@ -2,7 +2,7 @@ import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from Orange.widgets.utils.annotated_data import get_next_name
-from orangecontrib.infrared.widgets.owmapbuilder import OWMapBuilder
+from orangecontrib.infrared.widgets.owreshape import OWReshape
 
 
 class TestOWFiles(WidgetTest):
@@ -13,7 +13,7 @@ class TestOWFiles(WidgetTest):
         cls.collagen = Orange.data.Table("collagen.csv")
 
     def setUp(self):
-        self.widget = self.create_widget(OWMapBuilder)
+        self.widget = self.create_widget(OWReshape)
 
     def test_load_unload(self):
         # just to load the widget (it has no inputs)
