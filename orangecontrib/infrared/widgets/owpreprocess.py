@@ -1279,8 +1279,10 @@ class OWPreprocess(OWWidget):
         self.flow_view.installEventFilter(self)
 
         box = gui.widgetBox(self.controlArea, "Preview")
+        self.final_preview_toggle = False
         if not self.preview_on_image:
-            self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed)
+            self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed,
+                                            toggleButton=True, value="final_preview_toggle")
         gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self.show_preview)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
@@ -1337,11 +1339,11 @@ class OWPreprocess(OWWidget):
                 preview_data = orig_data
                 if not self.preview_on_image:
                     after_data = data
-                    self.final_preview.setStyleSheet("""background:lightblue;""")
+                    self.final_preview_toggle = True
                     self.curveplot_info.setText('Original data')
                     self.curveplot_after_info.setText('Preprocessed data')
             elif not self.preview_on_image:
-                self.final_preview.setStyleSheet("");
+                self.final_preview_toggle = False
 
             self.curveplot.set_data(preview_data)
             if after_data is not None:
