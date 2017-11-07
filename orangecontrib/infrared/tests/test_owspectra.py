@@ -311,7 +311,11 @@ class TestOWCurves(WidgetTest):
         self.widget.curveplot.select_by_click(None, add=False)
         out = self.get_output("Selection")
         self.assertEqual(len(out), 1)
-        # resending the same data should clear the selection
+        # resending the exact same data should not change the selection
         self.send_signal("Data", self.iris)
+        out2 = self.get_output("Selection")
+        self.assertEqual(len(out), 1)
+        # while resending the same data as a different object should
+        self.send_signal("Data", Orange.data.Table("iris"))
         out = self.get_output("Selection")
         self.assertIsNone(out, None)

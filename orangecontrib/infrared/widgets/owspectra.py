@@ -642,7 +642,6 @@ class CurvePlot(QWidget, OWComponent):
 
     def init_interface_data(self, data):
         old_domain = self.data.domain if self.data else None
-        self.clear_data()
         domain = data.domain if data is not None else None
         self.feature_color_model.set_domain(domain)
         if old_domain and domain != old_domain:  # do not reset feature_color
@@ -1154,6 +1153,8 @@ class CurvePlot(QWidget, OWComponent):
             self.data_x = x[xsind]
             self.data_xsind = xsind
             self._set_subset_indices()  # refresh subset indices according to the current subset
+        else:
+            self.clear_data()
         if auto_update:
             self.update_view()
 
