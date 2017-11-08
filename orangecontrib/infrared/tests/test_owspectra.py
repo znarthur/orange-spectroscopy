@@ -5,6 +5,7 @@ from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, Domain, ContinuousVariable
 from orangecontrib.infrared.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves, \
     distance_line_segment
@@ -18,6 +19,7 @@ except AttributeError:
     qWaitForWindow = QTest.qWaitForWindowActive
 
 NAN = float("nan")
+
 
 class TestOWCurves(WidgetTest):
 
@@ -110,15 +112,15 @@ class TestOWCurves(WidgetTest):
             self.send_signal("Data", data)
             out = self.get_output("Selection")
             self.assertIsNone(out, None)
-            out = self.get_output("Data")
-            sa = out.transform(Orange.data.Domain([out.domain["Selected"]]))
+            out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+            sa = out.transform(Orange.data.Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
             np.testing.assert_equal(sa.X, 0)
             self.select_diagonal()
             out = self.get_output("Selection")
             self.assertEqual(len(data), len(out))
-            out = self.get_output("Data")
+            out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
             self.assertEqual(len(data), len(out))
-            sa = out.transform(Orange.data.Domain([out.domain["Selected"]]))
+            sa = out.transform(Orange.data.Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
             np.testing.assert_equal(sa.X, 1)
         self.widget.hide()
 
@@ -295,7 +297,7 @@ class TestOWCurves(WidgetTest):
     def test_open_selection(self):
         # saved selection in the file should be reloaded
         self.widget = self.create_widget(
-            OWSpectra, stored_settings={"curveplot": {"selected_indices": set([0])}}
+            OWSpectra, stored_settings={"curveplot": {"selection_group_saved": [(0, 1)]}}
         )
         self.send_signal("Data", self.iris)
         out = self.get_output("Selection")
@@ -309,7 +311,11 @@ class TestOWCurves(WidgetTest):
         self.widget.curveplot.select_by_click(None, add=False)
         out = self.get_output("Selection")
         self.assertEqual(len(out), 1)
-        # resending the same data should clear the selection
+        # resending the exact same data should not change the selection
         self.send_signal("Data", self.iris)
+        out2 = self.get_output("Selection")
+        self.assertEqual(len(out), 1)
+        # while resending the same data as a different object should
+        self.send_signal("Data", Orange.data.Table("iris"))
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
