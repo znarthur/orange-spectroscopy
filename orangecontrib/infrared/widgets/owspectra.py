@@ -35,7 +35,8 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
-from orangecontrib.infrared.widgets.utils import pack_selection, unpack_selection
+from orangecontrib.infrared.widgets.utils import pack_selection, unpack_selection, \
+    selections_to_length
 
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
@@ -80,6 +81,23 @@ NAN = float("nan")
 
 # distance to the first point in pixels that finishes the polygon
 SELECT_POLYGON_TOLERANCE = 10
+
+
+class SelectionGroupMixin:
+    selection_group_saved = Setting(None, schema_only=True)
+
+    def __init__(self):
+        self.selection_group = np.array([], dtype=np.uint8)
+        # Remember the saved state to restore with the first open file
+        self._pending_selection_restore = self.selection_group_saved
+
+    def restore_selection_settings(self):
+        self.selection_group = unpack_selection(self._pending_selection_restore)
+        self.selection_group = selections_to_length(self.selection_group, len(self.data))
+        self._pending_selection_restore = None
+
+    def prepare_settings_for_saving(self):
+        self.selection_group_saved = pack_selection(self.selection_group)
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -413,7 +431,7 @@ class SelectRegion(pg.LinearRegionItem):
         self.setBrush(pg.mkBrush(color))
 
 
-class CurvePlot(QWidget, OWComponent):
+class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
     label_xaxis = Setting("")
@@ -425,13 +443,12 @@ class CurvePlot(QWidget, OWComponent):
     feature_color = ContextSetting(None)
 
     invertX = Setting(False)
-    selection_group = np.array([], dtype=np.uint8)
-    selection_group_saved = Setting(None, schema_only=True)
     viewtype = Setting(INDIVIDUAL)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
+        SelectionGroupMixin.__init__(self)
 
         self.parent = parent
 
@@ -441,9 +458,6 @@ class CurvePlot(QWidget, OWComponent):
         self.clear_data()
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
-
-        # Remember the saved state to restore with the first open file
-        self.__pending_selection_restore = self.selection_group_saved
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
@@ -1127,23 +1141,14 @@ class CurvePlot(QWidget, OWComponent):
         if self.data is data:
             return
         if data is not None:
-            self.restore_selection_settings(self.__pending_selection_restore)
-            self.__pending_selection_restore = None
-            # make selection size equal to data size:
-            # - it can be smaller if saved as list and the last instance was not selected
-            # - it can be smaller or bigger if set_data is called without opening context
-            add_zeros = len(data) - len(self.selection_group)
-            if add_zeros > 0:
-                self.selection_group = np.append(self.selection_group, np.zeros(add_zeros, dtype=np.uint8))
-            else:
-                self.selection_group = self.selection_group[:len(data)].copy()
-
             if self.data:
                 self.rescale_next = not data.domain == self.data.domain
             else:
                 self.rescale_next = True
 
             self.data = data
+
+            self.restore_selection_settings()
 
             if self.select_at_least_1:
                 self.make_selection([], add=True)  # make selection valid
@@ -1205,12 +1210,6 @@ class CurvePlot(QWidget, OWComponent):
             # transform into list-of-tuples as we do not have data size
             if settings["selected_indices"]:
                 settings["selection_group_saved"] = [(a, 1) for a in settings["selected_indices"]]
-
-    def restore_selection_settings(self, settings):
-        self.selection_group = unpack_selection(settings)
-
-    def prepare_settings_for_saving(self):
-        self.selection_group_saved = pack_selection(self.selection_group)
 
 
 class OWSpectra(OWWidget):
