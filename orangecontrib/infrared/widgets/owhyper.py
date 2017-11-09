@@ -484,7 +484,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.parent.save_graph()
 
     def set_data(self, data):
-        self.img.clear()
         if data:
             self.data = data
             self.data_ids = {e: i for i, e in enumerate(data.ids)}
