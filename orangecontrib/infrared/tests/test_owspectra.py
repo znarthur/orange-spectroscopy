@@ -303,6 +303,11 @@ class TestOWCurves(WidgetTest):
         out = self.get_output("Selection")
         self.assertEqual(out[0], self.iris[0])
 
+    def test_migrate_selection(self):
+        settings = {"curveplot": {"selected_indices": set([0])}}
+        OWSpectra.migrate_settings(settings, 0)
+        self.assertEqual(settings["curveplot"]["selection_group_saved"], [(0, 1)])
+
     def test_selection_changedata(self):
         # select something in the widget and see if it is cleared
         self.send_signal("Data", self.iris)
