@@ -31,7 +31,7 @@ from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate
+    HelpEventDelegate, SelectionGroupMixin
 
 from orangecontrib.infrared.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
@@ -263,7 +263,7 @@ def color_palette_model(palettes, iconsize=QSize(64, 16)):
     return model
 
 
-class ImagePlot(QWidget, OWComponent):
+class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
@@ -275,6 +275,7 @@ class ImagePlot(QWidget, OWComponent):
     def __init__(self, parent, select_fn=None):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
+        SelectionGroupMixin.__init__(self)
 
         self.parent = parent
 
@@ -288,7 +289,6 @@ class ImagePlot(QWidget, OWComponent):
         self.data_points = None
         self.data_values = None
         self.data_imagepixels = None
-        self.selection = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -484,9 +484,13 @@ class ImagePlot(QWidget, OWComponent):
         self.parent.save_graph()
 
     def set_data(self, data):
-        self.img.clear()
-        self.data = data
-        self.data_ids = {e: i for i, e in enumerate(data.ids)} if data else {}
+        if data:
+            self.data = data
+            self.data_ids = {e: i for i, e in enumerate(data.ids)}
+            self.restore_selection_settings()
+        else:
+            self.data = None
+            self.data_ids = {}
 
     def refresh_markings(self, di):
         refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
@@ -554,10 +558,6 @@ class ImagePlot(QWidget, OWComponent):
             # set data
             imdata = np.ones((lsy[2], lsx[2])) * float("nan")
 
-            # if previous or saved selection is valid for this data set keep it
-            if self.selection is None or len(self.selection) != len(self.data):
-                self.selection = np.zeros(len(self.data), dtype="bool")
-
             xindex = index_values(coorx, lsx)
             yindex = index_values(coory, lsy)
             imdata[yindex, xindex] = d
@@ -583,7 +583,7 @@ class ImagePlot(QWidget, OWComponent):
 
     def refresh_img_selection(self):
         selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-        selected_px_ind = self.data_imagepixels[self.selection]
+        selected_px_ind = self.data_imagepixels[self.selection_group > 0]
         selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
         self.img.setSelection(selected_px)
 
@@ -591,22 +591,21 @@ class ImagePlot(QWidget, OWComponent):
         """Add selected indices to the selection."""
         if self.data and self.lsx and self.lsy:
             if selected is None and not add:
-                self.selection *= False  # set all to False
+                self.selection_group *= 0  # set all to False
             elif selected is not None:
-                if add:
-                    self.selection = np.logical_or(self.selection, selected)
-                else:
-                    self.selection = selected
+                if not add:
+                    self.selection_group *= 0
+                self.selection_group[selected] = 1
             self.refresh_img_selection()
         self.send_selection()
 
     def send_selection(self):
-        if self.data and self.selection is not None:
-            selected = np.where(self.selection)[0]
-        else:
-            selected = []
+        self.prepare_settings_for_saving()
+        selection_indices = []
+        if self.data:
+            selection_indices = np.flatnonzero(self.selection_group)
         if self.select_fn:
-            self.select_fn(selected)
+            self.select_fn(selection_indices)
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -655,7 +654,7 @@ class OWHyper(OWWidget):
     icon = "icons/hyper.svg"
     priority = 20
 
-    settings_version = 2
+    settings_version = 3
     settingsHandler = DomainContextHandler(metas_in_res=True)
 
     imageplot = SettingProvider(ImagePlot)
@@ -682,6 +681,17 @@ class OWHyper(OWWidget):
             # delete the saved attr_value to prevent crashes
             try:
                 del settings_["context_settings"][0].values["attr_value"]
+            except:
+                pass
+
+        # migrate selection
+        if version <= 2:
+            try:
+                current_context = settings_["context_settings"][0]
+                selection = getattr(current_context, "selection", None)
+                if selection is not None:
+                    selection = [(i, 1) for i in np.flatnonzero(np.array(selection))]
+                    settings_.setdefault("imageplot", {})["selection_group_saved"] = selection
             except:
                 pass
 
@@ -851,19 +861,6 @@ class OWHyper(OWWidget):
                 self.choose = maxx
             self.line3.setValue(self.choose)
         self.disable_integral_range = False
-
-    # store selection as a list due to a bug in checking if numpy settings changed
-    def storeSpecificSettings(self):
-        selection = self.imageplot.selection
-        if selection is not None:
-            selection = list(selection)
-        self.current_context.selection = selection
-
-    def retrieveSpecificSettings(self):
-        selection = getattr(self.current_context, "selection", None)
-        if selection is not None:
-            selection = np.array(selection, dtype="bool")
-        self.imageplot.selection = selection
 
 
 def main(argv=None):

@@ -186,3 +186,10 @@ class TestOWHyper(WidgetTest):
         with patch("orangecontrib.infrared.widgets.owhyper.ImagePlot.update_view") as p:
             self.send_signal("Data", self.iris)
             self.assertEqual(p.call_count, 1)
+
+    def test_migrate_selection(self):
+        c = QPointF()  # some we set an attribute to
+        setattr(c, "selection", [False, True, True, False])
+        settings = {"context_settings": [c]}
+        OWHyper.migrate_settings(settings, 2)
+        self.assertEqual(settings["imageplot"]["selection_group_saved"], [(1, 1), (2, 1)])

@@ -32,3 +32,14 @@ def unpack_selection(saved_selection):
         r = np.zeros(maxi + 1, dtype=np.uint8)
         r[a[:, 0]] = a[:, 1]
         return r
+
+
+def selections_to_length(selection_group, length):
+    """
+    Make selection size equal to length (add zeros or remove elements)
+    """
+    add_zeros = length - len(selection_group)
+    if add_zeros > 0:
+        return np.append(selection_group, np.zeros(add_zeros, dtype=np.uint8))
+    else:
+        return selection_group[:length].copy()
