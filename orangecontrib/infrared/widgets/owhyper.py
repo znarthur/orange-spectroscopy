@@ -589,13 +589,24 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
+        keys = QApplication.keyboardModifiers()
+        add_to_group = keys & Qt.ControlModifier and keys & Qt.ShiftModifier
+        add_group = keys & Qt.ControlModifier or keys & Qt.ShiftModifier
+        remove = keys & Qt.AltModifier
         if self.data and self.lsx and self.lsy:
-            if selected is None and not add:
+            if selected is None and not (add_to_group or add_group):
                 self.selection_group *= 0  # set all to False
             elif selected is not None:
-                if not add:
+                if add_to_group:  # both keys - need to test it before add_group
+                    selnum = np.max(self.selection_group)
+                elif add_group:
+                    selnum = np.max(self.selection_group) + 1
+                elif remove:
+                    selnum = 0
+                else:
                     self.selection_group *= 0
-                self.selection_group[selected] = 1
+                    selnum = 1
+                self.selection_group[selected] = selnum
             self.refresh_img_selection()
         self.send_selection()
 
