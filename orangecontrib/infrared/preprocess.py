@@ -745,7 +745,11 @@ class Interpolate(Preprocess):
         return data.from_table(domain, data)
 
 
-class InterpolateToDomain(Interpolate):
+class NotAllContinuousException(Exception):
+    pass
+
+
+class InterpolateToDomain(Preprocess):
     """
     Linear interpolation of the domain.  Attributes are exactly the same
     as in target.
@@ -758,13 +762,15 @@ class InterpolateToDomain(Interpolate):
 
     def __init__(self, target, kind="linear", handle_nans=True):
         self.target = target
+        if not all(isinstance(a, Orange.data.ContinuousVariable) for a in self.target.domain.attributes):
+            raise NotAllContinuousException()
+        self.points = getx(self.target)
         self.kind = kind
         self.handle_nans = handle_nans
         self.interpfn = None
 
     def __call__(self, data):
-        points = getx(self.target)
-        X = _InterpolateCommon(points, self.kind, None, handle_nans=self.handle_nans,
+        X = _InterpolateCommon(self.points, self.kind, None, handle_nans=self.handle_nans,
                                     interpfn=self.interpfn)(data)
         domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
                                     data.domain.metas)

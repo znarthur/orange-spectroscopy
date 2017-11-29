@@ -67,3 +67,9 @@ class TestOWFiles(WidgetTest):
         np.testing.assert_equal(getx(self.collagen), getx(out))
         self.send_signal("Points", None)
         self.assertTrue(self.widget.Warning.reference_data_missing.is_shown())
+
+    def test_interpolate_invalid(self):
+        self.send_signal("Points", Orange.data.Table("iris"))
+        self.assertFalse(self.widget.Error.non_continuous.is_shown())
+        self.send_signal("Points", Orange.data.Table("titanic"))
+        self.assertTrue(self.widget.Error.non_continuous.is_shown())

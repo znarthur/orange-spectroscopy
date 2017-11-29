@@ -9,7 +9,8 @@ from Orange.widgets import gui, settings
 from AnyQt.QtCore import Qt
 
 from orangecontrib.infrared.data import getx
-from orangecontrib.infrared.preprocess import Interpolate, InterpolateToDomain
+from orangecontrib.infrared.preprocess import Interpolate, InterpolateToDomain, \
+    NotAllContinuousException
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 
@@ -43,11 +44,12 @@ class OWInterpolate(OWWidget):
     class Error(OWWidget.Error):
         dxzero = Msg("Step should be higher than 0.0.")
         too_many_points = Msg("More than 10000 points with your current setting.")
+        non_continuous = Msg("Points input contains non-continuous features.")
 
     def __init__(self):
         super().__init__()
 
-        self.data_points = None
+        self.data_points_interpolate = None
 
         dbox = gui.widgetBox(self.controlArea, "Interpolation")
 
@@ -98,12 +100,12 @@ class OWInterpolate(OWWidget):
                         out = Interpolate(points)(self.data)
                     else:
                         self.Error.too_many_points(reslength)
-            elif self.input_radio == 2 and self.data_points is not None:
-                out = InterpolateToDomain(target=self.data_points)(self.data)
+            elif self.input_radio == 2 and self.data_points_interpolate is not None:
+                out = self.data_points_interpolate(self.data)
         self.send("Interpolated data", out)
 
     def _change_input(self):
-        if self.input_radio == 2 and self.data_points is None:
+        if self.input_radio == 2 and self.data_points_interpolate is None:
             self.Warning.reference_data_missing()
         else:
             self.Warning.reference_data_missing.clear()
@@ -124,10 +126,15 @@ class OWInterpolate(OWWidget):
         self.commit()
 
     def set_points(self, data):
+        self.Error.non_continuous.clear()
         if data:
-            self.data_points = data
+            try:
+                self.data_points_interpolate = InterpolateToDomain(target=data)
+            except NotAllContinuousException:
+                self.data_points_interpolate = None
+                self.Error.non_continuous()
         else:
-            self.data_points = None
+            self.data_points_interpolate = None
         self._change_input()
 
 

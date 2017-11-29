@@ -4,7 +4,7 @@ import numpy as np
 import Orange
 from orangecontrib.infrared.preprocess import Interpolate, \
     interp1d_with_unknowns_numpy, interp1d_with_unknowns_scipy, \
-    interp1d_wo_unknowns_scipy, InterpolateToDomain
+    interp1d_wo_unknowns_scipy, InterpolateToDomain, NotAllContinuousException
 from orangecontrib.infrared.data import getx
 
 
@@ -123,3 +123,10 @@ class TestInterpolateToDomain(unittest.TestCase):
         # first 4 values are defined, the rest are not
         np.testing.assert_equal(np.isnan(iiris.X[0])[:4], False)
         np.testing.assert_equal(np.isnan(iiris.X[0])[4:], True)
+
+    def test_not_all_continuous(self):
+        titanic = Orange.data.Table("titanic")
+        iris = Orange.data.Table("iris")
+        InterpolateToDomain(target=iris)
+        with self.assertRaises(NotAllContinuousException):
+            InterpolateToDomain(target=titanic)
