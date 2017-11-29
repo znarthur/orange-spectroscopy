@@ -745,6 +745,34 @@ class Interpolate(Preprocess):
         return data.from_table(domain, data)
 
 
+class InterpolateToDomain(Interpolate):
+    """
+    Linear interpolation of the domain.  Attributes are exactly the same
+    as in target.
+
+    It differs to Interpolate because the modified data can
+    not transform other domains into the interpolated domain. This is
+    necessary so that attributes are the same and are thus
+    compatible for prediction.
+    """
+
+    def __init__(self, target, kind="linear", handle_nans=True):
+        self.target = target
+        self.kind = kind
+        self.handle_nans = handle_nans
+        self.interpfn = None
+
+    def __call__(self, data):
+        points = getx(self.target)
+        X = _InterpolateCommon(points, self.kind, None, handle_nans=self.handle_nans,
+                                    interpfn=self.interpfn)(data)
+        domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
+                                    data.domain.metas)
+        data = data.transform(domain)
+        data.X = X
+        return data
+
+
 class AbsorbanceFeature(SelectColumn):
     pass
 

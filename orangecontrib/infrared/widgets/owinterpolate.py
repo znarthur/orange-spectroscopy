@@ -9,7 +9,7 @@ from Orange.widgets import gui, settings
 from AnyQt.QtCore import Qt
 
 from orangecontrib.infrared.data import getx
-from orangecontrib.infrared.preprocess import Interpolate
+from orangecontrib.infrared.preprocess import Interpolate, InterpolateToDomain
 from orangecontrib.infrared.widgets.gui import lineEditFloatOrNone
 
 
@@ -99,7 +99,7 @@ class OWInterpolate(OWWidget):
                     else:
                         self.Error.too_many_points(reslength)
             elif self.input_radio == 2 and self.data_points is not None:
-                out = Interpolate(self.data_points)(self.data)
+                out = InterpolateToDomain(target=self.data_points)(self.data)
         self.send("Interpolated data", out)
 
     def _change_input(self):
@@ -125,7 +125,7 @@ class OWInterpolate(OWWidget):
 
     def set_points(self, data):
         if data:
-            self.data_points = getx(data)
+            self.data_points = data
         else:
             self.data_points = None
         self._change_input()
