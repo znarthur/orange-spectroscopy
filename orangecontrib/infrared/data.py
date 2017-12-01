@@ -15,6 +15,7 @@ from scipy.io import matlab
 import numbers
 
 from .pymca5 import OmnicMap
+from .agilent import agilentImage, agilentMosaic
 
 
 class SpectralFileFormat:
@@ -278,6 +279,60 @@ class OmnicMapReader(FileFormat, SpectralFileFormat):
         except KeyError:
             x_locs = None
             y_locs = None
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class AgilentImageReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA single tile image files"""
+    EXTENSIONS = ('.seq',)
+    DESCRIPTION = 'Agilent Single Tile Image'
+
+    def read_spectra(self):
+        ai = agilentImage(self.filename)
+        info = ai.info
+        X = ai.data
+
+        try:
+            features = info['wavenumbers']
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        try:
+            fpa_px_size = info['FPA Pixel Size']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            fpa_px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*fpa_px_size, X.shape[1])
+        y_locs = np.linspace(0, X.shape[0]*fpa_px_size, X.shape[0])
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class agilentMosaicReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dms',)
+    DESCRIPTION = 'Agilent Mosaic Image'
+
+    def read_spectra(self):
+        am = agilentMosaic(self.filename)
+        info = am.info
+        X = am.data
+
+        try:
+            features = info['wavenumbers']
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        try:
+            fpa_px_size = info['FPA Pixel Size']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            fpa_px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*fpa_px_size, X.shape[1])
+        y_locs = np.linspace(0, X.shape[0]*fpa_px_size, X.shape[0])
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
