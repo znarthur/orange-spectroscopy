@@ -3,17 +3,31 @@ import numpy as np
 
 from unittest.mock import patch
 
-from AnyQt.QtCore import QPointF
+from AnyQt.QtCore import QPointF, Qt
+from AnyQt.QtTest import QTest
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
-    index_values, OWHyper, location_values
+    index_values, OWHyper, location_values, ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.infrared.preprocess import Interpolate
 from orangecontrib.infrared.widgets.line_geometry import in_polygon, is_left
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def hold_modifiers(widget, modifiers):
+    # use some unexisting key
+    QTest.keyPress(widget, Qt.Key_F35, modifiers)
+    try:
+        yield
+    finally:
+        QTest.keyRelease(widget, Qt.Key_F35)
+
 
 NAN = float("nan")
+
 
 class TestReadCoordinates(unittest.TestCase):
 
@@ -169,6 +183,32 @@ class TestOWHyper(WidgetTest):
         self.widget.imageplot.select_by_click(QPointF(1, 2), False)
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[1, 2]])
+
+    def test_select_click_multiple_groups(self):
+        data = self.whitelight
+        self.send_signal("Data", data)
+        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        with hold_modifiers(self.widget, Qt.ControlModifier):
+            self.widget.imageplot.select_by_click(QPointF(2, 2), False)
+        with hold_modifiers(self.widget, Qt.ShiftModifier):
+            self.widget.imageplot.select_by_click(QPointF(3, 2), False)
+        with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
+            self.widget.imageplot.select_by_click(QPointF(4, 2), False)
+        out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+        self.assertEqual(len(out), 20000)  # have a data table at the output
+        newvars = out.domain.variables + out.domain.metas
+        oldvars = data.domain.variables + data.domain.metas
+        group_at = [a for a in newvars if a not in oldvars][0]
+        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != 0)]
+        self.assertEqual(len(out), 4)
+        np.testing.assert_equal([o["x"].value for o in out], [1, 2, 3, 4])
+        np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
+
+        # remove one element
+        with hold_modifiers(self.widget, Qt.AltModifier):
+            self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        out = self.get_output("Selection")
+        np.testing.assert_equal(len(out), 3)
 
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)

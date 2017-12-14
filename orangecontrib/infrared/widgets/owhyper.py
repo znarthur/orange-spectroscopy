@@ -36,7 +36,8 @@ from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
 from orangecontrib.infrared.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
-from Orange.widgets.utils.annotated_data import create_annotated_table
+from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME
+from orangecontrib.infrared.widgets.owspectra import create_groups_table  # compatibility with Orange 3.6.0-
 
 
 IMAGE_TOO_BIG = 1024*1024
@@ -612,11 +613,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def send_selection(self):
         self.prepare_settings_for_saving()
-        selection_indices = []
-        if self.data:
-            selection_indices = np.flatnonzero(self.selection_group)
         if self.select_fn:
-            self.select_fn(selection_indices)
+            self.select_fn()
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -661,7 +659,7 @@ class CurvePlotHyper(CurvePlot):
 class OWHyper(OWWidget):
     name = "HyperSpectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
+    outputs = [("Selection", Orange.data.Table), (ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)]
     icon = "icons/hyper.svg"
     priority = 20
 
@@ -773,19 +771,23 @@ class OWHyper(OWWidget):
         if not same_domain:
             self.init_attr_values(data)
 
-    def image_selection_changed(self, indices):
-        annotated = create_annotated_table(self.data, indices)
-        self.send("Data", annotated)
-        if self.data:
-            selected = self.data[indices]
-            self.send("Selection", selected if selected else None)
-            if selected:
-                self.curveplot.set_data(selected)
-            else:
-                self.curveplot.set_data(self.data)
-        else:
+    def image_selection_changed(self):
+        if not self.data:
             self.send("Selection", None)
             self.curveplot.set_data(None)
+            return
+
+        indices = np.flatnonzero(self.imageplot.selection_group)
+
+        self.send(ANNOTATED_DATA_SIGNAL_NAME,
+                  create_groups_table(self.imageplot.data, self.imageplot.selection_group))
+
+        selected = self.data[indices]
+        self.send("Selection", selected if selected else None)
+        if selected:
+            self.curveplot.set_data(selected)
+        else:
+            self.curveplot.set_data(self.data)
 
     def selection_changed(self):
         self.redraw_data()
