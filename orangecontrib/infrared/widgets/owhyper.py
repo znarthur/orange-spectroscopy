@@ -12,6 +12,8 @@ from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemMod
 from AnyQt.QtCore import Qt, QRectF, QPointF, QSize
 from AnyQt.QtTest import QTest
 
+from AnyQt.QtCore import pyqtSignal as Signal
+
 import numpy as np
 import pyqtgraph as pg
 import colorcet
@@ -272,15 +274,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
     threshold_low = Setting(0.0)
     threshold_high = Setting(1.0)
     palette_index = Setting(0)
+    selection_changed = Signal()
 
-    def __init__(self, parent, select_fn=None):
+    def __init__(self, parent):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
         SelectionGroupMixin.__init__(self)
 
         self.parent = parent
-
-        self.select_fn = select_fn
 
         self.selection_type = SELECTMANY
         self.saving_enabled = hasattr(self.parent, "save_graph")
@@ -579,7 +580,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
 
-            self.send_selection()
+            self.selection_changed.emit()
             self.refresh_img_selection()
 
     def refresh_img_selection(self):
@@ -609,12 +610,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
                     selnum = 1
                 self.selection_group[selected] = selnum
             self.refresh_img_selection()
-        self.send_selection()
-
-    def send_selection(self):
         self.prepare_settings_for_saving()
-        if self.select_fn:
-            self.select_fn()
+        self.selection_changed.emit()
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -735,7 +732,9 @@ class OWHyper(OWWidget):
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
-        self.imageplot = ImagePlot(self, select_fn=self.image_selection_changed)
+        self.imageplot = ImagePlot(self)
+        self.imageplot.selection_changed.connect(self.image_selection_changed)
+
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
