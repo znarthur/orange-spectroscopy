@@ -40,7 +40,7 @@ ENTRY_POINTS = {
         # Syntax: category name = path.to.package.containing.widgets
         # Widget category specification can be seen in
         #    orangecontrib/example/widgets/__init__.py
-        'Infrared = orangecontrib.infrared.widgets',
+        'Spectroscopy = orangecontrib.infrared.widgets',
     ),
 
     # Register widget help
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     include_documentation('doc/build/html', 'help/orange-infrared')
 
     setup(
-        name="Orange-Infrared",
+        name="Orange-Spectroscopy",
         description='Extends Orange to handle spectral and hyperspectral analysis.',
         long_description=LONG_DESCRIPTION,
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
