@@ -179,11 +179,20 @@ class ImageItemNan(pg.ImageItem):
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
-        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)
+        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
         argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        w = 1
         if np.any(self.selection):
+            max_sel = np.max(self.selection)
+            colors = DiscreteVariable(values=map(str, range(max_sel))).colors
+            fargb = argb.astype(np.float32)
+            for i, color in enumerate(colors):
+                color = np.hstack((color[::-1], [255]))  # qt color
+                sel = self.selection == i+1
+                # average the current color with the selection color
+                argb[sel] = (fargb[sel] + w*color) / (1+w)
             alpha = True
-            argb[:, :, 3] = np.maximum(self.selection*255, 100)
+            argb[:, :, 3] = np.maximum((self.selection > 0)*255, 100)
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
 
 
@@ -584,9 +593,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.refresh_img_selection()
 
     def refresh_img_selection(self):
-        selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-        selected_px_ind = self.data_imagepixels[self.selection_group > 0]
-        selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
+        selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
+        selected_px[self.data_imagepixels[:, 0], self.data_imagepixels[:, 1]] = self.selection_group
         self.img.setSelection(selected_px)
 
     def make_selection(self, selected, add):
