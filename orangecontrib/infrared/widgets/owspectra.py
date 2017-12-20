@@ -100,6 +100,14 @@ class SelectionGroupMixin:
         self.selection_group_saved = pack_selection(self.selection_group)
 
 
+def selection_modifiers():
+    keys = QApplication.keyboardModifiers()
+    add_to_group = keys & Qt.ControlModifier and keys & Qt.ShiftModifier
+    add_group = keys & Qt.ControlModifier or keys & Qt.ShiftModifier
+    remove = keys & Qt.AltModifier
+    return add_to_group, add_group, remove
+
+
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
     def focusNextPrevChild(self, next):
         return QWidget.focusNextPrevChild(self, next)

@@ -33,7 +33,7 @@ from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate, SelectionGroupMixin
+    HelpEventDelegate, SelectionGroupMixin, selection_modifiers
 
 from orangecontrib.infrared.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
@@ -599,10 +599,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
-        keys = QApplication.keyboardModifiers()
-        add_to_group = keys & Qt.ControlModifier and keys & Qt.ShiftModifier
-        add_group = keys & Qt.ControlModifier or keys & Qt.ShiftModifier
-        remove = keys & Qt.AltModifier
+        add_to_group, add_group, remove = selection_modifiers()
         if self.data and self.lsx and self.lsy:
             if selected is None and not (add_to_group or add_group):
                 self.selection_group *= 0  # set all to False
