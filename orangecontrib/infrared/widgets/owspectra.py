@@ -1150,14 +1150,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
             self.restore_selection_settings()
 
-            if self.select_at_least_1:
-                self.make_selection([], add=True)  # make selection valid
             # get and sort input data
             x = getx(self.data)
             xsind = np.argsort(x)
             self.data_x = x[xsind]
             self.data_xsind = xsind
             self._set_subset_indices()  # refresh subset indices according to the current subset
+            if self.select_at_least_1:
+                self.make_selection([], add=True)  # make selection valid
         else:
             self.clear_data()
         if auto_update:
