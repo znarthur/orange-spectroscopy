@@ -12,6 +12,8 @@ from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemMod
 from AnyQt.QtCore import Qt, QRectF, QPointF, QSize
 from AnyQt.QtTest import QTest
 
+from AnyQt.QtCore import pyqtSignal as Signal
+
 import numpy as np
 import pyqtgraph as pg
 import colorcet
@@ -31,12 +33,13 @@ from orangecontrib.infrared.preprocess import Integrate
 
 from orangecontrib.infrared.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate, SelectionGroupMixin
+    HelpEventDelegate, SelectionGroupMixin, selection_modifiers
 
 from orangecontrib.infrared.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.infrared.widgets.line_geometry import in_polygon
 
-from Orange.widgets.utils.annotated_data import create_annotated_table
+from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME
+from orangecontrib.infrared.widgets.owspectra import create_groups_table  # compatibility with Orange 3.6.0-
 
 
 IMAGE_TOO_BIG = 1024*1024
@@ -176,11 +179,20 @@ class ImageItemNan(pg.ImageItem):
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
-        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)
+        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
         argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        w = 1
         if np.any(self.selection):
+            max_sel = np.max(self.selection)
+            colors = DiscreteVariable(values=map(str, range(max_sel))).colors
+            fargb = argb.astype(np.float32)
+            for i, color in enumerate(colors):
+                color = np.hstack((color[::-1], [255]))  # qt color
+                sel = self.selection == i+1
+                # average the current color with the selection color
+                argb[sel] = (fargb[sel] + w*color) / (1+w)
             alpha = True
-            argb[:, :, 3] = np.maximum(self.selection*255, 100)
+            argb[:, :, 3] = np.maximum((self.selection > 0)*255, 100)
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
 
 
@@ -271,15 +283,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
     threshold_low = Setting(0.0)
     threshold_high = Setting(1.0)
     palette_index = Setting(0)
+    selection_changed = Signal()
 
-    def __init__(self, parent, select_fn=None):
+    def __init__(self, parent):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
         SelectionGroupMixin.__init__(self)
 
         self.parent = parent
-
-        self.select_fn = select_fn
 
         self.selection_type = SELECTMANY
         self.saving_enabled = hasattr(self.parent, "save_graph")
@@ -578,34 +589,34 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
 
-            self.send_selection()
+            self.selection_changed.emit()
             self.refresh_img_selection()
 
     def refresh_img_selection(self):
-        selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=bool)
-        selected_px_ind = self.data_imagepixels[self.selection_group > 0]
-        selected_px[selected_px_ind[:, 0], selected_px_ind[:, 1]] = 1
+        selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
+        selected_px[self.data_imagepixels[:, 0], self.data_imagepixels[:, 1]] = self.selection_group
         self.img.setSelection(selected_px)
 
     def make_selection(self, selected, add):
         """Add selected indices to the selection."""
+        add_to_group, add_group, remove = selection_modifiers()
         if self.data and self.lsx and self.lsy:
-            if selected is None and not add:
+            if selected is None and not (add_to_group or add_group):
                 self.selection_group *= 0  # set all to False
             elif selected is not None:
-                if not add:
+                if add_to_group:  # both keys - need to test it before add_group
+                    selnum = np.max(self.selection_group)
+                elif add_group:
+                    selnum = np.max(self.selection_group) + 1
+                elif remove:
+                    selnum = 0
+                else:
                     self.selection_group *= 0
-                self.selection_group[selected] = 1
+                    selnum = 1
+                self.selection_group[selected] = selnum
             self.refresh_img_selection()
-        self.send_selection()
-
-    def send_selection(self):
         self.prepare_settings_for_saving()
-        selection_indices = []
-        if self.data:
-            selection_indices = np.flatnonzero(self.selection_group)
-        if self.select_fn:
-            self.select_fn(selection_indices)
+        self.selection_changed.emit()
 
     def select_square(self, p1, p2, add):
         """ Select elements within a square drawn by the user.
@@ -650,7 +661,7 @@ class CurvePlotHyper(CurvePlot):
 class OWHyper(OWWidget):
     name = "HyperSpectra"
     inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    outputs = [("Selection", Orange.data.Table), ("Data", Orange.data.Table)]
+    outputs = [("Selection", Orange.data.Table), (ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)]
     icon = "icons/hyper.svg"
     priority = 20
 
@@ -726,7 +737,9 @@ class OWHyper(OWWidget):
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
-        self.imageplot = ImagePlot(self, select_fn=self.image_selection_changed)
+        self.imageplot = ImagePlot(self)
+        self.imageplot.selection_changed.connect(self.image_selection_changed)
+
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
@@ -762,19 +775,23 @@ class OWHyper(OWWidget):
         if not same_domain:
             self.init_attr_values(data)
 
-    def image_selection_changed(self, indices):
-        annotated = create_annotated_table(self.data, indices)
-        self.send("Data", annotated)
-        if self.data:
-            selected = self.data[indices]
-            self.send("Selection", selected if selected else None)
-            if selected:
-                self.curveplot.set_data(selected)
-            else:
-                self.curveplot.set_data(self.data)
-        else:
+    def image_selection_changed(self):
+        if not self.data:
             self.send("Selection", None)
             self.curveplot.set_data(None)
+            return
+
+        indices = np.flatnonzero(self.imageplot.selection_group)
+
+        self.send(ANNOTATED_DATA_SIGNAL_NAME,
+                  create_groups_table(self.imageplot.data, self.imageplot.selection_group))
+
+        selected = self.data[indices]
+        self.send("Selection", selected if selected else None)
+        if selected:
+            self.curveplot.set_data(selected)
+        else:
+            self.curveplot.set_data(self.data)
 
     def selection_changed(self):
         self.redraw_data()

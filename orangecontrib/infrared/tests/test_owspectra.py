@@ -9,6 +9,7 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNO
 from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.widgets.line_geometry import intersect_curves, \
     distance_line_segment
+from orangecontrib.infrared.tests.util import hold_modifiers
 from orangecontrib.infrared.preprocess import Interpolate
 from AnyQt.QtCore import QRectF, QPoint, Qt
 from AnyQt.QtTest import QTest
@@ -324,3 +325,30 @@ class TestOWCurves(WidgetTest):
         self.send_signal("Data", Orange.data.Table("iris"))
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
+
+    def test_select_click_multiple_groups(self):
+        data = self.collagen[:100]
+        self.send_signal("Data", data)
+        self.widget.curveplot.make_selection([1], False)
+        with hold_modifiers(self.widget, Qt.ControlModifier):
+            self.widget.curveplot.make_selection([2], False)
+        with hold_modifiers(self.widget, Qt.ShiftModifier):
+            self.widget.curveplot.make_selection([3], False)
+        with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
+            self.widget.curveplot.make_selection([4], False)
+        out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+        self.assertEqual(len(out), 100)  # have a data table at the output
+        newvars = out.domain.variables + out.domain.metas
+        oldvars = data.domain.variables + data.domain.metas
+        group_at = [a for a in newvars if a not in oldvars][0]
+        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != 0)]
+        self.assertEqual(len(out), 4)
+        np.testing.assert_equal([o for o in out], [data[i] for i in [1, 2, 3, 4]])
+        np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
+
+        # remove one element
+        with hold_modifiers(self.widget, Qt.AltModifier):
+            self.widget.curveplot.make_selection([1], False)
+        out = self.get_output("Selection")
+        np.testing.assert_equal(len(out), 3)
+        np.testing.assert_equal([o for o in out], [data[i] for i in [2, 3, 4]])

@@ -8,7 +8,7 @@ from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
-    QShortcut, QToolTip
+    QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
 
@@ -98,6 +98,14 @@ class SelectionGroupMixin:
 
     def prepare_settings_for_saving(self):
         self.selection_group_saved = pack_selection(self.selection_group)
+
+
+def selection_modifiers():
+    keys = QApplication.keyboardModifiers()
+    add_to_group = bool(keys & Qt.ControlModifier and keys & Qt.ShiftModifier)
+    add_group = bool(keys & Qt.ControlModifier or keys & Qt.ShiftModifier)
+    remove = bool(keys & Qt.AltModifier)
+    return add_to_group, add_group, remove
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -218,6 +226,58 @@ class InteractiveViewBox(ViewBox):
         self.selection_poly_marker.mouseClickEvent = lambda x: x  # ignore mouse clicks
         self.addItem(self.selection_poly_marker, ignoreBounds=True)
 
+        self.sigRangeChanged.connect(self.resized)
+        self.sigResized.connect(self.resized)
+
+        self.tiptexts = None
+
+    def resized(self):
+        self.position_tooltip()
+
+    def position_tooltip(self):
+        if self.tiptexts:  # if initialized
+            self.scene().select_tooltip.setPos(10, self.height())
+
+    def update_selection_tooltip(self, modifiers=Qt.NoModifier):
+        if not self.tiptexts:
+            self._create_select_tooltip()
+        modifiers &= Qt.ShiftModifier + Qt.ControlModifier + Qt.AltModifier
+        text = self.tiptexts.get(int(modifiers), self.tiptexts[0])
+        self.tip_textitem.setHtml(text)
+        if self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON]:
+            self.scene().select_tooltip.show()
+        else:
+            self.scene().select_tooltip.hide()
+
+    def _create_select_tooltip(self):
+        scene = self.scene()
+        tip_parts = [
+            (Qt.ShiftModifier, "Shift: Add group"),
+            (Qt.ShiftModifier + Qt.ControlModifier,
+             "Shift-{}: Append to group".
+             format("Cmd" if sys.platform == "darwin" else "Ctrl")),
+            (Qt.AltModifier, "Alt: Remove")
+        ]
+        all_parts = ", ".join(part for _, part in tip_parts)
+        self.tiptexts = {
+            int(modifier): all_parts.replace(part, "<b>{}</b>".format(part))
+            for modifier, part in tip_parts
+        }
+        self.tiptexts[0] = all_parts
+        self.tip_textitem = text = QGraphicsTextItem()
+
+        # Set to the longest text
+        text.setHtml(self.tiptexts[Qt.ShiftModifier + Qt.ControlModifier])
+        text.setPos(4, 2)
+        r = text.boundingRect()
+        rect = QGraphicsRectItem(0, 0, r.width() + 8, r.height() + 4)
+        rect.setBrush(QColor(224, 224, 224, 212))
+        rect.setPen(QPen(Qt.NoPen))
+        scene.select_tooltip = scene.createItemGroup([rect, text])
+        scene.select_tooltip.hide()
+        self.position_tooltip()
+        self.update_selection_tooltip(Qt.NoModifier)
+
     def safe_update_scale_box(self, buttonDownPos, currentPos):
         x, y = currentPos
         if buttonDownPos[0] == x:
@@ -292,7 +352,12 @@ class InteractiveViewBox(ViewBox):
             self.set_mode_panning()
             ev.accept()
         else:
+            self.update_selection_tooltip(ev.modifiers())
             ev.ignore()
+
+    def keyReleaseEvent(self, event):
+        super().keyReleaseEvent(event)
+        self.update_selection_tooltip(event.modifiers())
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton and \
@@ -373,12 +438,14 @@ class InteractiveViewBox(ViewBox):
         self.zoomstartpoint = None
         self.action = PANNING
         self.unsetCursor()
+        self.update_selection_tooltip()
 
     def set_mode_zooming(self):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = ZOOMING
         self.setCursor(Qt.CrossCursor)
+        self.update_selection_tooltip()
 
     def set_mode_panning(self):
         self.cancel_zoom()
@@ -391,24 +458,28 @@ class InteractiveViewBox(ViewBox):
         self.current_selection = None
         self.action = PANNING
         self.unsetCursor()
+        self.update_selection_tooltip()
 
     def set_mode_select(self):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT
         self.setCursor(Qt.CrossCursor)
+        self.update_selection_tooltip()
 
     def set_mode_select_square(self):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT_SQUARE
         self.setCursor(Qt.CrossCursor)
+        self.update_selection_tooltip()
 
     def set_mode_select_polygon(self):
         self.set_mode_panning()
         self.setMouseMode(self.RectMode)
         self.action = SELECT_POLYGON
         self.setCursor(Qt.CrossCursor)
+        self.update_selection_tooltip()
 
 
 class InteractiveViewBoxC(InteractiveViewBox):
@@ -822,31 +893,32 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
 
     def make_selection(self, data_indices, add=False):
+        add_to_group, add_group, remove = selection_modifiers()
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
         redraw_curve_indices = set()
-        if data_indices is None:
-            if not add:
-                # remove all
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if self.selection_group[idata])
-                self.selection_group *= 0
-        else:
-            if add:
-                # add new
-                self.selection_group[data_indices] = 1
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if idata in data_indices_set)
+        if data_indices is None and not (add_to_group or add_group):
+            # remove all
+            redraw_curve_indices.update(
+                icurve for idata, icurve in invd.items() if self.selection_group[idata])
+            self.selection_group *= 0
+        elif data_indices is not None:
+            if add_to_group:  # both keys - need to test it before add_group
+                selnum = np.max(self.selection_group)
+            elif add_group:
+                selnum = np.max(self.selection_group) + 1
+            elif remove:
+                selnum = 0
             else:
-                # remove all
                 redraw_curve_indices.update(
                     icurve for idata, icurve in invd.items() if self.selection_group[idata])
-                self.selection_group *= 0
-                # add new
-                self.selection_group[data_indices] = 1
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if idata in data_indices_set)
-                # TODO this can redraw needless curves (removed and then added to the same group)
+                self.selection_group *= 0  # remove
+                selnum = 1
+            # add new
+            self.selection_group[data_indices] = selnum
+            redraw_curve_indices.update(
+                icurve for idata, icurve in invd.items() if idata in data_indices_set)
+            # TODO this can redraw needless curves (removed and then added to the same group)
         if self.select_at_least_1 and not len(np.flatnonzero(self.selection_group)) \
                 and len(self.data) > 0:  # no selection
             self.selection_group[0] = 1
