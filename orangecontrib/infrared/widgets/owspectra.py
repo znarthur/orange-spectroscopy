@@ -102,9 +102,9 @@ class SelectionGroupMixin:
 
 def selection_modifiers():
     keys = QApplication.keyboardModifiers()
-    add_to_group = keys & Qt.ControlModifier and keys & Qt.ShiftModifier
-    add_group = keys & Qt.ControlModifier or keys & Qt.ShiftModifier
-    remove = keys & Qt.AltModifier
+    add_to_group = bool(keys & Qt.ControlModifier and keys & Qt.ShiftModifier)
+    add_group = bool(keys & Qt.ControlModifier or keys & Qt.ShiftModifier)
+    remove = bool(keys & Qt.AltModifier)
     return add_to_group, add_group, remove
 
 
@@ -893,31 +893,32 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
 
     def make_selection(self, data_indices, add=False):
+        add_to_group, add_group, remove = selection_modifiers()
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
         redraw_curve_indices = set()
-        if data_indices is None:
-            if not add:
-                # remove all
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if self.selection_group[idata])
-                self.selection_group *= 0
-        else:
-            if add:
-                # add new
-                self.selection_group[data_indices] = 1
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if idata in data_indices_set)
+        if data_indices is None and not (add_to_group or add_group):
+            # remove all
+            redraw_curve_indices.update(
+                icurve for idata, icurve in invd.items() if self.selection_group[idata])
+            self.selection_group *= 0
+        elif data_indices is not None:
+            if add_to_group:  # both keys - need to test it before add_group
+                selnum = np.max(self.selection_group)
+            elif add_group:
+                selnum = np.max(self.selection_group) + 1
+            elif remove:
+                selnum = 0
             else:
-                # remove all
                 redraw_curve_indices.update(
                     icurve for idata, icurve in invd.items() if self.selection_group[idata])
-                self.selection_group *= 0
-                # add new
-                self.selection_group[data_indices] = 1
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if idata in data_indices_set)
-                # TODO this can redraw needless curves (removed and then added to the same group)
+                self.selection_group *= 0  # remove
+                selnum = 1
+            # add new
+            self.selection_group[data_indices] = selnum
+            redraw_curve_indices.update(
+                icurve for idata, icurve in invd.items() if idata in data_indices_set)
+            # TODO this can redraw needless curves (removed and then added to the same group)
         if self.select_at_least_1 and not len(np.flatnonzero(self.selection_group)) \
                 and len(self.data) > 0:  # no selection
             self.selection_group[0] = 1

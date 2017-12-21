@@ -4,7 +4,6 @@ import numpy as np
 from unittest.mock import patch
 
 from AnyQt.QtCore import QPointF, Qt
-from AnyQt.QtTest import QTest
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
@@ -12,19 +11,7 @@ from orangecontrib.infrared.widgets.owhyper import values_to_linspace, \
     index_values, OWHyper, location_values, ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.infrared.preprocess import Interpolate
 from orangecontrib.infrared.widgets.line_geometry import in_polygon, is_left
-
-from contextlib import contextmanager
-
-
-@contextmanager
-def hold_modifiers(widget, modifiers):
-    # use some unexisting key
-    QTest.keyPress(widget, Qt.Key_F35, modifiers)
-    try:
-        yield
-    finally:
-        QTest.keyRelease(widget, Qt.Key_F35)
-
+from orangecontrib.infrared.tests.util import hold_modifiers
 
 NAN = float("nan")
 
