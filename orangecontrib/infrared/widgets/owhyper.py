@@ -601,18 +601,16 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         """Add selected indices to the selection."""
         add_to_group, add_group, remove = selection_modifiers()
         if self.data and self.lsx and self.lsy:
-            if selected is None and not (add_to_group or add_group):
-                self.selection_group *= 0  # set all to False
-            elif selected is not None:
-                if add_to_group:  # both keys - need to test it before add_group
-                    selnum = np.max(self.selection_group)
-                elif add_group:
-                    selnum = np.max(self.selection_group) + 1
-                elif remove:
-                    selnum = 0
-                else:
-                    self.selection_group *= 0
-                    selnum = 1
+            if add_to_group:  # both keys - need to test it before add_group
+                selnum = np.max(self.selection_group)
+            elif add_group:
+                selnum = np.max(self.selection_group) + 1
+            elif remove:
+                selnum = 0
+            else:
+                self.selection_group *= 0
+                selnum = 1
+            if selected is not None:
                 self.selection_group[selected] = selnum
             self.refresh_img_selection()
         self.prepare_settings_for_saving()
