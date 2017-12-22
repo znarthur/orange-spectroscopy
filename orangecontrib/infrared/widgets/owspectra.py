@@ -897,35 +897,34 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
         redraw_curve_indices = set()
-        if data_indices is None and not (add_to_group or add_group):
-            # remove all
+        if add_to_group:  # both keys - need to test it before add_group
+            selnum = np.max(self.selection_group)
+        elif add_group:
+            selnum = np.max(self.selection_group) + 1
+        elif remove:
+            selnum = 0
+        else:
+            # remove the current selection
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if self.selection_group[idata])
-            self.selection_group *= 0
-        elif data_indices is not None:
-            if add_to_group:  # both keys - need to test it before add_group
-                selnum = np.max(self.selection_group)
-            elif add_group:
-                selnum = np.max(self.selection_group) + 1
-            elif remove:
-                selnum = 0
-            else:
-                redraw_curve_indices.update(
-                    icurve for idata, icurve in invd.items() if self.selection_group[idata])
-                self.selection_group *= 0  # remove
-                selnum = 1
-            # add new
+            self.selection_group *= 0  # remove
+            selnum = 1
+        # add new
+        if data_indices is not None:
             self.selection_group[data_indices] = selnum
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if idata in data_indices_set)
             # TODO this can redraw needless curves (removed and then added to the same group)
+        self.make_selection_valid()
+        self.set_curve_pens(redraw_curve_indices)
+        self.selection_changed()
+
+    def make_selection_valid(self):
         if self.select_at_least_1 and not len(np.flatnonzero(self.selection_group)) \
                 and len(self.data) > 0:  # no selection
             self.selection_group[0] = 1
-            if 0 in invd:
-                redraw_curve_indices.update([invd[0]])
-        self.set_curve_pens(redraw_curve_indices)
-        self.selection_changed()
+            if 0 in self.sampled_indices_inverse:  # refresh if shown
+                self.set_curve_pens([self.sampled_indices_inverse[0]])
 
     def selection_changed(self):
         # reset average view; individual was already handled in make_selection
@@ -1228,8 +1227,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.data_x = x[xsind]
             self.data_xsind = xsind
             self._set_subset_indices()  # refresh subset indices according to the current subset
-            if self.select_at_least_1:
-                self.make_selection([], add=True)  # make selection valid
+            self.make_selection_valid()
         else:
             self.clear_data()
         if auto_update:
