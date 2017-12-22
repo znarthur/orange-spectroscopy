@@ -1283,25 +1283,31 @@ class OWPreprocess(OWWidget):
         if not self.preview_on_image:
             self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed,
                                             toggleButton=True, value="final_preview_toggle")
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self.show_preview)
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self._update_preview_number)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
         gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
 
         self._initialize()
 
-    def show_preview(self, show_info=False):
-        """ Shows preview and also passes preview data to the widgets """
-        #self.storeSpecificSettings()
+    def _update_preview_number(self):
+        self.sample_preview_data()
+        self.show_preview(show_info=False)
 
+    def sample_preview_data(self):
         if self.data is not None:
             data = self.data
             if len(data) > self.preview_curves: #sample data
                 sampled_indices = random.Random(0).sample(range(len(data)), self.preview_curves)
                 data = data[sampled_indices]
+            self.preview_data = data
 
-            orig_data = data
+    def show_preview(self, show_info=False):
+        """ Shows preview and also passes preview data to the widgets """
+        #self.storeSpecificSettings()
 
+        if self.data is not None:
+            orig_data = data = self.preview_data
             widgets = self.flow_view.widgets()
             preview_pos = self.flow_view.preview_n()
             n = self.preprocessormodel.rowCount()
@@ -1460,6 +1466,7 @@ class OWPreprocess(OWWidget):
     def set_data(self, data=None):
         """Set the input data set."""
         self.data = data
+        self.sample_preview_data()
         self.show_preview(True)
 
     def handleNewSignals(self):
