@@ -1123,7 +1123,7 @@ PREPROCESSORS = [
     ),
     PreprocessAction(
         "Savitzky-Golay Filter", "orangecontrib.infrared.savitzkygolay", "Smoothing",
-        Description("Savitzky-Golay Filter (smoothing and differentiation)",
+        Description("Smoothing and differentiation",
         icon_path("Discretize.svg")),
         SavitzkyGolayFilteringEditor
     ),
