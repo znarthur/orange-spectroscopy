@@ -280,7 +280,6 @@ class SetXDoubleSpinBox(QDoubleSpinBox):
         return super().focusInEvent(*e)
 
 
-
 class MovableVlineWD(pg.UIGraphicsItem):
 
     sigRegionChangeFinished = Signal(object)
@@ -619,7 +618,6 @@ class NormalizeEditor(BaseEditor):
         ("Area Normalization", Normalize.Area),
         ("Attribute Normalization", Normalize.Attribute)]
 
-
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         layout = QVBoxLayout()
@@ -888,6 +886,7 @@ class LimitsBox(QHBoxLayout):
             self.takeAt(0).widget().setParent(None)
         self.setParent(None)
 
+
 class IntegrateEditor(BaseEditor):
     """
     Editor to integrate defined regions.
@@ -1053,6 +1052,7 @@ class PCADenoisingEditor(BaseEditor):
         components = params.get("components", 5)
         return PCADenoising(components=components)
 
+
 class TransToAbsEditor(BaseEditor):
 
     def __init__(self, **kwargs):
@@ -1065,6 +1065,7 @@ class TransToAbsEditor(BaseEditor):
     def createinstance(params):
         return Absorbance(ref=None)
 
+
 class AbsToTransEditor(BaseEditor):
 
     def __init__(self, **kwargs):
@@ -1076,6 +1077,7 @@ class AbsToTransEditor(BaseEditor):
     @staticmethod
     def createinstance(params):
         return Transmittance(ref=None)
+
 
 PREPROCESSORS = [
     PreprocessAction(
@@ -1398,7 +1400,6 @@ class OWPreprocess(OWWidget):
 
         self.apply()
 
-
     def load(self, saved):
         """Load a preprocessor list from a dict."""
         name = saved.get("name", "")
@@ -1578,6 +1579,7 @@ def test_main(argv=sys.argv):
     w.saveSettings()
     w.onDeleteWidget()
     return r
+
 
 if __name__ == "__main__":
     sys.exit(test_main())
