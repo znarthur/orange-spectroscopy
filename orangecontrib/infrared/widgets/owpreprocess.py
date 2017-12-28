@@ -571,9 +571,9 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
 
 
-class RubberbandBaselineEditor(BaseEditor):
+class BaselineEditor(BaseEditor):
     """
-    Apply a rubberband baseline subtraction via convex hull calculation.
+    Baseline subtraction.
     """
 
     def __init__(self, parent=None, **kwargs):
@@ -1129,7 +1129,7 @@ PREPROCESSORS = [
         "Baseline Correction", "orangecontrib.infrared.baseline", "Baseline Correction",
         Description("Baseline Correction",
         icon_path("Discretize.svg")),
-        RubberbandBaselineEditor
+        BaselineEditor
     ),
     PreprocessAction(
         "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
