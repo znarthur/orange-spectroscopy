@@ -8,7 +8,7 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
-    Normalize
+    Normalize, LinearBaseline
 
 
 # Preprocessors that work per sample and should return the same
@@ -29,6 +29,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Integrate(methods=Integrate.PeakX, limits=[[1100, 1200]]),
     Integrate(methods=Integrate.PeakXBaseline, limits=[[1100, 1200]]),
     RubberbandBaseline(),
+    LinearBaseline(),
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
 ]
@@ -267,6 +268,18 @@ class TestRubberbandBaseline(unittest.TestCase):
         data = Orange.data.Table([[1, 2, 1, 1]])
         i = RubberbandBaseline(peak_dir=RubberbandBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, [[0, 0, -0.5, 0]])
+
+
+class TestLinearBaseline(unittest.TestCase):
+
+    def test_whole(self):
+        data = Orange.data.Table([[1, 5, 1]])
+        i = LinearBaseline()(data)
+        np.testing.assert_equal(i.X, [[0, 4, 0]])
+
+        data = Orange.data.Table([[4, 1, 2, 4]])
+        i = LinearBaseline(peak_dir=LinearBaseline.PeakNegative)(data)
+        np.testing.assert_equal(i.X, [[0, -3, -2, 0]])
 
 
 class TestNormalize(unittest.TestCase):

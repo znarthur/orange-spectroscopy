@@ -33,14 +33,18 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecontrib.infrared.data import getx
+
+# baseline correction imports
+from orangecontrib.infrared.preprocess import LinearBaseline, RubberbandBaseline
+
 from orangecontrib.infrared.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
-    RubberbandBaseline, Normalize, Integrate, Absorbance, Transmittance
+     Normalize, Integrate, Absorbance, Transmittance
 from orangecontrib.infrared.widgets.owspectra import CurvePlot
 
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
-PREVIEW_COLORS = [ QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
+PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
 
 class ViewController(Controller):
@@ -566,9 +570,9 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
 
 
-class RubberbandBaselineEditor(BaseEditor):
+class BaselineEditor(BaseEditor):
     """
-    Apply a rubberband baseline subtraction via convex hull calculation.
+    Baseline subtraction.
     """
 
     def __init__(self, parent=None, **kwargs):
@@ -577,35 +581,54 @@ class RubberbandBaselineEditor(BaseEditor):
 
         form = QFormLayout()
 
+        self.baselinecb = QComboBox()
+        self.baselinecb.addItems(["Linear", "Rubber band"])
+
         self.peakcb = QComboBox()
         self.peakcb.addItems(["Positive", "Negative"])
 
         self.subcb = QComboBox()
         self.subcb.addItems(["Subtract", "Calculate"])
 
+        form.addRow("Baseline Type", self.baselinecb)
         form.addRow("Peak Direction", self.peakcb)
         form.addRow("Background Action", self.subcb)
+
         self.layout().addLayout(form)
+
+        self.baselinecb.currentIndexChanged.connect(self.changed)
+        self.baselinecb.activated.connect(self.edited)
         self.peakcb.currentIndexChanged.connect(self.changed)
         self.peakcb.activated.connect(self.edited)
         self.subcb.currentIndexChanged.connect(self.changed)
         self.subcb.activated.connect(self.edited)
 
     def setParameters(self, params):
+        baseline_type = params.get("baseline_type", 0)
         peak_dir = params.get("peak_dir", 0)
         sub = params.get("sub", 0)
+        self.baselinecb.setCurrentIndex(baseline_type)
         self.peakcb.setCurrentIndex(peak_dir)
         self.subcb.setCurrentIndex(sub)
 
     def parameters(self):
-        return {"peak_dir": self.peakcb.currentIndex(),
+        return {"baseline_type": self.baselinecb.currentIndex(),
+                "peak_dir": self.peakcb.currentIndex(),
                 "sub": self.subcb.currentIndex()}
 
     @staticmethod
     def createinstance(params):
+        baseline_type = params.get("baseline_type", 0)
         peak_dir = params.get("peak_dir", 0)
         sub = params.get("sub", 0)
-        return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
+
+        if baseline_type == 0:
+            return LinearBaseline(peak_dir=peak_dir, sub=sub)
+        elif baseline_type == 1:
+            return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
+        elif baseline_type == 2: #other type of baseline - need to be implemented
+            return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
+
 
 
 class NormalizeEditor(BaseEditor):
@@ -1105,10 +1128,10 @@ PREPROCESSORS = [
         SavitzkyGolayFilteringEditor
     ),
     PreprocessAction(
-        "Rubberband Baseline Subtraction", "orangecontrib.infrared.rubberband", "Baseline Subtraction",
-        Description("Rubberband Baseline Subtraction (convex hull)",
+        "Baseline Correction", "orangecontrib.infrared.baseline", "Baseline Correction",
+        Description("Baseline Correction",
         icon_path("Discretize.svg")),
-        RubberbandBaselineEditor
+        BaselineEditor
     ),
     PreprocessAction(
         "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
@@ -1143,6 +1166,27 @@ PREPROCESSORS = [
     ]
 
 
+def migrate_preprocessor(preprocessor, version):
+    """ Migrate a preprocessor. A preprocessor should migrate into a list of preprocessors. """
+    name, settings = preprocessor
+    settings = settings.copy()
+    if name == "orangecontrib.infrared.rubberband" and version < 2:
+        name = "orangecontrib.infrared.baseline"
+        settings["baseline_type"] = 1
+        version = 2
+    return [((name, settings), version)]
+
+
+def migrate_preprocessor_list(preprocessors):
+    pl = []
+    for p, v in preprocessors:
+        tl = migrate_preprocessor(p, v)
+        if tl != [(p, v)]:  # if changed, try another migration
+            tl = migrate_preprocessor_list(tl)
+        pl.extend(tl)
+    return pl
+
+
 class TimeoutLabel(QLabel):
     """ A label that fades out after two seconds. """
 
@@ -1175,6 +1219,8 @@ class OWPreprocess(OWWidget):
     icon = "icons/preprocess.svg"
     priority = 1000
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess"]
+
+    settings_version = 2
 
     inputs = [("Data", Orange.data.Table, "set_data")]
     outputs = [("Preprocessed Data", Orange.data.Table),
@@ -1565,6 +1611,18 @@ class OWPreprocess(OWWidget):
     def sizeHint(self):
         sh = super().sizeHint()
         return sh.expandedTo(QSize(sh.width(), 500))
+
+    @classmethod
+    def migrate_preprocessors(cls, preprocessors, version):
+        input = list(zip(preprocessors, [version]*len(preprocessors)))
+        migrated = migrate_preprocessor_list(input)
+        return [p[0] for p in migrated], cls.settings_version
+
+    @classmethod
+    def migrate_settings(cls, settings_, version):
+        if "storedsettings" in settings_ and "preprocessors" in settings_["storedsettings"]:
+            settings_["storedsettings"]["preprocessors"], _ = \
+                cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
 def test_main(argv=sys.argv):
