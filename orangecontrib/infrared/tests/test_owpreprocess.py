@@ -38,3 +38,10 @@ class TestOWPreprocess(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+
+    def test_migrate_rubberbard(self):
+        settings = {"storedsettings": {"preprocessors":
+            [("orangecontrib.infrared.rubberband", {})]}}
+        OWPreprocess.migrate_settings(settings, 1)
+        self.assertEqual(settings["storedsettings"]["preprocessors"],
+                         [("orangecontrib.infrared.baseline", {'baseline_type': 1})])

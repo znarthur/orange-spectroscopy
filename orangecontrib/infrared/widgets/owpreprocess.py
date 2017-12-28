@@ -1164,6 +1164,27 @@ PREPROCESSORS = [
     ]
 
 
+def migrate_preprocessor(preprocessor, version):
+    """ Migrate a preprocessor. A preprocessor should migrate into a list of preprocessors. """
+    name, settings = preprocessor
+    settings = settings.copy()
+    if name == "orangecontrib.infrared.rubberband" and version < 2:
+        name = "orangecontrib.infrared.baseline"
+        settings["baseline_type"] = 1
+        version = 2
+    return [((name, settings), version)]
+
+
+def migrate_preprocessor_list(preprocessors):
+    pl = []
+    for p, v in preprocessors:
+        tl = migrate_preprocessor(p, v)
+        if tl != [(p, v)]:  # if changed, try another migration
+            tl = migrate_preprocessor_list(tl)
+        pl.extend(tl)
+    return pl
+
+
 class TimeoutLabel(QLabel):
     """ A label that fades out after two seconds. """
 
@@ -1196,6 +1217,8 @@ class OWPreprocess(OWWidget):
     icon = "icons/preprocess.svg"
     priority = 1000
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess"]
+
+    settings_version = 2
 
     inputs = [("Data", Orange.data.Table, "set_data")]
     outputs = [("Preprocessed Data", Orange.data.Table),
@@ -1580,6 +1603,18 @@ class OWPreprocess(OWWidget):
     def sizeHint(self):
         sh = super().sizeHint()
         return sh.expandedTo(QSize(sh.width(), 500))
+
+    @classmethod
+    def migrate_preprocessors(cls, preprocessors, version):
+        input = list(zip(preprocessors, [version]*len(preprocessors)))
+        migrated = migrate_preprocessor_list(input)
+        return [p[0] for p in migrated], cls.settings_version
+
+    @classmethod
+    def migrate_settings(cls, settings_, version):
+        if "storedsettings" in settings_ and "preprocessors" in settings_["storedsettings"]:
+            settings_["storedsettings"]["preprocessors"], _ = \
+                cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
 def test_main(argv=sys.argv):
