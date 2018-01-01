@@ -495,6 +495,13 @@ class BaselineEditor(BaseEditor):
         self.peakcb.setCurrentIndex(peak_dir)
         self.subcb.setCurrentIndex(sub)
 
+        if self.baselinecb.currentIndex() == 0:
+            self.peakcb.setEnabled(False)
+        elif self.baselinecb.currentIndex() == 1:
+            self.peakcb.setEnabled(True)
+        else:
+            self.peakcb.setEnabled(True)
+
     def parameters(self):
         return {"baseline_type": self.baselinecb.currentIndex(),
                 "peak_dir": self.peakcb.currentIndex(),
