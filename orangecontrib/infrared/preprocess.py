@@ -939,12 +939,7 @@ class _CurveShiftCommon:
     def __call__(self, data):
         if data.domain != self.domain:
             data = data.from_table(self.domain, data)
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
-        X = X + self.amount
-        if nans is not None:
-            X[nans] = np.nan
-        return _transform_back_to_features(xsind, mon, X)
+        return data.X + self.amount
 
 
 class CurveShift(Preprocess):
