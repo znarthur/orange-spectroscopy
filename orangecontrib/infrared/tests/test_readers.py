@@ -90,6 +90,29 @@ class TestAsciiMapReader(unittest.TestCase):
             d.save("test.xyz")
 
 
+class TestAgilentReader(unittest.TestCase):
+
+    def test_image_read(self):
+        d = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        self.assertEqual(len(d), 64)
+        self.assertAlmostEqual(d[17]["map_x"], 6.28571428)
+        self.assertAlmostEqual(d[17]["map_y"], 12.57142857)
+        self.assertAlmostEqual(d[1][1], 1.27181053)
+        self.assertAlmostEqual(d[2][2], 1.27506005)
+        self.assertEqual(min(getx(d)), 1990.178226)
+        self.assertEqual(max(getx(d)), 2113.600132)
+
+    def test_mosaic_read(self):
+        d = Orange.data.Table("agilent/5_mosaic_agg1024.dms")
+        self.assertEqual(len(d), 32)
+        self.assertAlmostEqual(d[31]["map_x"], 22.0)
+        self.assertAlmostEqual(d[31]["map_y"], 44.0)
+        self.assertAlmostEqual(d[1][1], 1.14792180)
+        self.assertAlmostEqual(d[2][2], 1.14063489)
+        self.assertEqual(min(getx(d)), 1990.178226)
+        self.assertEqual(max(getx(d)), 2113.600132)
+
+
 class TestGSF(unittest.TestCase):
 
     def test_open_line(self):
