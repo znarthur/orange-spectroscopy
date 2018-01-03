@@ -400,7 +400,7 @@ class TestCurveShift(unittest.TestCase):
 
     def test_simple(self):
         data = Orange.data.Table([[1.0, 2.0, 3.0, 4.0]])
-        f = CurveShift(sd=1.1)
+        f = CurveShift(amount=1.1)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
             [[2.1, 3.1, 4.1, 5.1]])

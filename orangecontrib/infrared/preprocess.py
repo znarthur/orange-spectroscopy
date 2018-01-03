@@ -932,8 +932,8 @@ class CurveShiftFeature(SelectColumn):
 
 class _CurveShiftCommon:
 
-    def __init__(self, sd, domain):
-        self.sd = sd
+    def __init__(self, amount, domain):
+        self.amount = amount
         self.domain = domain
 
     def __call__(self, data):
@@ -941,7 +941,7 @@ class _CurveShiftCommon:
             data = data.from_table(self.domain, data)
         xs, xsind, mon, X = _transform_to_sorted_features(data)
         X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
-        X = X + self.sd
+        X = X + self.amount
         if nans is not None:
             X[nans] = np.nan
         return _transform_back_to_features(xsind, mon, X)
@@ -949,11 +949,11 @@ class _CurveShiftCommon:
 
 class CurveShift(Preprocess):
 
-    def __init__(self, sd=0.):
-        self.sd = sd
+    def __init__(self, amount=0.):
+        self.amount = amount
 
     def __call__(self, data):
-        common = _CurveShiftCommon(self.sd, data.domain)
+        common = _CurveShiftCommon(self.amount, data.domain)
         atts = [a.copy(compute_value=CurveShiftFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,

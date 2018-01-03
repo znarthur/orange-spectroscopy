@@ -639,7 +639,7 @@ class CurveShiftEditor(BaseEditor):
 
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
-        self.__sd = 0.
+        self.__amount = 0.
 
         self.setLayout(QVBoxLayout())
         form = QFormLayout()
@@ -647,37 +647,37 @@ class CurveShiftEditor(BaseEditor):
         minf,maxf = -sys.float_info.max, sys.float_info.max
         # TODO: the singleStep parameter should be automatically set to
         # TODO:   5% of the data range instead of hard coding
-        self.__sdspin = sdspin = QDoubleSpinBox(
-           minimum=minf, maximum=maxf, singleStep=0.5, value=self.__sd)
-        form.addRow("Shift Amount", sdspin)
+        self.__amountspin = amountspin = QDoubleSpinBox(
+           minimum=minf, maximum=maxf, singleStep=0.5, value=self.__amount)
+        form.addRow("Shift Amount", amountspin)
         self.layout().addLayout(form)
 
-        sdspin.valueChanged[float].connect(self.setSd)
-        sdspin.editingFinished.connect(self.edited)
+        amountspin.valueChanged[float].connect(self.setAmount)
+        amountspin.editingFinished.connect(self.edited)
 
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
-    def setSd(self, sd):
-        if self.__sd != sd:
-            self.__sd = sd
-            with blocked(self.__sdspin):
-                self.__sdspin.setValue(sd)
+    def setAmount(self, amount):
+        if self.__amount != amount:
+            self.__amount = amount
+            with blocked(self.__amountspin):
+                self.__amountspin.setValue(amount)
             self.edited.emit()
 
-    def sd(self):
-        return self.__sd
+    def amount(self):
+        return self.__amount
 
     def setParameters(self, params):
-        self.setSd(params.get("sd", 0.))
+        self.setAmount(params.get("amount", 0.))
 
     def parameters(self):
-        return {"sd": self.__sd}
+        return {"amount": self.__amount}
 
     @staticmethod
     def createinstance(params):
         params = dict(params)
-        sd = params.get("sd", 0.)
-        return CurveShift(sd=sd)
+        amount = params.get("amount", 0.)
+        return CurveShift(amount=amount)
 
 
 class NormalizeEditor(BaseEditor):
