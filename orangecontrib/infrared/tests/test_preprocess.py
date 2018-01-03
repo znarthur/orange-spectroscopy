@@ -32,6 +32,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     LinearBaseline(),
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
+    CurveShift(1),
 ]
 
 # Preprocessors that use groups of input samples to infer
