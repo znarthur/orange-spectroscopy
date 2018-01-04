@@ -300,12 +300,12 @@ class AgilentImageReader(FileFormat, SpectralFileFormat):
             features = np.arange(X.shape[-1])
 
         try:
-            fpa_px_size = info['FPA Pixel Size']
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
         except KeyError:
             # Use pixel units if FPA Pixel Size is not known
-            fpa_px_size = 1
-        x_locs = np.linspace(0, X.shape[1]*fpa_px_size, X.shape[1])
-        y_locs = np.linspace(0, X.shape[0]*fpa_px_size, X.shape[0])
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, X.shape[1])
+        y_locs = np.linspace(0, X.shape[0]*px_size, X.shape[0])
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
@@ -327,12 +327,12 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
             features = np.arange(X.shape[-1])
 
         try:
-            fpa_px_size = info['FPA Pixel Size']
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
         except KeyError:
             # Use pixel units if FPA Pixel Size is not known
-            fpa_px_size = 1
-        x_locs = np.linspace(0, X.shape[1]*fpa_px_size, X.shape[1])
-        y_locs = np.linspace(0, X.shape[0]*fpa_px_size, X.shape[0])
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, X.shape[1])
+        y_locs = np.linspace(0, X.shape[0]*px_size, X.shape[0])
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
