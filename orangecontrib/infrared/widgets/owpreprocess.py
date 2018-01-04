@@ -1165,14 +1165,14 @@ PREPROCESSORS = [
         CutEditorInverse
     ),
     PreprocessAction(
-        "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Smoothing",
-        Description("Smooth spectra (gaussian)",
+        "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Gaussian smoothing",
+        Description("Gaussian smoothing",
         icon_path("Discretize.svg")),
         GaussianSmoothingEditor
     ),
     PreprocessAction(
         "Savitzky-Golay Filter", "orangecontrib.infrared.savitzkygolay", "Smoothing",
-        Description("Smoothing and differentiation",
+        Description("Savitzky-Golay Filter",
         icon_path("Discretize.svg")),
         SavitzkyGolayFilteringEditor
     ),
