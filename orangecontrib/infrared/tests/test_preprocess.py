@@ -8,7 +8,7 @@ from orangecontrib.infrared.data import getx
 from orangecontrib.infrared.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
-    Normalize, LinearBaseline
+    Normalize, LinearBaseline, CurveShift
 
 
 # Preprocessors that work per sample and should return the same
@@ -32,6 +32,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     LinearBaseline(),
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
+    CurveShift(1),
 ]
 
 # Preprocessors that use groups of input samples to infer
@@ -393,3 +394,13 @@ class TestPCADenoising(unittest.TestCase):
         d1 = proc(data[:0])
         newdata = Orange.data.Table(d1.domain, data)
         np.testing.assert_equal(newdata.X, np.nan)
+
+
+class TestCurveShift(unittest.TestCase):
+
+    def test_simple(self):
+        data = Orange.data.Table([[1.0, 2.0, 3.0, 4.0]])
+        f = CurveShift(amount=1.1)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+            [[2.1, 3.1, 4.1, 5.1]])

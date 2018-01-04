@@ -924,3 +924,33 @@ class Transmittance(Preprocess):
         domain = Orange.data.Domain(
                     newattrs, data.domain.class_vars, data.domain.metas)
         return data.from_table(domain, data)
+
+
+class CurveShiftFeature(SelectColumn):
+    pass
+
+
+class _CurveShiftCommon:
+
+    def __init__(self, amount, domain):
+        self.amount = amount
+        self.domain = domain
+
+    def __call__(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+        return data.X + self.amount
+
+
+class CurveShift(Preprocess):
+
+    def __init__(self, amount=0.):
+        self.amount = amount
+
+    def __call__(self, data):
+        common = _CurveShiftCommon(self.amount, data.domain)
+        atts = [a.copy(compute_value=CurveShiftFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)

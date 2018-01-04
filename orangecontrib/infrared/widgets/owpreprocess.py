@@ -33,10 +33,10 @@ from AnyQt.QtGui import (
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecontrib.infrared.data import getx
-
 # baseline correction imports
 from orangecontrib.infrared.preprocess import LinearBaseline, RubberbandBaseline
 
+from orangecontrib.infrared.preprocess import CurveShift
 from orangecontrib.infrared.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
      Normalize, Integrate, Absorbance, Transmittance
 from orangecontrib.infrared.widgets.owspectra import CurvePlot
@@ -630,6 +630,55 @@ class BaselineEditor(BaseEditor):
             return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
 
+class CurveShiftEditor(BaseEditor):
+    """
+    Editor for CurveShift
+    """
+    # TODO: the layout changes when I click the area of the preprocessor
+    #       EFFECT: the sidebar snaps in
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        self.__amount = 0.
+
+        self.setLayout(QVBoxLayout())
+        form = QFormLayout()
+
+        minf,maxf = -sys.float_info.max, sys.float_info.max
+        # TODO: the singleStep parameter should be automatically set to
+        # TODO:   5% of the data range instead of hard coding
+        self.__amountspin = amountspin = QDoubleSpinBox(
+           minimum=minf, maximum=maxf, singleStep=0.5, value=self.__amount)
+        form.addRow("Shift Amount", amountspin)
+        self.layout().addLayout(form)
+
+        amountspin.valueChanged[float].connect(self.setAmount)
+        amountspin.editingFinished.connect(self.edited)
+
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def setAmount(self, amount):
+        if self.__amount != amount:
+            self.__amount = amount
+            with blocked(self.__amountspin):
+                self.__amountspin.setValue(amount)
+            self.edited.emit()
+
+    def amount(self):
+        return self.__amount
+
+    def setParameters(self, params):
+        self.setAmount(params.get("amount", 0.))
+
+    def parameters(self):
+        return {"amount": self.__amount}
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+        amount = params.get("amount", 0.)
+        return CurveShift(amount=amount)
+
 
 class NormalizeEditor(BaseEditor):
     """
@@ -1162,6 +1211,12 @@ PREPROCESSORS = [
         Description("Absorbance to Transmittance",
                     icon_path("Discretize.svg")),
         AbsToTransEditor
+    ),
+    PreprocessAction(
+        "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",
+        Description("Shift Spectra",
+                    icon_path("Discretize.svg")),
+        CurveShiftEditor
     ),
     ]
 
