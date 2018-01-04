@@ -304,8 +304,8 @@ class AgilentImageReader(FileFormat, SpectralFileFormat):
         except KeyError:
             # Use pixel units if FPA Pixel Size is not known
             px_size = 1
-        x_locs = np.linspace(0, X.shape[1]*px_size, X.shape[1])
-        y_locs = np.linspace(0, X.shape[0]*px_size, X.shape[0])
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
@@ -331,8 +331,8 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
         except KeyError:
             # Use pixel units if FPA Pixel Size is not known
             px_size = 1
-        x_locs = np.linspace(0, X.shape[1]*px_size, X.shape[1])
-        y_locs = np.linspace(0, X.shape[0]*px_size, X.shape[0])
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
