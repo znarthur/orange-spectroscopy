@@ -25,14 +25,14 @@ ENTRY_POINTS = {
     # Entry points that marks this package as an orange add-on. If set, addon will
     # be shown in the add-ons manager even if not published on PyPi.
     'orange3.addon': (
-        'infrared = orangecontrib.infrared',
+        'spectroscopy = orangecontrib.spectroscopy',
     ),
 
     # Entry point used to specify packages containing tutorials accessible
     # from welcome screen. Tutorials are saved Orange Workflows (.ows files).
     'orange.widgets.tutorials': (
         # Syntax: any_text = path.to.package.containing.tutorials
-        'infraredtutorials = orangecontrib.infrared.tutorials',
+        'infraredtutorials = orangecontrib.spectroscopy.tutorials',
     ),
 
     # Entry point used to specify packages containing widgets.
@@ -40,12 +40,12 @@ ENTRY_POINTS = {
         # Syntax: category name = path.to.package.containing.widgets
         # Widget category specification can be seen in
         #    orangecontrib/example/widgets/__init__.py
-        'Spectroscopy = orangecontrib.infrared.widgets',
+        'Spectroscopy = orangecontrib.spectroscopy.widgets',
     ),
 
     # Register widget help
     "orange.canvas.help": (
-        'html-index = orangecontrib.infrared.widgets:WIDGET_HELP_PATH',)
+        'html-index = orangecontrib.spectroscopy.widgets:WIDGET_HELP_PATH',)
 
 }
 
@@ -66,7 +66,7 @@ class CoverageCommand(Command):
     def run(self):
         """Check coverage on current workdir"""
         sys.exit(subprocess.call(r'''
-        coverage run --source=orangecontrib.infrared -m unittest
+        coverage run --source=orangecontrib.spectroscopy -m unittest
         echo; echo
         coverage report --omit="*/tests/*"
         coverage html --omit="*/tests/*" &&
@@ -74,7 +74,7 @@ class CoverageCommand(Command):
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
 
-TEST_SUITE = "orangecontrib.infrared.tests.suite"
+TEST_SUITE = "orangecontrib.spectroscopy.tests.suite"
 
 
 def include_documentation(local_dir, install_dir):
@@ -98,7 +98,7 @@ if __name__ == '__main__':
        'coverage': CoverageCommand,
     }
 
-    include_documentation('doc/build/html', 'help/orange-infrared')
+    include_documentation('doc/build/html', 'help/orange-spectroscopy')
 
     setup(
         name="Orange-Spectroscopy",
