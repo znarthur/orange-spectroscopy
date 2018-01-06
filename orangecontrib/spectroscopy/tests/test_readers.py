@@ -95,8 +95,14 @@ class TestAgilentReader(unittest.TestCase):
     def test_image_read(self):
         d = Orange.data.Table("agilent/4_noimage_agg256.seq")
         self.assertEqual(len(d), 64)
-        self.assertAlmostEqual(d[17]["map_x"], 6.28571428)
-        self.assertAlmostEqual(d[17]["map_y"], 12.57142857)
+        # Pixel sizes are 5.5 * 16 = 88.0 (binning to reduce test data)
+        self.assertAlmostEqual(
+            d[1]["map_x"] - d[0]["map_x"], 88.0)
+        self.assertAlmostEqual(
+            d[8]["map_y"] - d[7]["map_y"], 88.0)
+        # Last pixel should start at (8 - 1) * 88.0 = 616.0
+        self.assertAlmostEqual(d[-1]["map_x"], 616.0)
+        self.assertAlmostEqual(d[-1]["map_y"], 616.0)
         self.assertAlmostEqual(d[1][1], 1.27181053)
         self.assertAlmostEqual(d[2][2], 1.27506005)
         self.assertEqual(min(getx(d)), 1990.178226)
@@ -105,8 +111,15 @@ class TestAgilentReader(unittest.TestCase):
     def test_mosaic_read(self):
         d = Orange.data.Table("agilent/5_mosaic_agg1024.dms")
         self.assertEqual(len(d), 32)
-        self.assertAlmostEqual(d[31]["map_x"], 22.0)
-        self.assertAlmostEqual(d[31]["map_y"], 44.0)
+        # Pixel sizes are 5.5 * 32 = 176.0 (binning to reduce test data)
+        self.assertAlmostEqual(
+            d[1]["map_x"] - d[0]["map_x"], 176.0)
+        self.assertAlmostEqual(
+            d[4]["map_y"] - d[3]["map_y"], 176.0)
+        # Last pixel should start at (4 - 1) * 176.0 = 528.0
+        self.assertAlmostEqual(d[-1]["map_x"], 528.0)
+        # 1 x 2 mosiac, (8 - 1) * 176.0 = 1232.0
+        self.assertAlmostEqual(d[-1]["map_y"], 1232.0)
         self.assertAlmostEqual(d[1][1], 1.14792180)
         self.assertAlmostEqual(d[2][2], 1.14063489)
         self.assertEqual(min(getx(d)), 1990.178226)
