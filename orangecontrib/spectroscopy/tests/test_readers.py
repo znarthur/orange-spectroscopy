@@ -125,6 +125,19 @@ class TestAgilentReader(unittest.TestCase):
         self.assertEqual(min(getx(d)), 1990.178226)
         self.assertEqual(max(getx(d)), 2113.600132)
 
+    def test_envi_comparison(self):
+        # Image
+        d1_a = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        d1_e = Orange.data.Table("agilent/4_noimage_agg256.hdr")
+        np.testing.assert_equal(d1_a.X, d1_e.X)
+        # Wavenumbers are rounded in .hdr files
+        np.testing.assert_allclose(getx(d1_a), getx(d1_e))
+        # Mosaic
+        d2_a = Orange.data.Table("agilent/5_mosaic_agg1024.dms")
+        d2_e = Orange.data.Table("agilent/5_mosaic_agg1024.hdr")
+        np.testing.assert_equal(d2_a.X, d2_e.X)
+        np.testing.assert_allclose(getx(d2_a), getx(d2_e))
+
 
 class TestGSF(unittest.TestCase):
 
