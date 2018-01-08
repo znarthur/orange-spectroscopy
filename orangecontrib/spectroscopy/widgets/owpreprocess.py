@@ -5,13 +5,14 @@ import Orange.data
 import Orange.widgets.data.owpreprocess as owpreprocess
 import pyqtgraph as pg
 from Orange import preprocess
+from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, OWComponent
 from Orange.widgets.data.owpreprocess import (
     Controller, StandardItemModel,
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
 )
-from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
 
@@ -680,7 +681,7 @@ class CurveShiftEditor(BaseEditor):
         return CurveShift(amount=amount)
 
 
-class NormalizeEditor(BaseEditor):
+class NormalizeEditor(BaseEditor, OWComponent):
     """
     Normalize spectra.
     """
@@ -692,6 +693,7 @@ class NormalizeEditor(BaseEditor):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
+        OWComponent.__init__(self, parent)
         layout = QVBoxLayout()
         self.setLayout(layout)
 
@@ -699,13 +701,12 @@ class NormalizeEditor(BaseEditor):
         self.lower = 0
         self.upper = 4000
         self.int_method = 0
-        self.attrs = ['None']
-
-        model = VariableListModel()
-        model.wrap(self.attrs)
+        self.attrs = DomainModel(DomainModel.METAS | DomainModel.CLASSES, valid_types=ContinuousVariable)
         self.attrform = QFormLayout()
-        self.attrcb = QComboBox(enabled=False)
-        self.attrcb.setModel(model)
+        self.chosen_attr = None
+        self.last_domain = None
+        self.saved_attr = None
+        self.attrcb = gui.comboBox(None, self, "chosen_attr", callback=self.edited.emit, model=self.attrs)
         self.attrform.addRow("Normalize to", self.attrcb)
 
         self.areaform = QFormLayout()
@@ -737,7 +738,6 @@ class NormalizeEditor(BaseEditor):
             group.addButton(rb, method)
 
         group.buttonClicked.connect(self.__on_buttonClicked)
-        self.attrcb.activated.connect(self.edited)
 
         self.lspin.focusIn = self.activateOptions
         self.uspin.focusIn = self.activateOptions
@@ -785,7 +785,7 @@ class NormalizeEditor(BaseEditor):
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
                 "upper": self.upper, "int_method": self.int_method,
-                "attr": self.attrcb.currentText()}
+                "attr": self.chosen_attr}
 
     def setMethod(self, method):
         if self.__method != method:
@@ -866,8 +866,7 @@ class NormalizeEditor(BaseEditor):
                 self.setL(min(x))
                 self.setU(max(x))
                 self.edited.emit()
-        self.attrs[:] = [var for var in data.domain.metas
-                         if var.is_continuous]
+        self.attrs.set_domain(data.domain)
 
 
 class LimitsBox(QHBoxLayout):
@@ -1685,7 +1684,10 @@ def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
     w = OWPreprocess()
-    w.set_data(Orange.data.Table("collagen.csv"))
+    data = Orange.data.Table("iris")
+    ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
+    data = data.transform(ndom)
+    w.set_data(data)
     w.show()
     w.raise_()
     r = app.exec_()
