@@ -323,9 +323,11 @@ class TestNormalize(unittest.TestCase):
         np.testing.assert_equal(q.X, np.ones_like(q.X))
 
     def test_attribute_norm(self):
-        data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
-        p = Normalize(method=Normalize.Attribute)(data)
-        np.testing.assert_equal(p.X, data.X)
+        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        ndom = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
+                                  metas=[Orange.data.ContinuousVariable("f")])
+        data = data.transform(ndom)
+        data[0]["f"] = 2
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0])(data)
         np.testing.assert_equal(p.X, data.X / 2)
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
@@ -334,6 +336,11 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
                 lower=2, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 2)
+
+    def test_attribute_norm_unknown(self):
+        data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
+        p = Normalize(method=Normalize.Attribute, attr="unknown")(data)
+        self.assertTrue(np.all(np.isnan(p.X)))
 
 
 class TestCommon(unittest.TestCase):

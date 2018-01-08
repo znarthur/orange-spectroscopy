@@ -374,12 +374,13 @@ class _NormalizeCommon:
                                   limits=[[self.lower, self.upper]])(data)
             data.X /= norm_data.X
         elif self.method == Normalize.Attribute:
-            # attr normalization applies to entire spectrum, regardless of limits
-            # meta indices are -ve and start at -1
-            if self.attr not in (None, "None", ""):
-                attr_index = -1 - data.domain.index(self.attr)
-                factors = data.metas[:, attr_index].astype(float)
-                data.X /= factors[:, None]
+            if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
+                ndom = Orange.data.Domain([data.domain[self.attr]])
+                factors = data.transform(ndom)
+                data.X /= factors.X
+                nd = data.domain[self.attr]
+            else:  # invalid attribute for normalization
+                data.X *= float("nan")
         return data.X
 
 
