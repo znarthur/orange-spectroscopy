@@ -781,6 +781,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.int_method_cb.setCurrentIndex(int_method)
         self.setL(lower, user=False)
         self.setU(upper, user=False)
+        self.saved_attr = params.get("attr")  # chosen_attr will be set when data are connected
 
     def parameters(self):
         return {"method": self.__method, "lower": self.lower,
@@ -860,13 +861,24 @@ class NormalizeEditor(BaseEditor, OWComponent):
                          int_method=int_method, attr=attr)
 
     def set_preview_data(self, data):
+        edited = False
         if not self.user_changed:
             x = getx(data)
             if len(x):
                 self.setL(min(x))
                 self.setU(max(x))
-                self.edited.emit()
-        self.attrs.set_domain(data.domain)
+                edited = True
+        if data is not None and data.domain != self.last_domain:
+            self.last_domain = data.domain
+            self.attrs.set_domain(data.domain)
+            try:  # try to load the feature
+                self.chosen_attr = self.saved_attr
+            except ValueError:  # could not load the chosen attr
+                self.chosen_attr = self.attrs[0] if self.attrs else None
+                self.saved_attr = self.chosen_attr
+            edited = True
+        if edited:
+            self.edited.emit()
 
 
 class LimitsBox(QHBoxLayout):
