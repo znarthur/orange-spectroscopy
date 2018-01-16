@@ -8,7 +8,7 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
-    Normalize, LinearBaseline, CurveShift
+    Normalize, LinearBaseline, CurveShift, EMSC
 
 
 # Preprocessors that work per sample and should return the same
@@ -33,6 +33,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     CurveShift(1),
+    EMSC(reference=Orange.data.Table("collagen")[0:1])
 ]
 
 # Preprocessors that use groups of input samples to infer
@@ -411,3 +412,25 @@ class TestCurveShift(unittest.TestCase):
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
             [[2.1, 3.1, 4.1, 5.1]])
+
+
+class TestEMSC(unittest.TestCase):
+
+    def test_ab(self):
+        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
+                                  [3.0, 5.0, 3.0, 3.0]])
+        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=False, use_e=False)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+            [[1.0, 2.0, 1.0, 1.0],
+             [1.0, 2.0, 1.0, 1.0]])
+
+    def test_abde(self):
+        # TODO Find test values
+        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
+                                  [3.0, 5.0, 3.0, 3.0]])
+        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=True, use_e=True)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+                                       [[1.0, 2.0, 1.0, 1.0],
+                                        [1.0, 2.0, 1.0, 1.0]])
