@@ -141,20 +141,17 @@ class _EMSC:
         self.use_e = use_e
 
     def __call__(self, data):
-        if data.domain != self.domain:  # tranform into input domain
-            data = data.from_table(self.domain, data)    # self.domain is the domain which relates to the training data
+        # about 85% of time in __call__ function is spent is lstsq
+
+        if data.domain != self.domain:  # transform into input domain
+            data = data.from_table(self.domain, data)  # self.domain is the domain which relates to the training data
+        # input data should not be assumed to be sorted
         xs, xsind, mon, X = _transform_to_sorted_features(data)
         wavenumbers = xs[xsind]
         X, nans = _nan_extend_edges_and_interpolate(wavenumbers, X)
 
-        # WORK ON X, and use self.reference
-
-        # put reference spectrum in correct order
-        # ref_xs, ref_xsind, _, ref_X = _transform_to_sorted_features(self.reference)
-        # ref_wavenumbers = ref_xs[ref_xsind]  # ordering of wavenumbers, X is already ordered
-        # ref_X, _ = _nan_extend_edges_and_interpolate(ref_wavenumbers, ref_X)
-
-        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), self.reference.X, wavenumbers) # replaces above three lines
+        # interpolate reference to the data
+        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), self.reference.X, wavenumbers)
 
         wavenumbersSquared = wavenumbers * wavenumbers
         M = []
@@ -166,15 +163,9 @@ class _EMSC:
             M.append(wavenumbersSquared)
         if self.use_b:
             M.append(ref_X)
-
-        # same for the res
         M = np.vstack(M).T
-        #M = np.vstack([np.ones(len(wavenumbers)), wavenumbers, wavenumbersSquared, ref_X]).T
 
         newspectra = np.zeros(X.shape)
-
-
-
         for i, rawspectrum in enumerate(X):
             m = np.linalg.lstsq(M, rawspectrum)[0]
             corrected = rawspectrum
@@ -191,6 +182,7 @@ class _EMSC:
             if self.use_b:
                 corrected = corrected/ m[n]
             newspectra[i]=corrected
+
         if nans is not None:
             X[nans] = np.nan
         return _transform_back_to_features(xsind, mon, newspectra)
@@ -198,16 +190,17 @@ class _EMSC:
 
 class EMSC(Preprocess):
 
-    def __init__(self, dummy, reference_spectrum, use_a=True, use_b=True, use_d=True, use_e=True, ranges=None):
+    def __init__(self, reference=None, use_a=True, use_b=True, use_d=True, use_e=True, ranges=None):
+        # the first non-kwarg can not be a data table (Preprocess limitations)
         # ranges could be a list like this [[800, 1000], [1300, 1500]]
-        self.reference_spectrum = reference_spectrum
-        self.use_a=use_a
+        self.reference = reference
+        self.use_a = use_a
         self.use_b = use_b
         self.use_d = use_d
         self.use_e = use_e
 
     def __call__(self, data):
-        common = _EMSC(self.reference_spectrum, self.use_a, self.use_b, self.use_d, self.use_e, data.domain)  # creates function for transforming data
+        common = _EMSC(self.reference, self.use_a, self.use_b, self.use_d, self.use_e, data.domain)  # creates function for transforming data
         atts = [a.copy(compute_value=EMSCFeature(i, common))  # takes care of domain column-wise, by above transformation function
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,

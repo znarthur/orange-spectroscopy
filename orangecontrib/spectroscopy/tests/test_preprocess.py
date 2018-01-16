@@ -33,7 +33,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     CurveShift(1),
-    EMSC(42, Orange.data.Table("collagen")[0:1])
+    EMSC(reference=Orange.data.Table("collagen")[0:1])
 ]
 
 # Preprocessors that use groups of input samples to infer
@@ -419,7 +419,7 @@ class TestEMSC(unittest.TestCase):
     def test_ab(self):
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC("dummy", data[0:1], use_a=True, use_b=True, use_d=False, use_e=False)
+        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=False, use_e=False)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
             [[1.0, 2.0, 1.0, 1.0],
@@ -429,7 +429,7 @@ class TestEMSC(unittest.TestCase):
         # TODO Find test values
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC("dummy", data[0:1], use_a=True, use_b=True, use_d=True, use_e=True)
+        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=True, use_e=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
                                        [[1.0, 2.0, 1.0, 1.0],
