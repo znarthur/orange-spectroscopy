@@ -30,16 +30,79 @@ class SelectColumn(SharedComputeValue):
         return common[:, self.feature]
 
 
-class _PCAReconstructCommon:
+class CommonDomain:
+    """A utility class that helps constructing common transformation for
+    SharedComputeValue features. It does the domain transformation
+    (input domain needs to be the same as it was with training data).
+    """
+    def __init__(self, domain):
+        self.domain = domain
+
+    def __call__(self, data):
+        data = self.transform_domain(data)
+        return self.transformed(data)
+
+    def transform_domain(self, data):
+        if data.domain != self.domain:
+            data = data.from_table(self.domain, data)
+        return data
+
+    def transformed(self, data):
+        raise NotImplemented
+
+
+class CommonDomainOrder(CommonDomain):
+    """CommonDomain + it also handles wavenumber order.
+    """
+    def __call__(self, data):
+        data = self.transform_domain(data)
+
+        # order X by wavenumbers
+        xs, xsind, mon, X = _transform_to_sorted_features(data)
+
+        # do the transformation
+        X = self.transformed(X, xs[xsind])
+
+        # restore order
+        return _transform_back_to_features(xsind, mon, X)
+
+    def transformed(self, X, wavenumbers):
+        raise NotImplemented
+
+
+class CommonDomainOrderUnknowns(CommonDomainOrder):
+    """CommonDomainOrder + it also handles unknown values: it interpolates
+    values before computation and afterwards sets them back to unknown.
+    """
+    def __call__(self, data):
+        data = self.transform_domain(data)
+
+        # order X by wavenumbers
+        xs, xsind, mon, X = _transform_to_sorted_features(data)
+
+        # interpolates unknowns
+        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
+
+        # do the transformation
+        X = self.transformed(X, xs[xsind])
+
+        # set NaNs where there were NaNs in the original array
+        if nans is not None:
+            X[nans] = np.nan
+
+        # restore order
+        return _transform_back_to_features(xsind, mon, X)
+
+
+class _PCAReconstructCommon(CommonDomain):
     """Computation common for all PCA variables."""
 
     def __init__(self, pca, components=None):
+        super().__init__(pca.pre_domain)
         self.pca = pca
         self.components = components
 
-    def __call__(self, data):
-        if data.domain != self.pca.pre_domain:
-            data = data.from_table(self.pca.pre_domain, data)
+    def transformed(self, data):
         pca_space = self.pca.transform(data.X)
         if self.components is not None:
             #set unused components to zero
@@ -94,21 +157,14 @@ def _nan_extend_edges_and_interpolate(xs, X):
     return X, nans
 
 
-class _GaussianCommon:
+class _GaussianCommon(CommonDomainOrderUnknowns):
 
     def __init__(self, sd, domain):
+        super().__init__(domain)
         self.sd = sd
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
-        X = gaussian_filter1d(X, sigma=self.sd, mode="nearest")
-        if nans is not None:
-            X[nans] = np.nan
-        return _transform_back_to_features(xsind, mon, X)
+    def transformed(self, X, wavenumbers):
+        return gaussian_filter1d(X, sigma=self.sd, mode="nearest")
 
 
 class GaussianSmoothing(Preprocess):
@@ -130,25 +186,18 @@ class EMSCFeature(SelectColumn):
     pass
 
 
-class _EMSC:
+class _EMSC(CommonDomainOrderUnknowns):
 
     def __init__(self, reference, use_a, use_b, use_d, use_e, domain):
+        super().__init__(domain)
         self.reference = reference
-        self.domain = domain
         self.use_a = use_a
         self.use_b = use_b
         self.use_d = use_d
         self.use_e = use_e
 
-    def __call__(self, data):
+    def transformed(self, X, wavenumbers):
         # about 85% of time in __call__ function is spent is lstsq
-
-        if data.domain != self.domain:  # transform into input domain
-            data = data.from_table(self.domain, data)  # self.domain is the domain which relates to the training data
-        # input data should not be assumed to be sorted
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-        wavenumbers = xs[xsind]
-        X, nans = _nan_extend_edges_and_interpolate(wavenumbers, X)
 
         # interpolate reference to the data
         ref_X = interp1d_with_unknowns_numpy(getx(self.reference), self.reference.X, wavenumbers)
@@ -183,9 +232,7 @@ class _EMSC:
                 corrected = corrected/ m[n]
             newspectra[i]=corrected
 
-        if nans is not None:
-            X[nans] = np.nan
-        return _transform_back_to_features(xsind, mon, newspectra)
+        return newspectra
 
 
 class EMSC(Preprocess):
@@ -256,26 +303,18 @@ def _fill_edges(mat):
             l[li + 1:] = l[li]
 
 
-class _SavitzkyGolayCommon:
+class _SavitzkyGolayCommon(CommonDomainOrderUnknowns):
 
     def __init__(self, window, polyorder, deriv, domain):
+        super().__init__(domain)
         self.window = window
         self.polyorder = polyorder
         self.deriv = deriv
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
-        X = savgol_filter(X, window_length=self.window,
+    def transformed(self, X, wavenumbers):
+        return savgol_filter(X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
-        # set NaNs where there were NaNs in the original array
-        if nans is not None:
-            X[nans] = np.nan
-        return _transform_back_to_features(xsind, mon, X)
 
 
 class SavitzkyGolayFiltering(Preprocess):
@@ -301,19 +340,15 @@ class RubberbandBaselineFeature(SelectColumn):
     pass
 
 
-class _RubberbandBaselineCommon:
+class _RubberbandBaselineCommon(CommonDomainOrder):
 
     def __init__(self, peak_dir, sub, domain):
+        super().__init__(domain)
         self.peak_dir = peak_dir
         self.sub = sub
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-        x = xs[xsind]
-        newd = np.zeros_like(data.X)
+    def transformed(self, X, x):
+        newd = np.zeros_like(X)
         for rowi, row in enumerate(X):
             # remove NaNs which ConvexHull can not handle
             source = np.column_stack((x, row))
@@ -340,7 +375,7 @@ class _RubberbandBaselineCommon:
                     newd[rowi] = row - baseline
                 else:
                     newd[rowi] = baseline
-        return _transform_back_to_features(xsind, mon, newd)
+        return newd
 
 
 class RubberbandBaseline(Preprocess):
@@ -370,19 +405,14 @@ class LinearBaselineFeature(SelectColumn):
     pass
 
 
-class _LinearBaselineCommon:
+class _LinearBaselineCommon(CommonDomainOrder):
 
     def __init__(self, peak_dir, sub, domain):
+        super().__init__(domain)
         self.peak_dir = peak_dir
         self.sub = sub
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-        xs, xsind, mon, y = _transform_to_sorted_features(data)
-        x = xs[xsind]
-
+    def transformed(self, y, x):
         if np.any(np.isnan(y)):
             y, _ = _nan_extend_edges_and_interpolate(x, y)
 
@@ -390,8 +420,7 @@ class _LinearBaselineCommon:
             newd = y - _edge_baseline(x, y)
         else:
             newd = _edge_baseline(x, y)
-
-        return _transform_back_to_features(xsind, mon, newd)
+        return newd
 
 
 class LinearBaseline(Preprocess):
@@ -421,20 +450,17 @@ class NormalizeFeature(SelectColumn):
     pass
 
 
-class _NormalizeCommon:
+class _NormalizeCommon(CommonDomain):
 
     def __init__(self, method, lower, upper, int_method, attr, domain):
+        super().__init__(domain)
         self.method = method
         self.lower = lower
         self.upper = upper
         self.int_method = int_method
         self.attr = attr
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-
+    def transformed(self, data):
         if data.X.shape[0] == 0:
             return data.X
         data = data.copy()
@@ -700,14 +726,9 @@ def _edge_baseline(x, y):
     return interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
 
 
-class _IntegrateCommon:
+class _IntegrateCommon(CommonDomain):
 
-    def __init__(self, domain):
-        self.domain = domain
-
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
+    def transformed(self, data):
         x = getx(data)
         x_sorter = np.argsort(x)
         return data, x, x_sorter
@@ -918,15 +939,13 @@ class AbsorbanceFeature(SelectColumn):
     pass
 
 
-class _AbsorbanceCommon:
+class _AbsorbanceCommon(CommonDomain):
 
     def __init__(self, ref, domain):
+        super().__init__(domain)
         self.ref = ref
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
+    def transformed(self, data):
         if self.ref:
             # Calculate from single-channel data
             absd = self.ref.X / data.X
@@ -966,15 +985,13 @@ class TransmittanceFeature(SelectColumn):
     pass
 
 
-class _TransmittanceCommon:
+class _TransmittanceCommon(CommonDomain):
 
     def __init__(self, ref, domain):
+        super().__init__(domain)
         self.ref = ref
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
+    def transformed(self, data):
         if self.ref:
             # Calculate from single-channel data
             transd = data.X / self.ref.X
@@ -1014,15 +1031,13 @@ class CurveShiftFeature(SelectColumn):
     pass
 
 
-class _CurveShiftCommon:
+class _CurveShiftCommon(CommonDomain):
 
     def __init__(self, amount, domain):
+        super().__init__(domain)
         self.amount = amount
-        self.domain = domain
 
-    def __call__(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
+    def transformed(self, data):
         return data.X + self.amount
 
 
