@@ -1,97 +1,20 @@
-from collections import Iterable
-
 import Orange
 import Orange.data
 import numpy as np
-from Orange.data.util import SharedComputeValue
 from Orange.preprocess.preprocess import Preprocess
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
 from sklearn.preprocessing import normalize as sknormalize
-from AnyQt.QtCore import Qt
 
 from orangecontrib.spectroscopy.data import getx
-from Orange.widgets.utils.annotated_data import get_next_name
 
-
-def is_increasing(a):
-    return np.all(np.diff(a) >= 0)
-
-
-class SelectColumn(SharedComputeValue):
-
-    def __init__(self, feature, commonfn):
-        super().__init__(commonfn)
-        self.feature = feature
-
-    def compute(self, data, common):
-        return common[:, self.feature]
-
-
-class CommonDomain:
-    """A utility class that helps constructing common transformation for
-    SharedComputeValue features. It does the domain transformation
-    (input domain needs to be the same as it was with training data).
-    """
-    def __init__(self, domain):
-        self.domain = domain
-
-    def __call__(self, data):
-        data = self.transform_domain(data)
-        return self.transformed(data)
-
-    def transform_domain(self, data):
-        if data.domain != self.domain:
-            data = data.from_table(self.domain, data)
-        return data
-
-    def transformed(self, data):
-        raise NotImplemented
-
-
-class CommonDomainOrder(CommonDomain):
-    """CommonDomain + it also handles wavenumber order.
-    """
-    def __call__(self, data):
-        data = self.transform_domain(data)
-
-        # order X by wavenumbers
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-
-        # do the transformation
-        X = self.transformed(X, xs[xsind])
-
-        # restore order
-        return _transform_back_to_features(xsind, mon, X)
-
-    def transformed(self, X, wavenumbers):
-        raise NotImplemented
-
-
-class CommonDomainOrderUnknowns(CommonDomainOrder):
-    """CommonDomainOrder + it also handles unknown values: it interpolates
-    values before computation and afterwards sets them back to unknown.
-    """
-    def __call__(self, data):
-        data = self.transform_domain(data)
-
-        # order X by wavenumbers
-        xs, xsind, mon, X = _transform_to_sorted_features(data)
-
-        # interpolates unknowns
-        X, nans = _nan_extend_edges_and_interpolate(xs[xsind], X)
-
-        # do the transformation
-        X = self.transformed(X, xs[xsind])
-
-        # set NaNs where there were NaNs in the original array
-        if nans is not None:
-            X[nans] = np.nan
-
-        # restore order
-        return _transform_back_to_features(xsind, mon, X)
+from orangecontrib.spectroscopy.preprocess.integrate import Integrate
+from orangecontrib.spectroscopy.preprocess.emsc import EMSC
+from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
+    CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
+    interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline
 
 
 class _PCAReconstructCommon(CommonDomain):
@@ -142,21 +65,6 @@ class GaussianFeature(SelectColumn):
     pass
 
 
-def _nan_extend_edges_and_interpolate(xs, X):
-    """
-    Handle NaNs at the edges are handled as with savgol_filter mode nearest:
-    the edge values are interpolated. NaNs in the middle are interpolated
-    so that they do not propagate.
-    """
-    nans = None
-    if np.any(np.isnan(X)):
-        nans = np.isnan(X)
-        X = X.copy()
-        _fill_edges(X)
-        X = interp1d_with_unknowns_numpy(xs, X, xs)
-    return X, nans
-
-
 class _GaussianCommon(CommonDomainOrderUnknowns):
 
     def __init__(self, sd, domain):
@@ -175,80 +83,6 @@ class GaussianSmoothing(Preprocess):
     def __call__(self, data):
         common = _GaussianCommon(self.sd, data.domain)
         atts = [a.copy(compute_value=GaussianFeature(i, common))
-                for i, a in enumerate(data.domain.attributes)]
-        domain = Orange.data.Domain(atts, data.domain.class_vars,
-                                    data.domain.metas)
-        return data.from_table(domain, data)
-
-
-
-class EMSCFeature(SelectColumn):
-    pass
-
-
-class _EMSC(CommonDomainOrderUnknowns):
-
-    def __init__(self, reference, use_a, use_b, use_d, use_e, domain):
-        super().__init__(domain)
-        self.reference = reference
-        self.use_a = use_a
-        self.use_b = use_b
-        self.use_d = use_d
-        self.use_e = use_e
-
-    def transformed(self, X, wavenumbers):
-        # about 85% of time in __call__ function is spent is lstsq
-
-        # interpolate reference to the data
-        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), self.reference.X, wavenumbers)
-
-        wavenumbersSquared = wavenumbers * wavenumbers
-        M = []
-        if self.use_a:
-            M.append(np.ones(len(wavenumbers)))
-        if self.use_d:
-            M.append(wavenumbers)
-        if self.use_e:
-            M.append(wavenumbersSquared)
-        if self.use_b:
-            M.append(ref_X)
-        M = np.vstack(M).T
-
-        newspectra = np.zeros(X.shape)
-        for i, rawspectrum in enumerate(X):
-            m = np.linalg.lstsq(M, rawspectrum)[0]
-            corrected = rawspectrum
-            n = 0
-            if self.use_a:
-                corrected = (corrected - (m[n] * M[:, n]))
-                n += 1
-            if self.use_d:
-                corrected = (corrected - (m[n] * M[:, n]))
-                n += 1
-            if self.use_e:
-                corrected = (corrected - (m[n] * M[:, n]))
-                n += 1
-            if self.use_b:
-                corrected = corrected/ m[n]
-            newspectra[i]=corrected
-
-        return newspectra
-
-
-class EMSC(Preprocess):
-
-    def __init__(self, reference=None, use_a=True, use_b=True, use_d=True, use_e=True, ranges=None):
-        # the first non-kwarg can not be a data table (Preprocess limitations)
-        # ranges could be a list like this [[800, 1000], [1300, 1500]]
-        self.reference = reference
-        self.use_a = use_a
-        self.use_b = use_b
-        self.use_d = use_d
-        self.use_e = use_e
-
-    def __call__(self, data):
-        common = _EMSC(self.reference, self.use_a, self.use_b, self.use_d, self.use_e, data.domain)  # creates function for transforming data
-        atts = [a.copy(compute_value=EMSCFeature(i, common))  # takes care of domain column-wise, by above transformation function
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
@@ -278,29 +112,6 @@ class Cut(Preprocess):
 
 class SavitzkyGolayFeature(SelectColumn):
     pass
-
-
-def _transform_to_sorted_features(data):
-    xs = getx(data)
-    xsind = np.argsort(xs)
-    mon = is_increasing(xsind)
-    X = data.X
-    X = X if mon else X[:, xsind]
-    return xs, xsind, mon, X
-
-
-def _transform_back_to_features(xsind, mon, X):
-    return X if mon else X[:, np.argsort(xsind)]
-
-
-def _fill_edges(mat):
-    """Replace (inplace!) NaN at sides with the closest value"""
-    for l in mat:
-        loc = np.where(~np.isnan(l))[0]
-        if len(loc):
-            fi, li = loc[[0, -1]]
-            l[:fi] = l[fi]
-            l[li + 1:] = l[li]
 
 
 class _SavitzkyGolayCommon(CommonDomainOrderUnknowns):
@@ -414,12 +225,12 @@ class _LinearBaselineCommon(CommonDomainOrder):
 
     def transformed(self, y, x):
         if np.any(np.isnan(y)):
-            y, _ = _nan_extend_edges_and_interpolate(x, y)
+            y, _ = nan_extend_edges_and_interpolate(x, y)
 
         if self.sub == 0:
-            newd = y - _edge_baseline(x, y)
+            newd = y - edge_baseline(x, y)
         else:
-            newd = _edge_baseline(x, y)
+            newd = edge_baseline(x, y)
         return newd
 
 
@@ -514,274 +325,6 @@ class Normalize(Preprocess):
         return data.from_table(domain, data)
 
 
-INTEGRATE_DRAW_CURVE_WIDTH = 2
-INTEGRATE_DRAW_EDGE_WIDTH = 1
-INTEGRATE_DRAW_BASELINE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH, "style": Qt.DotLine}
-INTEGRATE_DRAW_CURVE_PENARGS = {"width": INTEGRATE_DRAW_CURVE_WIDTH}
-INTEGRATE_DRAW_EDGE_PENARGS = {"width": INTEGRATE_DRAW_EDGE_WIDTH}
-
-
-class IntegrateFeature(SharedComputeValue):
-
-    def __init__(self, limits, commonfn):
-        self.limits = limits
-        super().__init__(commonfn)
-
-    def baseline(self, data, common=None):
-        if common is None:
-            common = self.compute_shared(data)
-        x_s, y_s = self.extract_data(data, common)
-        return x_s, self.compute_baseline(x_s, y_s)
-
-    def draw_info(self, data, common=None):
-        if common is None:
-            common = self.compute_shared(data)
-        x_s, y_s = self.extract_data(data, common)
-        return self.compute_draw_info(x_s, y_s)
-
-    def extract_data(self, data, common):
-        data, x, x_sorter = common
-        # find limiting indices (inclusive left, exclusive right)
-        lim_min, lim_max = min(self.limits), max(self.limits)
-        lim_min = np.searchsorted(x, lim_min, sorter=x_sorter, side="left")
-        lim_max = np.searchsorted(x, lim_max, sorter=x_sorter, side="right")
-        x_s = x[x_sorter][lim_min:lim_max]
-        y_s = data.X[:, x_sorter][:, lim_min:lim_max]
-        return x_s, y_s
-
-    def compute_draw_info(self, x_s, y_s):
-        return {}
-
-    @staticmethod
-    def parameters():
-        """ Return parameters for this type of integral """
-        raise NotImplementedError
-
-    def compute_baseline(self, x_s, y_s):
-        raise NotImplementedError
-
-    def compute_integral(self, x_s, y_s):
-        raise NotImplementedError
-
-    def compute(self, data, common):
-        x_s, y_s = self.extract_data(data, common)
-        return self.compute_integral(x_s, y_s)
-
-
-class IntegrateFeatureEdgeBaseline(IntegrateFeature):
-    """ A linear edge-to-edge baseline subtraction. """
-
-    name = "Integral from baseline"
-
-    @staticmethod
-    def parameters():
-        return (("Low limit", "Low limit for integration (inclusive)"),
-                ("High limit", "High limit for integration (inclusive)"),
-            )
-
-    def compute_baseline(self, x, y):
-        if np.any(np.isnan(y)):
-            y, _ = _nan_extend_edges_and_interpolate(x, y)
-        return _edge_baseline(x, y)
-
-    def compute_integral(self, x, y_s):
-        y_s = y_s - self.compute_baseline(x, y_s)
-        if np.any(np.isnan(y_s)):
-            # interpolate unknowns as trapz can not handle them
-            y_s, _ = _nan_extend_edges_and_interpolate(x, y_s)
-        return np.trapz(y_s, x, axis=1)
-
-    def compute_draw_info(self, x, ys):
-        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("fill", ((x, self.compute_baseline(x, ys)), (x, ys)))]
-
-
-class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
-    """ A simple y=0 integration on the provided data window. """
-
-    name = "Integral from 0"
-
-    def compute_baseline(self, x_s, y_s):
-        return np.zeros(y_s.shape)
-
-
-class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
-    """ The maximum baseline-subtracted peak height in the provided window. """
-
-    name = "Peak from baseline"
-
-    @staticmethod
-    def parameters():
-        return (("Low limit", "Low limit for integration (inclusive)"),
-                ("High limit", "High limit for integration (inclusive)"),
-            )
-
-    def compute_baseline(self, x, y):
-        return _edge_baseline(x, y)
-
-    def compute_integral(self, x_s, y_s):
-        y_s = y_s - self.compute_baseline(x_s, y_s)
-        if len(x_s) == 0:
-            return np.zeros((y_s.shape[0],)) * np.nan
-        return np.nanmax(y_s, axis=1)
-
-    def compute_draw_info(self, x, ys):
-        bs = self.compute_baseline(x, ys)
-        im = np.nanargmax(ys-bs, axis=1)
-        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
-        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("line", lines)]
-
-
-class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
-    """ The maximum peak height in the provided data window. """
-
-    name = "Peak from 0"
-
-    def compute_baseline(self, x_s, y_s):
-        return np.zeros(y_s.shape)
-
-
-class IntegrateFeaturePeakXEdgeBaseline(IntegrateFeature):
-    """ The X-value of the maximum baseline-subtracted peak height in the provided window. """
-
-    name = "X-value of maximum from baseline"
-
-    @staticmethod
-    def parameters():
-        return (("Low limit", "Low limit for integration (inclusive)"),
-                ("High limit", "High limit for integration (inclusive)"),
-            )
-
-    def compute_baseline(self, x, y):
-        return _edge_baseline(x, y)
-
-    def compute_integral(self, x_s, y_s):
-        y_s = y_s - self.compute_baseline(x_s, y_s)
-        if len(x_s) == 0:
-            return np.zeros((y_s.shape[0],)) * np.nan
-        # avoid whole nan rows
-        whole_nan_rows = np.isnan(y_s).all(axis=1)
-        y_s[whole_nan_rows] = 0
-        # select positions
-        pos = x_s[np.nanargmax(y_s, axis=1)]
-        # set unknown results
-        pos[whole_nan_rows] = np.nan
-        return pos
-
-    def compute_draw_info(self, x, ys):
-        bs = self.compute_baseline(x, ys)
-        im = np.nanargmax(ys-bs, axis=1)
-        lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
-        return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
-                ("line", lines)]
-
-
-class IntegrateFeaturePeakXSimple(IntegrateFeaturePeakXEdgeBaseline):
-    """ The X-value of the maximum peak height in the provided data window. """
-
-    name = "X-value of maximum from 0"
-
-    def compute_baseline(self, x_s, y_s):
-        return np.zeros(y_s.shape)
-
-
-class IntegrateFeatureAtPeak(IntegrateFeature):
-    """ Find the closest x and return the value there. """
-
-    name = "Closest value"
-
-    @staticmethod
-    def parameters():
-        return (("Closest to", "Nearest value"),
-            )
-
-    def extract_data(self, data, common):
-        data, x, x_sorter = common
-        return x, data.X
-
-    def compute_baseline(self, x, y):
-        return np.zeros(y.shape)
-
-    def compute_integral(self, x_s, y_s):
-        if len(x_s) == 0:
-            return np.zeros((y_s.shape[0],)) * np.nan
-        closer = np.nanargmin(abs(x_s - self.limits[0]))
-        return y_s[:, closer]
-
-    def compute_draw_info(self, x, ys):
-        bs = self.compute_baseline(x, ys)
-        im = np.array([np.nanargmin(abs(x - self.limits[0]))])
-        dx = [self.limits[0], self.limits[0]]
-        dys = np.hstack((bs[:, im], ys[:, im]))
-        return [("curve", (dx, dys, INTEGRATE_DRAW_EDGE_PENARGS)),  # line to value
-                ("dot", (x[im], ys[:, im]))]
-
-
-def _edge_baseline(x, y):
-    i = np.array([0, -1])
-    return interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
-
-
-class _IntegrateCommon(CommonDomain):
-
-    def transformed(self, data):
-        x = getx(data)
-        x_sorter = np.argsort(x)
-        return data, x, x_sorter
-
-
-class Integrate(Preprocess):
-
-    INTEGRALS = [IntegrateFeatureSimple,
-                 IntegrateFeatureEdgeBaseline,
-                 IntegrateFeaturePeakSimple,
-                 IntegrateFeaturePeakEdgeBaseline,
-                 IntegrateFeatureAtPeak,
-                 IntegrateFeaturePeakXSimple,
-                 IntegrateFeaturePeakXEdgeBaseline]
-
-    # Integration methods
-    Simple, Baseline, PeakMax, PeakBaseline, PeakAt, PeakX, PeakXBaseline = INTEGRALS
-
-    def __init__(self, methods=Baseline, limits=None, names=None, metas=False):
-        self.methods = methods
-        self.limits = limits
-        self.names = names
-        self.metas = metas
-
-    def __call__(self, data):
-        common = _IntegrateCommon(data.domain)
-        atts = []
-        if self.limits:
-            methods = self.methods
-            if not isinstance(methods, Iterable):
-                methods = [methods] * len(self.limits)
-            names = self.names
-            if not names:
-                names = [" - ".join("{0}".format(e) for e in l) for l in self.limits]
-            # no names in data should be repeated
-            used_names = [var.name for var in data.domain.variables + data.domain.metas]
-            for i, n in enumerate(names):
-                n = get_next_name(used_names, n)
-                names[i] = n
-                used_names.append(n)
-            for limits, method, name in zip(self.limits, methods, names):
-                atts.append(Orange.data.ContinuousVariable(
-                    name=name,
-                    compute_value=method(limits, common)))
-        if not self.metas:
-            domain = Orange.data.Domain(atts, data.domain.class_vars,
-                                        metas=data.domain.metas)
-        else:
-            domain = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
-                                        metas=data.domain.metas + tuple(atts))
-        return data.from_table(domain, data)
-
-
 def features_with_interpolation(points, kind="linear", domain=None, handle_nans=True, interpfn=None):
     common = _InterpolateCommon(points, kind, domain, handle_nans=handle_nans, interpfn=interpfn)
     atts = []
@@ -794,51 +337,6 @@ def features_with_interpolation(points, kind="linear", domain=None, handle_nans=
 
 class InterpolatedFeature(SelectColumn):
     pass
-
-
-def remove_whole_nan_ys(x, ys):
-    """Remove whole NaN columns of ys with corresponding x coordinates."""
-    whole_nan_columns = np.isnan(ys).all(axis=0)
-    if np.any(whole_nan_columns):
-        x = x[~whole_nan_columns]
-        ys = ys[:, ~whole_nan_columns]
-    return x, ys
-
-
-def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
-    if kind != "linear":
-        raise NotImplementedError
-    out = np.zeros((len(ys), len(points)))*np.nan
-    sorti = np.argsort(x)
-    x = x[sorti]
-    for i, y in enumerate(ys):
-        y = y[sorti]
-        nan = np.isnan(y)
-        xt = x[~nan]
-        yt = y[~nan]
-        # do not interpolate unknowns at the edges
-        if len(xt):  # check if all values are removed
-            out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
-    return out
-
-
-def interp1d_with_unknowns_scipy(x, ys, points, kind="linear"):
-    out = np.zeros((len(ys), len(points)))*np.nan
-    sorti = np.argsort(x)
-    x = x[sorti]
-    for i, y in enumerate(ys):
-        y = y[sorti]
-        nan = np.isnan(y)
-        xt = x[~nan]
-        yt = y[~nan]
-        if len(xt):  # check if all values are removed
-            out[i] = interp1d(xt, yt, fill_value=np.nan, assume_sorted=True,
-                              bounds_error=False, kind=kind, copy=False)(points)
-    return out
-
-
-def interp1d_wo_unknowns_scipy(x, ys, points, kind="linear"):
-    return interp1d(x, ys, fill_value=np.nan, kind=kind, bounds_error=False)(points)
 
 
 class _InterpolateCommon:
