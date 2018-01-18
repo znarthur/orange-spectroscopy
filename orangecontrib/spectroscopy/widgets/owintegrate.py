@@ -15,6 +15,7 @@ from Orange.widgets.data.owpreprocess import (
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
 )
 from Orange.widgets import gui, settings
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Integrate
@@ -175,8 +176,9 @@ class OWIntegrate(orangecontrib.spectroscopy.widgets.owpreprocess.OWPreprocess):
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add integral..."
 
-    outputs = [("Integrated Data", Orange.data.Table),
-               ("Preprocessor", preprocess.preprocess.Preprocess)]
+    class Outputs:
+        preprocessed_data = Output("Integrated Data", Orange.data.Table, default=True)
+        preprocessor = Output("Preprocessor", preprocess.preprocess.Preprocess)
 
     output_metas = settings.Setting(True)
 

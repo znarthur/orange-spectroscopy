@@ -4,7 +4,7 @@ import numpy as np
 from AnyQt.QtWidgets import QGridLayout, QApplication
 
 import Orange.data
-from Orange.widgets.widget import OWWidget
+from Orange.widgets.widget import OWWidget, Input, Output
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.data import build_spec_table
@@ -24,9 +24,12 @@ class OWFFT(OWWidget):
     icon = "icons/fft.svg"
 
     # Define inputs and outputs
-    inputs = [("Interferogram", Orange.data.Table, "set_data")]
-    outputs = [("Spectra", Orange.data.Table),
-               ("Phases", Orange.data.Table)]
+    class Inputs:
+        data = Input("Interferogram", Orange.data.Table, default=True)
+
+    class Outputs:
+        spectra = Output("Spectra", Orange.data.Table, default=True)
+        phases = Output("Phases", Orange.data.Table)
 
     replaces = ["orangecontrib.infrared.widgets.owfft.OWFFT"]
 
@@ -179,6 +182,7 @@ class OWFFT(OWWidget):
         self.dataBox.setDisabled(True)
         self.optionsBox.setDisabled(True)
 
+    @Inputs.data
     def set_data(self, dataset):
         """
         Receive input data.
@@ -200,7 +204,7 @@ class OWFFT(OWWidget):
             self.optionsBox.setDisabled(True)
             self.infoa.setText("No data on input.")
             self.infob.setText("")
-            self.send("Spectra", self.spectra_table)
+            self.Outputs.spectra.send(self.spectra_table)
 
     def setting_changed(self):
         self.commit()
@@ -300,9 +304,8 @@ class OWFFT(OWWidget):
 
         self.spectra_table = build_spec_table(self.wavenumbers, self.spectra)
         self.phases_table = build_spec_table(self.wavenumbers, self.phases)
-        self.send("Spectra", self.spectra_table)
-        self.send("Phases", self.phases_table)
-
+        self.Outputs.spectra.send(self.spectra_table)
+        self.Outputs.phases.send(self.phases_table)
 
     def determine_sweeps(self):
         """

@@ -2,7 +2,7 @@ import sys
 import numpy as np
 
 import Orange.data
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntOrNone
@@ -24,8 +24,11 @@ class OWReshape(OWWidget):
                 "orangecontrib.infrared.widgets.owreshape.OWReshape"]
 
     # Define inputs and outputs
-    inputs = [("Data", Orange.data.Table, "set_data")]
-    outputs = [("Map data", Orange.data.Table)]
+    class Inputs:
+        data = Input("Data", Orange.data.Table, default=True)
+
+    class Outputs:
+        map = Output("Map data", Orange.data.Table, default=True)
 
     autocommit = settings.Setting(True)
 
@@ -56,6 +59,7 @@ class OWReshape(OWWidget):
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
+    @Inputs.data
     def set_data(self, dataset):
         self.Warning.wrong_div.clear()
         if dataset is not None:
@@ -100,7 +104,7 @@ class OWReshape(OWWidget):
             map_data = Orange.data.Table(domain, self.data)
             map_data[:, xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
             map_data[:, ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
-        self.send("Map data", map_data)
+        self.Outputs.map.send(map_data)
 
     def send_report(self):
         if self.xpoints and self.ypoints is not None:

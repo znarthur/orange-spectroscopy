@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from Orange import preprocess
 from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
-from Orange.widgets.widget import OWWidget, Msg, OWComponent
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets.data.owpreprocess import (
     Controller, StandardItemModel,
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
@@ -1289,9 +1289,12 @@ class OWPreprocess(OWWidget):
 
     settings_version = 2
 
-    inputs = [("Data", Orange.data.Table, "set_data")]
-    outputs = [("Preprocessed Data", Orange.data.Table),
-               ("Preprocessor", preprocess.preprocess.Preprocess)]
+    class Inputs:
+        data = Input("Data", Orange.data.Table, default=True)
+
+    class Outputs:
+        preprocessed_data = Output("Preprocessed Data", Orange.data.Table, default=True)
+        preprocessor = Output("Preprocessor", preprocess.preprocess.Preprocess)
 
     storedsettings = settings.Setting({})
     autocommit = settings.Setting(False)
@@ -1576,6 +1579,7 @@ class OWPreprocess(OWWidget):
         self.show_preview()
         self.commit()
 
+    @Inputs.data
     @check_sql_input
     def set_data(self, data=None):
         """Set the input data set."""
@@ -1632,8 +1636,8 @@ class OWPreprocess(OWWidget):
         else:
             data = None
 
-        self.send("Preprocessor", preprocessor)
-        self.send(self.outputs[0].name, data)
+        self.Outputs.preprocessor.send(preprocessor)
+        self.Outputs.preprocessed_data.send(data)
 
     def commit(self):
         if not self._invalidated:

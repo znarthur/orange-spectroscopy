@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 import Orange.data
-from Orange.widgets.widget import OWWidget, Msg
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import Qt
@@ -21,9 +21,12 @@ class OWInterpolate(OWWidget):
     priority = 990
     replaces = ["orangecontrib.infrared.widgets.owinterpolate.OWInterpolate"]
 
-    inputs = [("Data", Orange.data.Table, "set_data"),
-              ("Points", Orange.data.Table, "set_points")]
-    outputs = [("Interpolated data", Orange.data.Table)]
+    class Inputs:
+        data = Input("Data", Orange.data.Table, default=True)
+        points = Input("Points", Orange.data.Table)
+
+    class Outputs:
+        interpolated_data = Output("Interpolated data", Orange.data.Table, default=True)
 
     # how are the interpolation points given
     input_radio = settings.Setting(0)
@@ -103,7 +106,7 @@ class OWInterpolate(OWWidget):
                         self.Error.too_many_points(reslength)
             elif self.input_radio == 2 and self.data_points_interpolate is not None:
                 out = self.data_points_interpolate(self.data)
-        self.send("Interpolated data", out)
+        self.Outputs.interpolated_data.send(out)
 
     def _change_input(self):
         if self.input_radio == 2 and self.data_points_interpolate is None:
@@ -115,6 +118,7 @@ class OWInterpolate(OWWidget):
         self.dx_edit.setDisabled(self.input_radio != 1)
         self.commit()
 
+    @Inputs.data
     def set_data(self, data):
         self.data = data
         if self.data and len(getx(data)):
@@ -126,6 +130,7 @@ class OWInterpolate(OWWidget):
             self.xmax_edit.setPlaceholderText("")
         self.commit()
 
+    @Inputs.points
     def set_points(self, data):
         self.Error.non_continuous.clear()
         if data:
