@@ -1341,17 +1341,21 @@ class OWSpectra(OWWidget):
         self.Information.showing_sample.clear()
         self.Warning.no_x.clear()
         self.openContext(data)
-        self.curveplot.set_data(data)
-        self.curveplot.update_view()
+        self.curveplot.set_data(data, auto_update=False)
         if data is not None and not len(self.curveplot.data_x):
             self.Warning.no_x()
-        if self.curveplot.sampled_indices \
-                and len(self.curveplot.sampled_indices) != len(self.curveplot.data):
-            self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
         self.selection_changed()
 
     def set_subset(self, data):
-        self.curveplot.set_data_subset(data.ids if data else None)
+        self.curveplot.set_data_subset(data.ids if data else None, auto_update=False)
+
+    def handleNewSignals(self):
+        self.curveplot.update_view()
+        if self.curveplot.data:
+            data = self.curveplot.data
+            if self.curveplot.sampled_indices \
+                    and len(self.curveplot.sampled_indices) != len(data):
+                self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
 
     def selection_changed(self):
         # selection table
