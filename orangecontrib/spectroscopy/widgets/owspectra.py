@@ -20,7 +20,7 @@ from pyqtgraph import Point, GraphicsObject
 from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.data import DiscreteVariable, Variable
-from Orange.widgets.widget import OWWidget, Msg, OWComponent
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
@@ -1308,10 +1308,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
 class OWSpectra(OWWidget):
     name = "Spectra"
-    inputs = [("Data", Orange.data.Table, 'set_data', Default),
-              ("Data subset", Orange.data.Table, 'set_subset', Default)]
-    outputs = [("Selection", Orange.data.Table),
-               (ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)]
+
+    class Inputs:
+        data = Input("Data", Orange.data.Table, default=True)
+        data_subset = Input("Data subset", Orange.data.Table)
+
+    class Outputs:
+        selected_data = Output("Selection", Orange.data.Table, default=True)
+        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)
+
     icon = "icons/spectra.svg"
 
     priority = 10
@@ -1336,6 +1341,7 @@ class OWSpectra(OWWidget):
         self.resize(900, 700)
         self.graph_name = "curveplot.plotview"
 
+    @Inputs.data
     def set_data(self, data):
         self.closeContext()  # resets schema_only settings
         self.Information.showing_sample.clear()
@@ -1346,6 +1352,7 @@ class OWSpectra(OWWidget):
             self.Warning.no_x()
         self.selection_changed()
 
+    @Inputs.data_subset
     def set_subset(self, data):
         self.curveplot.set_data_subset(data.ids if data else None, auto_update=False)
 
@@ -1359,15 +1366,15 @@ class OWSpectra(OWWidget):
 
     def selection_changed(self):
         # selection table
-        self.send(ANNOTATED_DATA_SIGNAL_NAME,
-                  create_groups_table(self.curveplot.data, self.curveplot.selection_group))
+        self.Outputs.annotated_data.send(
+            create_groups_table(self.curveplot.data, self.curveplot.selection_group))
         # selected elements
         selected = None
         if self.curveplot.data:
             selection_indices = np.flatnonzero(self.curveplot.selection_group)
             if len(selection_indices):
                 selected = self.curveplot.data[selection_indices]
-        self.send("Selection", selected)
+        self.Outputs.selected_data.send(selected)
 
     @classmethod
     def migrate_settings(cls, settings, version):

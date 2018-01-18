@@ -20,7 +20,7 @@ import colorcet
 
 from Orange.canvas.registry.description import Default
 import Orange.data
-from Orange.widgets.widget import OWWidget, Msg, OWComponent
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
@@ -658,8 +658,14 @@ class CurvePlotHyper(CurvePlot):
 
 class OWHyper(OWWidget):
     name = "HyperSpectra"
-    inputs = [("Data", Orange.data.Table, 'set_data', Default)]
-    outputs = [("Selection", Orange.data.Table), (ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)]
+
+    class Inputs:
+        data = Input("Data", Orange.data.Table, default=True)
+
+    class Outputs:
+        selected_data = Output("Selection", Orange.data.Table, default=True)
+        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)
+
     icon = "icons/hyper.svg"
     priority = 20
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
@@ -776,17 +782,18 @@ class OWHyper(OWWidget):
 
     def image_selection_changed(self):
         if not self.data:
-            self.send("Selection", None)
+            self.Outputs.selected_data.send(None)
+            self.Outputs.annotated_data.send(None)
             self.curveplot.set_data(None)
             return
 
         indices = np.flatnonzero(self.imageplot.selection_group)
 
-        self.send(ANNOTATED_DATA_SIGNAL_NAME,
+        self.Outputs.annotated_data.send(
                   create_groups_table(self.imageplot.data, self.imageplot.selection_group))
 
         selected = self.data[indices]
-        self.send("Selection", selected if selected else None)
+        self.Outputs.selected_data.send(selected if selected else None)
         if selected:
             self.curveplot.set_data(selected)
         else:
@@ -845,6 +852,7 @@ class OWHyper(OWWidget):
     def _change_integral_type(self):
         self._change_integration()
 
+    @Inputs.data
     def set_data(self, data):
         self.closeContext()
         self.openContext(data)
