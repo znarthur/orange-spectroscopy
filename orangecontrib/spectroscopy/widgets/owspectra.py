@@ -1386,20 +1386,9 @@ def main(argv=None):
     data = Orange.data.Table("collagen.csv")
     w.set_data(data)
     w.set_subset(data[:40])
-    # w.set_subset(None)
     w.handleNewSignals()
-    region = SelectRegion()
-
-    def update():
-        minX, maxX = region.getRegion()
-        print(minX, maxX)
-
-    region.sigRegionChanged.connect(update)
-    w.curveplot.add_marking(region)
     rval = app.exec_()
     w.saveSettings()
-    w.set_data(None)
-    w.handleNewSignals()
     w.deleteLater()
     del w
     app.processEvents()
