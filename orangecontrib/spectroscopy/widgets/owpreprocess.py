@@ -39,7 +39,7 @@ from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBase
 
 from orangecontrib.spectroscopy.preprocess import CurveShift
 from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
-     Normalize, Integrate, Absorbance, Transmittance
+     Normalize, Integrate, Absorbance, Transmittance, EMSC
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
@@ -1162,6 +1162,52 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
+class EMSCEditor(BaseEditor, OWComponent):
+
+    CONSTANT_DEFAULT = True
+    LINEAR_DEFAULT = True
+    SQUARE_DEFAULT = True
+    SCALING_DEFAULT = True
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        OWComponent.__init__(self, parent)
+
+        self.setLayout(QVBoxLayout())
+
+        self.constant = self.CONSTANT_DEFAULT
+        gui.checkBox(self, self, "constant", "Constant", callback=self.edited.emit)
+
+        self.linear = self.LINEAR_DEFAULT
+        gui.checkBox(self, self, "linear", "Linear", callback=self.edited.emit)
+
+        self.square = self.SQUARE_DEFAULT
+        gui.checkBox(self, self, "square", "Square", callback=self.edited.emit)
+
+        self.scaling = self.SCALING_DEFAULT
+        gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
+
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def setParameters(self, params):
+        self.constant = params.get("constant", self.CONSTANT_DEFAULT)
+        self.linear = params.get("linear", self.LINEAR_DEFAULT)
+        self.square = params.get("square", self.SQUARE_DEFAULT)
+        self.scaling = params.get("scaling", self.SCALING_DEFAULT)
+
+    def parameters(self):
+        return {k: getattr(self, k) for k in self.controlled_attributes}
+
+    @classmethod
+    def createinstance(cls, params):
+        params = dict(params)
+        constant = params.get("constant", cls.CONSTANT_DEFAULT)
+        linear = params.get("linear", cls.LINEAR_DEFAULT)
+        square = params.get("square", cls.SQUARE_DEFAULT)
+        scaling = params.get("scaling", cls.SCALING_DEFAULT)
+        return EMSC(reference=None, use_a=constant, use_b=scaling, use_d=linear, use_e=square)
+
+
 PREPROCESSORS = [
     PreprocessAction(
         "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
@@ -1228,6 +1274,12 @@ PREPROCESSORS = [
         Description("Shift Spectra",
                     icon_path("Discretize.svg")),
         CurveShiftEditor
+    ),
+    PreprocessAction(
+        "EMSC", "orangecontrib.spectroscopy.preprocess.emsc", "EMSC",
+        Description("EMSC",
+                    icon_path("Discretize.svg")),
+        EMSCEditor
     ),
     ]
 
@@ -1700,9 +1752,10 @@ def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
     w = OWPreprocess()
-    data = Orange.data.Table("iris")
-    ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
-    data = data.transform(ndom)
+    # data = Orange.data.Table("iris")
+    # ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
+    # data = data.transform(ndom)
+    data = Orange.data.Table("collagen")
     w.set_data(data)
     w.show()
     w.raise_()
