@@ -26,3 +26,12 @@ class TestEMSC(unittest.TestCase):
         np.testing.assert_almost_equal(fdata.X,
                                        [[1.0, 2.0, 1.0, 1.0],
                                         [1.0, 2.0, 1.0, 1.0]])
+
+    def test_no_reference(self):
+        # average from the data will be used
+        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
+                                  [3.0, 5.0, 3.0, 3.0]])
+        fdata = EMSC(use_a=True, use_b=True, use_d=False, use_e=False)(data)
+        np.testing.assert_almost_equal(fdata.X,
+                                       [[2., 3.5, 2., 2.],
+                                        [2., 3.5, 2., 2.]])

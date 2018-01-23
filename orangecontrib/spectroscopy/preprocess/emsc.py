@@ -23,8 +23,10 @@ class _EMSC(CommonDomainOrderUnknowns):
     def transformed(self, X, wavenumbers):
         # about 85% of time in __call__ function is spent is lstsq
 
+        # compute average spectrum from the reference
+        ref_X = np.atleast_2d(np.nanmean(self.reference.X, axis=0, dtype=np.float64))
         # interpolate reference to the data
-        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), self.reference.X, wavenumbers)
+        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
 
         wavenumbersSquared = wavenumbers * wavenumbers
         M = []
@@ -71,7 +73,8 @@ class EMSC(Preprocess):
         self.use_e = use_e
 
     def __call__(self, data):
-        common = _EMSC(self.reference, self.use_a, self.use_b, self.use_d, self.use_e, data.domain)  # creates function for transforming data
+        reference = self.reference if self.reference is not None else data
+        common = _EMSC(reference, self.use_a, self.use_b, self.use_d, self.use_e, data.domain)  # creates function for transforming data
         atts = [a.copy(compute_value=EMSCFeature(i, common))  # takes care of domain column-wise, by above transformation function
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
