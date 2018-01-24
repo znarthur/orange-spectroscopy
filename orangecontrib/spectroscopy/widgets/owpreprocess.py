@@ -48,11 +48,17 @@ from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
 
+REFERENCE_DATA_PARAM = "_reference_data"
+
+
 class ViewController(Controller):
 
     def createWidgetFor(self, index):
         w = super().createWidgetFor(index)
         w.parent_widget = self.parent()
+        # set reference data for a new control
+        if hasattr(w, "set_reference_data"):
+            w.set_reference_data(self.parent().reference_data)
         return w
 
     # ensure that view on the right
@@ -1175,6 +1181,8 @@ class EMSCEditor(BaseEditor, OWComponent):
 
         self.setLayout(QVBoxLayout())
 
+        self.reference = None
+
         self.constant = self.CONSTANT_DEFAULT
         gui.checkBox(self, self, "constant", "Constant", callback=self.edited.emit)
 
@@ -1200,12 +1208,15 @@ class EMSCEditor(BaseEditor, OWComponent):
 
     @classmethod
     def createinstance(cls, params):
-        params = dict(params)
         constant = params.get("constant", cls.CONSTANT_DEFAULT)
         linear = params.get("linear", cls.LINEAR_DEFAULT)
         square = params.get("square", cls.SQUARE_DEFAULT)
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
-        return EMSC(reference=None, use_a=constant, use_b=scaling, use_d=linear, use_e=square)
+        reference = params.get(REFERENCE_DATA_PARAM, None)
+        return EMSC(reference=reference, use_a=constant, use_b=scaling, use_d=linear, use_e=square)
+
+    def set_reference_data(self, ref):
+        self.reference = ref
 
 
 PREPROCESSORS = [
@@ -1358,6 +1369,7 @@ class SpectralPreprocess(OWWidget):
         super().__init__()
 
         self.data = None
+        self.reference_data = None
         self._invalidated = False
 
         # List of available preprocessors (DescriptionRole : Description)
@@ -1482,21 +1494,13 @@ class SpectralPreprocess(OWWidget):
                     widgets[i].set_preview_data(data)
 
                 item = self.preprocessormodel.item(i)
-                desc = item.data(DescriptionRole)
-                params = item.data(ParametersRole)
-
-                if not isinstance(params, dict):
-                    params = {}
-
-                create = desc.viewclass.createinstance
-                preproc = create(params)
-
+                preproc = self._create_preprocessor(item)
                 data = preproc(data)
 
                 if preview_pos == i:
                     after_data = data
                     if show_info:
-                        current_name = desc.description.title
+                        current_name = item.data(DescriptionRole).description.title
                         self.curveplot_info.setText('Input to "' + current_name + '"')
                         self.curveplot_after_info.setText('Output of "' + current_name + '"')
 
@@ -1626,9 +1630,9 @@ class SpectralPreprocess(OWWidget):
         """Set the input data set."""
         self.data = data
         self.sample_preview_data()
-        self.show_preview(True)
 
     def handleNewSignals(self):
+        self.show_preview(True)
         self.apply()
 
     def add_preprocessor(self, index):
@@ -1639,20 +1643,27 @@ class SpectralPreprocess(OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
+    def _prepare_params(self, params):
+        if not isinstance(params, dict):
+            params = {}
+        # add optional reference data
+        params["_reference_data"] = self.reference_data
+        return params
+
+    def _create_preprocessor(self, item):
+        desc = item.data(DescriptionRole)
+        params = item.data(ParametersRole)
+        params = self._prepare_params(params)
+        create = desc.viewclass.createinstance
+        return create(params)
+
     def buildpreproc(self, limit=None):
         plist = []
         if limit == None:
             limit = self.preprocessormodel.rowCount()
         for i in range(limit):
             item = self.preprocessormodel.item(i)
-            desc = item.data(DescriptionRole)
-            params = item.data(ParametersRole)
-
-            if not isinstance(params, dict):
-                params = {}
-
-            create = desc.viewclass.createinstance
-            plist.append(create(params))
+            plist.append(self._create_preprocessor(item))
 
         if len(plist) == 1:
             return plist[0]
@@ -1737,7 +1748,21 @@ class SpectralPreprocess(OWWidget):
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
-class OWPreprocess(SpectralPreprocess):
+class SpectralPreprocessReference(SpectralPreprocess):
+
+    class Inputs(SpectralPreprocess.Inputs):
+        reference = Input("Reference", Orange.data.Table)
+
+    @Inputs.reference
+    def set_reference(self, ref):
+        self.reference_data = ref
+        # set reference data to all widgets
+        for w in self.flow_view.widgets():
+            if hasattr(w, "set_reference_data"):
+                w.set_reference_data(self.reference_data)
+
+
+class OWPreprocess(SpectralPreprocessReference):
 
     name = "Preprocess Spectra"
     description = "Construct a data preprocessing pipeline."
@@ -1764,6 +1789,8 @@ def test_main(argv=sys.argv):
     # data = data.transform(ndom)
     data = Orange.data.Table("collagen")
     w.set_data(data)
+    w.set_reference(data[:1])
+    w.handleNewSignals()
     w.show()
     w.raise_()
     r = app.exec_()
