@@ -1331,15 +1331,7 @@ class TimeoutLabel(QLabel):
         self.animation.start()
 
 
-class OWPreprocess(OWWidget):
-    name = "Preprocess Spectra"
-    description = "Construct a data preprocessing pipeline."
-    icon = "icons/preprocess.svg"
-    priority = 1000
-    replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
-                "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
-
-    settings_version = 2
+class SpectralPreprocess(OWWidget):
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
@@ -1355,9 +1347,6 @@ class OWPreprocess(OWWidget):
 
     curveplot = settings.SettingProvider(CurvePlot)
     curveplot_after = settings.SettingProvider(CurvePlot)
-
-    BUTTON_ADD_LABEL = "Add preprocessor..."
-    PREPROCESSORS = PREPROCESSORS
 
     # draw preview on top of current image
     preview_on_image = False
@@ -1746,6 +1735,24 @@ class OWPreprocess(OWWidget):
         if "storedsettings" in settings_ and "preprocessors" in settings_["storedsettings"]:
             settings_["storedsettings"]["preprocessors"], _ = \
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
+
+
+class OWPreprocess(SpectralPreprocess):
+
+    name = "Preprocess Spectra"
+    description = "Construct a data preprocessing pipeline."
+    icon = "icons/preprocess.svg"
+    priority = 1000
+    replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
+                "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
+
+    settings_version = 2
+
+    BUTTON_ADD_LABEL = "Add preprocessor..."
+    PREPROCESSORS = PREPROCESSORS
+
+    # draw preview on top of current image
+    preview_on_image = False
 
 
 def test_main(argv=sys.argv):

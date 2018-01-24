@@ -165,13 +165,15 @@ PREPROCESSORS = [
 ]
 
 
-class OWIntegrate(orangecontrib.spectroscopy.widgets.owpreprocess.OWPreprocess):
+class OWIntegrate(orangecontrib.spectroscopy.widgets.owpreprocess.SpectralPreprocess):
     name = "Integrate Spectra"
     id = "orangecontrib.spectroscopy.widgets.integrate"
     description = "Integrate spectra in various ways."
     icon = "icons/integrate.svg"
     priority = 1010
     replaces = ["orangecontrib.infrared.widgets.owintegrate.OWIntegrate"]
+
+    settings_version = 2
 
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add integral..."
