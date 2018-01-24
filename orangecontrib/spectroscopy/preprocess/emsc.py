@@ -38,11 +38,12 @@ class _EMSC(CommonDomainOrderUnknowns):
             M.append(wavenumbersSquared)
         if self.use_b:
             M.append(ref_X)
-        M = np.vstack(M).T
+        M = np.vstack(M).T if M else None  # edge case: no parameters selected
 
         newspectra = np.zeros(X.shape)
         for i, rawspectrum in enumerate(X):
-            m = np.linalg.lstsq(M, rawspectrum)[0]
+            if M is not None:
+                m = np.linalg.lstsq(M, rawspectrum)[0]
             corrected = rawspectrum
             n = 0
             if self.use_a:

@@ -35,3 +35,12 @@ class TestEMSC(unittest.TestCase):
         np.testing.assert_almost_equal(fdata.X,
                                        [[2., 3.5, 2., 2.],
                                         [2., 3.5, 2., 2.]])
+
+    def test_none(self):
+        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
+                                  [3.0, 5.0, 3.0, 3.0]])
+        f = EMSC(reference=data[0:1], use_a=False, use_b=False, use_d=False, use_e=False)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+                                       [[1.0, 2.0, 1.0, 1.0],
+                                        [3.0, 5.0, 3.0, 3.0]])
