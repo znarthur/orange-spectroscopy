@@ -1,5 +1,6 @@
 if [ "$PYQT5" ]; then
-    pip install sip pyqt5
+    # 20180124 force 5.9.2 due to segfaults on new 5.10
+    pip install sip pyqt5==5.9.2
     return $?;
 fi
 
