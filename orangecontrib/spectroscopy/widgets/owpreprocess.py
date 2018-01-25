@@ -44,6 +44,8 @@ from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothin
      Normalize, Integrate, Absorbance, Transmittance, EMSC
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
+
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -237,49 +239,36 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         return w.color
 
 
-class GaussianSmoothingEditor(BaseEditor):
+class GaussianSmoothingEditor(BaseEditor, OWComponent):
     """
     Editor for GausianSmoothing
     """
 
+    DEFAULT_SD = 10.
+
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
-        self.__sd = 10.
+        OWComponent.__init__(self, parent)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        self.sd = self.DEFAULT_SD
 
-        self.__sdspin = sdspin = QDoubleSpinBox(
-           minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__sd)
-        layout.addWidget(sdspin)
+        self.xmin_edit = lineEditFloatOrNone(self, self, "sd",
+            orientation=Qt.Horizontal, callback=self.edited.emit)
 
-        sdspin.valueChanged[float].connect(self.setSd)
-        sdspin.editingFinished.connect(self.edited)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
-    def setSd(self, sd):
-        if self.__sd != sd:
-            self.__sd = sd
-            with blocked(self.__sdspin):
-                self.__sdspin.setValue(sd)
-            self.changed.emit()
-
-    def sd(self):
-        return self.__sd
-
-    def intervals(self):
-        return self.__nintervals
-
     def setParameters(self, params):
-        self.setSd(params.get("sd", 10.))
+        self.sd = params.get("sd", self.DEFAULT_SD)
 
     def parameters(self):
-        return {"sd": self.__sd}
+        return {"sd": min(max(self.sd, 0.), 1000.) if self.sd is not None else 0.}
 
-    @staticmethod
-    def createinstance(params):
+    @classmethod
+    def createinstance(cls, params):
         params = dict(params)
-        sd = params.get("sd", 10.)
+        sd = params.get("sd", cls.DEFAULT_SD)
         return GaussianSmoothing(sd=sd)
 
 
