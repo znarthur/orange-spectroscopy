@@ -1,6 +1,8 @@
 import random
 import sys
 
+import numpy as np
+
 import Orange.data
 import Orange.widgets.data.owpreprocess as owpreprocess
 import pyqtgraph as pg
@@ -33,7 +35,7 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.data import getx, spectra_mean
 # baseline correction imports
 from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBaseline
 
@@ -1197,6 +1199,15 @@ class EMSCEditor(BaseEditor, OWComponent):
 
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
+        self.reference_curve = pg.PlotCurveItem()
+        self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
+        self.reference_curve.setZValue(10)
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.reference_curve not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.reference_curve)
+
     def setParameters(self, params):
         self.constant = params.get("constant", self.CONSTANT_DEFAULT)
         self.linear = params.get("linear", self.LINEAR_DEFAULT)
@@ -1217,6 +1228,14 @@ class EMSCEditor(BaseEditor, OWComponent):
 
     def set_reference_data(self, ref):
         self.reference = ref
+        if not self.reference:
+            self.reference_curve.hide()
+        else:
+            X_ref = spectra_mean(self.reference.X)
+            x = getx(self.reference)
+            xsind = np.argsort(x)
+            self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
+            self.reference_curve.show()
 
 
 PREPROCESSORS = [

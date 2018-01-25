@@ -2,7 +2,7 @@ import Orange
 import numpy as np
 from Orange.preprocess.preprocess import Preprocess
 
-from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, interp1d_with_unknowns_numpy
 
 
@@ -24,7 +24,7 @@ class _EMSC(CommonDomainOrderUnknowns):
         # about 85% of time in __call__ function is spent is lstsq
 
         # compute average spectrum from the reference
-        ref_X = np.atleast_2d(np.nanmean(self.reference.X, axis=0, dtype=np.float64))
+        ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         # interpolate reference to the data
         ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
 
