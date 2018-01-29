@@ -1197,11 +1197,15 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.scaling = self.SCALING_DEFAULT
         gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
 
+        self.reference_info = QLabel("", self)
+        self.layout().addWidget(self.reference_info)
+
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
+        self.set_reference_data(self.reference)  # update reference info
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -1230,7 +1234,14 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.reference = ref
         if not self.reference:
             self.reference_curve.hide()
+            self.reference_info.setText("Reference missing!")
+            self.reference_info.setStyleSheet("color: red")
         else:
+            if len(self.reference) > 1:
+                self.reference_info.setText("Reference: mean of %d spectra" % len(self.reference))
+            else:
+                self.reference_info.setText("Reference: 1 spectrum")
+            self.reference_info.setStyleSheet("color: black")
             X_ref = spectra_mean(self.reference.X)
             x = getx(self.reference)
             xsind = np.argsort(x)
