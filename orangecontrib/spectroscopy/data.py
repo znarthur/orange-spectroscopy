@@ -824,3 +824,7 @@ def getx(data):
     except:
         pass
     return x
+
+
+def spectra_mean(X):
+    return np.nanmean(X, axis=0, dtype=np.float64)

@@ -1,6 +1,8 @@
 import random
 import sys
 
+import numpy as np
+
 import Orange.data
 import Orange.widgets.data.owpreprocess as owpreprocess
 import pyqtgraph as pg
@@ -33,13 +35,13 @@ from AnyQt.QtGui import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
-from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.data import getx, spectra_mean
 # baseline correction imports
 from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBaseline
 
 from orangecontrib.spectroscopy.preprocess import CurveShift
 from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
-     Normalize, Integrate, Absorbance, Transmittance
+     Normalize, Integrate, Absorbance, Transmittance, EMSC
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
@@ -48,11 +50,17 @@ from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
 
+REFERENCE_DATA_PARAM = "_reference_data"
+
+
 class ViewController(Controller):
 
     def createWidgetFor(self, index):
         w = super().createWidgetFor(index)
         w.parent_widget = self.parent()
+        # set reference data for a new control
+        if hasattr(w, "set_reference_data"):
+            w.set_reference_data(self.parent().reference_data)
         return w
 
     # ensure that view on the right
@@ -1162,6 +1170,89 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
+class EMSCEditor(BaseEditor, OWComponent):
+
+    CONSTANT_DEFAULT = True
+    LINEAR_DEFAULT = True
+    SQUARE_DEFAULT = True
+    SCALING_DEFAULT = True
+
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        OWComponent.__init__(self, parent)
+
+        self.setLayout(QVBoxLayout())
+
+        self.reference = None
+
+        self.constant = self.CONSTANT_DEFAULT
+        gui.checkBox(self, self, "constant", "Constant", callback=self.edited.emit)
+
+        self.linear = self.LINEAR_DEFAULT
+        gui.checkBox(self, self, "linear", "Linear", callback=self.edited.emit)
+
+        self.square = self.SQUARE_DEFAULT
+        gui.checkBox(self, self, "square", "Square", callback=self.edited.emit)
+
+        self.scaling = self.SCALING_DEFAULT
+        gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
+
+        self.reference_info = QLabel("", self)
+        self.layout().addWidget(self.reference_info)
+
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+        self.reference_curve = pg.PlotCurveItem()
+        self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
+        self.reference_curve.setZValue(10)
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.reference_curve not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.reference_curve)
+
+    def setParameters(self, params):
+        self.constant = params.get("constant", self.CONSTANT_DEFAULT)
+        self.linear = params.get("linear", self.LINEAR_DEFAULT)
+        self.square = params.get("square", self.SQUARE_DEFAULT)
+        self.scaling = params.get("scaling", self.SCALING_DEFAULT)
+        self.update_reference_info()
+
+    def parameters(self):
+        return {k: getattr(self, k) for k in self.controlled_attributes}
+
+    @classmethod
+    def createinstance(cls, params):
+        constant = params.get("constant", cls.CONSTANT_DEFAULT)
+        linear = params.get("linear", cls.LINEAR_DEFAULT)
+        square = params.get("square", cls.SQUARE_DEFAULT)
+        scaling = params.get("scaling", cls.SCALING_DEFAULT)
+        reference = params.get(REFERENCE_DATA_PARAM, None)
+        return EMSC(reference=reference, use_a=constant, use_b=scaling, use_d=linear, use_e=square)
+
+    def set_reference_data(self, ref):
+        self.reference = ref
+        self.update_reference_info()
+
+    def update_reference_info(self):
+        if not self.reference:
+            self.reference_curve.hide()
+            self.reference_info.setText("Reference: " + ("missing!" if self.scaling else "not used"))
+            self.reference_info.setStyleSheet("color: red" if self.scaling else "color: black")
+        else:
+            rinfo = "mean of %d spectra" % len(self.reference) \
+                if len(self.reference) > 1 else "1 spectrum"
+            if not self.scaling:
+                rinfo = "not used"
+            self.reference_info.setText("Reference: " + rinfo)
+            self.reference_info.setStyleSheet("color: black")
+            X_ref = spectra_mean(self.reference.X)
+            x = getx(self.reference)
+            xsind = np.argsort(x)
+            self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
+            self.reference_curve.setVisible(self.scaling)
+
+
 PREPROCESSORS = [
     PreprocessAction(
         "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
@@ -1229,6 +1320,12 @@ PREPROCESSORS = [
                     icon_path("Discretize.svg")),
         CurveShiftEditor
     ),
+    PreprocessAction(
+        "EMSC", "orangecontrib.spectroscopy.preprocess.emsc", "EMSC",
+        Description("EMSC",
+                    icon_path("Discretize.svg")),
+        EMSCEditor
+    ),
     ]
 
 
@@ -1279,15 +1376,7 @@ class TimeoutLabel(QLabel):
         self.animation.start()
 
 
-class OWPreprocess(OWWidget):
-    name = "Preprocess Spectra"
-    description = "Construct a data preprocessing pipeline."
-    icon = "icons/preprocess.svg"
-    priority = 1000
-    replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
-                "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
-
-    settings_version = 2
+class SpectralPreprocess(OWWidget):
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
@@ -1304,9 +1393,6 @@ class OWPreprocess(OWWidget):
     curveplot = settings.SettingProvider(CurvePlot)
     curveplot_after = settings.SettingProvider(CurvePlot)
 
-    BUTTON_ADD_LABEL = "Add preprocessor..."
-    PREPROCESSORS = PREPROCESSORS
-
     # draw preview on top of current image
     preview_on_image = False
 
@@ -1317,6 +1403,7 @@ class OWPreprocess(OWWidget):
         super().__init__()
 
         self.data = None
+        self.reference_data = None
         self._invalidated = False
 
         # List of available preprocessors (DescriptionRole : Description)
@@ -1441,21 +1528,13 @@ class OWPreprocess(OWWidget):
                     widgets[i].set_preview_data(data)
 
                 item = self.preprocessormodel.item(i)
-                desc = item.data(DescriptionRole)
-                params = item.data(ParametersRole)
-
-                if not isinstance(params, dict):
-                    params = {}
-
-                create = desc.viewclass.createinstance
-                preproc = create(params)
-
+                preproc = self._create_preprocessor(item)
                 data = preproc(data)
 
                 if preview_pos == i:
                     after_data = data
                     if show_info:
-                        current_name = desc.description.title
+                        current_name = item.data(DescriptionRole).description.title
                         self.curveplot_info.setText('Input to "' + current_name + '"')
                         self.curveplot_after_info.setText('Output of "' + current_name + '"')
 
@@ -1585,9 +1664,9 @@ class OWPreprocess(OWWidget):
         """Set the input data set."""
         self.data = data
         self.sample_preview_data()
-        self.show_preview(True)
 
     def handleNewSignals(self):
+        self.show_preview(True)
         self.apply()
 
     def add_preprocessor(self, index):
@@ -1598,20 +1677,27 @@ class OWPreprocess(OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
+    def _prepare_params(self, params):
+        if not isinstance(params, dict):
+            params = {}
+        # add optional reference data
+        params["_reference_data"] = self.reference_data
+        return params
+
+    def _create_preprocessor(self, item):
+        desc = item.data(DescriptionRole)
+        params = item.data(ParametersRole)
+        params = self._prepare_params(params)
+        create = desc.viewclass.createinstance
+        return create(params)
+
     def buildpreproc(self, limit=None):
         plist = []
         if limit == None:
             limit = self.preprocessormodel.rowCount()
         for i in range(limit):
             item = self.preprocessormodel.item(i)
-            desc = item.data(DescriptionRole)
-            params = item.data(ParametersRole)
-
-            if not isinstance(params, dict):
-                params = {}
-
-            create = desc.viewclass.createinstance
-            plist.append(create(params))
+            plist.append(self._create_preprocessor(item))
 
         if len(plist) == 1:
             return plist[0]
@@ -1696,14 +1782,49 @@ class OWPreprocess(OWWidget):
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
+class SpectralPreprocessReference(SpectralPreprocess):
+
+    class Inputs(SpectralPreprocess.Inputs):
+        reference = Input("Reference", Orange.data.Table)
+
+    @Inputs.reference
+    def set_reference(self, ref):
+        self.reference_data = ref
+        # set reference data to all widgets
+        for w in self.flow_view.widgets():
+            if hasattr(w, "set_reference_data"):
+                w.set_reference_data(self.reference_data)
+
+
+class OWPreprocess(SpectralPreprocessReference):
+
+    name = "Preprocess Spectra"
+    description = "Construct a data preprocessing pipeline."
+    icon = "icons/preprocess.svg"
+    priority = 1000
+    replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
+                "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
+
+    settings_version = 2
+
+    BUTTON_ADD_LABEL = "Add preprocessor..."
+    PREPROCESSORS = PREPROCESSORS
+
+    # draw preview on top of current image
+    preview_on_image = False
+
+
 def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
     w = OWPreprocess()
-    data = Orange.data.Table("iris")
-    ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
-    data = data.transform(ndom)
+    # data = Orange.data.Table("iris")
+    # ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
+    # data = data.transform(ndom)
+    data = Orange.data.Table("collagen")
     w.set_data(data)
+    w.set_reference(data[:1])
+    w.handleNewSignals()
     w.show()
     w.raise_()
     r = app.exec_()
