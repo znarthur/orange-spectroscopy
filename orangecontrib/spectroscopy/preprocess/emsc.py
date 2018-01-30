@@ -23,14 +23,16 @@ class _EMSC(CommonDomainOrderUnknowns):
     def transformed(self, X, wavenumbers):
         # about 85% of time in __call__ function is spent is lstsq
 
-        if not self.reference:
+        if self.reference:
+            # compute average spectrum from the reference
+            ref_X = np.atleast_2d(spectra_mean(self.reference.X))
+            # interpolate reference to the data
+            ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
+        elif self.use_b:
             # can not do anything meaningful without reference
-            return np.zeros(X.shape)*np.nan
-
-        # compute average spectrum from the reference
-        ref_X = np.atleast_2d(spectra_mean(self.reference.X))
-        # interpolate reference to the data
-        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
+            return np.zeros(X.shape) * np.nan
+        else:
+            ref_X = None
 
         wavenumbersSquared = wavenumbers * wavenumbers
         M = []
