@@ -1,14 +1,17 @@
+import random
 import unittest
 
-import numpy as np
-import random
 import Orange
-from Orange.widgets.utils.annotated_data import get_next_name
+import numpy as np
+
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC
+from orangecontrib.spectroscopy.tests.util import smaller_data
+
+SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 10, 2)
 
 
 # Preprocessors that work per sample and should return the same
@@ -33,7 +36,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     CurveShift(1),
-    EMSC(reference=Orange.data.Table("collagen")[0:1])
+    EMSC(reference=SMALL_COLLAGEN[0:1])
 ]
 
 # Preprocessors that use groups of input samples to infer
@@ -64,7 +67,7 @@ class TestTransmittance(unittest.TestCase):
 
     def test_domain_conversion(self):
         """Test whether a domain can be used for conversion."""
-        data = Orange.data.Table("collagen.csv")
+        data = SMALL_COLLAGEN
         transmittance = Transmittance()(data)
         nt = Orange.data.Table.from_table(transmittance.domain, data)
         self.assertEqual(transmittance.domain, nt.domain)
@@ -73,7 +76,7 @@ class TestTransmittance(unittest.TestCase):
 
     def test_roundtrip(self):
         """Test AB -> TR -> AB calculation"""
-        data = Orange.data.Table("collagen.csv")
+        data = SMALL_COLLAGEN
         calcdata = Absorbance()(Transmittance()(data))
         np.testing.assert_allclose(data.X, calcdata.X)
 
@@ -82,7 +85,7 @@ class TestAbsorbance(unittest.TestCase):
 
     def test_domain_conversion(self):
         """Test whether a domain can be used for conversion."""
-        data = Transmittance()(Orange.data.Table("collagen.csv"))
+        data = Transmittance()(SMALL_COLLAGEN)
         absorbance = Absorbance()(data)
         nt = Orange.data.Table.from_table(absorbance.domain, data)
         self.assertEqual(absorbance.domain, nt.domain)
@@ -92,7 +95,7 @@ class TestAbsorbance(unittest.TestCase):
     def test_roundtrip(self):
         """Test TR -> AB -> TR calculation"""
         # actually AB -> TR -> AB -> TR
-        data = Transmittance()(Orange.data.Table("collagen.csv"))
+        data = Transmittance()(SMALL_COLLAGEN)
         calcdata = Transmittance()(Absorbance()(data))
         np.testing.assert_allclose(data.X, calcdata.X)
 
@@ -236,7 +239,7 @@ class TestCommon(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.collagen = Orange.data.Table("collagen")
+        cls.collagen = SMALL_COLLAGEN
 
     def test_no_samples(self):
         """ Preprocessors should not crash when there are no input samples. """
@@ -274,7 +277,7 @@ class TestCommon(unittest.TestCase):
     def test_unknown_no_propagate(self):
         data = self.collagen.copy()
         # one unknown in line
-        for i in range(200):
+        for i in range(len(data)):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
             pdata = proc(data)

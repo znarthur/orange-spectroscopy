@@ -12,6 +12,8 @@ from orangecontrib.spectroscopy.tests.test_preprocess import \
     PREPROCESSORS_INDEPENDENT_SAMPLES, \
     PREPROCESSORS
 
+from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
+
 from orangecontrib.spectroscopy.preprocess import Interpolate, \
     Cut, SavitzkyGolayFiltering
 from orangecontrib.spectroscopy.data import getx
@@ -44,7 +46,7 @@ class TestConversion(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.collagen = Orange.data.Table("collagen")
+        cls.collagen = SMALL_COLLAGEN
 
     def test_predict_same_domain(self):
         train, test = separate_learn_test(self.collagen)
