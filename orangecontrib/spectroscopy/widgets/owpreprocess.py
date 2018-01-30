@@ -1205,7 +1205,6 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
-        self.set_reference_data(self.reference)  # update reference info
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -1217,6 +1216,7 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.linear = params.get("linear", self.LINEAR_DEFAULT)
         self.square = params.get("square", self.SQUARE_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
+        self.update_reference_info()
 
     def parameters(self):
         return {k: getattr(self, k) for k in self.controlled_attributes}
@@ -1232,21 +1232,25 @@ class EMSCEditor(BaseEditor, OWComponent):
 
     def set_reference_data(self, ref):
         self.reference = ref
+        self.update_reference_info()
+
+    def update_reference_info(self):
         if not self.reference:
             self.reference_curve.hide()
-            self.reference_info.setText("Reference missing!")
-            self.reference_info.setStyleSheet("color: red")
+            self.reference_info.setText("Reference: " + ("missing!" if self.scaling else "not used"))
+            self.reference_info.setStyleSheet("color: red" if self.scaling else "color: black")
         else:
-            if len(self.reference) > 1:
-                self.reference_info.setText("Reference: mean of %d spectra" % len(self.reference))
-            else:
-                self.reference_info.setText("Reference: 1 spectrum")
+            rinfo = "mean of %d spectra" % len(self.reference) \
+                if len(self.reference) > 1 else "1 spectrum"
+            if not self.scaling:
+                rinfo = "not used"
+            self.reference_info.setText("Reference: " + rinfo)
             self.reference_info.setStyleSheet("color: black")
             X_ref = spectra_mean(self.reference.X)
             x = getx(self.reference)
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
-            self.reference_curve.show()
+            self.reference_curve.setVisible(self.scaling)
 
 
 PREPROCESSORS = [
