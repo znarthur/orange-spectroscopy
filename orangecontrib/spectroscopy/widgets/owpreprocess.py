@@ -1487,11 +1487,12 @@ class SpectralPreprocess(OWWidget):
         self.final_preview_toggle = False
         if not self.preview_on_image:
             self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed,
-                                            toggleButton=True, value="final_preview_toggle")
+                                            toggleButton=True, value="final_preview_toggle", autoDefault=False)
         gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self._update_preview_number)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
-        gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
+        b = gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
+        b.button.setAutoDefault(False)
 
         self._initialize()
 
