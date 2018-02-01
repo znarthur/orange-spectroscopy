@@ -44,7 +44,7 @@ from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothin
      Normalize, Integrate, Absorbance, Transmittance, EMSC
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange
 
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
@@ -241,7 +241,7 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
 class GaussianSmoothingEditor(BaseEditor, OWComponent):
     """
-    Editor for GausianSmoothing
+    Editor for GaussianSmoothing
     """
 
     DEFAULT_SD = 10.
@@ -254,8 +254,8 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
         self.setLayout(layout)
         self.sd = self.DEFAULT_SD
 
-        self.xmin_edit = lineEditFloatOrNone(self, self, "sd",
-            orientation=Qt.Horizontal, callback=self.edited.emit)
+        lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
+                           orientation=Qt.Horizontal, callback=self.edited.emit)
 
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
@@ -263,7 +263,10 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
         self.sd = params.get("sd", self.DEFAULT_SD)
 
     def parameters(self):
-        return {"sd": min(max(self.sd, 0.), 1000.) if self.sd is not None else 0.}
+        # line edit can also return invalid elements because self.sd is modified
+        # when user is entering text and if this function would be called before editingFinished
+        # we could have a problem
+        return {"sd": min(max(self.sd, 0.), 1000.) if self.sd is not None else self.DEFAULT_SD}
 
     @classmethod
     def createinstance(cls, params):

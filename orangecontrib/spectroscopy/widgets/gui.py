@@ -107,7 +107,7 @@ def lineEditFloatOrNone(widget, master, value, **kwargs):
                              **kwargs)
 
 
-def lineEditFloatRange(widget, master, value, bottom, top, default, **kwargs):
+def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
     return lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=False,
                                                              bottom=bottom, top=top, default_text=str(default)),
