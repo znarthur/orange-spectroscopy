@@ -239,7 +239,20 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         return w.color
 
 
-class GaussianSmoothingEditor(BaseEditor, OWComponent):
+class BaseEditorOrange(BaseEditor, OWComponent):
+    """
+    Base widget for editing preprocessor's parameters that works with Orange settings.
+    """
+    def __init__(self, parent=None, **kwargs):
+        BaseEditor.__init__(self, parent, **kwargs)
+        OWComponent.__init__(self, parent)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def parameters(self):
+        return {k: getattr(self, k) for k in self.controlled_attributes}
+
+
+class GaussianSmoothingEditor(BaseEditorOrange):
     """
     Editor for GaussianSmoothing
     """
@@ -247,8 +260,7 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
     DEFAULT_SD = 10.
 
     def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
-        OWComponent.__init__(self, parent)
+        super().__init__(parent, **kwargs)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -258,13 +270,8 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
         lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
                            orientation=Qt.Horizontal, callback=self.edited.emit)
 
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
     def setParameters(self, params):
         self.sd = params.get("sd", self.DEFAULT_SD)
-
-    def parameters(self):
-        return {"sd": self.sd}
 
     @classmethod
     def createinstance(cls, params):
@@ -1160,7 +1167,7 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
-class EMSCEditor(BaseEditor, OWComponent):
+class EMSCEditor(BaseEditorOrange):
 
     CONSTANT_DEFAULT = True
     LINEAR_DEFAULT = True
@@ -1168,8 +1175,7 @@ class EMSCEditor(BaseEditor, OWComponent):
     SCALING_DEFAULT = True
 
     def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
-        OWComponent.__init__(self, parent)
+        super().__init__(parent, **kwargs)
 
         self.setLayout(QVBoxLayout())
 
@@ -1190,8 +1196,6 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
@@ -1207,9 +1211,6 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.square = params.get("square", self.SQUARE_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.update_reference_info()
-
-    def parameters(self):
-        return {k: getattr(self, k) for k in self.controlled_attributes}
 
     @classmethod
     def createinstance(cls, params):
