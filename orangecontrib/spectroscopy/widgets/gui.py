@@ -24,8 +24,9 @@ class FloatOrEmptyValidator(QValidator):
         self.dv.setTop(t)
 
     def fixup(self, p_str):
-        # only called at editingFinished so an Orange controlled value can still contain
-        # invalid, because they are synchronized and every change
+        # = only called at editingFinished so an Orange controlled value can still contain
+        #   invalid, because they are synchronized and every change
+        # = called before returnPressedHandler
         try:
             f = float(p_str)
             if f > self.dv.top():
@@ -82,12 +83,38 @@ def str_or_empty(val):
         return str(val)
 
 
+class CallFrontLineEditCustomConversion(gui.ControlledCallFront):
+
+    def __init__(self, control, valToStr):
+        super().__init__(control)
+        self.valToStr = valToStr
+
+    def action(self, value):
+        self.control.setText(self.valToStr(value))
+
+
+def lineEditUpdateWhenFinished(widget, master, value, valueToStr=str, valueType=str, **kwargs):
+    """ Line edit that only calls callback when update is finished """
+    ct = kwargs.pop("callbackOnType", False)
+    assert(not ct)
+
+    ledit = gui.lineEdit(widget, master, None, **kwargs)
+
+    if value:  # connect signals manually so that widget does not use OnChanged
+        ledit.setText(valueToStr(getdeepattr(master, value)))
+        cback = gui.ValueCallback(master, value, valueType)  # save the value
+        cfront = CallFrontLineEditCustomConversion(ledit, valueToStr)
+        cback.opposite = cfront
+        master.connect_control(value, cfront)
+        ledit.cback = cback  # cback that LineEditWFocusOut uses in
+
+    return ledit
+
+
 def lineEditValidator(widget, master, value, validator=None, valueType=None,
-                      val_to_text=None, **kwargs):
-    le = gui.lineEdit(widget, master, value, validator=validator, valueType=valueType, **kwargs)
-    if value and val_to_text:
-        val = getdeepattr(master, value)
-        le.setText(val_to_text(val))
+                      valueToStr=str, **kwargs):
+    le = lineEditUpdateWhenFinished(widget, master, value, validator=validator, valueType=valueType,
+                                    valueToStr=valueToStr, **kwargs)
     return le
 
 
@@ -95,7 +122,7 @@ def lineEditIntOrNone(widget, master, value, **kwargs):
     return lineEditValidator(widget, master, value,
                              validator=IntOrEmptyValidator(master),
                              valueType=intornone,
-                             val_to_text=str_or_empty,
+                             valueToStr=str_or_empty,
                              **kwargs)
 
 
@@ -103,7 +130,7 @@ def lineEditFloatOrNone(widget, master, value, **kwargs):
     return lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=True),
                              valueType=floatornone,
-                             val_to_text=str_or_empty,
+                             valueToStr=str_or_empty,
                              **kwargs)
 
 
@@ -111,6 +138,6 @@ def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("i
     return lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=False,
                                                              bottom=bottom, top=top, default_text=str(default)),
-                             valueType=floatornone,  # intermediate values can be invalid (lineedit converts value after every edit)
-                             val_to_text=str,
+                             valueType=float,  # every text need to be a valid float before saving setting
+                             valueToStr=str,
                              **kwargs)

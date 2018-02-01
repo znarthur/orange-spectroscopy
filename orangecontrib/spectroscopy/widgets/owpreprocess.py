@@ -254,6 +254,7 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
         self.setLayout(layout)
         self.sd = self.DEFAULT_SD
 
+        # editing will always return a valid output (in the range)
         lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
                            orientation=Qt.Horizontal, callback=self.edited.emit)
 
@@ -263,10 +264,7 @@ class GaussianSmoothingEditor(BaseEditor, OWComponent):
         self.sd = params.get("sd", self.DEFAULT_SD)
 
     def parameters(self):
-        # line edit can also return invalid elements because self.sd is modified
-        # when user is entering text and if this function would be called before editingFinished
-        # we could have a problem
-        return {"sd": min(max(self.sd, 0.), 1000.) if self.sd is not None else self.DEFAULT_SD}
+        return {"sd": self.sd}
 
     @classmethod
     def createinstance(cls, params):

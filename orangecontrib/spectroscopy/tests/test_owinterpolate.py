@@ -37,18 +37,18 @@ class TestOWFiles(WidgetTest):
         self.send_signal("Data", self.peach)
         out = self.get_output("Interpolated data")
         np.testing.assert_almost_equal(np.arange(499.53234, 4000.1161, 10), getx(out))
-        self.widget.controls.dx.setText("0")
+        self.widget.dx = 0
         self.widget.commit()
         self.assertTrue(self.widget.Error.dxzero.is_shown())
-        self.widget.controls.dx.setText("0.001")
+        self.widget.dx = 0.001
         self.widget.commit()
         self.assertTrue(self.widget.Error.too_many_points.is_shown())
-        self.widget.controls.dx.setText("10")
+        self.widget.dx = 10
         self.widget.commit()
         self.assertFalse(self.widget.Error.dxzero.is_shown())
         self.assertFalse(self.widget.Error.too_many_points.is_shown())
-        self.widget.controls.xmin.setText("4000.1161")
-        self.widget.controls.xmax.setText("499.53234")
+        self.widget.xmin = 4000.1161
+        self.widget.xmax = 499.53234
         self.widget.commit()
         out2 = self.get_output("Interpolated data")
         np.testing.assert_almost_equal(getx(out2), getx(out))
