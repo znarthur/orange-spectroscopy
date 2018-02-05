@@ -1300,7 +1300,7 @@ class OWSpectra(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owcurves.OWCurves",
                 "orangecontrib.infrared.widgets.owspectra.OWSpectra"]
 
-    settingsHandler = DomainContextHandler(metas_in_res=True)
+    settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
 
