@@ -107,6 +107,7 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i.domain[0].name, "int")
         # after Orange 3.6.0 get_next_name returned different results
         nn = get_next_name(["int"], "int")
+        print(nn)
         self.assertEqual(i.domain[1].name, nn)
 
     def test_metas_output(self):
