@@ -3,7 +3,8 @@ import numpy as np
 from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
-from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, interp1d_with_unknowns_numpy
+from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
 
 
 class EMSCFeature(SelectColumn):
@@ -28,6 +29,8 @@ class _EMSC(CommonDomainOrderUnknowns):
             ref_X = np.atleast_2d(spectra_mean(self.reference.X))
             # interpolate reference to the data
             ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
+            # we know that X is not NaN. same handling of reference as of X
+            ref_X, _ = nan_extend_edges_and_interpolate(wavenumbers, ref_X)
         elif self.use_b:
             # can not do anything meaningful without reference
             return np.zeros(X.shape) * np.nan

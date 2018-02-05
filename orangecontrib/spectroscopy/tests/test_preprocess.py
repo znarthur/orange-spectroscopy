@@ -36,16 +36,22 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     CurveShift(1),
-    EMSC(reference=SMALL_COLLAGEN[0:1])
 ]
 
-# Preprocessors that use groups of input samples to infer
-# internal parameters.
-PREPROCESSORS_GROUPS_OF_SAMPLES = [
-    PCADenoising(components=2),
-]
 
-PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
+def make_edges_nan(data):
+    s = data.copy()
+    s[:, 0:3] = np.nan
+    s[:, s.X.shape[1]-1] = np.nan
+    return s
+
+
+def make_middle_nan(data):
+    """ Four middle values are NaN """
+    s = data.copy()
+    half = s.X.shape[1]//2
+    s[:, half-2:half+2] = np.nan
+    return s
 
 
 def shuffle_attr(data):
@@ -61,6 +67,28 @@ def reverse_attr(data):
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                              metas=data.domain.metas)
     return Orange.data.Table(ndomain, data)
+
+
+def add_different_reference(class_, reference_arg_name, reference, *args, **kwargs):
+    modified = [reference,
+                shuffle_attr(reference),
+                make_edges_nan(reference),
+                make_middle_nan(reference)]
+    for d in modified:
+        kwargs[reference_arg_name] = d
+        yield class_(*args, **kwargs)
+
+
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(EMSC, "reference", SMALL_COLLAGEN[0:1]))
+
+
+# Preprocessors that use groups of input samples to infer
+# internal parameters.
+PREPROCESSORS_GROUPS_OF_SAMPLES = [
+    PCADenoising(components=2),
+]
+
+PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
 
 class TestTransmittance(unittest.TestCase):
