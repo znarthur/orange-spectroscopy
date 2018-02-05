@@ -25,27 +25,24 @@ from AnyQt.QtCore import (
 from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
-    QStylePainter, QStyleOptionFrame, QApplication, QPushButton, QLabel,
-    QMenu, QApplication, QAction, QDockWidget, QScrollArea, QGridLayout,
+    QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
     QToolButton, QSplitter, QGraphicsOpacityEffect
 )
 from AnyQt.QtGui import (
-    QCursor, QIcon, QPainter, QPixmap, QStandardItemModel, QStandardItem,
-    QDrag, QKeySequence, QFont, QColor
+    QIcon, QStandardItemModel, QStandardItem,
+    QKeySequence, QFont, QColor
 )
 from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
-# baseline correction imports
-from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBaseline
 
-from orangecontrib.spectroscopy.preprocess import CurveShift
-from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, \
-     Normalize, Integrate, Absorbance, Transmittance, EMSC
+from orangecontrib.spectroscopy.preprocess import (
+    PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, Normalize,
+    Integrate, Absorbance, Transmittance, EMSC, CurveShift, LinearBaseline,
+    RubberbandBaseline
+)
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
-
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange
-
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 

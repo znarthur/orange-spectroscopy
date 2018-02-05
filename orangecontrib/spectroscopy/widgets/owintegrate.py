@@ -1,11 +1,6 @@
 import sys
 
-from AnyQt.QtWidgets import (
-    QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
-    QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
-    QStylePainter, QApplication, QPushButton, QLabel,
-    QMenu, QApplication, QAction, QDockWidget, QScrollArea
-)
+from AnyQt.QtWidgets import (QFormLayout, QSizePolicy, QApplication)
 
 import numpy as np
 
@@ -15,15 +10,14 @@ from Orange.widgets.data.owpreprocess import (
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
 )
 from Orange.widgets import gui, settings
-from Orange.widgets.widget import Input, Output
+from Orange.widgets.widget import Output
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Integrate
 
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
-from orangecontrib.spectroscopy.widgets.owpreprocess import SetXDoubleSpinBox, MovableVlineWD
-import orangecontrib.spectroscopy.widgets.owpreprocess
+from orangecontrib.spectroscopy.widgets.owpreprocess import SetXDoubleSpinBox, MovableVlineWD, SpectralPreprocess
 
 
 class IntegrateOneEditor(BaseEditor):
@@ -165,7 +159,7 @@ PREPROCESSORS = [
 ]
 
 
-class OWIntegrate(orangecontrib.spectroscopy.widgets.owpreprocess.SpectralPreprocess):
+class OWIntegrate(SpectralPreprocess):
     name = "Integrate Spectra"
     id = "orangecontrib.spectroscopy.widgets.integrate"
     description = "Integrate spectra in various ways."
