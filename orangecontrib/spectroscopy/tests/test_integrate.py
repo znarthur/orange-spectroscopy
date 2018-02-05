@@ -105,10 +105,7 @@ class TestIntegrate(unittest.TestCase):
         i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
                       limits=[[0, 5], [0, 6]], names=["int", "int"])(data)
         self.assertEqual(i.domain[0].name, "int")
-        # after Orange 3.6.0 get_next_name returned different results
-        nn = get_next_name(["int"], "int")
-        print(nn)
-        self.assertEqual(i.domain[1].name, nn)
+        self.assertEqual(i.domain[1].name, "int (1)")
 
     def test_metas_output(self):
         data = Orange.data.Table([[1, 2, 3, 1, 1, 1]])
