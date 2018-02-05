@@ -725,7 +725,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         old_domain = self.data.domain if self.data else None
         domain = data.domain if data is not None else None
         self.feature_color_model.set_domain(domain)
-        if old_domain and domain != old_domain:  # do not reset feature_color
+        if old_domain is not None and domain != old_domain:  # do not reset feature_color
             self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
 
     def line_select_start(self):

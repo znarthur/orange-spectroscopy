@@ -44,7 +44,7 @@ class TestOWMultifile(WidgetTest):
         out = self.get_output("Data")
         iris = Table("iris")
         titanic = Table("titanic")
-        for a in list(iris.domain) + list(titanic.domain):
+        for a in list(iris.domain.variables) + list(titanic.domain.variables):
             self.assertIn(a, out.domain)
         self.assertEqual(set(out.domain.class_vars),
                          set(iris.domain.class_vars) | set(titanic.domain.class_vars))

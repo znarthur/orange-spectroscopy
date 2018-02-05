@@ -351,7 +351,7 @@ class _InterpolateCommon:
     def __call__(self, data):
         # convert to data domain if any conversion is possible,
         # otherwise we use the interpolator directly to make domains compatible
-        if self.domain and data.domain != self.domain \
+        if self.domain is not None and data.domain != self.domain \
                 and any(at.compute_value for at in self.domain.attributes):
             data = data.from_table(self.domain, data)
         x = getx(data)
