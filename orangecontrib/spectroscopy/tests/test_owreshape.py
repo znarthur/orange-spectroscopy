@@ -5,7 +5,7 @@ from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.spectroscopy.widgets.owreshape import OWReshape
 
 
-class TestOWFiles(WidgetTest):
+class TestOWReshape(WidgetTest):
 
     @classmethod
     def setUpClass(cls):

@@ -5,7 +5,7 @@ from orangecontrib.spectroscopy.widgets.owinterpolate import OWInterpolate
 from orangecontrib.spectroscopy.data import getx
 
 
-class TestOWFiles(WidgetTest):
+class TestOWInterpolate(WidgetTest):
 
     @classmethod
     def setUpClass(cls):

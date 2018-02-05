@@ -25,7 +25,7 @@ class TestOWFilesAuxiliary(unittest.TestCase):
         np.testing.assert_equal(numpy_union_keep_order(A, B), [5, 4, 6, 3])
 
 
-class TestOWFiles(WidgetTest):
+class TestOWMultifile(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWMultifile)  # type: OWMultifile

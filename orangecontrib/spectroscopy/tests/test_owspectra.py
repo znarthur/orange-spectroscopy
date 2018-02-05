@@ -22,7 +22,7 @@ except AttributeError:
 NAN = float("nan")
 
 
-class TestOWCurves(WidgetTest):
+class TestOWSpectra(WidgetTest):
 
     @classmethod
     def setUpClass(cls):

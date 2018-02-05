@@ -3,7 +3,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS
 
 
-class TestOWPreprocess(WidgetTest):
+class TestOWIntegrate(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWIntegrate)
