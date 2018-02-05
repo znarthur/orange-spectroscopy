@@ -44,6 +44,8 @@ from orangecontrib.spectroscopy.preprocess import PCADenoising, GaussianSmoothin
      Normalize, Integrate, Absorbance, Transmittance, EMSC
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange
+
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -237,49 +239,44 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         return w.color
 
 
-class GaussianSmoothingEditor(BaseEditor):
+class BaseEditorOrange(BaseEditor, OWComponent):
     """
-    Editor for GausianSmoothing
+    Base widget for editing preprocessor's parameters that works with Orange settings.
     """
-
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
-        self.__sd = 10.
+        OWComponent.__init__(self, parent)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def parameters(self):
+        return {k: getattr(self, k) for k in self.controlled_attributes}
+
+
+class GaussianSmoothingEditor(BaseEditorOrange):
+    """
+    Editor for GaussianSmoothing
+    """
+
+    DEFAULT_SD = 10.
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        self.sd = self.DEFAULT_SD
 
-        self.__sdspin = sdspin = QDoubleSpinBox(
-           minimum=0.0, maximum=100.0, singleStep=0.5, value=self.__sd)
-        layout.addWidget(sdspin)
-
-        sdspin.valueChanged[float].connect(self.setSd)
-        sdspin.editingFinished.connect(self.edited)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-    def setSd(self, sd):
-        if self.__sd != sd:
-            self.__sd = sd
-            with blocked(self.__sdspin):
-                self.__sdspin.setValue(sd)
-            self.changed.emit()
-
-    def sd(self):
-        return self.__sd
-
-    def intervals(self):
-        return self.__nintervals
+        # editing will always return a valid output (in the range)
+        lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
+                           orientation=Qt.Horizontal, callback=self.edited.emit)
 
     def setParameters(self, params):
-        self.setSd(params.get("sd", 10.))
+        self.sd = params.get("sd", self.DEFAULT_SD)
 
-    def parameters(self):
-        return {"sd": self.__sd}
-
-    @staticmethod
-    def createinstance(params):
+    @classmethod
+    def createinstance(cls, params):
         params = dict(params)
-        sd = params.get("sd", 10.)
+        sd = params.get("sd", cls.DEFAULT_SD)
         return GaussianSmoothing(sd=sd)
 
 
@@ -1170,7 +1167,7 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
-class EMSCEditor(BaseEditor, OWComponent):
+class EMSCEditor(BaseEditorOrange):
 
     CONSTANT_DEFAULT = True
     LINEAR_DEFAULT = True
@@ -1178,8 +1175,7 @@ class EMSCEditor(BaseEditor, OWComponent):
     SCALING_DEFAULT = True
 
     def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
-        OWComponent.__init__(self, parent)
+        super().__init__(parent, **kwargs)
 
         self.setLayout(QVBoxLayout())
 
@@ -1200,8 +1196,6 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
@@ -1217,9 +1211,6 @@ class EMSCEditor(BaseEditor, OWComponent):
         self.square = params.get("square", self.SQUARE_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.update_reference_info()
-
-    def parameters(self):
-        return {k: getattr(self, k) for k in self.controlled_attributes}
 
     @classmethod
     def createinstance(cls, params):
