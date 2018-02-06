@@ -386,11 +386,7 @@ class SPCReader(FileFormat):
 class OPUSReader(FileFormat):
     """Reader for OPUS files"""
 
-    # use wildcard extensions if supported
-    EXTENSIONS = tuple('.{0}'.format(i) for i in range(100)) \
-            if not hasattr(Orange.data.io, "fnmatch") else \
-            (".0*", ".1*", ".2*", ".3*", ".4*", ".5*", ".6*", ".7*", ".8*", ".9*")
-
+    EXTENSIONS = (".0*", ".1*", ".2*", ".3*", ".4*", ".5*", ".6*", ".7*", ".8*", ".9*")
     DESCRIPTION = 'OPUS Spectrum'
 
     @property
