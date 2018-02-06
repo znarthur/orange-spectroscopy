@@ -48,12 +48,13 @@ class CommonDomainOrder(CommonDomain):
 
         # order X by wavenumbers
         xs, xsind, mon, X = transform_to_sorted_features(data)
+        xc = X.shape[1]
 
         # do the transformation
         X = self.transformed(X, xs[xsind])
 
-        # restore order
-        return transform_back_to_features(xsind, mon, X)
+        # restore order, leave additional columns as they are
+        return np.hstack((transform_back_to_features(xsind, mon, X[:, :xc]), X[:, xc:]))
 
     def transformed(self, X, wavenumbers):
         raise NotImplemented
@@ -68,6 +69,7 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
 
         # order X by wavenumbers
         xs, xsind, mon, X = transform_to_sorted_features(data)
+        xc = X.shape[1]
 
         # interpolates unknowns
         X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
@@ -77,10 +79,14 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
 
         # set NaNs where there were NaNs in the original array
         if nans is not None:
+            # transformed can have additional columns
+            addc = X.shape[1] - xc
+            if addc:
+                nans = np.hstack((nans, np.zeros((X.shape[0], addc), dtype=np.bool)))
             X[nans] = np.nan
 
-        # restore order
-        return transform_back_to_features(xsind, mon, X)
+        # restore order, leave additional columns as they are
+        return np.hstack((transform_back_to_features(xsind, mon, X[:, :xc]), X[:, xc:]))
 
 
 def nan_extend_edges_and_interpolate(xs, X):
