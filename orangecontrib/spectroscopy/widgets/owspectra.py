@@ -38,33 +38,10 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
     selections_to_length
 
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, create_groups_table
 
 # legend
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem as LegendItem, legend_anchor_pos
-
-try:
-    from Orange.widgets.utils.annotated_data import create_groups_table
-except ImportError:  # the above import only works since 3.6.0
-    from Orange.widgets.utils.annotated_data import get_next_name, ANNOTATED_DATA_FEATURE_NAME
-    from Orange.data import Domain
-
-    def create_groups_table(data, selection):
-        if data is None:
-            return None
-        names = [var.name for var in data.domain.variables + data.domain.metas]
-        name = get_next_name(names, ANNOTATED_DATA_FEATURE_NAME)
-        metas = data.domain.metas + (
-            DiscreteVariable(
-                name,
-                ["Unselected"] + ["G{}".format(i + 1)
-                                  for i in range(np.max(selection))]),
-        )
-        domain = Domain(data.domain.attributes, data.domain.class_vars, metas)
-        table = data.transform(domain)
-        table.metas[:, len(data.domain.metas):] = \
-            selection.reshape(len(data), 1)
-        return table
 
 
 SELECT_SQUARE = 123
@@ -748,7 +725,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         old_domain = self.data.domain if self.data else None
         domain = data.domain if data is not None else None
         self.feature_color_model.set_domain(domain)
-        if old_domain and domain != old_domain:  # do not reset feature_color
+        if old_domain is not None and domain != old_domain:  # do not reset feature_color
             self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
 
     def line_select_start(self):
@@ -1323,7 +1300,7 @@ class OWSpectra(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owcurves.OWCurves",
                 "orangecontrib.infrared.widgets.owspectra.OWSpectra"]
 
-    settingsHandler = DomainContextHandler(metas_in_res=True)
+    settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
 

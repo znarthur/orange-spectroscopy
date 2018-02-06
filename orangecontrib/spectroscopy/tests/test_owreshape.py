@@ -70,8 +70,5 @@ class TestOWReshape(WidgetTest):
         self.send_signal("Data", m)
         self.widget.commit()
         m = self.get_output("Map data")
-        # after Orange 3.6.0 get_next_name returned different results
-        next_X = get_next_name(["X"], "X")
-        next_Y = get_next_name(["Y"], "Y")
-        np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, next_X].metas[:, 0])
-        np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, next_Y].metas[:, 0])
+        np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, "X (1)"].metas[:, 0])
+        np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, "Y (1)"].metas[:, 0])

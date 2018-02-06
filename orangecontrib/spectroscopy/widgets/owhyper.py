@@ -671,7 +671,7 @@ class OWHyper(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
 
     settings_version = 3
-    settingsHandler = DomainContextHandler(metas_in_res=True)
+    settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
     curveplot = SettingProvider(CurvePlotHyper)
