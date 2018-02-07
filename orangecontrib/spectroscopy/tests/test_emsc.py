@@ -11,11 +11,16 @@ class TestEMSC(unittest.TestCase):
     def test_ab(self):
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=False, use_e=False)
+        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=False, use_e=False, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
             [[1.0, 2.0, 1.0, 1.0],
              [1.0, 2.0, 1.0, 1.0]])
+        np.testing.assert_almost_equal(fdata.metas,
+            [[0.0, 1.0],
+             [1.0, 2.0]])
+        self.assertEqual(fdata.domain.metas[0].name, "EMSC a")
+        self.assertEqual(fdata.domain.metas[1].name, "EMSC b")
 
     def test_abde(self):
         # TODO Find test values
@@ -43,8 +48,9 @@ class TestEMSC(unittest.TestCase):
     def test_none(self):
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC(reference=data[0:1], use_a=False, use_b=False, use_d=False, use_e=False)
+        f = EMSC(reference=data[0:1], use_a=False, use_b=False, use_d=False, use_e=False, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
                                        [[1.0, 2.0, 1.0, 1.0],
                                         [3.0, 5.0, 3.0, 3.0]])
+        self.assertTrue(len(data.domain.metas) == 0)

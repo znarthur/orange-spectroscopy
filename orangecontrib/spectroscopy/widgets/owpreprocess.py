@@ -1170,6 +1170,7 @@ class EMSCEditor(BaseEditorOrange):
     LINEAR_DEFAULT = True
     SQUARE_DEFAULT = True
     SCALING_DEFAULT = True
+    OUTPUT_MODEL_DEFAULT = False
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1193,6 +1194,9 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
+        self.output_model = self.OUTPUT_MODEL_DEFAULT
+        gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
+
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
@@ -1207,6 +1211,7 @@ class EMSCEditor(BaseEditorOrange):
         self.linear = params.get("linear", self.LINEAR_DEFAULT)
         self.square = params.get("square", self.SQUARE_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
+        self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
         self.update_reference_info()
 
     @classmethod
@@ -1215,8 +1220,11 @@ class EMSCEditor(BaseEditorOrange):
         linear = params.get("linear", cls.LINEAR_DEFAULT)
         square = params.get("square", cls.SQUARE_DEFAULT)
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
+        output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
         reference = params.get(REFERENCE_DATA_PARAM, None)
-        return EMSC(reference=reference, use_a=constant, use_b=scaling, use_d=linear, use_e=square)
+        return EMSC(reference=reference,
+                    use_a=constant, use_b=scaling, use_d=linear, use_e=square,
+                    output_model=output_model)
 
     def set_reference_data(self, ref):
         self.reference = ref
