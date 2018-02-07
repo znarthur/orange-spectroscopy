@@ -42,7 +42,8 @@ from orangecontrib.spectroscopy.preprocess import (
     RubberbandBaseline
 )
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, lineEditFloatOrNone,\
+    MovableVline
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -1168,6 +1169,8 @@ class EMSCEditor(BaseEditorOrange):
     ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
+    MINLIM_DEFAULT = 0.
+    MAXLIM_DEFAULT = 1.
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1185,6 +1188,8 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
+        self.add_range_selection()
+
         self.output_model = self.OUTPUT_MODEL_DEFAULT
         gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
 
@@ -1192,15 +1197,48 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
 
+        self.user_changed = False
+
+    def add_range_selection(self):
+        linelayout = gui.hBox(self)
+
+        self.minlim = self.MINLIM_DEFAULT  # gets set on data connection
+        self.les1 = lineEditFloatRange(linelayout, self, "minlim",
+                   orientation=Qt.Horizontal, callback=self.edited.emit, focusInCallback=self.activateOptions)
+        self.line1 = MovableVline(position=0, label="Range")
+        self.line1.sigMoved.connect(lambda x: setattr(self, "minlim", self.line1.value()))
+        self.line1.sigMoveFinished.connect(self.edited)
+        self.connect_control("minlim", self.line1.setValue)
+
+        self.maxlim = self.MAXLIM_DEFAULT  # gets set on data connection
+        self.les2 = lineEditFloatRange(linelayout, self, "maxlim",
+                   orientation=Qt.Horizontal, callback=self.edited.emit, focusInCallback=self.activateOptions)
+        self.line2 = MovableVline(position=0, label="Range")
+        self.line2.sigMoved.connect(lambda x: setattr(self, "maxlim", self.line2.value()))
+        self.line2.sigMoveFinished.connect(self.edited)
+        self.connect_control("maxlim", self.line2.setValue)
+
+        self.layout().addWidget(linelayout)
+
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         if self.reference_curve not in self.parent_widget.curveplot.markings:
             self.parent_widget.curveplot.add_marking(self.reference_curve)
+        if self.line1 not in self.parent_widget.curveplot.markings:
+            self.line1.report = self.parent_widget.curveplot
+            self.parent_widget.curveplot.add_marking(self.line1)
+        if self.line2 not in self.parent_widget.curveplot.markings:
+            self.line2.report = self.parent_widget.curveplot
+            self.parent_widget.curveplot.add_marking(self.line2)
 
     def setParameters(self, params):
+        if params:
+            self.user_changed = True
         self.order = params.get("order", self.ORDER_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
+        self.minlim = params.get("minlim", self.MINLIM_DEFAULT)
+        self.maxlim = params.get("maxlim", self.MINLIM_DEFAULT)
         self.update_reference_info()
 
     @classmethod
@@ -1233,6 +1271,18 @@ class EMSCEditor(BaseEditorOrange):
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
+
+    def set_preview_data(self, data):
+        # set all minumum and maximum defaults
+        x = getx(data)
+        if len(x):
+            self.les1.validator().setDefault(str(min(x)))
+            self.les2.validator().setDefault(str(max(x)))
+        if not self.user_changed:
+            if len(x):
+                setattr(self, "minlim", min(x))
+                setattr(self, "maxlim", max(x))
+                self.edited.emit()
 
 
 PREPROCESSORS = [

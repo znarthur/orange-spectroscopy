@@ -20,6 +20,9 @@ class FloatOrEmptyValidator(QValidator):
         self.setBottom(bottom)
         self.setTop(top)
 
+    def setDefault(self, s):
+        self.default_text = s
+
     def setBottom(self, b):
         self.dv.setBottom(b)
 
