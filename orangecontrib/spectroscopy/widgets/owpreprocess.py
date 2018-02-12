@@ -1210,7 +1210,7 @@ class EMSCEditor(BaseEditorOrange):
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if reference is None:
-            return lambda x: x  # no correction
+            return lambda data: data[:0]  # return an empty data table
         else:
             return EMSC(reference=reference, order=order, scaling=scaling, output_model=output_model)
 
@@ -1221,13 +1221,11 @@ class EMSCEditor(BaseEditorOrange):
     def update_reference_info(self):
         if not self.reference:
             self.reference_curve.hide()
-            self.reference_info.setText("Reference: " + ("missing!" if self.scaling else "not used"))
-            self.reference_info.setStyleSheet("color: red" if self.scaling else "color: black")
+            self.reference_info.setText("Reference: missing!")
+            self.reference_info.setStyleSheet("color: red")
         else:
             rinfo = "mean of %d spectra" % len(self.reference) \
                 if len(self.reference) > 1 else "1 spectrum"
-            if not self.scaling:
-                rinfo = "not used"
             self.reference_info.setText("Reference: " + rinfo)
             self.reference_info.setStyleSheet("color: black")
             X_ref = spectra_mean(self.reference.X)
