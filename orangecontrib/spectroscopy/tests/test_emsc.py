@@ -3,7 +3,7 @@ import unittest
 import Orange
 import numpy as np
 
-from orangecontrib.spectroscopy.preprocess import EMSC
+from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException
 
 
 class TestEMSC(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestEMSC(unittest.TestCase):
     def test_ab(self):
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=False, use_e=False, output_model=True)
+        f = EMSC(reference=data[0:1], order=0, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
             [[1.0, 2.0, 1.0, 1.0],
@@ -19,38 +19,30 @@ class TestEMSC(unittest.TestCase):
         np.testing.assert_almost_equal(fdata.metas,
             [[0.0, 1.0],
              [1.0, 2.0]])
-        self.assertEqual(fdata.domain.metas[0].name, "EMSC a")
-        self.assertEqual(fdata.domain.metas[1].name, "EMSC b")
+        self.assertEqual(fdata.domain.metas[0].name, "EMSC parameter 0")
+        self.assertEqual(fdata.domain.metas[1].name, "EMSC scaling parameter")
 
     def test_abde(self):
         # TODO Find test values
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC(reference=data[0:1], use_a=True, use_b=True, use_d=True, use_e=True)
+        f = EMSC(reference=data[0:1], order=2, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
                                        [[1.0, 2.0, 1.0, 1.0],
                                         [1.0, 2.0, 1.0, 1.0]])
 
+        np.testing.assert_almost_equal(fdata.metas,
+                                       [[0.0, 0.0, 0.0, 1.0],
+                                        [1.0, 0.0, 0.0, 2.0]])
+        self.assertEqual(fdata.domain.metas[0].name, "EMSC parameter 0")
+        self.assertEqual(fdata.domain.metas[1].name, "EMSC parameter 1")
+        self.assertEqual(fdata.domain.metas[2].name, "EMSC parameter 2")
+        self.assertEqual(fdata.domain.metas[3].name, "EMSC scaling parameter")
+
     def test_no_reference(self):
         # average from the data will be used
         data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
                                   [3.0, 5.0, 3.0, 3.0]])
-        fdata = EMSC(use_a=True, use_b=True, use_d=False, use_e=False)(data)
-        np.testing.assert_almost_equal(fdata.X, np.nan)
-
-        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
-                                  [3.0, 5.0, 3.0, 3.0]])
-        fdata = EMSC(use_a=True, use_b=False, use_d=False, use_e=False)(data)
-        np.testing.assert_almost_equal(fdata.X, [[-0.25, 0.75, -0.25, -0.25],
-                                                 [-0.5, 1.5, -0.5, -0.5]])
-
-    def test_none(self):
-        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
-                                  [3.0, 5.0, 3.0, 3.0]])
-        f = EMSC(reference=data[0:1], use_a=False, use_b=False, use_d=False, use_e=False, output_model=True)
-        fdata = f(data)
-        np.testing.assert_almost_equal(fdata.X,
-                                       [[1.0, 2.0, 1.0, 1.0],
-                                        [3.0, 5.0, 3.0, 3.0]])
-        self.assertTrue(len(data.domain.metas) == 0)
+        with self.assertRaises(MissingReferenceException):
+            fdata = EMSC()(data)
