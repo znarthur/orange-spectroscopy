@@ -1165,10 +1165,7 @@ class AbsToTransEditor(BaseEditor):
 
 
 class EMSCEditor(BaseEditorOrange):
-
-    CONSTANT_DEFAULT = True
-    LINEAR_DEFAULT = True
-    SQUARE_DEFAULT = True
+    ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
 
@@ -1179,14 +1176,8 @@ class EMSCEditor(BaseEditorOrange):
 
         self.reference = None
 
-        self.constant = self.CONSTANT_DEFAULT
-        gui.checkBox(self, self, "constant", "Constant", callback=self.edited.emit)
-
-        self.linear = self.LINEAR_DEFAULT
-        gui.checkBox(self, self, "linear", "Linear", callback=self.edited.emit)
-
-        self.square = self.SQUARE_DEFAULT
-        gui.checkBox(self, self, "square", "Square", callback=self.edited.emit)
+        self.order = self.ORDER_DEFAULT
+        gui.spin(self, self, "order", minv=0, maxv=10, callback=self.edited.emit)
 
         self.scaling = self.SCALING_DEFAULT
         gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
@@ -1207,24 +1198,21 @@ class EMSCEditor(BaseEditorOrange):
             self.parent_widget.curveplot.add_marking(self.reference_curve)
 
     def setParameters(self, params):
-        self.constant = params.get("constant", self.CONSTANT_DEFAULT)
-        self.linear = params.get("linear", self.LINEAR_DEFAULT)
-        self.square = params.get("square", self.SQUARE_DEFAULT)
+        self.order = params.get("order", self.ORDER_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
         self.update_reference_info()
 
     @classmethod
     def createinstance(cls, params):
-        constant = params.get("constant", cls.CONSTANT_DEFAULT)
-        linear = params.get("linear", cls.LINEAR_DEFAULT)
-        square = params.get("square", cls.SQUARE_DEFAULT)
+        order = params.get("order", cls.ORDER_DEFAULT)
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
         reference = params.get(REFERENCE_DATA_PARAM, None)
-        return EMSC(reference=reference,
-                    use_a=constant, use_b=scaling, use_d=linear, use_e=square,
-                    output_model=output_model)
+        if reference is None:
+            return lambda x: x  # no correction
+        else:
+            return EMSC(reference=reference, order=order, scaling=scaling, output_model=output_model)
 
     def set_reference_data(self, ref):
         self.reference = ref
