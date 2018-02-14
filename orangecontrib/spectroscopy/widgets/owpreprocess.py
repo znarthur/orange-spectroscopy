@@ -26,7 +26,7 @@ from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QGraphicsOpacityEffect
+    QToolButton, QSplitter, QGraphicsOpacityEffect, QLayout
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -42,8 +42,7 @@ from orangecontrib.spectroscopy.preprocess import (
     RubberbandBaseline
 )
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, lineEditFloatOrNone,\
-    MovableVline
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -1165,13 +1164,19 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
+def layout_widgets(layout):
+    if not isinstance(layout, QLayout):
+        layout = layout.layout()
+    for i in range(layout.count()):
+        yield layout.itemAt(i).widget()
+
+
 class EMSCEditor(BaseEditorOrange):
     ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
     MINLIM_DEFAULT = 0.
     MAXLIM_DEFAULT = 1.
-    RANGEPREFIX = "range"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1180,8 +1185,6 @@ class EMSCEditor(BaseEditorOrange):
 
         self.reference = None
         self.preview_data = None
-
-        self.range_ui = {}  # user interface objects for ranges
 
         self.order = self.ORDER_DEFAULT
         gui.spin(self, self, "order", minv=0, maxv=10, callback=self.edited.emit)
@@ -1192,9 +1195,10 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
-        self.ranges_box = gui.vBox(self)
+        self.ranges_box = gui.vBox(self)  # container for ranges
+
         button = QPushButton("Add Region", autoDefault=False)
-        button.clicked.connect(lambda: self.add_range_selection(None))
+        button.clicked.connect(lambda: self.add_range_selection())
         self.layout().addWidget(button)
 
         self.output_model = self.OUTPUT_MODEL_DEFAULT
@@ -1206,63 +1210,47 @@ class EMSCEditor(BaseEditorOrange):
 
         self.user_changed = False
 
-    def line_edit_with_line(self, where, property, label):
-        edit = lineEditFloatRange(where, self, property, orientation=Qt.Horizontal,
-                                  callback=self.edited.emit, focusInCallback=self.activateOptions)
-        line = MovableVline(position=getattr(self, property), label=label)
-        line.sigMoved.connect(lambda x: setattr(self, property, line.value()))
-        line.sigMoveFinished.connect(self.edited)
-        self.connect_control(property, line.setValue)
-        return edit, line
-
-    def add_range_selection(self, name=None):
-        if name is None:
-            rk = self._rangekeys(self.controlled_attributes)
-            last = 0
-            if rk:
-                last = int(rk[-1].split("_")[1])
-            name = self.RANGEPREFIX + "_" + str(last+1)
+    def add_range_selection(self):
         pmin, pmax = self.preview_min_max()
-        setattr(self, name + "_min", pmin)
-        setattr(self, name + "_max", pmax)
-        self.add_range_selection_ui(name)
+        lw = self.add_range_selection_ui()
+        pair = list(layout_widgets(lw))[:2]
+        pair[0].position = pmin
+        pair[1].position = pmax
         self.edited.emit()  # refresh output
 
-    def add_range_selection_ui(self, name):
+    def add_range_selection_ui(self):
         linelayout = gui.hBox(self)
-        le_min, line_min = self.line_edit_with_line(linelayout, name + "_min", name)
-        le_max, line_max = self.line_edit_with_line(linelayout, name + "_max", name)
         pmin, pmax = self.preview_min_max()
-        le_min.validator().setDefault(pmin)
-        le_max.validator().setDefault(pmax)
-        self.range_ui[name] = (le_min, line_min, le_max, line_max, linelayout)
-        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "", autoDefault=False)
-        remove_button.clicked.connect(lambda: self.delete_range(name))
-        linelayout.layout().addWidget(remove_button)
-        self.ranges_box.layout().addWidget(linelayout)
+        mine = XPosLineEdit(label="")
+        maxe = XPosLineEdit(label="")
+        mine.set_default(pmin)
+        maxe.set_default(pmax)
+        for w in [mine, maxe]:
+            linelayout.layout().addWidget(w)
+            w.edited.connect(self.edited)
+            w.focusIn.connect(self.activateOptions)
 
-    def delete_range(self, r):
-        ui = self.range_ui.pop(r)
-        ui[4].hide()
-        self.controlled_attributes.pop(r + "_min")
-        self.controlled_attributes.pop(r + "_max")
-        self.edited.emit()
+        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "", autoDefault=False)
+        remove_button.clicked.connect(lambda: self.ranges_box.layout().removeWidget(linelayout) == self.edited.emit())
+        linelayout.layout().addWidget(remove_button)
+
+        self.ranges_box.layout().addWidget(linelayout)
+        return linelayout
+
+    def _range_widgets(self):
+        for b in layout_widgets(self.ranges_box):
+            yield list(layout_widgets(b))[:2]
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         if self.reference_curve not in self.parent_widget.curveplot.markings:
             self.parent_widget.curveplot.add_marking(self.reference_curve)
-        for a, v in self.range_ui.items():
-            for line in [v[1], v[3]]:
-                if line not in self.parent_widget.curveplot.markings:
-                    line.report = self.parent_widget.curveplot
-                    self.parent_widget.curveplot.add_marking(line)
 
-    @classmethod
-    def _rangekeys(cls, params):
-        rangekeys = [k for k in params if k.startswith(cls.RANGEPREFIX)]
-        rangekeys = sorted(set(["_".join(k.split("_")[:2]) for k in rangekeys]), key=lambda x: x.split("_")[1])
-        return rangekeys
+        for pair in self._range_widgets():
+            for w in pair:
+                if w.line not in self.parent_widget.curveplot.markings:
+                    w.line.report = self.parent_widget.curveplot
+                    self.parent_widget.curveplot.add_marking(w.line)
 
     def setParameters(self, params):
         if params:
@@ -1272,13 +1260,25 @@ class EMSCEditor(BaseEditorOrange):
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
 
-        for k in self._rangekeys(params):
-            setattr(self, k + "_min", params[k + "_min"])
-            setattr(self, k + "_max", params[k + "_max"])
-            if k not in self.range_ui:  # add ui if it does not exists
-                self.add_range_selection_ui(k)
+        ranges = params.get("ranges", [])
+        rw = list(self._range_widgets())
+        for i, (rmin, rhigh) in enumerate(ranges):
+            if i >= len(rw):
+                lw = self.add_range_selection_ui()
+                pair = list(layout_widgets(lw))[:2]
+            else:
+                pair = rw[i]
+            pair[0].position = rmin
+            pair[1].position = rhigh
 
         self.update_reference_info()
+
+    def parameters(self):
+        parameters = super().parameters()
+        parameters["ranges"] = []
+        for pair in self._range_widgets():
+            parameters["ranges"].append([pair[0].position, pair[1].position])
+        return parameters
 
     @classmethod
     def createinstance(cls, params):
@@ -1286,10 +1286,7 @@ class EMSCEditor(BaseEditorOrange):
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
 
-        ranges = []
-        for k in cls._rangekeys(params):
-            ranges.append([params[k + "_min"], params[k + "_max"]])
-        print(ranges)  # TODO apply this to EMSC
+        print(params.get("ranges", []))  # TODO apply this to EMSC
 
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if reference is None:
@@ -1328,15 +1325,14 @@ class EMSCEditor(BaseEditorOrange):
         self.preview_data = data
         # set all minumum and maximum defaults
         pmin, pmax = self.preview_min_max()
-        for a, v in self.range_ui.items():
-            v[0].validator().setDefault(str(pmin))
-            v[2].validator().setDefault(str(pmax))
+        for pair in self._range_widgets():
+            pair[0].set_default(pmin)
+            pair[1].set_default(pmax)
         if not self.user_changed:
-            for a in self.range_ui:
-                setattr(self, a + "_min", pmin)
-                setattr(self, a + "_max", pmax)
+            for pair in self._range_widgets():
+                pair[0] = pmin
+                pair[1] = pmax
             self.edited.emit()
-
 
 
 PREPROCESSORS = [

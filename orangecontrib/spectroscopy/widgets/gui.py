@@ -1,11 +1,13 @@
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
+from AnyQt.QtWidgets import QWidget, QHBoxLayout
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
 
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
+from Orange.widgets.widget import OWComponent
 
 
 class FloatOrEmptyValidator(QValidator):
@@ -236,3 +238,32 @@ class MovableVline(pg.UIGraphicsItem):
             self._move_label()
         self._lastTransform = tr
         super().paint(p, *args)
+
+
+class XPosLineEdit(QWidget, OWComponent):
+
+    edited = Signal()
+    focusIn = Signal()
+
+    def __init__(self, parent=None, label=""):
+        QWidget.__init__(self, parent)
+        OWComponent.__init__(self, None)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self.position = 0
+
+        self.edit = lineEditFloatRange(self, self, "position", orientation=Qt.Horizontal,
+                                       callback=self.edited.emit, focusInCallback=self.focusIn.emit)
+        self.line = MovableVline(position=self.position, label=label)
+        self.line.sigMoved.connect(lambda: self.set_position(self.line.value()))
+        self.line.sigMoveFinished.connect(self.edited)
+        self.connect_control("position", self.line.setValue)
+
+    def set_position(self, v):
+        self.position = v
+
+    def set_default(self, v):
+        self.edit.validator().setDefault(str(v))
