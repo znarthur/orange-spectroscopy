@@ -1171,6 +1171,7 @@ class EMSCEditor(BaseEditorOrange):
     OUTPUT_MODEL_DEFAULT = False
     MINLIM_DEFAULT = 0.
     MAXLIM_DEFAULT = 1.
+    RANGEPREFIX = "range"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1178,6 +1179,9 @@ class EMSCEditor(BaseEditorOrange):
         self.setLayout(QVBoxLayout())
 
         self.reference = None
+        self.preview_data = None
+
+        self.range_ui = {}  # user interface objects for ranges
 
         self.order = self.ORDER_DEFAULT
         gui.spin(self, self, "order", minv=0, maxv=10, callback=self.edited.emit)
@@ -1188,7 +1192,10 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
-        self.add_range_selection()
+        self.ranges_box = gui.vBox(self)
+        button = QPushButton("Add Region", autoDefault=False)
+        button.clicked.connect(lambda: self.add_range_selection(None))
+        self.layout().addWidget(button)
 
         self.output_model = self.OUTPUT_MODEL_DEFAULT
         gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
@@ -1199,46 +1206,78 @@ class EMSCEditor(BaseEditorOrange):
 
         self.user_changed = False
 
-    def add_range_selection(self):
+    def line_edit_with_line(self, where, property, label):
+        edit = lineEditFloatRange(where, self, property, orientation=Qt.Horizontal,
+                                  callback=self.edited.emit, focusInCallback=self.activateOptions)
+        line = MovableVline(position=getattr(self, property), label=label)
+        line.sigMoved.connect(lambda x: setattr(self, property, line.value()))
+        line.sigMoveFinished.connect(self.edited)
+        self.connect_control(property, line.setValue)
+        return edit, line
+
+    def add_range_selection(self, name=None):
+        if name is None:
+            rk = self._rangekeys(self.controlled_attributes)
+            last = 0
+            if rk:
+                last = int(rk[-1].split("_")[1])
+            name = self.RANGEPREFIX + "_" + str(last+1)
+        pmin, pmax = self.preview_min_max()
+        setattr(self, name + "_min", pmin)
+        setattr(self, name + "_max", pmax)
+        self.add_range_selection_ui(name)
+        self.edited.emit()  # refresh output
+
+    def add_range_selection_ui(self, name):
         linelayout = gui.hBox(self)
+        le_min, line_min = self.line_edit_with_line(linelayout, name + "_min", name)
+        le_max, line_max = self.line_edit_with_line(linelayout, name + "_max", name)
+        pmin, pmax = self.preview_min_max()
+        le_min.validator().setDefault(pmin)
+        le_max.validator().setDefault(pmax)
+        self.range_ui[name] = (le_min, line_min, le_max, line_max, linelayout)
+        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "", autoDefault=False)
+        remove_button.clicked.connect(lambda: self.delete_range(name))
+        linelayout.layout().addWidget(remove_button)
+        self.ranges_box.layout().addWidget(linelayout)
 
-        self.minlim = self.MINLIM_DEFAULT  # gets set on data connection
-        self.les1 = lineEditFloatRange(linelayout, self, "minlim",
-                   orientation=Qt.Horizontal, callback=self.edited.emit, focusInCallback=self.activateOptions)
-        self.line1 = MovableVline(position=0, label="Range")
-        self.line1.sigMoved.connect(lambda x: setattr(self, "minlim", self.line1.value()))
-        self.line1.sigMoveFinished.connect(self.edited)
-        self.connect_control("minlim", self.line1.setValue)
-
-        self.maxlim = self.MAXLIM_DEFAULT  # gets set on data connection
-        self.les2 = lineEditFloatRange(linelayout, self, "maxlim",
-                   orientation=Qt.Horizontal, callback=self.edited.emit, focusInCallback=self.activateOptions)
-        self.line2 = MovableVline(position=0, label="Range")
-        self.line2.sigMoved.connect(lambda x: setattr(self, "maxlim", self.line2.value()))
-        self.line2.sigMoveFinished.connect(self.edited)
-        self.connect_control("maxlim", self.line2.setValue)
-
-        self.layout().addWidget(linelayout)
+    def delete_range(self, r):
+        ui = self.range_ui.pop(r)
+        ui[4].hide()
+        self.controlled_attributes.pop(r + "_min")
+        self.controlled_attributes.pop(r + "_max")
+        self.edited.emit()
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         if self.reference_curve not in self.parent_widget.curveplot.markings:
             self.parent_widget.curveplot.add_marking(self.reference_curve)
-        if self.line1 not in self.parent_widget.curveplot.markings:
-            self.line1.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line1)
-        if self.line2 not in self.parent_widget.curveplot.markings:
-            self.line2.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line2)
+        for a, v in self.range_ui.items():
+            for line in [v[1], v[3]]:
+                if line not in self.parent_widget.curveplot.markings:
+                    line.report = self.parent_widget.curveplot
+                    self.parent_widget.curveplot.add_marking(line)
+
+    @classmethod
+    def _rangekeys(cls, params):
+        rangekeys = [k for k in params if k.startswith(cls.RANGEPREFIX)]
+        rangekeys = sorted(set(["_".join(k.split("_")[:2]) for k in rangekeys]), key=lambda x: x.split("_")[1])
+        return rangekeys
 
     def setParameters(self, params):
         if params:
             self.user_changed = True
+
         self.order = params.get("order", self.ORDER_DEFAULT)
         self.scaling = params.get("scaling", self.SCALING_DEFAULT)
         self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
-        self.minlim = params.get("minlim", self.MINLIM_DEFAULT)
-        self.maxlim = params.get("maxlim", self.MINLIM_DEFAULT)
+
+        for k in self._rangekeys(params):
+            setattr(self, k + "_min", params[k + "_min"])
+            setattr(self, k + "_max", params[k + "_max"])
+            if k not in self.range_ui:  # add ui if it does not exists
+                self.add_range_selection_ui(k)
+
         self.update_reference_info()
 
     @classmethod
@@ -1246,6 +1285,12 @@ class EMSCEditor(BaseEditorOrange):
         order = params.get("order", cls.ORDER_DEFAULT)
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
+
+        ranges = []
+        for k in cls._rangekeys(params):
+            ranges.append([params[k + "_min"], params[k + "_max"]])
+        print(ranges)  # TODO apply this to EMSC
+
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if reference is None:
             return lambda data: data[:0]  # return an empty data table
@@ -1272,17 +1317,26 @@ class EMSCEditor(BaseEditorOrange):
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
 
-    def set_preview_data(self, data):
-        # set all minumum and maximum defaults
-        x = getx(data)
-        if len(x):
-            self.les1.validator().setDefault(str(min(x)))
-            self.les2.validator().setDefault(str(max(x)))
-        if not self.user_changed:
+    def preview_min_max(self):
+        if self.preview_data is not None:
+            x = getx(self.preview_data)
             if len(x):
-                setattr(self, "minlim", min(x))
-                setattr(self, "maxlim", max(x))
-                self.edited.emit()
+                return min(x), max(x)
+        return self.MINLIM_DEFAULT, self.MAXLIM_DEFAULT
+
+    def set_preview_data(self, data):
+        self.preview_data = data
+        # set all minumum and maximum defaults
+        pmin, pmax = self.preview_min_max()
+        for a, v in self.range_ui.items():
+            v[0].validator().setDefault(str(pmin))
+            v[2].validator().setDefault(str(pmax))
+        if not self.user_changed:
+            for a in self.range_ui:
+                setattr(self, a + "_min", pmin)
+                setattr(self, a + "_max", pmax)
+            self.edited.emit()
+
 
 
 PREPROCESSORS = [
