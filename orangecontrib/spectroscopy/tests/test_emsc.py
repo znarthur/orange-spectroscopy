@@ -3,7 +3,8 @@ import unittest
 import Orange
 import numpy as np
 
-from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException
+from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException,\
+    ranges_to_weight_table, interp1d_with_unknowns_numpy, getx
 
 
 class TestEMSC(unittest.TestCase):
@@ -46,3 +47,13 @@ class TestEMSC(unittest.TestCase):
                                   [3.0, 5.0, 3.0, 3.0]])
         with self.assertRaises(MissingReferenceException):
             fdata = EMSC()(data)
+
+    def test_ranges_to_weights(self):
+        nan = float("nan")
+        data = ranges_to_weight_table([[1, 2, 1], [3, 4, 1]])  # non-overlapping regions
+        a = interp1d_with_unknowns_numpy(getx(data), data.X, [0.5, 1, 2, 2.5, 3.5, 5])
+        np.testing.assert_equal(a[0], [nan, 1, 1, 0, 1, nan])
+
+        data = ranges_to_weight_table([[1, 2, 1], [1, 3, 1.3]])  # overlapping
+        a = interp1d_with_unknowns_numpy(getx(data), data.X, [0.5, 1, 1.5, 2, 2.0001, 2.5, 2.999, 3.01, 3.5])
+        np.testing.assert_equal(a[0], [nan, 2.3, 2.3, 2.3, 1.3, 1.3, 1.3, nan, nan])
