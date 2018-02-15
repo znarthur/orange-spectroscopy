@@ -1200,15 +1200,20 @@ class EMSCEditor(BaseEditorOrange):
 
         self.ranges_box = gui.vBox(self)  # container for ranges
 
-        button = QPushButton("Add Region", autoDefault=False)
-        button.clicked.connect(lambda: self.add_range_selection())
-        self.layout().addWidget(button)
+        self.range_button = QPushButton("Select Region", autoDefault=False)
+        self.range_button.clicked.connect(self.add_range_selection)
+        self.layout().addWidget(self.range_button)
 
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
 
         self.user_changed = False
+
+    def _set_button_text(self):
+        self.range_button.setText("Select Region"
+                                  if self.ranges_box.layout().count() == 0
+                                  else "Add Region")
 
     def add_range_selection(self):
         pmin, pmax = self.preview_min_max()
@@ -1231,11 +1236,17 @@ class EMSCEditor(BaseEditorOrange):
             w.focusIn.connect(self.activateOptions)
 
         remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "", autoDefault=False)
-        remove_button.clicked.connect(lambda: self.ranges_box.layout().removeWidget(linelayout) == self.edited.emit())
+        remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
         self.ranges_box.layout().addWidget(linelayout)
+        self._set_button_text()
         return linelayout
+
+    def delete_range(self, box):
+        self.ranges_box.layout().removeWidget(box)
+        self._set_button_text()
+        self.edited.emit()
 
     def _range_widgets(self):
         for b in layout_widgets(self.ranges_box):
