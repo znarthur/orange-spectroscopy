@@ -38,8 +38,8 @@ from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
 from orangecontrib.spectroscopy.widgets.owpreprocess import MovableVlineWD
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
 
-from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME
-from orangecontrib.spectroscopy.widgets.owspectra import create_groups_table  # compatibility with Orange 3.6.0-
+from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME, \
+    create_groups_table
 
 
 IMAGE_TOO_BIG = 1024*1024
@@ -789,8 +789,10 @@ class OWHyper(OWWidget):
 
         indices = np.flatnonzero(self.imageplot.selection_group)
 
-        self.Outputs.annotated_data.send(
-                  create_groups_table(self.imageplot.data, self.imageplot.selection_group))
+        annotated_data = create_groups_table(self.data, self.imageplot.selection_group)
+        if annotated_data is not None:
+            annotated_data.X = self.data.X  # workaround for Orange's copying on domain conversio
+        self.Outputs.annotated_data.send(annotated_data)
 
         selected = self.data[indices]
         self.Outputs.selected_data.send(selected if selected else None)
