@@ -92,11 +92,10 @@ class _EMSC(CommonDomainOrderUnknowns):
         if self.weights:
             # interpolate reference to the data
             wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # we know that X is not NaN. same handling of reference as of X
-            wei_X, _ = nan_extend_edges_and_interpolate(wavenumbers, wei_X)
+            # set whichever weights are undefined (usually at edges) to zero
+            wei_X[np.isnan(wei_X)] = 0
         else:
             wei_X =np.ones((1,len(wavenumbers)))
-
 
         N = wavenumbers.shape[0]
         m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
@@ -112,7 +111,6 @@ class _EMSC(CommonDomainOrderUnknowns):
 
         newspectra = np.zeros((X.shape[0], X.shape[1] + n_add_model))
         for i, rawspectrum in enumerate(X):
-            m = None
             rawspectrumW=(rawspectrum*wei_X)[0]
             m = np.linalg.lstsq(M_weighted, rawspectrum)[0]
             corrected = rawspectrum
@@ -121,6 +119,7 @@ class _EMSC(CommonDomainOrderUnknowns):
                 corrected = (corrected - (m[x] * M[:, x]))
             if self.scaling:
                 corrected = corrected/m[self.order+1]
+            corrected[np.isinf(corrected)] = np.nan  # fix values which can be caused by zero weights
             corrected = np.hstack((corrected, m))  # append the model parameters
             newspectra[i] = corrected
 
