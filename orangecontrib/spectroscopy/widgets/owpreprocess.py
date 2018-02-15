@@ -1218,7 +1218,7 @@ class EMSCEditor(BaseEditorOrange):
     def add_range_selection(self):
         pmin, pmax = self.preview_min_max()
         lw = self.add_range_selection_ui()
-        pair = list(layout_widgets(lw))[:2]
+        pair = self._extract_pair(lw)
         pair[0].position = pmin
         pair[1].position = pmax
         self.edited.emit()  # refresh output
@@ -1246,11 +1246,21 @@ class EMSCEditor(BaseEditorOrange):
     def delete_range(self, box):
         self.ranges_box.layout().removeWidget(box)
         self._set_button_text()
+
+        # remove selection lines
+        curveplot = self.parent_widget.curveplot
+        for w in self._extract_pair(box):
+            if curveplot.in_markings(w.line):
+                curveplot.remove_marking(w.line)
+
         self.edited.emit()
+
+    def _extract_pair(self, container):
+        return list(layout_widgets(container))[:2]
 
     def _range_widgets(self):
         for b in layout_widgets(self.ranges_box):
-            yield list(layout_widgets(b))[:2]
+            yield self._extract_pair(b)
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -1276,7 +1286,7 @@ class EMSCEditor(BaseEditorOrange):
         for i, (rmin, rhigh) in enumerate(ranges):
             if i >= len(rw):
                 lw = self.add_range_selection_ui()
-                pair = list(layout_widgets(lw))[:2]
+                pair = self._extract_pair(lw)
             else:
                 pair = rw[i]
             pair[0].position = rmin
