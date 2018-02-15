@@ -41,6 +41,7 @@ from orangecontrib.spectroscopy.preprocess import (
     Integrate, Absorbance, Transmittance, EMSC, CurveShift, LinearBaseline,
     RubberbandBaseline
 )
+from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
@@ -1283,7 +1284,7 @@ class EMSCEditor(BaseEditorOrange):
 
         ranges = params.get("ranges", [])
         rw = list(self._range_widgets())
-        for i, (rmin, rhigh) in enumerate(ranges):
+        for i, (rmin, rhigh, weight) in enumerate(ranges):
             if i >= len(rw):
                 lw = self.add_range_selection_ui()
                 pair = self._extract_pair(lw)
@@ -1298,7 +1299,7 @@ class EMSCEditor(BaseEditorOrange):
         parameters = super().parameters()
         parameters["ranges"] = []
         for pair in self._range_widgets():
-            parameters["ranges"].append([pair[0].position, pair[1].position])
+            parameters["ranges"].append([pair[0].position, pair[1].position, 1.0])  # for now weight is always 1.0
         return parameters
 
     @classmethod
@@ -1307,13 +1308,16 @@ class EMSCEditor(BaseEditorOrange):
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
 
-        print(params.get("ranges", []))  # TODO apply this to EMSC
+        weights = None
+        ranges = params.get("ranges", [])
+        if ranges:
+            weights = ranges_to_weight_table(ranges)
 
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if reference is None:
             return lambda data: data[:0]  # return an empty data table
         else:
-            return EMSC(reference=reference, order=order, scaling=scaling, output_model=output_model)
+            return EMSC(reference=reference, weights=weights, order=order, scaling=scaling, output_model=output_model)
 
     def set_reference_data(self, ref):
         self.reference = ref
