@@ -1195,14 +1195,14 @@ class EMSCEditor(BaseEditorOrange):
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
+        self.output_model = self.OUTPUT_MODEL_DEFAULT
+        gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
+
         self.ranges_box = gui.vBox(self)  # container for ranges
 
         button = QPushButton("Add Region", autoDefault=False)
         button.clicked.connect(lambda: self.add_range_selection())
         self.layout().addWidget(button)
-
-        self.output_model = self.OUTPUT_MODEL_DEFAULT
-        gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
 
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
