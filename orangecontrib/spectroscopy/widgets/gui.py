@@ -1,8 +1,13 @@
-from AnyQt.QtCore import QLocale
+from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
+from AnyQt.QtWidgets import QWidget, QHBoxLayout
+from AnyQt.QtCore import pyqtSignal as Signal
+
+import pyqtgraph as pg
 
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
+from Orange.widgets.widget import OWComponent
 
 
 class FloatOrEmptyValidator(QValidator):
@@ -16,6 +21,9 @@ class FloatOrEmptyValidator(QValidator):
         self.dv.setLocale(QLocale.c())
         self.setBottom(bottom)
         self.setTop(top)
+
+    def setDefault(self, s):
+        self.default_text = s
 
     def setBottom(self, b):
         self.dv.setBottom(b)
@@ -141,3 +149,121 @@ def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("i
                              valueType=float,  # every text need to be a valid float before saving setting
                              valueToStr=str,
                              **kwargs)
+
+
+class MovableVline(pg.UIGraphicsItem):
+
+    sigMoveFinished = Signal(object)
+    sigMoved = Signal(object)
+
+    def __init__(self, position, label="", color=(225, 0, 0), report=None):
+        pg.UIGraphicsItem.__init__(self)
+        self.moving = False
+        self.mouseHovering = False
+        self.report = report
+        self.color = color
+        self.isnone = False
+
+        hp = pg.mkPen(color=color, width=3)
+        np = pg.mkPen(color=color, width=2)
+
+        self.line = pg.InfiniteLine(angle=90, movable=True, pen=np, hoverPen=hp)
+        self.line.setParentItem(self)
+        self.line.setCursor(Qt.SizeHorCursor)
+
+        self.label = pg.TextItem("", anchor=(0,0))
+        self.label.setParentItem(self)
+
+        self.setValue(position)
+        self.setLabel(label)
+
+        self.line.sigPositionChangeFinished.connect(self._moveFinished)
+        self.line.sigPositionChanged.connect(self._moved)
+
+        self._lastTransform = None
+
+    def setLabel(self, l):
+        self.label.setText(l, color=self.color)
+
+    def value(self):
+        if self.isnone:
+            return None
+        return self.line.value()
+
+    def setValue(self, val):
+        oldval = self.value()
+        if oldval == val:
+            return  # prevents recursion with None on input
+        self.isnone = val is None
+        if not self.isnone:
+            rep = self.report  # temporarily disable report
+            self.report = None
+            self.line.setValue(val)  # emits sigPositionChanged which calls _moved
+            self.report = rep
+            self.line.show()
+            self.label.show()
+        else:
+            self.line.hide()
+            self.label.hide()
+            self._moved()
+
+    def boundingRect(self):
+        br = pg.UIGraphicsItem.boundingRect(self)
+        val = self.line.value()
+        br.setLeft(val)
+        br.setRight(val)
+        return br.normalized()
+
+    def _move_label(self):
+        if self.value() is not None and self.getViewBox():
+            self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
+
+    def _moved(self):
+        self._move_label()
+        if self.report:
+            if self.value() is not None:
+                self.report.report(self, [("x", self.value())])
+            else:
+                self.report.report_finished(self)
+        self.sigMoved.emit(self)
+
+    def _moveFinished(self):
+        if self.report:
+            self.report.report_finished(self)
+        self.sigMoveFinished.emit(self)
+
+    def paint(self, p, *args):
+        tr = p.transform()
+        if self._lastTransform != tr:
+            self._move_label()
+        self._lastTransform = tr
+        super().paint(p, *args)
+
+
+class XPosLineEdit(QWidget, OWComponent):
+
+    edited = Signal()
+    focusIn = Signal()
+
+    def __init__(self, parent=None, label=""):
+        QWidget.__init__(self, parent)
+        OWComponent.__init__(self, None)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self.position = 0
+
+        self.edit = lineEditFloatRange(self, self, "position", orientation=Qt.Horizontal,
+                                       callback=self.edited.emit, focusInCallback=self.focusIn.emit)
+        self.line = MovableVline(position=self.position, label=label)
+        self.line.sigMoved.connect(lambda: self.set_position(self.line.value()))
+        self.line.sigMoveFinished.connect(self.edited)
+        self.connect_control("position", self.line.setValue)
+
+    def set_position(self, v):
+        self.position = v
+
+    def set_default(self, v):
+        self.edit.validator().setDefault(str(v))

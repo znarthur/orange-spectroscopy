@@ -1021,6 +1021,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.markings.append(item)
         self.plot.addItem(item, ignoreBounds=True)
 
+    def in_markings(self, item):
+        return item in self.markings
+
     def remove_marking(self, item):
         self.plot.removeItem(item)
         self.markings.remove(item)
