@@ -43,7 +43,8 @@ from orangecontrib.spectroscopy.preprocess import (
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
+    MovableVline
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -411,8 +412,12 @@ class CutEditor(BaseEditor):
         self.__highlime.editingFinished.connect(self.edited)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
-        self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
-        self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
+        self.line1 = MovableVline(position=self.__lowlim, label="Low limit")
+        self.line1.sigMoved.connect(self.set_lowlim)
+        self.line1.sigMoveFinished.connect(self.edited)
+        self.line2 = MovableVline(position=self.__highlim, label="High limit")
+        self.line2.sigMoved.connect(self.set_highlim)
+        self.line2.sigMoveFinished.connect(self.edited)
 
         self.user_changed = False
 

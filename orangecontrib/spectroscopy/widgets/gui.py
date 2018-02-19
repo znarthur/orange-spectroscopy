@@ -225,12 +225,12 @@ class MovableVline(pg.UIGraphicsItem):
                 self.report.report(self, [("x", self.value())])
             else:
                 self.report.report_finished(self)
-        self.sigMoved.emit(self)
+        self.sigMoved.emit(self.value())
 
     def _moveFinished(self):
         if self.report:
             self.report.report_finished(self)
-        self.sigMoveFinished.emit(self)
+        self.sigMoveFinished.emit(self.value())
 
     def paint(self, p, *args):
         tr = p.transform()
