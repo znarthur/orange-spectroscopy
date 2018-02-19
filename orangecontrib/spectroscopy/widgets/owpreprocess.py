@@ -940,13 +940,13 @@ class LimitsBox(QHBoxLayout):
         self.lowlime.focusIn = self.focusInChild
         self.highlime.focusIn = self.focusInChild
 
-        self.line1 = MovableVlineWD(position=limits[0], label=label + " - Low",
-                        setvalfn=self.lineLimitChanged)
-        self.line2 = MovableVlineWD(position=limits[1], label=label + " - High",
-                        setvalfn=self.lineLimitChanged)
+        self.line1 = MovableVline(position=limits[0], label=label + " - Low")
+        self.line1.sigMoved.connect(self.lineLimitChanged)
+        self.line2 = MovableVline(position=limits[1], label=label + " - High")
+        self.line2.sigMoved.connect(self.lineLimitChanged)
 
-        self.line1.line.sigPositionChangeFinished.connect(self.editFinished)
-        self.line2.line.sigPositionChangeFinished.connect(self.editFinished)
+        self.line1.sigMoveFinished.connect(self.editFinished)
+        self.line2.sigMoveFinished.connect(self.editFinished)
 
     def focusInEvent(self, *e):
         self.focusIn()
@@ -961,7 +961,7 @@ class LimitsBox(QHBoxLayout):
         self.line2.setValue(newlimits[1])
         self.valueChanged.emit(newlimits, self)
 
-    def lineLimitChanged(self, value=None):
+    def lineLimitChanged(self):
         newlimits = [self.line1.value(), self.line2.value()]
         self.lowlime.setValue(newlimits[0])
         self.highlime.setValue(newlimits[1])
