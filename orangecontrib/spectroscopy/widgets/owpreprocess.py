@@ -758,10 +758,12 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.int_method_cb.currentIndexChanged.connect(self.setinttype)
         self.int_method_cb.activated.connect(self.edited)
 
-        self.lline = MovableVlineWD(position=self.lower, label="Low limit",
-                                    setvalfn=self.setL, confirmfn=self.reorderLimits)
-        self.uline = MovableVlineWD(position=self.upper, label="High limit",
-                                    setvalfn=self.setU, confirmfn=self.reorderLimits)
+        self.lline = MovableVline(position=self.lower, label="Low limit")
+        self.lline.sigMoved.connect(self.setL)
+        self.lline.sigMoveFinished.connect(self.reorderLimits)
+        self.uline = MovableVline(position=self.upper, label="High limit")
+        self.uline.sigMoved.connect(self.setU)
+        self.uline.sigMoveFinished.connect(self.reorderLimits)
 
         self.user_changed = False
 
