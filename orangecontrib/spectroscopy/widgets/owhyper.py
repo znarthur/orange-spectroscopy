@@ -35,7 +35,7 @@ from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
     HelpEventDelegate, SelectionGroupMixin, selection_modifiers
 
-from orangecontrib.spectroscopy.widgets.owpreprocess import MovableVlineWD
+from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
 
 from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME, \
@@ -751,18 +751,16 @@ class OWHyper(OWWidget):
         splitter.addWidget(self.curveplot)
         self.mainArea.layout().addWidget(splitter)
 
-        self.line1 = MovableVlineWD(position=self.lowlim, label="", setvalfn=self.set_lowlim,
-                                    confirmfn=self.changed_integral_range, report=self.curveplot)
-        self.line2 = MovableVlineWD(position=self.highlim, label="", setvalfn=self.set_highlim,
-                                    confirmfn=self.changed_integral_range, report=self.curveplot)
-        self.line3 = MovableVlineWD(position=self.choose, label="", setvalfn=self.set_choose,
-                                    confirmfn=self.changed_integral_range, report=self.curveplot)
-        self.curveplot.add_marking(self.line1)
-        self.curveplot.add_marking(self.line2)
-        self.curveplot.add_marking(self.line3)
-        self.line1.hide()
-        self.line2.hide()
-        self.line3.hide()
+        self.line1 = MovableVline(position=self.lowlim, label="", report=self.curveplot)
+        self.line1.sigMoved.connect(lambda v: setattr(self, "lowlim", v))
+        self.line2 = MovableVline(position=self.highlim, label="", report=self.curveplot)
+        self.line2.sigMoved.connect(lambda v: setattr(self, "highlim", v))
+        self.line3 = MovableVline(position=self.choose, label="", report=self.curveplot)
+        self.line3.sigMoved.connect(lambda v: setattr(self, "choose", v))
+        for line in [self.line1, self.line2, self.line3]:
+            line.sigMoveFinished.connect(self.changed_integral_range)
+            self.curveplot.add_marking(line)
+            line.hide()
 
         self.data = None
         self.disable_integral_range = False
@@ -808,15 +806,6 @@ class OWHyper(OWWidget):
         domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
-
-    def set_lowlim(self, v):
-        self.lowlim = v
-
-    def set_highlim(self, v):
-        self.highlim = v
-
-    def set_choose(self, v):
-        self.choose = v
 
     def redraw_data(self):
         self.imageplot.update_view()
