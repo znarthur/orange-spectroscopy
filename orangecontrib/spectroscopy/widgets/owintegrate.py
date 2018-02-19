@@ -17,7 +17,9 @@ from orangecontrib.spectroscopy.preprocess import Integrate
 
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
-from orangecontrib.spectroscopy.widgets.owpreprocess import SetXDoubleSpinBox, MovableVlineWD, SpectralPreprocess
+from orangecontrib.spectroscopy.widgets.owpreprocess import SetXDoubleSpinBox, SpectralPreprocess
+
+from orangecontrib.spectroscopy.widgets.gui import MovableVline
 
 
 class IntegrateOneEditor(BaseEditor):
@@ -48,8 +50,9 @@ class IntegrateOneEditor(BaseEditor):
             self.__editors[name] = e
             layout.addRow(name, e)
 
-            l = MovableVlineWD(position=v, label=name, setvalfn=cf,
-                               confirmfn=self.edited)
+            l = MovableVline(position=v, label=name)
+            l.sigMoved.connect(cf)
+            l.sigMoveFinished.connect(self.edited)
             self.__lines[name] = l
 
         self.focusIn = self.activateOptions

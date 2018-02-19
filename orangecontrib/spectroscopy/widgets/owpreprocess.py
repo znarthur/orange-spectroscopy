@@ -43,7 +43,8 @@ from orangecontrib.spectroscopy.preprocess import (
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
+    MovableVline
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -288,95 +289,6 @@ class SetXDoubleSpinBox(QDoubleSpinBox):
         return super().focusInEvent(*e)
 
 
-class MovableVlineWD(pg.UIGraphicsItem):
-
-    sigRegionChangeFinished = Signal(object)
-    sigRegionChanged = Signal(object)
-    Vertical = 0
-    Horizontal = 1
-
-    def __init__(self, position, label="", setvalfn=None, confirmfn=None,
-                 color=(225, 0, 0), report=None):
-        pg.UIGraphicsItem.__init__(self)
-        self.moving = False
-        self.mouseHovering = False
-        self.report = report
-
-        hp = pg.mkPen(color=color, width=3)
-        np = pg.mkPen(color=color, width=2)
-        self.line = pg.InfiniteLine(angle=90, movable=True, pen=np, hoverPen=hp)
-
-        if position is not None:
-            self.line.setValue(position)
-        else:
-            self.line.setValue(0)
-            self.line.hide()
-        self.line.setCursor(Qt.SizeHorCursor)
-
-        self.line.setParentItem(self)
-        self.line.sigPositionChangeFinished.connect(self.lineMoveFinished)
-        self.line.sigPositionChanged.connect(self.lineMoved)
-
-        self.label = pg.TextItem("", anchor=(0,0))
-        self.label.setText(label, color=color)
-        self.label.setParentItem(self)
-
-        self.setvalfn = setvalfn
-        self.confirmfn = confirmfn
-
-        self.lastTransform = None
-
-    def value(self):
-        return self.line.value()
-
-    def setValue(self, val):
-        if self.line.isVisible() and val == self.line.value():
-            # no effective change
-            return
-        if val is not None:
-            self.line.setValue(val)
-            self.line.show()
-            self.lineMoveFinished()
-        else:
-            self.line.hide()
-
-    def boundingRect(self):
-        br = pg.UIGraphicsItem.boundingRect(self)
-        val = self.value()
-        br.setLeft(val)
-        br.setRight(val)
-        return br.normalized()
-
-    def _move_label(self):
-        if self.getViewBox():
-            self.label.setPos(self.value(), self.getViewBox().viewRect().bottom())
-
-    def lineMoved(self):
-        self._move_label()
-        if self.report:
-            self.report.report(self, [("x", self.value())])
-        if self.setvalfn:
-            self.setvalfn(self.value())
-
-    def lineMoveFinished(self):
-        if self.report:
-            self.report.report_finished(self)
-        if self.setvalfn:
-            self.setvalfn(self.value())
-        if self.confirmfn:
-            if hasattr(self.confirmfn, "emit"):
-                self.confirmfn.emit()
-            else:
-                self.confirmfn()
-
-    def paint(self, p, *args):
-        tr = p.transform()
-        if self.lastTransform != tr:
-            self._move_label()
-        self.lastTransform = tr
-        super().paint(p, *args)
-
-
 class CutEditor(BaseEditor):
     """
     Editor for Cut
@@ -411,8 +323,12 @@ class CutEditor(BaseEditor):
         self.__highlime.editingFinished.connect(self.edited)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
-        self.line1 = MovableVlineWD(position=self.__lowlim, label="Low limit", setvalfn=self.set_lowlim, confirmfn=self.edited)
-        self.line2 = MovableVlineWD(position=self.__highlim, label="High limit", setvalfn=self.set_highlim, confirmfn=self.edited)
+        self.line1 = MovableVline(position=self.__lowlim, label="Low limit")
+        self.line1.sigMoved.connect(self.set_lowlim)
+        self.line1.sigMoveFinished.connect(self.edited)
+        self.line2 = MovableVline(position=self.__highlim, label="High limit")
+        self.line2.sigMoved.connect(self.set_highlim)
+        self.line2.sigMoveFinished.connect(self.edited)
 
         self.user_changed = False
 
@@ -753,10 +669,12 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.int_method_cb.currentIndexChanged.connect(self.setinttype)
         self.int_method_cb.activated.connect(self.edited)
 
-        self.lline = MovableVlineWD(position=self.lower, label="Low limit",
-                                    setvalfn=self.setL, confirmfn=self.reorderLimits)
-        self.uline = MovableVlineWD(position=self.upper, label="High limit",
-                                    setvalfn=self.setU, confirmfn=self.reorderLimits)
+        self.lline = MovableVline(position=self.lower, label="Low limit")
+        self.lline.sigMoved.connect(self.setL)
+        self.lline.sigMoveFinished.connect(self.reorderLimits)
+        self.uline = MovableVline(position=self.upper, label="High limit")
+        self.uline.sigMoved.connect(self.setU)
+        self.uline.sigMoveFinished.connect(self.reorderLimits)
 
         self.user_changed = False
 
@@ -933,13 +851,13 @@ class LimitsBox(QHBoxLayout):
         self.lowlime.focusIn = self.focusInChild
         self.highlime.focusIn = self.focusInChild
 
-        self.line1 = MovableVlineWD(position=limits[0], label=label + " - Low",
-                        setvalfn=self.lineLimitChanged)
-        self.line2 = MovableVlineWD(position=limits[1], label=label + " - High",
-                        setvalfn=self.lineLimitChanged)
+        self.line1 = MovableVline(position=limits[0], label=label + " - Low")
+        self.line1.sigMoved.connect(self.lineLimitChanged)
+        self.line2 = MovableVline(position=limits[1], label=label + " - High")
+        self.line2.sigMoved.connect(self.lineLimitChanged)
 
-        self.line1.line.sigPositionChangeFinished.connect(self.editFinished)
-        self.line2.line.sigPositionChangeFinished.connect(self.editFinished)
+        self.line1.sigMoveFinished.connect(self.editFinished)
+        self.line2.sigMoveFinished.connect(self.editFinished)
 
     def focusInEvent(self, *e):
         self.focusIn()
@@ -954,7 +872,7 @@ class LimitsBox(QHBoxLayout):
         self.line2.setValue(newlimits[1])
         self.valueChanged.emit(newlimits, self)
 
-    def lineLimitChanged(self, value=None):
+    def lineLimitChanged(self):
         newlimits = [self.line1.value(), self.line2.value()]
         self.lowlime.setValue(newlimits[0])
         self.highlime.setValue(newlimits[1])
