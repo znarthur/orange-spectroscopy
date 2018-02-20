@@ -1,6 +1,6 @@
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
-from AnyQt.QtWidgets import QWidget, QHBoxLayout
+from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
@@ -101,21 +101,64 @@ class CallFrontLineEditCustomConversion(gui.ControlledCallFront):
         self.control.setText(self.valToStr(value))
 
 
-def lineEditUpdateWhenFinished(widget, master, value, valueToStr=str, valueType=str, **kwargs):
+class FocusInSignal:
+    """A mixin that adds a focusIn signal. """
+    focusIn = Signal()
+
+    def focusInEvent(self, *e):
+        self.focusIn.emit()
+        return QWidget.focusInEvent(self, *e)
+
+
+class LineEditMarkFinished(QLineEdit):
+    """QLineEdit that marks all text when pressed enter."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.returnPressed.connect(self.selectAll)
+
+
+class LineEdit(LineEditMarkFinished, FocusInSignal):
+
+    newInput = Signal(str)
+    """ Emitted when the editing was finished and contents actually changed"""
+
+    def __init__(self, parent=None):
+        LineEditMarkFinished.__init__(self, parent=parent)
+        self.__changed = False
+        self.editingFinished.connect(self.__signal_if_changed)
+        self.textEdited.connect(self.__textEdited)
+
+    def setText(self, text):
+        self.__changed = False
+        super().setText(text)
+
+    def __textEdited(self):
+        self.__changed = True
+
+    def __signal_if_changed(self):
+        if self.__changed:
+            self.__changed = False
+            self.newInput.emit(self.text())
+
+
+def connect_line_edit_finished(lineedit, master, value, valueToStr=str, valueType=str, callback=None):
+    # callback is only for compatibility with the old code
+    update_value = gui.ValueCallback(master, value, valueType)  # save the value
+    update_control = CallFrontLineEditCustomConversion(lineedit, valueToStr)  # update control
+    update_value.opposite = update_control
+    update_control(getdeepattr(master, value))  # set the first value
+    master.connect_control(value, update_control)
+    lineedit.newInput.connect(lambda x: (update_value(x),
+                                         callback() if callback is not None else None))
+
+
+def lineEditUpdateWhenFinished(parent, master, value, valueToStr=str, valueType=str, validator=None, callback=None):
     """ Line edit that only calls callback when update is finished """
-    ct = kwargs.pop("callbackOnType", False)
-    assert(not ct)
-
-    ledit = gui.lineEdit(widget, master, None, **kwargs)
-
-    if value:  # connect signals manually so that widget does not use OnChanged
-        ledit.setText(valueToStr(getdeepattr(master, value)))
-        cback = gui.ValueCallback(master, value, valueType)  # save the value
-        cfront = CallFrontLineEditCustomConversion(ledit, valueToStr)
-        cback.opposite = cfront
-        master.connect_control(value, cfront)
-        ledit.cback = cback  # cback that LineEditWFocusOut uses in
-
+    ledit = LineEdit(parent)
+    ledit.setValidator(validator)
+    if value:
+        connect_line_edit_finished(ledit, master, value, valueToStr=valueToStr, valueType=valueType, callback=callback)
     return ledit
 
 
@@ -240,10 +283,9 @@ class MovableVline(pg.UIGraphicsItem):
         super().paint(p, *args)
 
 
-class XPosLineEdit(QWidget, OWComponent):
+class XPosLineEdit(QWidget, OWComponent, FocusInSignal):
 
     edited = Signal()
-    focusIn = Signal()
 
     def __init__(self, parent=None, label=""):
         QWidget.__init__(self, parent)
@@ -255,8 +297,9 @@ class XPosLineEdit(QWidget, OWComponent):
 
         self.position = 0
 
-        self.edit = lineEditFloatRange(self, self, "position", orientation=Qt.Horizontal,
-                                       callback=self.edited.emit, focusInCallback=self.focusIn.emit)
+        self.edit = lineEditFloatRange(self, self, "position", callback=self.edited.emit)
+        layout.addWidget(self.edit)
+        self.edit.focusIn.connect(self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)
         self.line.sigMoved.connect(self.set_position)
         self.line.sigMoveFinished.connect(self.edited)

@@ -261,13 +261,14 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        layout = QVBoxLayout()
+        layout = QFormLayout()
         self.setLayout(layout)
         self.sd = self.DEFAULT_SD
 
         # editing will always return a valid output (in the range)
-        lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
-                           orientation=Qt.Horizontal, callback=self.edited.emit)
+        w = lineEditFloatRange(self, self, "sd", bottom=0., top=1000., default=self.DEFAULT_SD,
+                               callback=self.edited.emit)
+        layout.addRow("SD", w)
 
     def setParameters(self, params):
         self.sd = params.get("sd", self.DEFAULT_SD)
@@ -289,13 +290,13 @@ class SetXDoubleSpinBox(QDoubleSpinBox):
         return super().focusInEvent(*e)
 
 
-class CutEditor(BaseEditor):
+class CutEditor(BaseEditorOrange):
     """
     Editor for Cut
     """
 
     def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
+        BaseEditorOrange.__init__(self, parent, **kwargs)
         self.__lowlim = 0.
         self.__highlim = 1.
 

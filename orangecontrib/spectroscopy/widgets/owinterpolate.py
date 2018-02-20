@@ -6,7 +6,7 @@ import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
-from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QFormLayout, QWidget
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Interpolate, InterpolateToDomain, \
@@ -63,17 +63,20 @@ class OWInterpolate(OWWidget):
         gui.appendRadioButton(rbox, "Enable automatic interpolation")
 
         gui.appendRadioButton(rbox, "Linear interval")
+
         ibox = gui.indentedBox(rbox)
 
-        self.xmin_edit = lineEditFloatOrNone(ibox, self, "xmin",
-            label="Min", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self.commit)
-        self.xmax_edit = lineEditFloatOrNone(ibox, self, "xmax",
-            label="Max", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self.commit)
-        self.dx_edit = lineEditFloatOrNone(ibox, self, "dx",
-            label="Δ", labelWidth=50, orientation=Qt.Horizontal,
-            callback=self.commit)
+        form = QWidget()
+        formlayout = QFormLayout()
+        form.setLayout(formlayout)
+        ibox.layout().addWidget(form)
+
+        self.xmin_edit = lineEditFloatOrNone(ibox, self, "xmin", callback=self.commit)
+        formlayout.addRow("Min", self.xmin_edit)
+        self.xmax_edit = lineEditFloatOrNone(ibox, self, "xmax", callback=self.commit)
+        formlayout.addRow("Max", self.xmax_edit)
+        self.dx_edit = lineEditFloatOrNone(ibox, self, "dx", callback=self.commit)
+        formlayout.addRow("Δ", self.dx_edit)
 
         gui.appendRadioButton(rbox, "Reference data")
 
