@@ -186,12 +186,14 @@ def lineEditFloatOrNone(widget, master, value, **kwargs):
 
 
 def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
-    return lineEditValidator(widget, master, value,
+    le = lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=False,
                                                              bottom=bottom, top=top, default_text=str(default)),
                              valueType=float,  # every text need to be a valid float before saving setting
                              valueToStr=str,
                              **kwargs)
+    le.set_default = lambda v: le.validator().setDefault(str(v))
+    return le
 
 
 class MovableVline(pg.UIGraphicsItem):
@@ -199,7 +201,7 @@ class MovableVline(pg.UIGraphicsItem):
     sigMoveFinished = Signal(object)
     sigMoved = Signal(object)
 
-    def __init__(self, position, label="", color=(225, 0, 0), report=None):
+    def __init__(self, position=0., label="", color=(225, 0, 0), report=None):
         pg.UIGraphicsItem.__init__(self)
         self.moving = False
         self.mouseHovering = False
@@ -283,6 +285,21 @@ class MovableVline(pg.UIGraphicsItem):
         super().paint(p, *args)
 
 
+class LineCallFront(gui.ControlledCallFront):
+
+    def action(self, value):
+        self.control.setValue(value)
+
+
+def connect_line(line, master, value):
+    update_value = gui.ValueCallback(master, value)  # save the value
+    update_control = LineCallFront(line)  # update control
+    update_value.opposite = update_control
+    update_control(getdeepattr(master, value))  # set the first value
+    master.connect_control(value, update_control)
+    line.sigMoved.connect(update_value)
+
+
 class XPosLineEdit(QWidget, OWComponent, FocusInSignal):
 
     edited = Signal()
@@ -301,12 +318,8 @@ class XPosLineEdit(QWidget, OWComponent, FocusInSignal):
         layout.addWidget(self.edit)
         self.edit.focusIn.connect(self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)
-        self.line.sigMoved.connect(self.set_position)
-        self.line.sigMoveFinished.connect(self.edited)
-        self.connect_control("position", self.line.setValue)
-
-    def set_position(self, v):
-        self.position = v
+        connect_line(self.line, self, "position")
+        self.line.sigMoveFinished.connect(self.edited.emit)
 
     def set_default(self, v):
         self.edit.validator().setDefault(str(v))

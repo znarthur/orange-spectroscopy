@@ -44,7 +44,7 @@ from orangecontrib.spectroscopy.preprocess import (
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
-    MovableVline
+    MovableVline, connect_line
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -297,85 +297,44 @@ class CutEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         BaseEditorOrange.__init__(self, parent, **kwargs)
-        self.__lowlim = 0.
-        self.__highlim = 1.
+
+        self.lowlim = 0.
+        self.highlim = 1.
 
         layout = QFormLayout()
 
         self.setLayout(layout)
 
-        minf,maxf = -sys.float_info.max, sys.float_info.max
+        self._lowlime = lineEditFloatRange(self, self, "lowlim", callback=self.edited.emit)
+        self._highlime = lineEditFloatRange(self, self, "highlim", callback=self.edited.emit)
 
-        self.__lowlime = SetXDoubleSpinBox(decimals=4,
-            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__lowlim)
-        self.__highlime = SetXDoubleSpinBox(decimals=4,
-            minimum=minf, maximum=maxf, singleStep=0.5, value=self.__highlim)
+        layout.addRow("Low limit", self._lowlime)
+        layout.addRow("High limit", self._highlime)
 
-        layout.addRow("Low limit", self.__lowlime)
-        layout.addRow("High limit", self.__highlime)
-
-        self.__lowlime.focusIn = self.activateOptions
-        self.__highlime.focusIn = self.activateOptions
+        self._lowlime.focusIn.connect(self.activateOptions)
+        self._highlime.focusIn.connect(self.activateOptions)
         self.focusIn = self.activateOptions
 
-        self.__lowlime.valueChanged[float].connect(self.set_lowlim)
-        self.__highlime.valueChanged[float].connect(self.set_highlim)
-        self.__lowlime.editingFinished.connect(self.edited)
-        self.__highlime.editingFinished.connect(self.edited)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-        self.line1 = MovableVline(position=self.__lowlim, label="Low limit")
-        self.line1.sigMoved.connect(self.set_lowlim)
+        self.line1 = MovableVline(label="Low limit")
+        connect_line(self.line1, self, "lowlim")
         self.line1.sigMoveFinished.connect(self.edited)
-        self.line2 = MovableVline(position=self.__highlim, label="High limit")
-        self.line2.sigMoved.connect(self.set_highlim)
+        self.line2 = MovableVline(label="High limit")
+        connect_line(self.line2, self, "highlim")
         self.line2.sigMoveFinished.connect(self.edited)
 
         self.user_changed = False
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
-        if self.line1 not in self.parent_widget.curveplot.markings:
-            self.line1.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line1)
-        if self.line2 not in self.parent_widget.curveplot.markings:
-            self.line2.report = self.parent_widget.curveplot
-            self.parent_widget.curveplot.add_marking(self.line2)
-
-    def set_lowlim(self, lowlim, user=True):
-        if user:
-            self.user_changed = True
-        if self.__lowlim != lowlim:
-            self.__lowlim = lowlim
-            with blocked(self.__lowlime):
-                self.__lowlime.setValue(lowlim)
-                self.line1.setValue(lowlim)
-            self.changed.emit()
-
-    def left(self):
-        return self.__lowlim
-
-    def set_highlim(self, highlim, user=True):
-        if user:
-            self.user_changed = True
-        if self.__highlim != highlim:
-            self.__highlim = highlim
-            with blocked(self.__highlime):
-                self.__highlime.setValue(highlim)
-                self.line2.setValue(highlim)
-            self.changed.emit()
-
-    def right(self):
-        return self.__highlim
+        for line in [self.line1, self.line2]:
+            line.report = self.parent_widget.curveplot
+            self.parent_widget.curveplot.add_marking(line)
 
     def setParameters(self, params):
         if params: #parameters were manually set somewhere else
             self.user_changed = True
-        self.set_lowlim(params.get("lowlim", 0.), user=False)
-        self.set_highlim(params.get("highlim", 1.), user=False)
-
-    def parameters(self):
-        return {"lowlim": self.__lowlim, "highlim": self.__highlim}
+        self.lowlim = params.get("lowlim", 0.)
+        self.highlim = params.get("highlim", 1.)
 
     @staticmethod
     def createinstance(params):
@@ -385,11 +344,13 @@ class CutEditor(BaseEditorOrange):
         return Cut(lowlim=lowlim, highlim=highlim)
 
     def set_preview_data(self, data):
-        if not self.user_changed:
-            x = getx(data)
-            if len(x):
-                self.set_lowlim(min(x))
-                self.set_highlim(max(x))
+        x = getx(data)
+        if len(x):
+            self._lowlime.set_default(min(x))
+            self._highlime.set_default(max(x))
+            if not self.user_changed:
+                self.lowlim = min(x)
+                self.highlim = max(x)
                 self.edited.emit()
 
 
@@ -403,12 +364,14 @@ class CutEditorInverse(CutEditor):
         return Cut(lowlim=lowlim, highlim=highlim, inverse=True)
 
     def set_preview_data(self, data):
-        if not self.user_changed:
-            x = getx(data)
-            if len(x):
-                avg = (min(x) + max(x))/2
-                self.set_lowlim(avg)
-                self.set_highlim(avg)
+        x = getx(data)
+        if len(x):
+            avg = (min(x) + max(x)) / 2
+            self._lowlime.set_default(avg)
+            self._highlime.set_default(avg)
+            if not self.user_changed:
+                self.lowlim = avg
+                self.highlim = avg
                 self.edited.emit()
 
 
