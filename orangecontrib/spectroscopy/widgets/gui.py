@@ -258,7 +258,7 @@ class XPosLineEdit(QWidget, OWComponent):
         self.edit = lineEditFloatRange(self, self, "position", orientation=Qt.Horizontal,
                                        callback=self.edited.emit, focusInCallback=self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)
-        self.line.sigMoved.connect(lambda: self.set_position(self.line.value()))
+        self.line.sigMoved.connect(self.set_position)
         self.line.sigMoveFinished.connect(self.edited)
         self.connect_control("position", self.line.setValue)
 
