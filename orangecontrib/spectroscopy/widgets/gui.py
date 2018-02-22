@@ -1,6 +1,9 @@
+import math
+from decimal import Decimal
+
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
-from AnyQt.QtWidgets import QWidget, QHBoxLayout
+from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
@@ -8,6 +11,27 @@ import pyqtgraph as pg
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
+from Orange.widgets.data.owpreprocess import blocked
+
+
+def pixel_decimals(viewbox):
+    """
+    Decimals needed to accurately represent position on a viewbox.
+    Return a tuple, decimals for x and y positions.
+    """
+    try:
+        xpixel, ypixel = viewbox.viewPixelSize()
+    except:
+        return 10, 10
+
+    def pixels_to_decimals(n):
+        return max(-int(math.floor(math.log10(n))) + 1, 0)
+
+    return pixels_to_decimals(xpixel), pixels_to_decimals(ypixel)
+
+
+def float_to_str_decimals(f, decimals):
+    return ("%0." + str(decimals) + "f") % f
 
 
 class FloatOrEmptyValidator(QValidator):
@@ -67,11 +91,9 @@ class IntOrEmptyValidator(QValidator):
 
 
 def floatornone(a):
-    if a == "":
-        return None
     try:  # because also intermediate values are passed forward
         return float(a)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -101,21 +123,61 @@ class CallFrontLineEditCustomConversion(gui.ControlledCallFront):
         self.control.setText(self.valToStr(value))
 
 
-def lineEditUpdateWhenFinished(widget, master, value, valueToStr=str, valueType=str, **kwargs):
+class LineEditMarkFinished(QLineEdit):
+    """QLineEdit that marks all text when pressed enter."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.returnPressed.connect(self.selectAll)
+
+
+class LineEdit(LineEditMarkFinished):
+
+    newInput = Signal(str)
+    """ Emitted when the editing was finished and contents actually changed"""
+
+    focusIn = Signal()
+
+    def __init__(self, parent=None):
+        LineEditMarkFinished.__init__(self, parent=parent)
+        self.__changed = False
+        self.editingFinished.connect(self.__signal_if_changed)
+        self.textEdited.connect(self.__textEdited)
+
+    def setText(self, text):
+        self.__changed = False
+        super().setText(text)
+
+    def __textEdited(self):
+        self.__changed = True
+
+    def __signal_if_changed(self):
+        if self.__changed:
+            self.__changed = False
+            self.newInput.emit(self.text())
+
+    def focusInEvent(self, *e):
+        self.focusIn.emit()
+        return QWidget.focusInEvent(self, *e)
+
+
+def connect_line_edit_finished(lineedit, master, value, valueToStr=str, valueType=str, callback=None):
+    # callback is only for compatibility with the old code
+    update_value = gui.ValueCallback(master, value, valueType)  # save the value
+    update_control = CallFrontLineEditCustomConversion(lineedit, valueToStr)  # update control
+    update_value.opposite = update_control
+    update_control(getdeepattr(master, value))  # set the first value
+    master.connect_control(value, update_control)
+    lineedit.newInput.connect(lambda x: (update_value(x),
+                                         callback() if callback is not None else None))
+
+
+def lineEditUpdateWhenFinished(parent, master, value, valueToStr=str, valueType=str, validator=None, callback=None):
     """ Line edit that only calls callback when update is finished """
-    ct = kwargs.pop("callbackOnType", False)
-    assert(not ct)
-
-    ledit = gui.lineEdit(widget, master, None, **kwargs)
-
-    if value:  # connect signals manually so that widget does not use OnChanged
-        ledit.setText(valueToStr(getdeepattr(master, value)))
-        cback = gui.ValueCallback(master, value, valueType)  # save the value
-        cfront = CallFrontLineEditCustomConversion(ledit, valueToStr)
-        cback.opposite = cfront
-        master.connect_control(value, cfront)
-        ledit.cback = cback  # cback that LineEditWFocusOut uses in
-
+    ledit = LineEdit(parent)
+    ledit.setValidator(validator)
+    if value:
+        connect_line_edit_finished(ledit, master, value, valueToStr=valueToStr, valueType=valueType, callback=callback)
     return ledit
 
 
@@ -143,12 +205,14 @@ def lineEditFloatOrNone(widget, master, value, **kwargs):
 
 
 def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
-    return lineEditValidator(widget, master, value,
+    le = lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=False,
                                                              bottom=bottom, top=top, default_text=str(default)),
-                             valueType=float,  # every text need to be a valid float before saving setting
+                             valueType=Decimal,  # every text need to be a valid float before saving setting
                              valueToStr=str,
                              **kwargs)
+    le.set_default = lambda v: le.validator().setDefault(str(v))
+    return le
 
 
 class MovableVline(pg.UIGraphicsItem):
@@ -156,7 +220,7 @@ class MovableVline(pg.UIGraphicsItem):
     sigMoveFinished = Signal(object)
     sigMoved = Signal(object)
 
-    def __init__(self, position, label="", color=(225, 0, 0), report=None):
+    def __init__(self, position=0., label="", color=(225, 0, 0), report=None):
         pg.UIGraphicsItem.__init__(self)
         self.moving = False
         self.mouseHovering = False
@@ -178,7 +242,7 @@ class MovableVline(pg.UIGraphicsItem):
         self.setLabel(label)
 
         self.line.sigPositionChangeFinished.connect(self._moveFinished)
-        self.line.sigPositionChanged.connect(self._moved)
+        self.line.sigPositionChanged.connect(lambda: (self._moved(), self.sigMoved.emit(self.value())))
 
         self._lastTransform = None
 
@@ -190,6 +254,15 @@ class MovableVline(pg.UIGraphicsItem):
             return None
         return self.line.value()
 
+    def rounded_value(self):
+        """ Round the value according to current view on the graph.
+        Return a decimal.Decimal object """
+        v = self.value()
+        dx, dy = pixel_decimals(self.getViewBox())
+        if v is not None:
+            v = Decimal(float_to_str_decimals(v, dx))
+        return v
+
     def setValue(self, val):
         oldval = self.value()
         if oldval == val:
@@ -198,7 +271,8 @@ class MovableVline(pg.UIGraphicsItem):
         if not self.isnone:
             rep = self.report  # temporarily disable report
             self.report = None
-            self.line.setValue(val)  # emits sigPositionChanged which calls _moved
+            with blocked(self.line):  # block sigPositionChanged by setValue
+                self.line.setValue(val)
             self.report = rep
             self.line.show()
             self.label.show()
@@ -225,7 +299,6 @@ class MovableVline(pg.UIGraphicsItem):
                 self.report.report(self, [("x", self.value())])
             else:
                 self.report.report_finished(self)
-        self.sigMoved.emit(self.value())
 
     def _moveFinished(self):
         if self.report:
@@ -238,6 +311,21 @@ class MovableVline(pg.UIGraphicsItem):
             self._move_label()
         self._lastTransform = tr
         super().paint(p, *args)
+
+
+class LineCallFront(gui.ControlledCallFront):
+
+    def action(self, value):
+        self.control.setValue(floatornone(value))
+
+
+def connect_line(line, master, value):
+    update_value = gui.ValueCallback(master, value)  # save the value
+    update_control = LineCallFront(line)  # update control
+    update_value.opposite = update_control
+    update_control(getdeepattr(master, value))  # set the first value
+    master.connect_control(value, update_control)
+    line.sigMoved.connect(lambda: update_value(line.rounded_value()))
 
 
 class XPosLineEdit(QWidget, OWComponent):
@@ -255,15 +343,16 @@ class XPosLineEdit(QWidget, OWComponent):
 
         self.position = 0
 
-        self.edit = lineEditFloatRange(self, self, "position", orientation=Qt.Horizontal,
-                                       callback=self.edited.emit, focusInCallback=self.focusIn.emit)
+        self.edit = lineEditFloatRange(self, self, "position", callback=self.edited.emit)
+        layout.addWidget(self.edit)
+        self.edit.focusIn.connect(self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)
-        self.line.sigMoved.connect(lambda: self.set_position(self.line.value()))
-        self.line.sigMoveFinished.connect(self.edited)
-        self.connect_control("position", self.line.setValue)
-
-    def set_position(self, v):
-        self.position = v
+        connect_line(self.line, self, "position")
+        self.line.sigMoveFinished.connect(self.edited.emit)
 
     def set_default(self, v):
         self.edit.validator().setDefault(str(v))
+
+    def focusInEvent(self, *e):
+        self.focusIn.emit()
+        return QWidget.focusInEvent(self, *e)

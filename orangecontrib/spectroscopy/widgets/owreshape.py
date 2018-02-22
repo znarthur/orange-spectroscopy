@@ -6,7 +6,8 @@ from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntOrNone
-from AnyQt.QtCore import Qt
+
+from AnyQt.QtWidgets import QWidget, QFormLayout
 
 
 class OWReshape(OWWidget):
@@ -47,12 +48,15 @@ class OWReshape(OWWidget):
 
         box = gui.widgetBox(self.controlArea, "Map grid")
 
-        self.le1 = lineEditIntOrNone(box, self, "xpoints",
-            label="X dimension", labelWidth=80, orientation=Qt.Horizontal,
-            callback=self.le1_changed)
-        self.le3 = lineEditIntOrNone(box, self, "ypoints",
-            label="Y dimension", labelWidth=80, orientation=Qt.Horizontal,
-            callback=self.le3_changed)
+        form = QWidget()
+        formlayout = QFormLayout()
+        form.setLayout(formlayout)
+        box.layout().addWidget(form)
+
+        self.le1 = lineEditIntOrNone(box, self, "xpoints", callback=self.le1_changed)
+        formlayout.addRow("X dimension", self.le1)
+        self.le3 = lineEditIntOrNone(box, self, "ypoints", callback=self.le3_changed)
+        formlayout.addRow("Y dimension", self.le3)
 
         self.data = None
         self.set_data(self.data)  # show warning
