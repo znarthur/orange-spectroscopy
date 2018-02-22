@@ -101,15 +101,6 @@ class CallFrontLineEditCustomConversion(gui.ControlledCallFront):
         self.control.setText(self.valToStr(value))
 
 
-class FocusInSignal:
-    """A mixin that adds a focusIn signal. """
-    focusIn = Signal()
-
-    def focusInEvent(self, *e):
-        self.focusIn.emit()
-        return QWidget.focusInEvent(self, *e)
-
-
 class LineEditMarkFinished(QLineEdit):
     """QLineEdit that marks all text when pressed enter."""
 
@@ -118,10 +109,12 @@ class LineEditMarkFinished(QLineEdit):
         self.returnPressed.connect(self.selectAll)
 
 
-class LineEdit(LineEditMarkFinished, FocusInSignal):
+class LineEdit(LineEditMarkFinished):
 
     newInput = Signal(str)
     """ Emitted when the editing was finished and contents actually changed"""
+
+    focusIn = Signal()
 
     def __init__(self, parent=None):
         LineEditMarkFinished.__init__(self, parent=parent)
@@ -140,6 +133,10 @@ class LineEdit(LineEditMarkFinished, FocusInSignal):
         if self.__changed:
             self.__changed = False
             self.newInput.emit(self.text())
+
+    def focusInEvent(self, *e):
+        self.focusIn.emit()
+        return QWidget.focusInEvent(self, *e)
 
 
 def connect_line_edit_finished(lineedit, master, value, valueToStr=str, valueType=str, callback=None):
@@ -300,9 +297,10 @@ def connect_line(line, master, value):
     line.sigMoved.connect(update_value)
 
 
-class XPosLineEdit(QWidget, OWComponent, FocusInSignal):
+class XPosLineEdit(QWidget, OWComponent):
 
     edited = Signal()
+    focusIn = Signal()
 
     def __init__(self, parent=None, label=""):
         QWidget.__init__(self, parent)
@@ -323,3 +321,7 @@ class XPosLineEdit(QWidget, OWComponent, FocusInSignal):
 
     def set_default(self, v):
         self.edit.validator().setDefault(str(v))
+
+    def focusInEvent(self, *e):
+        self.focusIn.emit()
+        return QWidget.focusInEvent(self, *e)
