@@ -1,4 +1,5 @@
 import math
+from decimal import Decimal
 
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
@@ -10,6 +11,7 @@ import pyqtgraph as pg
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
+from Orange.widgets.data.owpreprocess import blocked
 
 
 def pixel_decimals(viewbox):
@@ -89,11 +91,9 @@ class IntOrEmptyValidator(QValidator):
 
 
 def floatornone(a):
-    if a == "":
-        return None
     try:  # because also intermediate values are passed forward
         return float(a)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -208,7 +208,7 @@ def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("i
     le = lineEditValidator(widget, master, value,
                              validator=FloatOrEmptyValidator(master, allow_empty=False,
                                                              bottom=bottom, top=top, default_text=str(default)),
-                             valueType=float,  # every text need to be a valid float before saving setting
+                             valueType=Decimal,  # every text need to be a valid float before saving setting
                              valueToStr=str,
                              **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
@@ -242,7 +242,7 @@ class MovableVline(pg.UIGraphicsItem):
         self.setLabel(label)
 
         self.line.sigPositionChangeFinished.connect(self._moveFinished)
-        self.line.sigPositionChanged.connect(self._moved)
+        self.line.sigPositionChanged.connect(lambda: (self._moved(), self.sigMoved.emit(self.value())))
 
         self._lastTransform = None
 
@@ -254,6 +254,15 @@ class MovableVline(pg.UIGraphicsItem):
             return None
         return self.line.value()
 
+    def rounded_value(self):
+        """ Round the value according to current view on the graph.
+        Return a decimal.Decimal object """
+        v = self.value()
+        dx, dy = pixel_decimals(self.getViewBox())
+        if v is not None:
+            v = Decimal(float_to_str_decimals(v, dx))
+        return v
+
     def setValue(self, val):
         oldval = self.value()
         if oldval == val:
@@ -262,7 +271,8 @@ class MovableVline(pg.UIGraphicsItem):
         if not self.isnone:
             rep = self.report  # temporarily disable report
             self.report = None
-            self.line.setValue(val)  # emits sigPositionChanged which calls _moved
+            with blocked(self.line):  # block sigPositionChanged by setValue
+                self.line.setValue(val)
             self.report = rep
             self.line.show()
             self.label.show()
@@ -289,7 +299,6 @@ class MovableVline(pg.UIGraphicsItem):
                 self.report.report(self, [("x", self.value())])
             else:
                 self.report.report_finished(self)
-        self.sigMoved.emit(self.value())
 
     def _moveFinished(self):
         if self.report:
@@ -307,7 +316,7 @@ class MovableVline(pg.UIGraphicsItem):
 class LineCallFront(gui.ControlledCallFront):
 
     def action(self, value):
-        self.control.setValue(value)
+        self.control.setValue(floatornone(value))
 
 
 def connect_line(line, master, value):
@@ -316,7 +325,7 @@ def connect_line(line, master, value):
     update_value.opposite = update_control
     update_control(getdeepattr(master, value))  # set the first value
     master.connect_control(value, update_control)
-    line.sigMoved.connect(update_value)
+    line.sigMoved.connect(lambda: update_value(line.rounded_value()))
 
 
 class XPosLineEdit(QWidget, OWComponent):

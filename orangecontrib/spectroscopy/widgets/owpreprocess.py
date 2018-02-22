@@ -44,7 +44,7 @@ from orangecontrib.spectroscopy.preprocess import (
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
-    MovableVline, connect_line
+    MovableVline, connect_line, floatornone
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -277,7 +277,7 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     def createinstance(cls, params):
         params = dict(params)
         sd = params.get("sd", cls.DEFAULT_SD)
-        return GaussianSmoothing(sd=sd)
+        return GaussianSmoothing(sd=float(sd))
 
 
 class SetXDoubleSpinBox(QDoubleSpinBox):
@@ -341,7 +341,7 @@ class CutEditor(BaseEditorOrange):
         params = dict(params)
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
-        return Cut(lowlim=lowlim, highlim=highlim)
+        return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
 
     def set_preview_data(self, data):
         x = getx(data)
@@ -1181,7 +1181,7 @@ class EMSCEditor(BaseEditorOrange):
         parameters = super().parameters()
         parameters["ranges"] = []
         for pair in self._range_widgets():
-            parameters["ranges"].append([pair[0].position, pair[1].position, 1.0])  # for now weight is always 1.0
+            parameters["ranges"].append([float(pair[0].position), float(pair[1].position), 1.0])  # for now weight is always 1.0
         return parameters
 
     @classmethod
