@@ -1,3 +1,5 @@
+import math
+
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
 from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit
@@ -8,6 +10,26 @@ import pyqtgraph as pg
 from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
+
+
+def pixel_decimals(viewbox):
+    """
+    Decimals needed to accurately represent position on a viewbox.
+    Return a tuple, decimals for x and y positions.
+    """
+    try:
+        xpixel, ypixel = viewbox.viewPixelSize()
+    except:
+        return 10, 10
+
+    def pixels_to_decimals(n):
+        return max(-int(math.floor(math.log10(n))) + 1, 0)
+
+    return pixels_to_decimals(xpixel), pixels_to_decimals(ypixel)
+
+
+def float_to_str_decimals(f, decimals):
+    return ("%0." + str(decimals) + "f") % f
 
 
 class FloatOrEmptyValidator(QValidator):

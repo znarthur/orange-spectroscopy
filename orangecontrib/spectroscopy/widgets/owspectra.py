@@ -3,7 +3,6 @@ from collections import defaultdict
 import gc
 import random
 import warnings
-import math
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
@@ -34,7 +33,8 @@ from Orange.widgets.visualize.owscatterplotgraph import HelpEventDelegate
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
+from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
+    float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
     selections_to_length
 
@@ -530,7 +530,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.discrete_palette = None
         QPixmapCache.setCacheLimit(max(QPixmapCache.cacheLimit(), 100 * 1024))
         self.curves_cont = PlotCurvesItem()
-        self.important_decimals = 4, 4
+        self.important_decimals = 10, 10
 
         self.plot.scene().installEventFilter(
             HelpEventDelegate(self.help_event, self))
@@ -866,27 +866,24 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
 
+
     def resized(self):
+        self.important_decimals = pixel_decimals(self.plot.vb)
+
         try:
             vr = self.plot.vb.viewRect()
-            xpixel, ypixel = self.plot.vb.viewPixelSize()
         except:
-            # if vb is not shown we can not get viewPixelSize
             return
 
-        def important_decimals(n):
-            return max(-int(math.floor(math.log10(n))) + 1, 0)
-
-        self.important_decimals = important_decimals(xpixel), important_decimals(ypixel)
         if self.invertX:
             self.label.setPos(vr.bottomLeft())
         else:
             self.label.setPos(vr.bottomRight())
         xd, yd = self.important_decimals
-        self.range_e_x1.setPlaceholderText(("%0." + str(xd) + "f") % vr.left())
-        self.range_e_x2.setPlaceholderText(("%0." + str(xd) + "f") % vr.right())
-        self.range_e_y1.setPlaceholderText(("%0." + str(yd) + "f") % vr.top())
-        self.range_e_y2.setPlaceholderText(("%0." + str(yd) + "f") % vr.bottom())
+        self.range_e_x1.setPlaceholderText(strdec(vr.left(), xd))
+        self.range_e_x2.setPlaceholderText(strdec(vr.right(), xd))
+        self.range_e_y1.setPlaceholderText(strdec(vr.top(), yd))
+        self.range_e_y2.setPlaceholderText(strdec(vr.bottom(), yd))
 
     def make_selection(self, data_indices, add=False):
         add_to_group, add_group, remove = selection_modifiers()
@@ -955,15 +952,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 for v in vs:
                     if isinstance(v, tuple) and len(v) == 2:
                         if v[0] == "x":
-                            labels.append(("%0." + str(self.important_decimals[0]) + "f") % v[1])
+                            labels.append(strdec(v[1], self.important_decimals[0]))
                             continue
                     labels.append(str(v))
             labels = " ".join(labels)
             self.crosshair_hidden = bool(labels)
 
             if self.location and not labels:
-                fs = "%0." + str(self.important_decimals[0]) + "f %0." + str(self.important_decimals[1]) + "f"
-                labels = fs % (posx, posy)
+                labels = strdec(posx, self.important_decimals[0]) + " " + strdec(posy, self.important_decimals[1])
             self.label.setText(labels, color=(0, 0, 0))
 
             if self.curves and len(self.curves[0][0]):  # need non-zero x axis!
