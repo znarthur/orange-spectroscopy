@@ -514,7 +514,7 @@ class BaselineEditor(BaseEditor):
             return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
 
-class CurveShiftEditor(BaseEditor):
+class CurveShiftEditor(BaseEditorOrange):
     """
     Editor for CurveShift
     """
@@ -522,45 +522,24 @@ class CurveShiftEditor(BaseEditor):
     #       EFFECT: the sidebar snaps in
 
     def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
-        self.__amount = 0.
+        super().__init__(parent, **kwargs)
+
+        self.amount = 0.
 
         self.setLayout(QVBoxLayout())
         form = QFormLayout()
 
-        minf,maxf = -sys.float_info.max, sys.float_info.max
-        # TODO: the singleStep parameter should be automatically set to
-        # TODO:   5% of the data range instead of hard coding
-        self.__amountspin = amountspin = QDoubleSpinBox(
-           minimum=minf, maximum=maxf, singleStep=0.5, value=self.__amount)
-        form.addRow("Shift Amount", amountspin)
+        amounte = lineEditFloatRange(self, self, "amount", callback=self.edited.emit)
+        form.addRow("Shift Amount", amounte)
         self.layout().addLayout(form)
 
-        amountspin.valueChanged[float].connect(self.setAmount)
-        amountspin.editingFinished.connect(self.edited)
-
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-    def setAmount(self, amount):
-        if self.__amount != amount:
-            self.__amount = amount
-            with blocked(self.__amountspin):
-                self.__amountspin.setValue(amount)
-            self.edited.emit()
-
-    def amount(self):
-        return self.__amount
-
     def setParameters(self, params):
-        self.setAmount(params.get("amount", 0.))
-
-    def parameters(self):
-        return {"amount": self.__amount}
+        self.amount = params.get("amount", 0.)
 
     @staticmethod
     def createinstance(params):
         params = dict(params)
-        amount = params.get("amount", 0.)
+        amount = float(params.get("amount", 0.))
         return CurveShift(amount=amount)
 
 
