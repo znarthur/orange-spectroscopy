@@ -42,7 +42,7 @@ from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATE
     create_groups_table
 
 
-IMAGE_TOO_BIG = 1024*1024
+IMAGE_TOO_BIG = 1024*1024*100
 
 
 def refresh_integral_markings(dis, markings_list, curveplot):
