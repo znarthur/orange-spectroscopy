@@ -1271,8 +1271,8 @@ PREPROCESSORS = [
         PCADenoisingEditor
     ),
     PreprocessAction(
-        "Transmittance to Absorbance", "orangecontrib.infrared.absorbance", "Trasmittance to Absorbance",
-        Description("Trasmittance to Absorbance",
+        "Transmittance to Absorbance", "orangecontrib.infrared.absorbance", "Transmittance to Absorbance",
+        Description("Transmittance to Absorbance",
                     icon_path("Discretize.svg")),
         TransToAbsEditor
     ),
