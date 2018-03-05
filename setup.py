@@ -127,6 +127,6 @@ if __name__ == '__main__':
         test_suite=TEST_SUITE,
         include_package_data=True,
         zip_safe=False,
-        url="https://github.com/markotoplak/orange-infrared",
+        url="https://github.com/markotoplak/orange-spectroscopy",
         cmdclass=cmdclass,
     )
