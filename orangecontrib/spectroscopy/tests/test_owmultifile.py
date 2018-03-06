@@ -102,6 +102,16 @@ class TestOWMultifile(WidgetTest):
         self.widget.sheet_combo.setCurrentIndex(1)
         self.widget.select_sheet()
 
+    def test_saving_setting(self):
+        self.load_files("iris")
+        self.load_files("iris", reader=TabReader)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWMultifile, stored_settings=settings)
+        self.assertEqual(self.widget.recent_paths[0].relpath, "iris.tab")
+        self.assertEqual(self.widget.recent_paths[0].file_format, None)
+        self.assertEqual(self.widget.recent_paths[1].relpath, "iris.tab")
+        self.assertEqual(self.widget.recent_paths[1].file_format, "Orange.data.io.TabReader")
+
     def test_special_spectral_reading(self):
 
         class CountTabReader(TabReader):
