@@ -6,6 +6,7 @@ import numpy as np
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 from Orange.data import FileFormat, dataset_dirs, Table
+from Orange.widgets.utils.filedialogs import format_filter
 
 from orangecontrib.spectroscopy.data import SPAReader
 from Orange.data.io import TabReader
@@ -34,13 +35,23 @@ class TestOWMultifile(WidgetTest):
         # just to load the widget (it has no inputs)
         pass
 
-    def load_files(self, *files):
+    def load_files(self, *files, reader=None):
         files = [FileFormat.locate(name, dataset_dirs) for name in files]
-        self.widget.load_files(files)
+
+        def open_with_no_specific_format(a, b, c, filters, e):
+            return files, filters.split(";;")[0]
+
+        def open_with_specific_format(a, b, c, filters, e):
+            return files, format_filter(reader)
+
+        patchfn = open_with_no_specific_format if reader is None else open_with_specific_format
+
+        # pretend that files were chosen in the open dialog
+        with patch("AnyQt.QtWidgets.QFileDialog.getOpenFileNames", patchfn):
+            self.widget.browse_files()
 
     def test_load_files(self):
         self.load_files("iris", "titanic")
-        self.widget.load_data()
         out = self.get_output("Data")
         iris = Table("iris")
         titanic = Table("titanic")
@@ -50,9 +61,14 @@ class TestOWMultifile(WidgetTest):
                          set(iris.domain.class_vars) | set(titanic.domain.class_vars))
         self.assertEqual(len(out), len(iris) + len(titanic))
 
+    def test_load_files_reader(self):
+        self.load_files("iris")
+        self.assertIs(self.widget.recent_paths[0].file_format, None)
+        self.load_files("iris", reader=TabReader)
+        self.assertEqual(self.widget.recent_paths[1].file_format, "Orange.data.io.TabReader")
+
     def test_filename(self):
         self.load_files("iris", "titanic")
-        self.widget.load_data()
         out = self.get_output("Data")
         iris = out[:len(Table("iris"))]
         fns = set([e["Filename"].value for e in iris])
@@ -66,14 +82,12 @@ class TestOWMultifile(WidgetTest):
     def test_load_clear(self):
         self.load_files("iris")
         self.load_files("titanic")
-        self.widget.load_data()
         out = self.get_output("Data")
         self.assertEqual(len(out), len(Table("iris")) + len(Table("titanic")))
         self.widget.clear()
         out = self.get_output("Data")
         self.assertIsNone(out)
         self.load_files("iris", "titanic")
-        self.widget.load_data()
         self.widget.lb.item(0).setSelected(True)
         self.widget.remove_item()
         out = self.get_output("Data")

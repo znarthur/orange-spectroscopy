@@ -11,11 +11,11 @@ import numpy as np
 import Orange
 import orangecontrib.spectroscopy
 from orangecontrib.spectroscopy.data import SpectralFileFormat, getx
-from Orange.data.io import FileFormat
+from Orange.data.io import FileFormat, class_from_qualified_name
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
 from Orange.widgets.utils.domaineditor import DomainEditor
-from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, dialog_formats
+from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, dialog_formats, open_filename_dialog
 from warnings import catch_warnings
 
 
@@ -214,8 +214,10 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     def set_label(self):
         self.load_data()
 
-    def add_path(self, filename):
+    def add_path(self, filename, reader):
         recent = RecentPath.create(filename, self._search_paths())
+        if reader is not None:
+            recent.file_format = reader.qualified_name()
         self.recent_paths.append(recent)
 
     def set_file_list(self):
@@ -234,12 +236,19 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         else:
             self.sheet_combo.setCurrentIndex(0)
 
+    def _get_reader(self, rp):
+        if rp.file_format:
+            reader_class = class_from_qualified_name(rp.file_format)
+            return reader_class(rp.abspath)
+        else:
+            return FileFormat.get_reader(rp.abspath)
+
     def _update_sheet_combo(self):
         sheets = Counter()
 
-        for fn in self.current_filenames():
+        for rp in self.recent_paths:
             try:
-                reader = FileFormat.get_reader(fn)
+                reader = self._get_reader(rp)
                 sheets.update(reader.sheets)
             except:
                 pass
@@ -280,39 +289,34 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     def browse_files(self, in_demos=False):
         start_file = self.last_path() or os.path.expanduser("~/")
 
-        filenames = QFileDialog.getOpenFileNames(
-            self, 'Open Multiple Data Files', start_file, dialog_formats())
+        readers = [f for f in FileFormat.formats
+                   if getattr(f, 'read', None) and getattr(f, "EXTENSIONS", None)]
+        filenames, reader, _ = open_filename_dialog(start_file, None, readers,
+                                                   dialog=QFileDialog.getOpenFileNames)
 
-        if isinstance(filenames, tuple):  # has a file description
-            filenames = filenames[0]
+        self.load_files(filenames, reader)
 
-        self.load_files(filenames)
-
-    def load_files(self, filenames):
+    def load_files(self, filenames, reader):
         if not filenames:
             return
 
         for f in filenames:
-            self.add_path(f)
+            self.add_path(f, reader)
             self.lb.addItem(f)
 
         self._update_sheet_combo()
         self.load_data()
 
-    def current_filenames(self):
-        return [rp.abspath for rp in self.recent_paths]
-
     def load_data(self):
         self.closeContext()
-
-        fns = self.current_filenames()
 
         data_list = []
         fnok_list = []
 
         empty_domain = Orange.data.Domain(attributes=[])
-        for fn in fns:
-            reader = FileFormat.get_reader(fn)
+        for rp in self.recent_paths:
+            fn = rp.abspath
+            reader = self._get_reader(rp)
             errors = []
             with catch_warnings(record=True) as warnings:
                 try:
