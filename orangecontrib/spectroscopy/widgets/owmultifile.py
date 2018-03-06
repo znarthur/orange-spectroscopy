@@ -4,18 +4,18 @@ from itertools import chain, repeat
 from collections import Counter
 
 from AnyQt.QtCore import Qt
-from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QMessageBox, QFileDialog, QApplication, QStyle,\
+from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDialog, QApplication, QStyle,\
     QListWidget
 import numpy as np
 
 import Orange
 import orangecontrib.spectroscopy
-from orangecontrib.spectroscopy.data import SpectralFileFormat, getx
+from orangecontrib.spectroscopy.data import SpectralFileFormat
 from Orange.data.io import FileFormat, class_from_qualified_name
 from Orange.widgets import widget, gui
 import Orange.widgets.data.owfile
 from Orange.widgets.utils.domaineditor import DomainEditor
-from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, dialog_formats, open_filename_dialog
+from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, open_filename_dialog
 from warnings import catch_warnings
 
 
@@ -74,7 +74,7 @@ def domain_union_for_spectra(tables):
 def concatenate_data(tables, filenames, label):
     domain, xs = domain_union_for_spectra(tables)
     ntables = [(table if isinstance(table, Orange.data.Table) else table[2]).transform(domain)
-              for table in tables]
+               for table in tables]
     data = type(ntables[0]).concatenate(ntables, axis=0)
     source_var = Orange.data.StringVariable.make("Filename")
     label_var = Orange.data.StringVariable.make("Label")
@@ -85,7 +85,7 @@ def concatenate_data(tables, filenames, label):
                                 domain.metas + (source_var, label_var))
     data = data.transform(domain)
 
-    #fill in spectral data
+    # fill in spectral data
     xs_sind = np.argsort(xs)
     xs_sorted = xs[xs_sind]
     pos = 0
@@ -155,8 +155,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
         reload_button = gui.button(
             None, self, "Reload", callback=self.load_data, autoDefault=False)
-        reload_button.setIcon(self.style().standardIcon(
-                QStyle.SP_BrowserReload))
+        reload_button.setIcon(self.style().standardIcon(QStyle.SP_BrowserReload))
         reload_button.setSizePolicy(Policy.Fixed, Policy.Fixed)
         layout.addWidget(reload_button, 0, 7)
 
@@ -214,7 +213,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     def set_label(self):
         self.load_data()
 
-    def add_path(self, filename, reader):
+    def add_path(self, filename, reader=None):
         recent = RecentPath.create(filename, self._search_paths())
         if reader is not None:
             recent.file_format = reader.qualified_name()
@@ -227,7 +226,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     def _select_active_sheet(self):
         if self.sheet:
             try:
-                sheet_list = [ s[0] for s in self.sheets]
+                sheet_list = [s[0] for s in self.sheets]
                 idx = sheet_list.index(self.sheet)
                 self.sheet_combo.setCurrentIndex(idx)
             except ValueError:
@@ -236,19 +235,12 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         else:
             self.sheet_combo.setCurrentIndex(0)
 
-    def _get_reader(self, rp):
-        if rp.file_format:
-            reader_class = class_from_qualified_name(rp.file_format)
-            return reader_class(rp.abspath)
-        else:
-            return FileFormat.get_reader(rp.abspath)
-
     def _update_sheet_combo(self):
         sheets = Counter()
 
         for rp in self.recent_paths:
             try:
-                reader = self._get_reader(rp)
+                reader = _get_reader(rp)
                 sheets.update(reader.sheets)
             except:
                 pass
@@ -292,7 +284,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         readers = [f for f in FileFormat.formats
                    if getattr(f, 'read', None) and getattr(f, "EXTENSIONS", None)]
         filenames, reader, _ = open_filename_dialog(start_file, None, readers,
-                                                   dialog=QFileDialog.getOpenFileNames)
+                                                    dialog=QFileDialog.getOpenFileNames)
 
         self.load_files(filenames, reader)
 
@@ -316,7 +308,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         empty_domain = Orange.data.Domain(attributes=[])
         for rp in self.recent_paths:
             fn = rp.abspath
-            reader = self._get_reader(rp)
+            reader = _get_reader(rp)
             errors = []
             with catch_warnings(record=True) as warnings:
                 try:
@@ -345,6 +337,14 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             self.domain_editor.set_domain(None)
 
         self.apply_domain_edit()  # sends data
+
+
+def _get_reader(rp):
+    if rp.file_format:
+        reader_class = class_from_qualified_name(rp.file_format)
+        return reader_class(rp.abspath)
+    else:
+        return FileFormat.get_reader(rp.abspath)
 
 
 if __name__ == "__main__":
