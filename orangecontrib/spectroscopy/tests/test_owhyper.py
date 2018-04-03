@@ -103,6 +103,8 @@ class TestOWHyper(WidgetTest):
 
     def test_strange(self):
         for data in self.strange_data:
+            self.setUp()  # so that current settings are reset:
+                          # selected features could be None because of previous data
             self.send_signal("Data", data)
             self.try_big_selection()
 

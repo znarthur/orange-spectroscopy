@@ -535,24 +535,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             if self.parent.value_type == 0:  # integrals
                 imethod = self.parent.integration_methods[self.parent.integration_method]
 
-                l1, l2, l3 = self.parent.lowlim, self.parent.highlim, self.parent.choose
-
-                gx = getx(self.data)
-
-                if l1 is None:
-                    l1 = min(gx) - 1
-                if l2 is None:
-                    l2 = max(gx) + 1
-
-                l1, l2 = min(l1, l2), max(l1, l2)
-
-                if l3 is None:
-                    l3 = (l1 + l2)/2
-
                 if imethod != Integrate.PeakAt:
-                    datai = Integrate(methods=imethod, limits=[[l1, l2]])(self.data)
+                    datai = Integrate(methods=imethod, limits=[[self.parent.lowlim, self.parent.highlim]])(self.data)
                 else:
-                    datai = Integrate(methods=imethod, limits=[[l3, l3]])(self.data)
+                    datai = Integrate(methods=imethod, limits=[[self.parent.choose, self.parent.choose]])(self.data)
 
                 if np.any(self.parent.curveplot.selection_group):
                     # curveplot can have a subset of curves on the input> match IDs
@@ -859,22 +845,25 @@ class OWHyper(OWWidget):
         if self.curveplot.data_x is not None and len(self.curveplot.data_x):
             minx = self.curveplot.data_x[0]
             maxx = self.curveplot.data_x[-1]
+        else:
+            minx = 0.
+            maxx = 1.
 
-            if self.lowlim is None or not minx <= self.lowlim <= maxx:
-                self.lowlim = minx
-            self.line1.setValue(self.lowlim)
+        if self.lowlim is None or not minx <= self.lowlim <= maxx:
+            self.lowlim = minx
+        self.line1.setValue(self.lowlim)
 
-            if self.highlim is None or not minx <= self.highlim <= maxx:
-                self.highlim = maxx
-            self.line2.setValue(self.highlim)
+        if self.highlim is None or not minx <= self.highlim <= maxx:
+            self.highlim = maxx
+        self.line2.setValue(self.highlim)
 
-            if self.choose is None:
-                self.choose = (minx + maxx)/2
-            elif self.choose < minx:
-                self.choose = minx
-            elif self.choose > maxx:
-                self.choose = maxx
-            self.line3.setValue(self.choose)
+        if self.choose is None:
+            self.choose = (minx + maxx)/2
+        elif self.choose < minx:
+            self.choose = minx
+        elif self.choose > maxx:
+            self.choose = maxx
+        self.line3.setValue(self.choose)
         self.disable_integral_range = False
 
 
