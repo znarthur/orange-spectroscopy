@@ -22,10 +22,13 @@ def pixel_decimals(viewbox):
     try:
         xpixel, ypixel = viewbox.viewPixelSize()
     except:
-        return 10, 10
+        xpixel, ypixel = 0, 0
 
     def pixels_to_decimals(n):
-        return max(-int(math.floor(math.log10(n))) + 1, 0)
+        try:
+            return max(-int(math.floor(math.log10(n))) + 1, 0)
+        except ValueError:
+            return 10
 
     return pixels_to_decimals(xpixel), pixels_to_decimals(ypixel)
 
