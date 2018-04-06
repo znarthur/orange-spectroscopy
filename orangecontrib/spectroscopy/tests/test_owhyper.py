@@ -83,7 +83,7 @@ class TestOWHyper(WidgetTest):
         cls.whitelight_unknown = cls.whitelight.copy()
         cls.whitelight_unknown[0]["value"] = NAN
         # dataset with a single attribute
-        iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
+        cls.iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
         iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
         # dataset with large blank regions
@@ -91,7 +91,7 @@ class TestOWHyper(WidgetTest):
         # dataset without any attributes, but XY
         whitelight0 = Orange.data.Table(Orange.data.Domain([], None,
             metas=cls.whitelight.domain.metas), cls.whitelight)
-        cls.strange_data = [None, iris1, iris0, irisunknown, whitelight0]
+        cls.strange_data = [None, cls.iris1, iris0, irisunknown, whitelight0]
 
     def setUp(self):
         self.widget = self.create_widget(OWHyper)
@@ -103,10 +103,15 @@ class TestOWHyper(WidgetTest):
 
     def test_strange(self):
         for data in self.strange_data:
-            self.setUp()  # so that current settings are reset:
-                          # selected features could be None because of previous data
             self.send_signal("Data", data)
             self.try_big_selection()
+
+    def test_context_not_open_invalid(self):
+        self.send_signal("Data", self.iris1)
+        self.assertIsNone(self.widget.imageplot.attr_x)
+        self.send_signal("Data", self.iris)
+        print(self.widget.imageplot.attr_x)
+        self.assertIsNotNone(self.widget.imageplot.attr_x)
 
     def test_no_samples(self):
         self.send_signal("Data", self.whitelight[:0])

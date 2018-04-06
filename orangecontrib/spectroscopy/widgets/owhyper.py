@@ -25,7 +25,7 @@ from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel
-from Orange.data import DiscreteVariable
+from Orange.data import DiscreteVariable, ContinuousVariable
 
 from orangecontrib.spectroscopy.data import getx
 
@@ -832,7 +832,19 @@ class OWHyper(OWWidget):
     @Inputs.data
     def set_data(self, data):
         self.closeContext()
-        self.openContext(data)
+
+        def valid_context(data):
+            if data is None:
+                return False
+            annotation_features = [v for v in data.domain.metas + data.domain.class_vars
+                                   if isinstance(v, (DiscreteVariable, ContinuousVariable))]
+            return len(annotation_features) >= 1
+
+        if valid_context(data):
+            self.openContext(data)
+        else:
+            # to generate valid interface even if context was not loaded
+            self.contextAboutToBeOpened.emit([data])
         self.data = data
         self.imageplot.set_data(data)
         self.curveplot.set_data(data)
