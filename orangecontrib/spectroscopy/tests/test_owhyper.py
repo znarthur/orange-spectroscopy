@@ -227,3 +227,8 @@ class TestOWHyper(WidgetTest):
         settings = {"context_settings": [c]}
         OWHyper.migrate_settings(settings, 2)
         self.assertEqual(settings["imageplot"]["selection_group_saved"], [(1, 1), (2, 1)])
+
+    def test_color_no_data(self):
+        self.send_signal("Data", None)
+        self.widget.controls.value_type.buttons[1].click()
+        self.widget.imageplot.update_color_schema()

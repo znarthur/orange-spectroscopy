@@ -461,6 +461,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             return False
 
     def update_color_schema(self):
+        if not self.data:
+            return
+
         if not self.threshold_low < self.threshold_high:
             # TODO this belongs here, not in the parent
             self.parent.Warning.threshold_error()
