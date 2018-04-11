@@ -198,11 +198,8 @@ class ImageItemNan(pg.ImageItem):
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
 
 
-def color_palette_table(colors, threshold_low=0.0, threshold_high=1.0,
-                        underflow=None, overflow=None):
-    N = len(colors)
-    low, high = threshold_low * 255, threshold_high * 255
-    points = np.linspace(low, high, N)
+def color_palette_table(colors, underflow=None, overflow=None):
+    points = np.linspace(0, 255, len(colors))
     space = np.linspace(0, 255, 256)
 
     if underflow is None:
@@ -423,11 +420,11 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         lowslider = gui.hSlider(
             box, self, "threshold_low", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_color_schema)
+            createLabel=False, callback=self.update_levels)
         highslider = gui.hSlider(
             box, self, "threshold_high", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_color_schema)
+            createLabel=False, callback=self.update_levels)
 
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
@@ -476,6 +473,13 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         if not self.data:
             return
 
+        if not self.threshold_low < self.threshold_high:
+            # TODO this belongs here, not in the parent
+            self.parent.Warning.threshold_error()
+            return
+        else:
+            self.parent.Warning.threshold_error.clear()
+
         if self.img.image is not None:
             levels = get_levels(self.img.image)
         else:
@@ -494,31 +498,25 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         ll = float(self.level_low) if self.level_low is not None else levels[0]
         lh = float(self.level_high) if self.level_high is not None else levels[1]
 
-        self.img.setLevels([ll, lh])
+        ll_threshold = ll + (lh - ll) * self.threshold_low
+        lh_threshold = ll + (lh - ll) * self.threshold_high
+
+        self.img.setLevels([ll_threshold, lh_threshold])
 
     def update_color_schema(self):
         if not self.data:
             return
 
-        if not self.threshold_low < self.threshold_high:
-            # TODO this belongs here, not in the parent
-            self.parent.Warning.threshold_error()
-            return
-        else:
-            self.parent.Warning.threshold_error.clear()
-        data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
-        _, colors = max(data.items())
-        cols = color_palette_table(
-            colors, threshold_low=self.threshold_low,
-            threshold_high=self.threshold_high)
-
-        self.img.setLookupTable(cols)
-
-        # use defined discrete palette
         if self.parent.value_type == 1:
+            # use defined discrete palette
             dat = self.data.domain[self.parent.attr_value]
             if isinstance(dat, DiscreteVariable):
                 self.img.setLookupTable(dat.colors)
+        else:
+            data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
+            _, colors = max(data.items())
+            cols = color_palette_table(colors)
+            self.img.setLookupTable(cols)
 
     def update_attr(self):
         self.update_view()
