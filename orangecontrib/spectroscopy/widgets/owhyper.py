@@ -409,11 +409,13 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
         )
 
-        self._level_low_le = lineEditDecimalOrNone(self, self, "level_low", callback=self.update_levels)
+        self._level_low_le = lineEditDecimalOrNone(self, self, "level_low",
+                                                   callback=lambda: self.update_levels() or self.reset_thresholds())
         self._level_low_le.validator().setDefault(0)
         form.addRow("Low limit:", self._level_low_le)
 
-        self._level_high_le = lineEditDecimalOrNone(self, self, "level_high", callback=self.update_levels)
+        self._level_high_le = lineEditDecimalOrNone(self, self, "level_high",
+                                                    callback=lambda: self.update_levels() or self.reset_thresholds())
         self._level_high_le.validator().setDefault(1)
         form.addRow("High limit:", self._level_high_le)
 
@@ -468,6 +470,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             return True
         else:
             return False
+
+    def reset_thresholds(self):
+        self.threshold_low = 0.
+        self.threshold_high = 1.
 
     def update_levels(self):
         if not self.data:
