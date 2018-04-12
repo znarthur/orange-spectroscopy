@@ -2,6 +2,7 @@ import sys
 import gc
 import collections
 from xml.sax.saxutils import escape
+from decimal import Decimal
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter, \
@@ -35,7 +36,8 @@ from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
     HelpEventDelegate, SelectionGroupMixin, selection_modifiers
 
-from orangecontrib.spectroscopy.widgets.gui import MovableVline
+from orangecontrib.spectroscopy.widgets.gui import MovableVline, lineEditDecimalOrNone,\
+    pixels_to_decimals, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
 
 from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME, \
@@ -196,11 +198,8 @@ class ImageItemNan(pg.ImageItem):
         self.qimage = pg.makeQImage(argb, alpha, transpose=False)
 
 
-def color_palette_table(colors, threshold_low=0.0, threshold_high=1.0,
-                        underflow=None, overflow=None):
-    N = len(colors)
-    low, high = threshold_low * 255, threshold_high * 255
-    points = np.linspace(low, high, N)
+def color_palette_table(colors, underflow=None, overflow=None):
+    points = np.linspace(0, 255, len(colors))
     space = np.linspace(0, 255, 256)
 
     if underflow is None:
@@ -280,8 +279,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
     gamma = Setting(0)
-    threshold_low = Setting(0.0)
-    threshold_high = Setting(1.0)
+    threshold_low = Setting(0.0, schema_only=True)
+    threshold_high = Setting(1.0, schema_only=True)
+    level_low = Setting(None, schema_only=True)
+    level_high = Setting(None, schema_only=True)
     palette_index = Setting(0)
     selection_changed = Signal()
 
@@ -408,14 +409,24 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
         )
 
+        self._level_low_le = lineEditDecimalOrNone(self, self, "level_low",
+                                                   callback=lambda: self.update_levels() or self.reset_thresholds())
+        self._level_low_le.validator().setDefault(0)
+        form.addRow("Low limit:", self._level_low_le)
+
+        self._level_high_le = lineEditDecimalOrNone(self, self, "level_high",
+                                                    callback=lambda: self.update_levels() or self.reset_thresholds())
+        self._level_high_le.validator().setDefault(1)
+        form.addRow("High limit:", self._level_high_le)
+
         lowslider = gui.hSlider(
             box, self, "threshold_low", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_color_schema)
+            createLabel=False, callback=self.update_levels)
         highslider = gui.hSlider(
             box, self, "threshold_high", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_color_schema)
+            createLabel=False, callback=self.update_levels)
 
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
@@ -460,7 +471,11 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         else:
             return False
 
-    def update_color_schema(self):
+    def reset_thresholds(self):
+        self.threshold_low = 0.
+        self.threshold_high = 1.
+
+    def update_levels(self):
         if not self.data:
             return
 
@@ -470,19 +485,44 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             return
         else:
             self.parent.Warning.threshold_error.clear()
-        data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
-        _, colors = max(data.items())
-        cols = color_palette_table(
-            colors, threshold_low=self.threshold_low,
-            threshold_high=self.threshold_high)
 
-        self.img.setLookupTable(cols)
+        if self.img.image is not None:
+            levels = get_levels(self.img.image)
+        else:
+            levels = [0, 255]
 
-        # use defined discrete palette
+        prec = pixels_to_decimals((levels[1] - levels[0])/1000)
+
+        rounded_levels = [float_to_str_decimals(levels[0], prec), float_to_str_decimals(levels[1], prec)]
+
+        self._level_low_le.validator().setDefault(rounded_levels[0])
+        self._level_high_le.validator().setDefault(rounded_levels[1])
+
+        self._level_low_le.setPlaceholderText(rounded_levels[0])
+        self._level_high_le.setPlaceholderText(rounded_levels[1])
+
+        ll = float(self.level_low) if self.level_low is not None else levels[0]
+        lh = float(self.level_high) if self.level_high is not None else levels[1]
+
+        ll_threshold = ll + (lh - ll) * self.threshold_low
+        lh_threshold = ll + (lh - ll) * self.threshold_high
+
+        self.img.setLevels([ll_threshold, lh_threshold])
+
+    def update_color_schema(self):
+        if not self.data:
+            return
+
         if self.parent.value_type == 1:
+            # use defined discrete palette
             dat = self.data.domain[self.parent.attr_value]
             if isinstance(dat, DiscreteVariable):
                 self.img.setLookupTable(dat.colors)
+        else:
+            data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
+            _, colors = max(data.items())
+            cols = color_palette_table(colors)
+            self.img.setLookupTable(cols)
 
     def update_attr(self):
         self.update_view()
@@ -564,10 +604,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.data_values = d
             self.data_imagepixels = np.vstack((yindex, xindex)).T
 
-            levels = get_levels(imdata)
+            self.img.setImage(imdata, autoLevels=False)
+            self.img.setLevels([0, 1])
+            self.update_levels()
             self.update_color_schema()
-
-            self.img.setImage(imdata, levels=levels)
 
             # shift centres of the pixels so that the axes are useful
             shiftx = _shift(lsx)

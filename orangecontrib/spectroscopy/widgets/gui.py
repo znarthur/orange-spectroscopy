@@ -14,6 +14,13 @@ from Orange.widgets.widget import OWComponent
 from Orange.widgets.data.owpreprocess import blocked
 
 
+def pixels_to_decimals(n):
+    try:
+        return max(-int(math.floor(math.log10(n))) + 1, 0)
+    except ValueError:
+        return 10
+
+
 def pixel_decimals(viewbox):
     """
     Decimals needed to accurately represent position on a viewbox.
@@ -23,12 +30,6 @@ def pixel_decimals(viewbox):
         xpixel, ypixel = viewbox.viewPixelSize()
     except:
         xpixel, ypixel = 0, 0
-
-    def pixels_to_decimals(n):
-        try:
-            return max(-int(math.floor(math.log10(n))) + 1, 0)
-        except ValueError:
-            return 10
 
     return pixels_to_decimals(xpixel), pixels_to_decimals(ypixel)
 
@@ -97,6 +98,13 @@ def floatornone(a):
     try:  # because also intermediate values are passed forward
         return float(a)
     except (ValueError, TypeError):
+        return None
+
+
+def decimalornone(a):
+    try:  # because also intermediate values are passed forward
+        return Decimal(a)
+    except:
         return None
 
 
@@ -213,6 +221,17 @@ def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("i
                                                              bottom=bottom, top=top, default_text=str(default)),
                              valueType=Decimal,  # every text need to be a valid float before saving setting
                              valueToStr=str,
+                             **kwargs)
+    le.set_default = lambda v: le.validator().setDefault(str(v))
+    return le
+
+
+def lineEditDecimalOrNone(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
+    le = lineEditValidator(widget, master, value,
+                             validator=FloatOrEmptyValidator(master, allow_empty=True,
+                                                             bottom=bottom, top=top, default_text=str(default)),
+                             valueType=decimalornone,  # every text need to be a valid float before saving setting
+                             valueToStr=str_or_empty,
                              **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
     return le
