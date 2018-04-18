@@ -115,34 +115,24 @@ def _spectra_from_image(X, features, x_locs, y_locs):
     Create a spectral format (returned by SpectralFileFormat.read_spectra)
     from 3D image organized [ rows, columns, wavelengths ]
     """
-    spectra = np.zeros((X.shape[0]*X.shape[1], X.shape[2]), dtype=np.float32)
-    metadata = []
+    X = np.asarray(X)
+    x_locs = np.asarray(x_locs)
+    y_locs = np.asarray(y_locs)
 
-    cs = 0
-    for ir, row in enumerate(X):
-        for ic, column in enumerate(row):
-            spectra[cs] = column
-            cs += 1
-            if x_locs is not None and y_locs is not None:
-                x = x_locs[ic]
-                y = y_locs[ir]
-                metadata.append({"map_x": x, "map_y": y})
-            else:
-                metadata.append({})
+    # each spectrum has its own row
+    spectra = X.reshape((X.shape[0]*X.shape[1], X.shape[2]))
 
-    metakeys = sorted(set(itertools.chain.from_iterable(metadata)))
-    metas = []
-    for mk in metakeys:
-        if mk in ["map_x", "map_y"]:
-            metas.append(Orange.data.ContinuousVariable.make(mk))
-        else:
-            metas.append(Orange.data.StringVariable.make(mk))
+    # locations
+    y_loc = np.repeat(np.arange(X.shape[0]), X.shape[1])
+    x_loc = np.tile(np.arange(X.shape[1]), X.shape[0])
+    metas = np.array([x_locs[x_loc], y_locs[y_loc]]).T
 
-    domain = Orange.data.Domain([], None, metas=metas)
-    metas = np.array([[row[ma.name] for ma in metas]
-                      for row in metadata], dtype=object)
-    data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)), metas=metas)
-
+    domain = Orange.data.Domain([], None,
+                                metas=[Orange.data.ContinuousVariable.make("map_x"),
+                                       Orange.data.ContinuousVariable.make("map_y")]
+                                )
+    data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)),
+                                        metas=np.asarray(metas, dtype=object))
     return features, spectra, data
 
 
@@ -277,8 +267,8 @@ class OmnicMapReader(FileFormat, SpectralFileFormat):
             y_locs = np.linspace(min(loc_first[1], loc_last[1]),
                                  max(loc_first[1], loc_last[1]), X.shape[0])
         except KeyError:
-            x_locs = None
-            y_locs = None
+            x_locs = np.arange(X.shape[1])
+            y_locs = np.arange(X.shape[0])
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
