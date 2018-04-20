@@ -1,4 +1,15 @@
+from enum import IntEnum
+
 import numpy as np
+
+class PhaseCorrection(IntEnum):
+    """
+    Implemented phase correction methods
+    """
+    MERTZ = 0
+    MERTZSIGNED = 1
+    STORED = 2
+    NONE = 3
 
 def find_zpd(Ix):
     """
@@ -144,15 +155,20 @@ class IRFFT():
 
     def __init__(self, dx,
                  apod_func=1, zff=2,
-                 phase_res=None,
+                 phase_res=None, phase_corr=PhaseCorrection.MERTZ
                  ):
         self.dx = dx
         self.apod_func = apod_func
         self.zff = zff
         self.phase_res = phase_res
+        self.phase_corr = phase_corr
 
-    def __call__(self, Ix):
-        self.zpd = find_zpd(Ix)
+    def __call__(self, Ix, zpd=None, phase=None):
+        self.phase = phase
+        if zpd is not None:
+            self.zpd = zpd
+        else:
+            self.zpd = find_zpd(Ix)
 
         # Calculate phase on interferogram of specified size 2*L
         L = self.phase_ifg_size(Ix.shape[0])
@@ -185,7 +201,11 @@ class IRFFT():
 
         self.wavenumbers = np.fft.rfftfreq(Nzff, self.dx)
 
-        self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
+        if self.phase_corr == PhaseCorrection.NONE:
+            self.spectrum = Ix.real
+            self.phase = Ix.imag
+        else:
+            self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
 
         return self.spectrum, self.phase, self.wavenumbers
 
@@ -203,4 +223,16 @@ class IRFFT():
         return delta
 
     def compute_phase(self, Ixs_fft):
-        self.phase = np.arctan2(Ixs_fft.imag, Ixs_fft.real)
+        if self.phase_corr == PhaseCorrection.NONE:
+            return
+        elif self.phase_corr == PhaseCorrection.STORED:
+            if self.phase is None:
+                raise ValueError("No stored phase provided.")
+            else:
+                return
+        elif self.phase_corr == PhaseCorrection.MERTZ:
+            self.phase = np.arctan2(Ixs_fft.imag, Ixs_fft.real)
+        elif self.phase_corr == PhaseCorrection.MERTZSIGNED:
+            self.phase = np.arctan(Ixs_fft.imag/Ixs_fft.real)
+        else:
+            raise ValueError("Invalid PhaseCorrection: {}".format(self.phase_corr))

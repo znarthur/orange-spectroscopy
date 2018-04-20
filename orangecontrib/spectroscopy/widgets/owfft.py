@@ -52,7 +52,11 @@ class OWFFT(OWWidget):
                  "Blackman-Harris (4-term)",
                  "Blackman Nuttall (EP)")
 
-    phase_opts = ("Mertz",)
+    phase_opts = ("Mertz",              # <irfft.PhaseCorrection.MERTZ: 0>
+                  "Mertz Signed",       # <irfft.PhaseCorrection.MERTZSIGNED: 1>
+                  "Stored Phase",       # <irfft.PhaseCorrection.STORED: 2>
+                  "None (real/imag)",   # <irfft.PhaseCorrection.NONE: 3>
+                  )
 
     # GUI definition:
     #   a simple 'single column' GUI layout
@@ -257,6 +261,7 @@ class OWFFT(OWWidget):
                                  apod_func=self.apod_func,
                                  zff=self.zff,
                                  phase_res=self.phase_resolution if self.phase_res_limit else None,
+                                 phase_corr=self.phase_corr,
                                  )
 
         for row in self.data.X:
