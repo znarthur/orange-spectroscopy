@@ -102,6 +102,12 @@ def apodize(Ix, zpd, apod_func):
 
     return Ix_apod
 
+def _zero_fill_size(N, zff):
+    # Calculate desired array size
+    Nzff = N * zff
+    # Calculate final size to next power of two for DFT efficiency
+    return int(np.exp2(np.ceil(np.log2(Nzff))))
+
 def _zero_fill_pad(Ix, zerofill):
     return np.hstack((Ix, np.zeros(zerofill, dtype=Ix.dtype)))
 
@@ -118,10 +124,8 @@ def zero_fill(Ix, zff):
         Ix_zff: 1D array of Ix + zero fill
     """
     N = Ix.shape[0]
-    # Calculate next power of two for DFT efficiency
-    N_2 = int(np.exp2(np.ceil(np.log2(N))))
-    # fill to N**2 * zff
-    zero_fill = ((N_2 - N) + (N_2 * (zff)))
+    # Calculate zero-fill to next power of two for DFT efficiency
+    zero_fill = _zero_fill_size(N, zff) - N
     # Pad array
     return _zero_fill_pad(Ix, zero_fill)
 
