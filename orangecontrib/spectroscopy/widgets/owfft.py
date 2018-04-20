@@ -253,11 +253,17 @@ class OWFFT(OWWidget):
         self.Error.clear()
         self.Warning.clear()
 
+        fft_single = irfft.IRFFT(dx=self.dx,
+                                 apod_func=self.apod_func,
+                                 zff=self.zff,
+                                 phase_res=self.phase_resolution if self.phase_res_limit else None,
+                                 )
+
         for row in self.data.X:
             # Check to see if interferogram is single or double sweep
             if self.sweeps == 0:
                 try:
-                    spectrum_out, phase_out, self.wavenumbers = self.fft_single(row)
+                    spectrum_out, phase_out, self.wavenumbers = fft_single(row)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -277,8 +283,8 @@ class OWFFT(OWWidget):
 
                 # Calculate spectrum for both forward and backward sweeps
                 try:
-                    spectrum_fwd, phase_fwd, self.wavenumbers = self.fft_single(fwd)
-                    spectrum_back, phase_back, self.wavenumbers = self.fft_single(back)
+                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd)
+                    spectrum_back, phase_back, self.wavenumbers = fft_single(back)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -322,7 +328,7 @@ class OWFFT(OWWidget):
         # Just testing 1st row for now
         # assuming all in a group were collected the same way
         data = self.data.X[0]
-        zpd = irfft.peak_search(data)
+        zpd = irfft.find_zpd(data)
         middle = data.shape[0] // 2
         # Allow variation of +/- 0.4 % in zpd location
         var = middle // 250
@@ -336,8 +342,8 @@ class OWFFT(OWWidget):
                 # odd number of data points, probably single
                 self.sweeps = 0
                 return
-            zpd1 = irfft.peak_search(data[0])
-            zpd2 = irfft.peak_search(data[1][::-1])
+            zpd1 = irfft.find_zpd(data[0])
+            zpd2 = irfft.find_zpd(data[1][::-1])
             # Forward / backward zpds never perfectly match
             if zpd1 >= zpd2 - var and zpd1 <= zpd2 + var:
                 # forward-backward, symmetric and asymmetric
@@ -346,27 +352,6 @@ class OWFFT(OWWidget):
                 # single, asymetric
                 self.sweeps = 0
 
-    def fft_single(self, Ix):
-        """
-        Handle FFT options and call irfft.fft_single_sweep.
-
-        Args:
-            Ix (np.array): 1D array with a single-sweep interferogram
-
-        Returns:
-            spectrum: 1D array of frequency domain amplitude intensities
-            phase: 1D array of frequency domain phase intensities
-            wavenumbers: 1D array of corresponding wavenumber set
-        """
-        if self.phase_res_limit is True:
-            phase_res = self.phase_resolution
-        else:
-            phase_res = None
-
-        spectrum, phase, wavenumbers = irfft.fft_single_sweep(Ix, self.dx,
-                                        phase_res, self.apod_func, self.zff)
-
-        return spectrum, phase, wavenumbers
 
 # Simple main stub function in case being run outside Orange Canvas
 def main(argv=sys.argv):

@@ -1,6 +1,6 @@
 import numpy as np
 
-def peak_search(Ix):
+def find_zpd(Ix):
     """
     Find the zero path difference (zpd) position.
 
@@ -102,6 +102,9 @@ def apodize(Ix, zpd, apod_func):
 
     return Ix_apod
 
+def _zero_fill_pad(Ix, zerofill):
+    return np.hstack((Ix, np.zeros(zerofill, dtype=Ix.dtype)))
+
 def zero_fill(Ix, zff):
     """
     Zero-fill interferogram.
@@ -119,118 +122,81 @@ def zero_fill(Ix, zff):
     N_2 = int(np.exp2(np.ceil(np.log2(N))))
     # fill to N**2 * zff
     zero_fill = ((N_2 - N) + (N_2 * (zff)))
-    Ix_zff = np.hstack((Ix, np.zeros(zero_fill)))
-    return Ix_zff
+    # Pad array
+    return _zero_fill_pad(Ix, zero_fill)
 
-def compute_phase(Ix, wavenumbers, dx,
-                  phase_res=None, apod_func=1, zff=2):
-    """
-    Compute the phase spectrum.
-    Uses either the specified phase resolution or the largest possible
-    double-sided interferogram.
-
-    Args:
-        Ix (np.array): 1D array of interferogram intensities
-        wavenumbers (np.array): 1D array of corresponding wavenumber set
-        dx (float): Interferogram data point spacing (in cm)
-        phase_res (int): Resolution limit for phase spectrum (in wavenumbers)
-        apod_func (int): Apodization function passed to apodize()
-        zff (int): Zero-filling factor passed to zero_fill()
-
-    Returns:
-        phase (np.array): 1D array of phase spectrum
-    """
-    # Determine largest possible double-sided interferogram
-    # Calculate the index of the Zero Phase Difference (centerburst)
-    zpd = peak_search(Ix)
-    N = np.size(Ix)
-    delta = np.min([zpd , N - 1 - zpd])
-
-    if phase_res is not None:
-        L = int(1 / (dx * phase_res)) - 1
-        if L > delta:
-            L = delta
-    else:
-        L = delta
-
-    # Select small, double-sided interfergram for phase computation
-    Ixs = Ix[zpd - L : zpd + L]
-    zpd = peak_search(Ixs)
-    # Apodize, zero-fill
-    Ixs_apod = apodize(Ixs, zpd, apod_func)
-    Ixs_zff = zero_fill(Ixs_apod, zff)
-
-    Ixs_N = Ixs_zff.shape[0]
-    if zpd != peak_search(Ixs_zff):
-        raise ValueError("zpd: %d, new_zpd: %d" % (zpd, peak_search(Ixs_zff)))
-    # Rotate the sample so that the centerburst is at edges
-    Ixs_rot = np.hstack((Ixs_zff[zpd:],Ixs_zff[0:zpd]))
-    # Take FFT of Rotated Complete Graph
-    Ixs_fft = np.fft.rfft(Ixs_rot)
-
-    # Calculate wavenumbers in our sampled spectrum.
-    wavenumbers_sampled = np.fft.rfftfreq(Ixs_N, dx)
-
-    # Calculate the Phase Angle for the FT'd SampleGraph.
-    phase_sampled = np.arctan2( Ixs_fft.imag,
-                                Ixs_fft.real )
-
-    # Interpolate the complete Phase Data.
-    phase = np.interp(wavenumbers,
-                      wavenumbers_sampled,
-                      phase_sampled)
-
-    return phase
-
-def fft_single_sweep(Ix, dx, phase_res=None, apod_func=1, zff=2):
+class IRFFT():
     """
     Calculate FFT of a single interferogram sweep.
 
     Based on mertz module by Eric Peach, 2014
-
-    Args:
-        Ix (np.array): 1D array with a single-sweep interferogram
-        dx (float): Interferogram data point spacing (in cm)
-        phase_res (int): Resolution limit for phase spectrum (in wavenumbers)
-        apod_func (int): Apodization function passed to apodize()
-        zff (int): Zero-filling factor passed to zero_fill()
-
-    Returns:
-        spectrum: 1D array of frequency domain amplitude intensities
-        phase: 1D array of frequency domain phase intensities
-        wavenumbers: 1D array of corresponding wavenumber set
     """
+    # Calculated attributes
+    zpd = None
+    wavenumbers = None
+    spectrum = None
+    phase = None
 
-    # Calculate the index of the Zero Phase Difference (centerburst)
-    zpd = peak_search(Ix)
 
-    # Apodize, Zero-fill
-    Ix_apod = apodize(Ix, zpd, apod_func)
-    Ix_zff = zero_fill(Ix_apod, zff)
-    # Recaculate N and zpd
-    N_zff = Ix_zff.shape[0]
-    if zpd != peak_search(Ix_zff):
-        raise ValueError("zpd: %d, new_zpd: %d" % (zpd, peak_search(Ix_zff)))
+    def __init__(self, dx,
+                 apod_func=1, zff=2,
+                 phase_res=None,
+                 ):
+        self.dx = dx
+        self.apod_func = apod_func
+        self.zff = zff
+        self.phase_res = phase_res
 
-    # Calculate wavenumber set
-    wavenumbers = np.fft.rfftfreq(N_zff, dx)
+    def __call__(self, Ix):
+        self.zpd = find_zpd(Ix)
 
-    # Compute phase spectrum
-    phase = compute_phase(Ix, wavenumbers, dx,
-                          phase_res, apod_func, zff)
+        # Calculate phase on interferogram of specified size 2*L
+        L = self.phase_ifg_size(Ix.shape[0])
+        if L == 0: # Use full ifg for phase
+            Ix = apodize(Ix, self.zpd, self.apod_func)
+            Ix = zero_fill(Ix, self.zff)
+            # Rotate the Complete IFG so that the centerburst is at edges.
+            Ix = np.hstack((Ix[self.zpd:],Ix[0:self.zpd]))
+            Nzff = Ix.shape[0]
+            # Take FFT of Rotated Complete Graph
+            Ix = np.fft.rfft(Ix)
+            self.compute_phase(Ix)
+        else:
+            # Select phase interferogram as copy
+            # Note that L is now the zpd index
+            Ixs = Ix[self.zpd - L : self.zpd + L].copy()
+            Ix = apodize(Ix, self.zpd, self.apod_func)
+            Ix = zero_fill(Ix, self.zff)
+            Ix = np.hstack((Ix[self.zpd:],Ix[0:self.zpd]))
+            Nzff = Ix.shape[0]
 
-    # Rotate the Complete IFG so that the centerburst is at edges.
-    Ix_rot = np.hstack((Ix_zff[zpd:],Ix_zff[0:zpd]))
+            Ixs = apodize(Ixs, L, self.apod_func)
+            # Zero-fill Ixs to same size as Ix (instead of interpolating later)
+            Ixs = _zero_fill_pad(Ixs, Nzff - Ixs.shape[0])
+            Ixs = np.hstack((Ixs[L:],Ixs[0:L]))
 
-    # Take FFT of Rotated Complete Graph
-    Ix_fft = np.fft.rfft(Ix_rot)
+            Ix = np.fft.rfft(Ix)
+            Ixs = np.fft.rfft(Ixs)
+            self.compute_phase(Ixs)
 
-    # Calculate the Cosines and Sines
-    phase_cos = np.cos(phase)
-    phase_sin = np.sin(phase)
+        self.wavenumbers = np.fft.rfftfreq(Nzff, self.dx)
 
-    # Calculate magnitude of complete Fourier Transform
-    spectrum =  phase_cos * Ix_fft.real \
-                + phase_sin * Ix_fft.imag
+        self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
 
-    return spectrum, phase, wavenumbers
+        return self.spectrum, self.phase, self.wavenumbers
+
+    def phase_ifg_size(self, N):
+        # Determine largest possible double-sided interferogram
+        delta = np.min([self.zpd , N - 1 - self.zpd])
+        # Reduce to desired resolution if specified
+        # TODO make a single function to implement setting output resolution
+        if self.phase_res is not None:
+            # TODO check this
+            L = int(1 / (self.dx * self.phase_res)) - 1
+            if L < delta:
+                delta = L
+
+        return delta
+
+    def compute_phase(self, Ixs_fft):
+        self.phase = np.arctan2(Ixs_fft.imag, Ixs_fft.real)
