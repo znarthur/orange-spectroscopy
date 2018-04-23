@@ -2,6 +2,17 @@ from enum import IntEnum
 
 import numpy as np
 
+
+class ApodFunc(IntEnum):
+    """
+    Implemented apodization functions in apodize
+    """
+    BOXCAR = 0
+    BLACKMAN_HARRIS_3 = 1
+    BLACKMAN_HARRIS_4 = 2
+    BLACKMAN_NUTTALL = 3
+
+
 class PhaseCorrection(IntEnum):
     """
     Implemented phase correction methods
@@ -10,6 +21,7 @@ class PhaseCorrection(IntEnum):
     MERTZSIGNED = 1
     STORED = 2
     NONE = 3
+
 
 def find_zpd(Ix):
     """
@@ -34,11 +46,11 @@ def apodize(Ix, zpd, apod_func):
     Args:
         Ix (np.array): 1D array with a single interferogram
         zpd (int): Index of the Zero Phase Difference (centerburst)
-        apod_func (int): One of apodization function options:
-                            0 : Boxcar apodization
-                            1 : Blackman-Harris (3-term)
-                            2 : Blackman-Harris (4-term)
-                            3 : Blackman-Nuttall (Eric Peach implementation)
+        apod_func (IntEnum): One of apodization function options:
+                <ApodFunc.BOXCAR: 0>            : Boxcar apodization
+                <ApodFunc.BLACKMAN_HARRIS_3: 1> : Blackman-Harris (3-term)
+                <ApodFunc.BLACKMAN_HARRIS_4: 2> : Blackman-Harris (4-term)
+                <ApodFunc.BLACKMAN_NUTTALL: 3>  : Blackman-Nuttall (Eric Peach implementation)
 
     Returns:
         Ix_apod (np.array): 1D array of apodized Ix
@@ -50,10 +62,11 @@ def apodize(Ix, zpd, apod_func):
     wing_n = zpd + 1
     wing_p = N - (zpd + 1)
 
-    if apod_func == 0:
+    if apod_func == ApodFunc.BOXCAR:
         # Boxcar apodization AKA as-collected
-        Bs = np.ones_like(Ix)
-    elif apod_func == 1:
+        return Ix
+
+    elif apod_func == ApodFunc.BLACKMAN_HARRIS_3:
         # Blackman-Harris (3-term)
         # Reference: W. Herres and J. Gronholz, Bruker
         #           "Understanding FT-IR Data Processing"
@@ -72,7 +85,8 @@ def apodize(Ix, zpd, apod_func):
             + A2 * np.cos(np.pi*2*n_p/wing_p)\
             + A3 * np.cos(np.pi*3*n_p/wing_p)
         Bs = np.hstack((Bs_n[::-1], Bs_p))
-    elif apod_func == 2:
+
+    elif apod_func == ApodFunc.BLACKMAN_HARRIS_4:
         # Blackman-Harris (4-term)
         # Reference: W. Herres and J. Gronholz, Bruker
         #           "Understanding FT-IR Data Processing"
@@ -92,7 +106,7 @@ def apodize(Ix, zpd, apod_func):
             + A3 * np.cos(np.pi*3*n_p/wing_p)
         Bs = np.hstack((Bs_n[::-1], Bs_p))
 
-    elif apod_func == 3:
+    elif apod_func == ApodFunc.BLACKMAN_NUTTALL:
         # Blackman-Nuttall (Eric Peach)
         # TODO I think this has silent problems with asymmetric interferograms
         delta = np.min([wing_n , wing_p])
@@ -154,7 +168,7 @@ class IRFFT():
 
 
     def __init__(self, dx,
-                 apod_func=1, zff=2,
+                 apod_func=ApodFunc.BLACKMAN_HARRIS_3, zff=2,
                  phase_res=None, phase_corr=PhaseCorrection.MERTZ
                  ):
         self.dx = dx

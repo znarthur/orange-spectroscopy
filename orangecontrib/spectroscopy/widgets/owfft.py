@@ -47,10 +47,10 @@ class OWFFT(OWWidget):
     out_limit2 = settings.Setting(4000)
     autocommit = settings.Setting(False)
 
-    apod_opts = ("Boxcar (None)",
-                 "Blackman-Harris (3-term)",
-                 "Blackman-Harris (4-term)",
-                 "Blackman Nuttall (EP)")
+    apod_opts = ("Boxcar (None)",               # <irfft.ApodFunc.BOXCAR: 0>
+                 "Blackman-Harris (3-term)",    # <irfft.ApodFunc.BLACKMAN_HARRIS_3: 1>
+                 "Blackman-Harris (4-term)",    # <irfft.ApodFunc.BLACKMAN_HARRIS_4: 2>
+                 "Blackman Nuttall (EP)")       # <irfft.ApodFunc.BLACKMAN_NUTTALL: 3>
 
     phase_opts = ("Mertz",              # <irfft.PhaseCorrection.MERTZ: 0>
                   "Mertz Signed",       # <irfft.PhaseCorrection.MERTZSIGNED: 1>
