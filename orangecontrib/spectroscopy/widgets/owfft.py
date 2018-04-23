@@ -37,6 +37,8 @@ class OWFFT(OWWidget):
     laser_wavenumber = settings.Setting(15797.337544)
     dx_HeNe = settings.Setting(True)
     dx = settings.Setting(1.0)
+    auto_sweeps = settings.Setting(True)
+    sweeps = settings.Setting(0)
     apod_func = settings.Setting(1)
     zff = settings.Setting(1)
     phase_corr = settings.Setting(0)
@@ -46,6 +48,12 @@ class OWFFT(OWWidget):
     out_limit1 = settings.Setting(400)
     out_limit2 = settings.Setting(4000)
     autocommit = settings.Setting(False)
+
+    sweep_opts = ("Single",
+                  "Forward-Backward",
+                  "Forward",
+                  "Backward",
+                  )
 
     apod_opts = ("Boxcar (None)",               # <irfft.ApodFunc.BOXCAR: 0>
                  "Blackman-Harris (3-term)",    # <irfft.ApodFunc.BLACKMAN_HARRIS_3: 1>
@@ -79,7 +87,6 @@ class OWFFT(OWWidget):
         self.spectra = None
         self.spectra_table = None
         self.wavenumbers = None
-        self.sweeps = None
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
 
@@ -110,6 +117,24 @@ class OWFFT(OWWidget):
         grid.addWidget(cb, 0, 0)
         grid.addWidget(self.dx_edit, 0, 1)
         grid.addWidget(lb, 0, 2)
+
+        wl = gui.widgetLabel(self.dataBox, "Sweep Direction:")
+        box = gui.comboBox(
+            self.dataBox, self, "sweeps",
+            label=None,
+            items=self.sweep_opts,
+            callback=self.sweeps_changed,
+            disabled=self.auto_sweeps
+            )
+        cb2 = gui.checkBox(
+                    self.dataBox, self, "auto_sweeps",
+                    label="Auto",
+                    callback=self.sweeps_changed,
+                    )
+        grid.addWidget(wl, 1, 0, 1, 3)
+        grid.addWidget(cb2, 2, 0)
+        grid.addWidget(box, 2, 1)
+
         self.dataBox.layout().addLayout(grid)
 
         # FFT Options control area
@@ -204,7 +229,7 @@ class OWFFT(OWWidget):
             self.determine_sweeps()
             self.infoa.setText('%d %s interferogram(s)' %
                                (dataset.X.shape[0],
-                                ["Single", "Forward-Backward"][self.sweeps]))
+                                (["Single"] + 3*["Forward-Backward"])[self.sweeps]))
             self.infob.setText('%d points each' % dataset.X.shape[1])
             self.dataBox.setDisabled(False)
             self.optionsBox.setDisabled(False)
@@ -226,6 +251,11 @@ class OWFFT(OWWidget):
         minX, maxX = min(values), max(values)
         self.out_limit1 = minX
         self.out_limit2 = maxX
+        self.commit()
+
+    def sweeps_changed(self):
+        self.controls.sweeps.setDisabled(self.auto_sweeps)
+        self.determine_sweeps()
         self.commit()
 
     def dx_changed(self):
@@ -265,14 +295,21 @@ class OWFFT(OWWidget):
                                  )
 
         for row in self.data.X:
-            # Check to see if interferogram is single or double sweep
-            if self.sweeps == 0:
+            if self.sweeps in [2, 3]:
+                # split double-sweep for forward/backward
+                # forward: 2-2 = 0 , backward: 3-2 = 1
+                try:
+                    row = np.hsplit(row, 2)[self.sweeps - 2]
+                except ValueError as e:
+                    self.Error.ifg_split_error(e)
+                    return
+
+            if self.sweeps in [0, 2, 3]:
                 try:
                     spectrum_out, phase_out, self.wavenumbers = fft_single(row)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
-
             elif self.sweeps == 1:
                 # Double sweep interferogram is split, solved independently and the
                 # two results are averaged.
@@ -297,7 +334,6 @@ class OWFFT(OWWidget):
                 # Calculate the average of the forward and backward sweeps
                 spectrum_out = np.mean( np.array([spectrum_fwd, spectrum_back]), axis=0)
                 phase_out = np.mean(np.array([phase_fwd, phase_back]), axis=0)
-
             else:
                 return
 
@@ -329,6 +365,8 @@ class OWFFT(OWWidget):
         """
         Determine if input interferogram is single-sweep or
         double-sweep (Forward-Backward).
+
+        Combines with auto_sweeps and custom sweeps setting.
         """
         # Just testing 1st row for now
         # assuming all in a group were collected the same way
@@ -339,23 +377,32 @@ class OWFFT(OWWidget):
         var = middle // 250
         if zpd >= middle - var and zpd <= middle + var:
             # single, symmetric
-            self.sweeps = 0
+            sweeps = 0
         else:
             try:
                 data = np.hsplit(data, 2)
             except ValueError:
                 # odd number of data points, probably single
-                self.sweeps = 0
-                return
-            zpd1 = irfft.find_zpd(data[0])
-            zpd2 = irfft.find_zpd(data[1][::-1])
-            # Forward / backward zpds never perfectly match
-            if zpd1 >= zpd2 - var and zpd1 <= zpd2 + var:
-                # forward-backward, symmetric and asymmetric
-                self.sweeps = 1
+                sweeps = 0
             else:
-                # single, asymetric
-                self.sweeps = 0
+                zpd1 = irfft.find_zpd(data[0])
+                zpd2 = irfft.find_zpd(data[1][::-1])
+                # Forward / backward zpds never perfectly match
+                if zpd1 >= zpd2 - var and zpd1 <= zpd2 + var:
+                    # forward-backward, symmetric and asymmetric
+                    sweeps = 1
+                else:
+                    # single, asymetric
+                    sweeps = 0
+        # Honour custom sweeps setting
+        if self.auto_sweeps:
+            self.sweeps = sweeps
+        elif sweeps == 0:
+            # Coerce setting to match input data (single)
+            self.sweeps = sweeps
+        elif sweeps == 1 and self.sweeps == 0:
+            # Coerce setting to match input data (single -> forward)
+            self.sweeps = 2
 
 
 # Simple main stub function in case being run outside Orange Canvas
