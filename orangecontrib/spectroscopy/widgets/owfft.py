@@ -26,6 +26,7 @@ class OWFFT(OWWidget):
     # Define inputs and outputs
     class Inputs:
         data = Input("Interferogram", Orange.data.Table, default=True)
+        stored_phase = Input("Stored Phase", Orange.data.Table)
 
     class Outputs:
         spectra = Output("Spectra", Orange.data.Table, default=True)
@@ -84,6 +85,7 @@ class OWFFT(OWWidget):
         super().__init__()
 
         self.data = None
+        self.stored_phase = None
         self.spectra = None
         self.spectra_table = None
         self.wavenumbers = None
@@ -243,6 +245,17 @@ class OWFFT(OWWidget):
             self.infob.setText("")
             self.Outputs.spectra.send(self.spectra_table)
 
+    @Inputs.stored_phase
+    def set_stored_phase(self, dataset):
+        """
+        Receive stored phase data.
+        """
+        if dataset is not None:
+            self.stored_phase = dataset
+            self.commit()
+        else:
+            self.stored_phase = None
+
     def setting_changed(self):
         self.commit()
 
@@ -294,6 +307,11 @@ class OWFFT(OWWidget):
                                  phase_corr=self.phase_corr,
                                  )
 
+        stored_phase = self.stored_phase
+        # Only use first row stored phase for now
+        if stored_phase is not None:
+            stored_phase = stored_phase[0]
+
         for row in self.data.X:
             if self.sweeps in [2, 3]:
                 # split double-sweep for forward/backward
@@ -306,7 +324,7 @@ class OWFFT(OWWidget):
 
             if self.sweeps in [0, 2, 3]:
                 try:
-                    spectrum_out, phase_out, self.wavenumbers = fft_single(row)
+                    spectrum_out, phase_out, self.wavenumbers = fft_single(row, phase=stored_phase)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -325,8 +343,8 @@ class OWFFT(OWWidget):
 
                 # Calculate spectrum for both forward and backward sweeps
                 try:
-                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd)
-                    spectrum_back, phase_back, self.wavenumbers = fft_single(back)
+                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd, phase=stored_phase)
+                    spectrum_back, phase_back, self.wavenumbers = fft_single(back, phase=stored_phase)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -344,6 +362,8 @@ class OWFFT(OWWidget):
                 self.spectra = spectrum_out
                 self.phases = phase_out
 
+        self.phases_table = build_spec_table(self.wavenumbers, self.phases)
+
         if self.limit_output is True:
             limits = np.searchsorted(self.wavenumbers,
                                      [self.out_limit1, self.out_limit2])
@@ -351,13 +371,11 @@ class OWFFT(OWWidget):
             # Handle 1D array if necessary
             if self.spectra.ndim == 1:
                 self.spectra = self.spectra[None,limits[0]:limits[1]]
-                self.phases = self.phases[None,limits[0]:limits[1]]
             else:
                 self.spectra = self.spectra[:,limits[0]:limits[1]]
-                self.phases = self.phases[:,limits[0]:limits[1]]
 
         self.spectra_table = build_spec_table(self.wavenumbers, self.spectra)
-        self.phases_table = build_spec_table(self.wavenumbers, self.phases)
+
         self.Outputs.spectra.send(self.spectra_table)
         self.Outputs.phases.send(self.phases_table)
 
