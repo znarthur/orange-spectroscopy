@@ -4,11 +4,24 @@ import numpy as np
 from AnyQt.QtWidgets import QGridLayout, QApplication
 
 import Orange.data
+from Orange.data import ContinuousVariable, Domain
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.data import build_spec_table
 from orangecontrib.spectroscopy import irfft
+
+
+def add_meta_to_table(data, var, values):
+    """
+    Take an existing Table and add a meta variable
+    """
+    metas = data.domain.metas + (var,)
+    newdomain = Domain(data.domain.attributes, data.domain.class_vars, metas)
+    newtable = data.transform(newdomain)
+    newtable[:, var] = np.atleast_1d(values).reshape(-1, 1)
+    return newtable
+
 
 class OWFFT(OWWidget):
     # Widget's name as displayed in the canvas
@@ -296,6 +309,9 @@ class OWFFT(OWWidget):
         self.spectra = None
         self.phases = None
 
+        zpd_fwd = []
+        zpd_back = []
+
         # Reset info, error and warning dialogs
         self.Error.clear()
         self.Warning.clear()
@@ -308,9 +324,18 @@ class OWFFT(OWWidget):
                                  )
 
         stored_phase = self.stored_phase
+        stored_zpd_fwd, stored_zpd_back = None, None
         # Only use first row stored phase for now
         if stored_phase is not None:
             stored_phase = stored_phase[0]
+            try:
+                stored_zpd_fwd = int(stored_phase["zpd_fwd"].value)
+            except ValueError:
+                stored_zpd_fwd = None
+            try:
+                stored_zpd_back = int(stored_phase["zpd_back"].value)
+            except ValueError:
+                stored_zpd_back = None
 
         for row in self.data.X:
             if self.sweeps in [2, 3]:
@@ -324,7 +349,8 @@ class OWFFT(OWWidget):
 
             if self.sweeps in [0, 2, 3]:
                 try:
-                    spectrum_out, phase_out, self.wavenumbers = fft_single(row, phase=stored_phase)
+                    spectrum_out, phase_out, self.wavenumbers = fft_single(row, zpd=stored_zpd_fwd, phase=stored_phase)
+                    zpd_fwd.append(fft_single.zpd)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -343,8 +369,10 @@ class OWFFT(OWWidget):
 
                 # Calculate spectrum for both forward and backward sweeps
                 try:
-                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd, phase=stored_phase)
-                    spectrum_back, phase_back, self.wavenumbers = fft_single(back, phase=stored_phase)
+                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd, zpd=stored_zpd_fwd, phase=stored_phase)
+                    zpd_fwd.append(fft_single.zpd)
+                    spectrum_back, phase_back, self.wavenumbers = fft_single(back, zpd=stored_zpd_back, phase=stored_phase)
+                    zpd_back.append(fft_single.zpd)
                 except ValueError as e:
                     self.Error.fft_error(e)
                     return
@@ -363,6 +391,13 @@ class OWFFT(OWWidget):
                 self.phases = phase_out
 
         self.phases_table = build_spec_table(self.wavenumbers, self.phases)
+        self.phases_table = add_meta_to_table(self.phases_table,
+                                         ContinuousVariable.make("zpd_fwd"),
+                                         zpd_fwd)
+        if zpd_back:
+            self.phases_table = add_meta_to_table(self.phases_table,
+                                         ContinuousVariable.make("zpd_back"),
+                                         zpd_back)
 
         if self.limit_output is True:
             limits = np.searchsorted(self.wavenumbers,
