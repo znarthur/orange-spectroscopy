@@ -3,8 +3,9 @@ import unittest
 import Orange
 import numpy as np
 
-from orangecontrib.spectroscopy.irfft import zero_fill
+from orangecontrib.spectroscopy.irfft import IRFFT, zero_fill, PhaseCorrection
 
+dx = 1.0 / 15797.337544 / 2.0
 
 class TestIRFFT(unittest.TestCase):
 
@@ -19,3 +20,19 @@ class TestIRFFT(unittest.TestCase):
             assert np.log2(N_zf) == int(np.log2(N_zf))
             # Final array should be >= N * zff
             assert N_zf >= N * zff
+
+    def test_simple_fft(self):
+        data = Orange.data.Table("IFG_single.dpt")
+        fft = IRFFT(dx=dx)
+        fft(data.X[0])
+
+    def test_stored_phase_zpd(self):
+        data = Orange.data.Table("IFG_single.dpt")
+        fft = IRFFT(dx=dx)
+        fft(data.X[0])
+        stored_phase = fft.phase
+        zpd = fft.zpd
+        fft_stored = IRFFT(dx=dx, phase_corr=PhaseCorrection.STORED)
+        fft_stored(data.X[0], phase=stored_phase, zpd=zpd)
+        np.testing.assert_array_equal(fft.spectrum, fft_stored.spectrum)
+        np.testing.assert_array_equal(fft.phase, fft_stored.phase)
