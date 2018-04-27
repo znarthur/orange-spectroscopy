@@ -53,6 +53,7 @@ class OWFFT(OWWidget):
     dx = settings.Setting(1.0)
     auto_sweeps = settings.Setting(True)
     sweeps = settings.Setting(0)
+    peak_search = settings.Setting(irfft.PeakSearch.MAXIMUM)
     apod_func = settings.Setting(1)
     zff = settings.Setting(1)
     phase_corr = settings.Setting(0)
@@ -151,6 +152,13 @@ class OWFFT(OWWidget):
         grid.addWidget(box, 2, 1)
 
         self.dataBox.layout().addLayout(grid)
+
+        box = gui.comboBox(
+            self.dataBox, self, "peak_search",
+            label="ZPD Peak Search:",
+            items=[name.title() for name, _ in irfft.PeakSearch.__members__.items()],
+            callback=self.setting_changed
+            )
 
         # FFT Options control area
         self.optionsBox = gui.widgetBox(self.controlArea, "FFT Options")
@@ -321,6 +329,7 @@ class OWFFT(OWWidget):
                                  zff=self.zff,
                                  phase_res=self.phase_resolution if self.phase_res_limit else None,
                                  phase_corr=self.phase_corr,
+                                 peak_search=self.peak_search,
                                  )
 
         stored_phase = self.stored_phase
@@ -424,7 +433,7 @@ class OWFFT(OWWidget):
         # Just testing 1st row for now
         # assuming all in a group were collected the same way
         data = self.data.X[0]
-        zpd = irfft.find_zpd(data)
+        zpd = irfft.find_zpd(data, self.peak_search)
         middle = data.shape[0] // 2
         # Allow variation of +/- 0.4 % in zpd location
         var = middle // 250
@@ -438,8 +447,8 @@ class OWFFT(OWWidget):
                 # odd number of data points, probably single
                 sweeps = 0
             else:
-                zpd1 = irfft.find_zpd(data[0])
-                zpd2 = irfft.find_zpd(data[1][::-1])
+                zpd1 = irfft.find_zpd(data[0], self.peak_search)
+                zpd2 = irfft.find_zpd(data[1][::-1], self.peak_search)
                 # Forward / backward zpds never perfectly match
                 if zpd1 >= zpd2 - var and zpd1 <= zpd2 + var:
                     # forward-backward, symmetric and asymmetric

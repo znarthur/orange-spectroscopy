@@ -3,7 +3,9 @@ import unittest
 import Orange
 import numpy as np
 
-from orangecontrib.spectroscopy.irfft import IRFFT, zero_fill, PhaseCorrection
+from orangecontrib.spectroscopy.irfft import (IRFFT, zero_fill, PhaseCorrection,
+                                              find_zpd, PeakSearch,
+                                              )
 
 dx = 1.0 / 15797.337544 / 2.0
 
@@ -22,17 +24,26 @@ class TestIRFFT(unittest.TestCase):
             assert N_zf >= N * zff
 
     def test_simple_fft(self):
-        data = Orange.data.Table("IFG_single.dpt")
+        data = Orange.data.Table("IFG_single.dpt").X[0]
         fft = IRFFT(dx=dx)
-        fft(data.X[0])
+        fft(data)
 
     def test_stored_phase_zpd(self):
-        data = Orange.data.Table("IFG_single.dpt")
+        data = Orange.data.Table("IFG_single.dpt").X[0]
         fft = IRFFT(dx=dx)
-        fft(data.X[0])
+        fft(data)
         stored_phase = fft.phase
         zpd = fft.zpd
         fft_stored = IRFFT(dx=dx, phase_corr=PhaseCorrection.STORED)
-        fft_stored(data.X[0], phase=stored_phase, zpd=zpd)
+        fft_stored(data, phase=stored_phase, zpd=zpd)
         np.testing.assert_array_equal(fft.spectrum, fft_stored.spectrum)
         np.testing.assert_array_equal(fft.phase, fft_stored.phase)
+
+    def test_peak_search(self):
+        data = Orange.data.Table("IFG_single.dpt").X[0]
+        assert find_zpd(data, PeakSearch.MAXIMUM) == data.argmax()
+        assert find_zpd(data, PeakSearch.MINIMUM) == data.argmin()
+        assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
+        data *= -1
+        assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
+

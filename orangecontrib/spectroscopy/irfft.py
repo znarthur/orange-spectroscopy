@@ -23,20 +23,37 @@ class PhaseCorrection(IntEnum):
     NONE = 3
 
 
-def find_zpd(Ix):
+class PeakSearch(IntEnum):
+    """
+    Implemented peak search functions
+    """
+    MAXIMUM = 0
+    MINIMUM = 1
+    ABSOLUTE = 2
+
+
+def find_zpd(Ix, peak_search):
     """
     Find the zero path difference (zpd) position.
 
-    NB Only "Maximum" peak search is currently implemented.
-
     Args:
         Ix (np.array): 1D array with a single interferogram
+        peak_search (IntEnum): One of peak search functions:
+            <PeakSearch.MAXIMUM: 0>         : Maximum value
+            <PeakSearch.MINIMUM: 1>         : Minumum value
+            <PeakSearch.ABSOLUTE: 2>        : Absolute largest value
 
     Returns:
         zpd: The index of zpd in Ix array.
     """
-    zpd = Ix.argmax()
-    return zpd
+    if peak_search == PeakSearch.MAXIMUM:
+        return Ix.argmax()
+    elif peak_search == PeakSearch.MINIMUM:
+        return Ix.argmin()
+    elif peak_search == PeakSearch.ABSOLUTE:
+        return Ix.argmin() if abs(Ix.min()) > abs(Ix.max()) else Ix.argmax()
+    else:
+        raise NotImplementedError
 
 def apodize(Ix, zpd, apod_func):
     """
@@ -169,20 +186,24 @@ class IRFFT():
 
     def __init__(self, dx,
                  apod_func=ApodFunc.BLACKMAN_HARRIS_3, zff=2,
-                 phase_res=None, phase_corr=PhaseCorrection.MERTZ
+                 phase_res=None, phase_corr=PhaseCorrection.MERTZ,
+                 peak_search=PeakSearch.MAXIMUM,
                  ):
         self.dx = dx
         self.apod_func = apod_func
         self.zff = zff
         self.phase_res = phase_res
         self.phase_corr = phase_corr
+        self.peak_search = peak_search
 
     def __call__(self, Ix, zpd=None, phase=None):
+        # Stored phase
         self.phase = phase
+        # Stored ZPD
         if zpd is not None:
             self.zpd = zpd
         else:
-            self.zpd = find_zpd(Ix)
+            self.zpd = find_zpd(Ix, self.peak_search)
 
         # Calculate phase on interferogram of specified size 2*L
         L = self.phase_ifg_size(Ix.shape[0])
