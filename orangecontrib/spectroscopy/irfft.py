@@ -240,7 +240,10 @@ class IRFFT():
             self.spectrum = Ix.real
             self.phase = Ix.imag
         else:
-            self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
+            try:
+                self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
+            except ValueError as e:
+                raise ValueError("Incompatible phase: {}".format(e))
 
         return self.spectrum, self.phase, self.wavenumbers
 
