@@ -345,6 +345,7 @@ class OWFFT(OWWidget):
                 stored_zpd_back = int(stored_phase["zpd_back"].value)
             except ValueError:
                 stored_zpd_back = None
+            stored_phase = stored_phase.x # lowercase x for RowInstance
 
         for row in self.data.X:
             if self.sweeps in [2, 3]:
