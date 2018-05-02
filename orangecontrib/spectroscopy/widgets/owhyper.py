@@ -21,11 +21,13 @@ import colorcet
 
 from Orange.canvas.registry.description import Default
 import Orange.data
+from Orange.data import FileFormat
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.utils import saveplot
 from Orange.data import DiscreteVariable, ContinuousVariable
 
 from orangecontrib.spectroscopy.data import getx
@@ -294,7 +296,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.parent = parent
 
         self.selection_type = SELECTMANY
-        self.saving_enabled = hasattr(self.parent, "save_graph")
+        self.saving_enabled = True
         self.selection_enabled = True
         self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
         self.highlighted = None
@@ -535,7 +537,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             else self.attr_x
 
     def save_graph(self):
-        self.parent.save_graph()
+        saveplot.save_plot(self.plotview, FileFormat.img_writers)
 
     def set_data(self, data):
         if data:
@@ -714,6 +716,8 @@ class OWHyper(OWWidget):
     highlim = Setting(None)
     choose = Setting(None)
 
+    graph_name = "imageplot.plotview"  # defined so that the save button is shown
+
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
 
@@ -795,7 +799,6 @@ class OWHyper(OWWidget):
         self.disable_integral_range = False
 
         self.resize(900, 700)
-        self.graph_name = "imageplot.plotview"
         self._update_integration_type()
 
         # prepare interface according to the new context
@@ -920,6 +923,10 @@ class OWHyper(OWWidget):
             self.choose = maxx
         self.line3.setValue(self.choose)
         self.disable_integral_range = False
+
+    def save_graph(self):
+        # directly call save_graph so it hides axes
+        self.imageplot.save_graph()
 
 
 def main(argv=None):
