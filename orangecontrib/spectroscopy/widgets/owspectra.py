@@ -16,7 +16,6 @@ import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 
-from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.data import DiscreteVariable, Variable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
@@ -867,7 +866,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
-
 
     def resized(self):
         self.important_decimals = pixel_decimals(self.plot.vb)
