@@ -618,7 +618,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
 
-            self.selection_changed.emit()
             self.refresh_img_selection()
 
     def refresh_img_selection(self):
@@ -772,7 +771,7 @@ class OWHyper(OWWidget):
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
         self.imageplot = ImagePlot(self)
-        self.imageplot.selection_changed.connect(self.image_selection_changed)
+        self.imageplot.selection_changed.connect(self.output_image_selection)
 
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
@@ -807,7 +806,7 @@ class OWHyper(OWWidget):
         if not same_domain:
             self.init_attr_values(data)
 
-    def image_selection_changed(self):
+    def output_image_selection(self):
         if not self.data:
             self.Outputs.selected_data.send(None)
             self.Outputs.annotated_data.send(None)
@@ -893,6 +892,7 @@ class OWHyper(OWWidget):
         self.curveplot.set_data(data)
         self._init_integral_boundaries()
         self.imageplot.update_view()
+        self.output_image_selection()
 
     def _init_integral_boundaries(self):
         # requires data in curveplot
