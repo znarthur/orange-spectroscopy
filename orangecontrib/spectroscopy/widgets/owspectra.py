@@ -17,6 +17,7 @@ from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 
 import Orange.data
+from Orange.data import FileFormat
 from Orange.data import DiscreteVariable, Variable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
@@ -26,6 +27,7 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+from Orange.widgets.utils import saveplot
 
 from Orange.widgets.visualize.owscatterplotgraph import HelpEventDelegate
 
@@ -504,7 +506,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.selection_type = select
         self.select_at_least_1 = False
-        self.saving_enabled = hasattr(self.parent, "save_graph")
+        self.saving_enabled = True
         self.clear_data()
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
@@ -1303,6 +1305,8 @@ class OWSpectra(OWWidget):
 
     curveplot = SettingProvider(CurvePlot)
 
+    graph_name = "curveplot.plotview"  # need to be defined for the save button to be shown
+
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
@@ -1315,7 +1319,6 @@ class OWSpectra(OWWidget):
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
-        self.graph_name = "curveplot.plotview"
 
     @Inputs.data
     def set_data(self, data):
@@ -1354,6 +1357,10 @@ class OWSpectra(OWWidget):
             if len(selection_indices):
                 selected = self.curveplot.data[selection_indices]
         self.Outputs.selected_data.send(selected)
+
+    def save_graph(self):
+        # directly call save_graph so it hides axes
+        self.curveplot.save_graph()
 
     @classmethod
     def migrate_settings(cls, settings, version):
