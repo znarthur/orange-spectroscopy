@@ -150,6 +150,7 @@ class TestGSF(unittest.TestCase):
         self.assertEqual(data.X.shape, (20000, 1))
 
 
+@unittest.skip  # file not available as of 20180426
 class TestNea(unittest.TestCase):
 
     def test_open(self):
