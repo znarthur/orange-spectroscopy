@@ -10,6 +10,7 @@ from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import pyqtSignal
 
 import numpy as np
 import pyqtgraph as pg
@@ -496,6 +497,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     invertX = Setting(False)
     viewtype = Setting(INDIVIDUAL)
 
+    selection_changed = pyqtSignal()
+
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
@@ -910,7 +913,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             # TODO this can redraw needless curves (removed and then added to the same group)
         self.make_selection_valid()
         self.set_curve_pens(redraw_curve_indices)
-        self.selection_changed()
+        self.selection_changed_confirm()
 
     def make_selection_valid(self):
         if self.select_at_least_1 and not len(np.flatnonzero(self.selection_group)) \
@@ -919,13 +922,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             if 0 in self.sampled_indices_inverse:  # refresh if shown
                 self.set_curve_pens([self.sampled_indices_inverse[0]])
 
-    def selection_changed(self):
+    def selection_changed_confirm(self):
         # reset average view; individual was already handled in make_selection
         if self.viewtype == AVERAGE:
             self.show_average()
         self.prepare_settings_for_saving()
-        if self.selection_type:
-            self.parent.selection_changed()
+        self.selection_changed.emit()
 
     def viewhelpers_hide(self):
         self.label.hide()
@@ -1313,6 +1315,7 @@ class OWSpectra(OWWidget):
         super().__init__()
         self.controlArea.hide()
         self.curveplot = CurvePlot(self, select=SELECTMANY)
+        self.curveplot.selection_changed.connect(self.selection_changed)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
         self.graph_name = "curveplot.plotview"

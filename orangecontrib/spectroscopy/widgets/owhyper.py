@@ -775,6 +775,7 @@ class OWHyper(OWWidget):
         self.imageplot.selection_changed.connect(self.image_selection_changed)
 
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
+        self.curveplot.selection_changed.connect(self.redraw_data)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
@@ -827,9 +828,6 @@ class OWHyper(OWWidget):
             self.curveplot.set_data(selected)
         else:
             self.curveplot.set_data(self.data)
-
-    def selection_changed(self):
-        self.redraw_data()
 
     def init_attr_values(self, data):
         domain = data.domain if data is not None else None
