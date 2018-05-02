@@ -2,7 +2,6 @@ import sys
 import gc
 import collections
 from xml.sax.saxutils import escape
-from decimal import Decimal
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter, \
@@ -30,8 +29,6 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils import saveplot
 from Orange.data import DiscreteVariable, ContinuousVariable
 
-from orangecontrib.spectroscopy.data import getx
-
 from orangecontrib.spectroscopy.preprocess import Integrate
 
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
@@ -42,7 +39,7 @@ from orangecontrib.spectroscopy.widgets.gui import MovableVline, lineEditDecimal
     pixels_to_decimals, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
 
-from Orange.widgets.utils.annotated_data import create_annotated_table, ANNOTATED_DATA_SIGNAL_NAME, \
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, \
     create_groups_table
 
 
