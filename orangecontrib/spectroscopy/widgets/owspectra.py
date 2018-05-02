@@ -825,13 +825,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.invertX_menu.setChecked(self.invertX)
 
     def save_graph(self):
-        self.viewhelpers_hide()
-        self.plot.showAxis("top", True)
-        self.plot.showAxis("right", True)
-        self.parent.save_graph()
-        self.plot.showAxis("top", False)
-        self.plot.showAxis("right", False)
-        self.viewhelpers_show()
+        try:
+            self.viewhelpers_hide()
+            self.plot.showAxis("top", True)
+            self.plot.showAxis("right", True)
+            saveplot.save_plot(self.plotview, FileFormat.img_writers)
+        finally:
+            self.plot.showAxis("top", False)
+            self.plot.showAxis("right", False)
+            self.viewhelpers_show()
 
     def clear_data(self):
         self.data = None
