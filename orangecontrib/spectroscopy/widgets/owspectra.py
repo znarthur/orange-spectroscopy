@@ -17,8 +17,8 @@ import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 
-from Orange.canvas.registry.description import Default
 import Orange.data
+from Orange.data import FileFormat
 from Orange.data import DiscreteVariable, Variable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
@@ -28,6 +28,7 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
+from Orange.widgets.utils import saveplot
 
 from Orange.widgets.visualize.owscatterplotgraph import HelpEventDelegate
 
@@ -508,7 +509,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.selection_type = select
         self.select_at_least_1 = False
-        self.saving_enabled = hasattr(self.parent, "save_graph")
+        self.saving_enabled = True
         self.clear_data()
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
@@ -828,13 +829,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.invertX_menu.setChecked(self.invertX)
 
     def save_graph(self):
-        self.viewhelpers_hide()
-        self.plot.showAxis("top", True)
-        self.plot.showAxis("right", True)
-        self.parent.save_graph()
-        self.plot.showAxis("top", False)
-        self.plot.showAxis("right", False)
-        self.viewhelpers_show()
+        try:
+            self.viewhelpers_hide()
+            self.plot.showAxis("top", True)
+            self.plot.showAxis("right", True)
+            saveplot.save_plot(self.plotview, FileFormat.img_writers)
+        finally:
+            self.plot.showAxis("top", False)
+            self.plot.showAxis("right", False)
+            self.viewhelpers_show()
 
     def clear_data(self):
         self.data = None
@@ -868,7 +871,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.addItem(self.curves_cont)
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
-
 
     def resized(self):
         self.important_decimals = pixel_decimals(self.plot.vb)
@@ -1305,6 +1307,8 @@ class OWSpectra(OWWidget):
 
     curveplot = SettingProvider(CurvePlot)
 
+    graph_name = "curveplot.plotview"  # need to be defined for the save button to be shown
+
     class Information(OWWidget.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
@@ -1318,7 +1322,6 @@ class OWSpectra(OWWidget):
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
-        self.graph_name = "curveplot.plotview"
 
     @Inputs.data
     def set_data(self, data):
@@ -1357,6 +1360,10 @@ class OWSpectra(OWWidget):
             if len(selection_indices):
                 selected = self.curveplot.data[selection_indices]
         self.Outputs.selected_data.send(selected)
+
+    def save_graph(self):
+        # directly call save_graph so it hides axes
+        self.curveplot.save_graph()
 
     @classmethod
     def migrate_settings(cls, settings, version):
