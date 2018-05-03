@@ -190,6 +190,7 @@ class OWIntegrate(SpectralPreprocess):
         self.output_box.layout().insertWidget(0, cb)  # move to top of the box
         self.curveplot.selection_type = SELECTONE
         self.curveplot.select_at_least_1 = True
+        self.curveplot.selection_changed.connect(self.redraw_integral)
 
     def redraw_integral(self):
         dis = []
@@ -217,9 +218,6 @@ class OWIntegrate(SpectralPreprocess):
     def show_preview(self, show_info=False):
         # redraw integrals if number of preview curves was changed
         super().show_preview(False)
-        self.redraw_integral()
-
-    def selection_changed(self):
         self.redraw_integral()
 
     def buildpreproc(self):
