@@ -216,6 +216,21 @@ class TestOWHyper(WidgetTest):
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
 
+    def test_set_variable_color(self):
+        data = Orange.data.Table("iris.tab")
+        ndom = Orange.data.Domain(data.domain.attributes[:-1], data.domain.class_var,
+                                  metas=[data.domain.attributes[-1]])
+        data = data.transform(ndom)
+        self.send_signal("Data", data)
+        self.widget.controls.value_type.buttons[1].click()
+        with patch("orangecontrib.spectroscopy.widgets.owhyper.ImageItemNan.setLookupTable") as p:
+            self.widget.attr_value = "iris"
+            self.widget.imageplot.update_color_schema()
+            np.testing.assert_equal(len(p.call_args[0][0]), 3)  # just 3 colors for 3 values
+            self.widget.attr_value = "petal width"
+            self.widget.imageplot.update_color_schema()
+            np.testing.assert_equal(len(p.call_args[0][0]), 256)  # a full scale for a continuous variable
+
     def test_single_update_view(self):
         with patch("orangecontrib.spectroscopy.widgets.owhyper.ImagePlot.update_view") as p:
             self.send_signal("Data", self.iris)
