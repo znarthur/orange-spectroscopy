@@ -41,7 +41,10 @@ class TestOWSpectra(WidgetTest):
         # a data set with features with the same names
         sfdomain = Domain([ContinuousVariable("1"), ContinuousVariable("1")])
         cls.same_features = Table(sfdomain, [[0, 1]])
-        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features]
+        # a data set with only infs
+        cls.only_inf = iris1.copy()
+        cls.only_inf.X *= np.Inf
+        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features, cls.only_inf]
 
     def setUp(self):
         self.widget = self.create_widget(OWSpectra)  # OWSpectra
@@ -66,9 +69,8 @@ class TestOWSpectra(WidgetTest):
         mr = self.widget.curveplot.MOUSE_RADIUS
         self.widget.curveplot.MOUSE_RADIUS = 1000
         self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
-        if self.widget.curveplot.data \
-                and len(self.widget.curveplot.data.X) \
-                and len(self.widget.curveplot.data_x):  # detect a curve if a validgi curve exists
+        if self.widget.curveplot.data is not None \
+                and np.any(np.isfinite(self.widget.curveplot.data.X)):  # a valid curve exists
             self.assertIsNotNone(self.widget.curveplot.highlighted)
         else:  # no curve can be detected
             self.assertIsNone(self.widget.curveplot.highlighted)

@@ -114,7 +114,10 @@ class PlotCurvesItem(GraphicsObject):
     def add_bounds(self, c):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # NaN warnings are expected
-            cb = c.boundingRect()
+            try:
+                cb = c.boundingRect()
+            except ValueError:  # workaround for pyqtgraph 0.10 when there are infs
+                cb = QRectF()
             # keep undefined elements NaN
             self.bounds[0] = np.nanmin([cb.left(), self.bounds[0]])
             self.bounds[1] = np.nanmin([cb.top(), self.bounds[1]])
@@ -1044,7 +1047,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             subset_additional = MAX_INSTANCES_DRAWN - (len(subset) - len(subset_to_show))
             if len(subset_to_show) > subset_additional:
                 subset_to_show = random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
-
             self.sampled_indices = sorted(sample_selection + list(subset_to_show))
             self.sampling = True
         else:
