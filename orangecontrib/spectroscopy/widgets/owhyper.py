@@ -513,15 +513,17 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             return
 
         if self.parent.value_type == 1:
-            # use defined discrete palette
             dat = self.data.domain[self.parent.attr_value]
             if isinstance(dat, DiscreteVariable):
+                # use a defined discrete palette
                 self.img.setLookupTable(dat.colors)
-        else:
-            data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
-            _, colors = max(data.items())
-            cols = color_palette_table(colors)
-            self.img.setLookupTable(cols)
+                return
+
+        # use a continuous palette
+        data = self.color_cb.itemData(self.palette_index, role=Qt.UserRole)
+        _, colors = max(data.items())
+        cols = color_palette_table(colors)
+        self.img.setLookupTable(cols)
 
     def update_attr(self):
         self.update_view()
