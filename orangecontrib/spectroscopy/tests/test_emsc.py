@@ -74,7 +74,6 @@ class TestEMSC(unittest.TestCase):
                                        [[0.0, 2.0],
                                         [1.0, 0.5]])
 
-
     def test_order_wavenumbers(self):
         domain_ref = Orange.data.Domain([Orange.data.ContinuousVariable(str(w)) for w in [4.0, 3.0, 2.0, 1.0]])
         data_ref = Orange.data.Table(domain_ref, [[3.0, 2.0, 3.0, 1.0]])
@@ -91,3 +90,15 @@ class TestEMSC(unittest.TestCase):
         np.testing.assert_almost_equal(fdata.metas,
                                        [[0.0, 2.0],
                                         [1.0, 0.5]])
+
+    def test_badspectra(self):
+        data = Orange.data.Table([[0, 0.25, 4.5, 4.75, 1.0, 1.25, 7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
+        data_ref = Orange.data.Table([[0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 3.0, 3.0, 0.0, 0.0, 0.0, 0.0]])
+        badspec = Orange.data.Table([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0]])
+
+        f = EMSC(reference=data_ref[0:1], badspectra=badspec, order=1, output_model=True)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X,
+            [[0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 3.0, 3.0, 0.0, 0.0, 0.0, 0.0]])
+        np.testing.assert_almost_equal(fdata.metas,
+            [[1.375, 1.375, 3.0, 2.0]])
