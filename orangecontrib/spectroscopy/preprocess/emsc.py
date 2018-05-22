@@ -80,6 +80,7 @@ class _EMSC(CommonDomainOrderUnknowns):
         self.scaling = scaling
 
     def transformed(self, X, wavenumbers):
+        # wavenumber have to be input as sorted
         # about 85% of time in __call__ function is spent is lstsq
 
         # compute average spectrum from the reference
