@@ -85,10 +85,15 @@ class _EMSC(CommonDomainOrderUnknowns):
         # about 85% of time in __call__ function is spent is lstsq
         # compute average spectrum from the reference
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
-        # interpolate reference to the data
-        ref_X = interp1d_with_unknowns_numpy(getx(self.reference), ref_X, wavenumbers)
-        # we know that X is not NaN. same handling of reference as of X
-        ref_X, _ = nan_extend_edges_and_interpolate(wavenumbers, ref_X)
+
+        def interpolate_to_data(other_xs, other_data):
+            # all input data needs to be interpolated (and NaNs removed)
+            interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
+            # we know that X is not NaN. same handling of reference as of X
+            interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
+            return interpolated
+
+        ref_X = interpolate_to_data(getx(self.reference), ref_X)
 
         if self.weights:
             # interpolate reference to the data
@@ -101,12 +106,16 @@ class _EMSC(CommonDomainOrderUnknowns):
         N = wavenumbers.shape[0]
         m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
         c_coeff = 0.5 * (wavenumbers[0] + wavenumbers[N - 1])
+
         n_badspec = len(self.badspectra) if self.badspectra is not None else 0
+        if self.badspectra:
+            badspectra_X = interpolate_to_data(getx(self.badspectra), self.badspectra.X)
+
         M = []
         for x in range(0, self.order+1):
             M.append((m0 * (wavenumbers - c_coeff)) ** x)
         for y in range(0, n_badspec):
-            M.append(self.badspectra.X[y])
+            M.append(badspectra_X[y])
         M.append(ref_X)  # always add reference spectrum to the model
         n_add_model = len(M)
         M = np.vstack(M).T  # M is needed below for the correction, for par estimation M_weigheted is used

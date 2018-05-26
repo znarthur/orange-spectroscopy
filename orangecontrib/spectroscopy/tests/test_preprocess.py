@@ -69,24 +69,29 @@ def reverse_attr(data):
     return Orange.data.Table(ndomain, data)
 
 
-def add_different_reference(class_, reference_arg_name, reference, *args, **kwargs):
-    modified = [reference,
-                shuffle_attr(reference),
-                make_edges_nan(reference),
-                shuffle_attr(make_edges_nan(reference)),
-                make_middle_nan(reference)]
+def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, **kwargs):
+    modified = [data_to_modify,
+                shuffle_attr(data_to_modify),
+                make_edges_nan(data_to_modify),
+                shuffle_attr(make_edges_nan(data_to_modify)),
+                make_middle_nan(data_to_modify)]
     for d in modified:
-        kwargs[reference_arg_name] = d
+        kwargs[data_arg_name] = d
         yield class_(*args, **kwargs)
 
 
-PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(EMSC, "reference", SMALL_COLLAGEN[0:1]))
-
 for p in [Absorbance, Transmittance]:
     # single reference
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN[0:1]))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
     # multi reference (many:many)
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN))
+
+# EMSC with different kinds of reference
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(EMSC, "reference", SMALL_COLLAGEN[0:1]))
+# EMSC with different kinds of bad spectra
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(EMSC, "badspectra", SMALL_COLLAGEN[0:2],
+                                                                       reference=SMALL_COLLAGEN[-1:]))
+
 
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
