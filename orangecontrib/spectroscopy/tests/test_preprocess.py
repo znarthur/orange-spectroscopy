@@ -11,7 +11,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Normalize, LinearBaseline, CurveShift, EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
-SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 10, 2)
+SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
 
 
 # Preprocessors that work per sample and should return the same
@@ -316,7 +316,7 @@ class TestCommon(unittest.TestCase):
     def test_unknown_no_propagate(self):
         data = self.collagen.copy()
         # one unknown in line
-        for i in range(len(data)):
+        for i in range(min(len(data), len(data.domain.attributes))):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
             pdata = proc(data)
