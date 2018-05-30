@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 
-from os import walk, path
-
 import os
-from setuptools import setup, find_packages, Command
+from os import walk, path
 import subprocess
 import sys
 
+from setuptools import setup, find_packages, Command
+
 PACKAGES = find_packages()
 
-PACKAGE_DATA = {
-#    'orangecontrib.example': ['tutorials/*.ows'],
-#    'orangecontrib.example.widgets': ['icons/*'],
-}
+PACKAGE_DATA = {}
 
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
 LONG_DESCRIPTION = open(README_FILE).read()
@@ -57,6 +54,7 @@ KEYWORDS = [
     'infrared'
 ]
 
+
 class CoverageCommand(Command):
     """A setup.py coverage subcommand developers can run locally."""
     description = "run code coverage"
@@ -74,6 +72,24 @@ class CoverageCommand(Command):
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
 
+class LintCommand(Command):
+    """A setup.py lint subcommand developers can run locally."""
+    description = "run code linter(s)"
+    user_options = []
+    initialize_options = finalize_options = lambda self: None
+
+    def run(self):
+        """Lint current branch compared to a reasonable master branch"""
+        sys.exit(subprocess.call(r'''
+        set -eu
+        upstream="$(git remote -v |
+                    awk '/[@\/]github.com[:\/]Quasars\/orange-spectroscopy[\. ]/{ print $1; exit }')"
+        git fetch -q $upstream master
+        best_ancestor=$(git merge-base HEAD refs/remotes/$upstream/master)
+        .travis/check_pylint_diff $best_ancestor
+        ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
+
+
 TEST_SUITE = "orangecontrib.spectroscopy.tests.suite"
 
 
@@ -86,16 +102,17 @@ def include_documentation(local_dir, install_dir):
         sys.exit(0)
 
     doc_files = []
-    for dirpath, dirs, files in walk(local_dir):
+    for dirpath, _, files in walk(local_dir):
         doc_files.append((dirpath.replace(local_dir, install_dir),
                           [path.join(dirpath, f) for f in files]))
     DATA_FILES.extend(doc_files)
 
 
 if __name__ == '__main__':
-    
+
     cmdclass = {
-       'coverage': CoverageCommand,
+        'coverage': CoverageCommand,
+        'lint': LintCommand,
     }
 
     include_documentation('doc/build/html', 'help/orange-spectroscopy')
