@@ -89,7 +89,7 @@ if [ "$ARG1"  ]; then
     PREVIOUS_COMMIT=$(git merge-base HEAD "$ARG1")
 else
     PREVIOUS_COMMIT=$(git show --pretty=raw HEAD |
-                      awk '/^parent /{ print $2; exit }')
+                      awk '/^parent /{ print $2 }' | head -n 1)
 fi
 
 echo
