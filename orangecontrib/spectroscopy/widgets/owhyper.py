@@ -18,7 +18,6 @@ import numpy as np
 import pyqtgraph as pg
 import colorcet
 
-from Orange.canvas.registry.description import Default
 import Orange.data
 from Orange.data import FileFormat
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
@@ -127,7 +126,7 @@ def location_values(vals, linspace):
     if linspace[2] == 1:  # everything is the same value
         width = 1
     else:
-        width =  (linspace[1] - linspace[0]) / (linspace[2] - 1)
+        width = (linspace[1] - linspace[0]) / (linspace[2] - 1)
     return (vals - linspace[0]) / width
 
 
@@ -379,7 +378,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         choose_xy = QWidgetAction(self)
         box = gui.vBox(self)
         box.setFocusPolicy(Qt.TabFocus)
-        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES, valid_types=DomainModel.PRIMITIVE)
+        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+                                    valid_types=DomainModel.PRIMITIVE)
         self.cb_attr_x = gui.comboBox(
             box, self, "attr_x", label="Axis x:", callback=self.update_attr,
             model=self.xy_model, **common_options)
@@ -408,13 +408,15 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
         )
 
-        self._level_low_le = lineEditDecimalOrNone(self, self, "level_low",
-                                                   callback=lambda: self.update_levels() or self.reset_thresholds())
+        def limit_changed():
+            self.update_levels()
+            self.reset_thresholds()
+
+        self._level_low_le = lineEditDecimalOrNone(self, self, "level_low", callback=limit_changed)
         self._level_low_le.validator().setDefault(0)
         form.addRow("Low limit:", self._level_low_le)
 
-        self._level_high_le = lineEditDecimalOrNone(self, self, "level_high",
-                                                    callback=lambda: self.update_levels() or self.reset_thresholds())
+        self._level_high_le = lineEditDecimalOrNone(self, self, "level_high", callback=limit_changed)
         self._level_high_le.validator().setDefault(1)
         form.addRow("High limit:", self._level_high_le)
 
@@ -457,8 +459,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             data, vals, points = self.data[sel], self.data_values[sel], self.data_points[sel]
             for d, v, p in zip(data, vals, points):
                 basic = "({}, {}): {}".format(p[0], p[1], v)
-                variables = [ v for v in self.data.domain.metas + self.data.domain.class_vars
-                              if v not in [self.attr_x, self.attr_y]]
+                variables = [v for v in self.data.domain.metas + self.data.domain.class_vars
+                             if v not in [self.attr_x, self.attr_y]]
                 features = ['{} = {}'.format(attr.name, d[attr]) for attr in variables]
                 prepared.append("\n".join([basic] + features))
         text = "\n\n".join(prepared)
@@ -492,7 +494,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
 
-        rounded_levels = [float_to_str_decimals(levels[0], prec), float_to_str_decimals(levels[1], prec)]
+        rounded_levels = [float_to_str_decimals(levels[0], prec),
+                          float_to_str_decimals(levels[1], prec)]
 
         self._level_low_le.validator().setDefault(rounded_levels[0])
         self._level_high_le.validator().setDefault(rounded_levels[1])
@@ -580,9 +583,11 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
                 imethod = self.parent.integration_methods[self.parent.integration_method]
 
                 if imethod != Integrate.PeakAt:
-                    datai = Integrate(methods=imethod, limits=[[self.parent.lowlim, self.parent.highlim]])(self.data)
+                    datai = Integrate(methods=imethod,
+                                      limits=[[self.parent.lowlim, self.parent.highlim]])(self.data)
                 else:
-                    datai = Integrate(methods=imethod, limits=[[self.parent.choose, self.parent.choose]])(self.data)
+                    datai = Integrate(methods=imethod,
+                                      limits=[[self.parent.choose, self.parent.choose]])(self.data)
 
                 if np.any(self.parent.curveplot.selection_group):
                     # curveplot can have a subset of curves on the input> match IDs
@@ -819,8 +824,6 @@ class OWHyper(OWWidget):
         indices = np.flatnonzero(self.imageplot.selection_group)
 
         annotated_data = create_groups_table(self.data, self.imageplot.selection_group)
-        if annotated_data is not None:
-            annotated_data.X = self.data.X  # workaround for Orange's copying on domain conversio
         self.Outputs.annotated_data.send(annotated_data)
 
         selected = self.data[indices]
