@@ -99,7 +99,8 @@ class TestConversion(unittest.TestCase):
             train, test = separate_learn_test(data)
             train = proc(train)
             test_transformed = Orange.data.Table(train.domain, test)
-            np.testing.assert_equal(test_transformed.X, test1.X)
+            np.testing.assert_equal(test_transformed.X, test1.X,
+                                    err_msg="Preprocessor " + str(proc))
 
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
@@ -134,8 +135,9 @@ class TestConversion(unittest.TestCase):
             # otherwise be silently handled in TestOnTestData
             _ = Orange.data.Table(train.domain, test)
             aucnow = AUC(TestOnTestData(train, test, [learner]))
-            self.assertAlmostEqual(aucnow, aucorig, delta=0.02)
+            self.assertAlmostEqual(aucnow, aucorig, delta=0.02, msg="Preprocessor " + str(proc))
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             _ = Orange.data.Table(train.domain, test)  # explicit call again
             aucnow = AUC(TestOnTestData(train, test, [learner]))
-            self.assertAlmostEqual(aucnow, aucorig, delta=0.05)  # the difference should be slight
+            # the difference should be slight
+            self.assertAlmostEqual(aucnow, aucorig, delta=0.05, msg="Preprocessor " + str(proc))
