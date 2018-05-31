@@ -819,8 +819,6 @@ class OWHyper(OWWidget):
         indices = np.flatnonzero(self.imageplot.selection_group)
 
         annotated_data = create_groups_table(self.data, self.imageplot.selection_group)
-        if annotated_data is not None:
-            annotated_data.X = self.data.X  # workaround for Orange's copying on domain conversio
         self.Outputs.annotated_data.send(annotated_data)
 
         selected = self.data[indices]

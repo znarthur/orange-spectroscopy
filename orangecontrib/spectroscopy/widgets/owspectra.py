@@ -1351,8 +1351,6 @@ class OWSpectra(OWWidget):
     def selection_changed(self):
         # selection table
         annotated_data = create_groups_table(self.curveplot.data, self.curveplot.selection_group)
-        if annotated_data is not None:
-            annotated_data.X = self.curveplot.data.X  # workaround for Orange's copying on domain conversion
         self.Outputs.annotated_data.send(annotated_data)
 
         # selected elements
