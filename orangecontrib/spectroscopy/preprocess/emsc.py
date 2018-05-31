@@ -1,6 +1,7 @@
-import Orange
 import numpy as np
 from numpy import nextafter
+
+import Orange
 from Orange.preprocess.preprocess import Preprocess
 from Orange.widgets.utils.annotated_data import get_next_name
 
@@ -49,7 +50,8 @@ def ranges_to_weight_table(ranges):
         current[np.isnan(current)] = 0
 
         # new values on all positions
-        new = interp1d_with_unknowns_numpy(np.array(positions), np.array([weights]), all_positions)[0]
+        new = interp1d_with_unknowns_numpy(np.array(positions), np.array([weights]),
+                                           all_positions)[0]
         new[np.isnan(new)] = 0
 
         # update values
@@ -101,7 +103,7 @@ class _EMSC(CommonDomainOrderUnknowns):
             # set whichever weights are undefined (usually at edges) to zero
             wei_X[np.isnan(wei_X)] = 0
         else:
-            wei_X =np.ones((1,len(wavenumbers)))
+            wei_X = np.ones((1, len(wavenumbers)))
 
         N = wavenumbers.shape[0]
         m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
@@ -118,13 +120,13 @@ class _EMSC(CommonDomainOrderUnknowns):
             M.append(badspectra_X[y])
         M.append(ref_X)  # always add reference spectrum to the model
         n_add_model = len(M)
-        M = np.vstack(M).T  # M is needed below for the correction, for par estimation M_weigheted is used
+        M = np.vstack(M).T  # M is for the correction, for par. estimation M_weighted is used
 
-        M_weighted=M*wei_X.T
+        M_weighted = M*wei_X.T
 
         newspectra = np.zeros((X.shape[0], X.shape[1] + n_add_model))
         for i, rawspectrum in enumerate(X):
-            rawspectrumW=(rawspectrum*wei_X)[0]
+            rawspectrumW = (rawspectrum*wei_X)[0]
             m = np.linalg.lstsq(M_weighted, rawspectrum)[0]
             corrected = rawspectrum
 
@@ -132,7 +134,7 @@ class _EMSC(CommonDomainOrderUnknowns):
                 corrected = (corrected - (m[x] * M[:, x]))
             if self.scaling:
                 corrected = corrected/m[self.order+1+n_badspec]
-            corrected[np.isinf(corrected)] = np.nan  # fix values which can be caused by zero weights
+            corrected[np.isinf(corrected)] = np.nan  # fix values caused by zero weights
             corrected = np.hstack((corrected, m))  # append the model parameters
             newspectra[i] = corrected
 
@@ -145,7 +147,8 @@ class MissingReferenceException(Exception):
 
 class EMSC(Preprocess):
 
-    def __init__(self, reference=None, badspectra=None, weights=None, order=2 , scaling=True, output_model=False, ranges=None):
+    def __init__(self, reference=None, badspectra=None, weights=None, order=2, scaling=True,
+                 output_model=False, ranges=None):
         # the first non-kwarg can not be a data table (Preprocess limitations)
         # ranges could be a list like this [[800, 1000], [1300, 1500]]
         if reference is None:
@@ -158,8 +161,11 @@ class EMSC(Preprocess):
         self.output_model = output_model
 
     def __call__(self, data):
-        common = _EMSC(self.reference, self.badspectra, self.weights, self.order,self.scaling, data.domain)  # creates function for transforming data
-        atts = [a.copy(compute_value=EMSCFeature(i, common))  # takes care of domain column-wise, by above transformation function
+        # creates function for transforming data
+        common = _EMSC(self.reference, self.badspectra, self.weights, self.order,
+                       self.scaling, data.domain)
+        # takes care of domain column-wise, by above transformation function
+        atts = [a.copy(compute_value=EMSCFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         model_metas = []
         n_badspec = len(self.badspectra) if self.badspectra is not None else 0
@@ -170,13 +176,13 @@ class EMSC(Preprocess):
                 n = get_next_name(used_names, "EMSC parameter " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
-                                                    compute_value=EMSCModel(i, common)))
+                                                   compute_value=EMSCModel(i, common)))
                 i += 1
             for o in range(n_badspec):
                 n = get_next_name(used_names, "EMSC parameter bad spec " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
-                                                    compute_value=EMSCModel(i, common)))
+                                                   compute_value=EMSCModel(i, common)))
                 i += 1
             n = get_next_name(used_names, "EMSC scaling parameter")
             model_metas.append(
