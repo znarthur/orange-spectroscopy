@@ -37,9 +37,9 @@ from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
 from orangecontrib.spectroscopy.widgets.gui import MovableVline, lineEditDecimalOrNone,\
     pixels_to_decimals, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
+from orangecontrib.spectroscopy.widgets.utils import groups_or_annotated_table
 
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, \
-    create_groups_table
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 
 IMAGE_TOO_BIG = 1024*1024*100
@@ -823,7 +823,7 @@ class OWHyper(OWWidget):
 
         indices = np.flatnonzero(self.imageplot.selection_group)
 
-        annotated_data = create_groups_table(self.data, self.imageplot.selection_group)
+        annotated_data = groups_or_annotated_table(self.data, self.imageplot.selection_group)
         self.Outputs.annotated_data.send(annotated_data)
 
         selected = self.data[indices]

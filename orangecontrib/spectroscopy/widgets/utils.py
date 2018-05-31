@@ -1,6 +1,7 @@
 import array
 
 import numpy as np
+from Orange.widgets.utils.annotated_data import create_annotated_table, create_groups_table
 
 
 def pack_selection(selection_group):
@@ -43,3 +44,17 @@ def selections_to_length(selection_group, length):
         return np.append(selection_group, np.zeros(add_zeros, dtype=np.uint8))
     else:
         return selection_group[:length].copy()
+
+
+def groups_or_annotated_table(data, selection):
+    """
+    Use either Orange's create_annotated_table (for at most 1 selected class
+    or create_groups_table (for more selected classes)
+    :param data: Orange data table
+    :param selection: classes for selected indices (0 for unselected)
+    :return: Orange data table with an added column
+    """
+    if len(selection) and np.max(selection) > 1:
+        return create_groups_table(data, selection)
+    else:
+        return create_annotated_table(data, np.flatnonzero(selection))

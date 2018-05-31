@@ -38,9 +38,9 @@ from orangecontrib.spectroscopy.widgets.line_geometry import \
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
     float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
-    selections_to_length
+    selections_to_length, groups_or_annotated_table
 
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, create_groups_table
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 # legend
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem as LegendItem, legend_anchor_pos
@@ -966,7 +966,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.crosshair_hidden = bool(labels)
 
             if self.location and not labels:
-                labels = strdec(posx, self.important_decimals[0]) + " " + strdec(posy, self.important_decimals[1])
+                labels = strdec(posx, self.important_decimals[0]) + " " + \
+                         strdec(posy, self.important_decimals[1])
             self.label.setText(labels, color=(0, 0, 0))
 
             if self.curves and len(self.curves[0][0]):  # need non-zero x axis!
@@ -974,8 +975,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 bd = None
                 if self.markclosest and self.plot.vb.action != ZOOMING:
                     xpixel, ypixel = self.plot.vb.viewPixelSize()
-                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel, r=self.MOUSE_RADIUS,
-                                                 cache=cache)
+                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel,
+                                                 r=self.MOUSE_RADIUS, cache=cache)
                     try:
                         mindi = np.nanargmin(distances)
                         if distances[mindi] < self.MOUSE_RADIUS:
@@ -1039,14 +1040,16 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
         if len(ys) > MAX_INSTANCES_DRAWN:
-            sample_selection = random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
+            sample_selection = \
+                random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
 
             # with random selection also show at most MAX_INSTANCES_DRAW elements from the subset
             subset = set(np.where(self.subset_indices)[0])
             subset_to_show = subset - set(sample_selection)
             subset_additional = MAX_INSTANCES_DRAWN - (len(subset) - len(subset_to_show))
             if len(subset_to_show) > subset_additional:
-                subset_to_show = random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
+                subset_to_show = \
+                    random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
             self.sampled_indices = sorted(sample_selection + list(subset_to_show))
             self.sampling = True
         else:
@@ -1108,7 +1111,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
                 pen = pg.mkPen(color=basecolor)
                 brush = pg.mkBrush(color=basecolor)
-                self.legend.addItem(pg.ScatterPlotItem(pen=pen, brush=brush, size=10, symbol="o"), escape(v))
+                self.legend.addItem(pg.ScatterPlotItem(pen=pen, brush=brush, size=10, symbol="o"),
+                                    escape(v))
 
     def show_individual(self):
         self.view_average_menu.setChecked(False)
@@ -1134,10 +1138,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             bright = qrect.right()
 
             ymax = max(np.max(ys[:, searchsorted_cached(cache, x, bleft):
-            searchsorted_cached(cache, x, bright, side="right")])
+                                    searchsorted_cached(cache, x, bright, side="right")])
                        for x, ys in self.curves_plotted)
             ymin = min(np.min(ys[:, searchsorted_cached(cache, x, bleft):
-            searchsorted_cached(cache, x, bright, side="right")])
+                                    searchsorted_cached(cache, x, bright, side="right")])
                        for x, ys in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
@@ -1350,7 +1354,7 @@ class OWSpectra(OWWidget):
 
     def selection_changed(self):
         # selection table
-        annotated_data = create_groups_table(self.curveplot.data, self.curveplot.selection_group)
+        annotated_data = groups_or_annotated_table(self.curveplot.data, self.curveplot.selection_group)
         self.Outputs.annotated_data.send(annotated_data)
 
         # selected elements
