@@ -38,9 +38,9 @@ from orangecontrib.spectroscopy.widgets.line_geometry import \
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
     float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
-    selections_to_length
+    selections_to_length, groups_or_annotated_table
 
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, create_groups_table
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 # legend
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem as LegendItem, legend_anchor_pos
@@ -1350,7 +1350,7 @@ class OWSpectra(OWWidget):
 
     def selection_changed(self):
         # selection table
-        annotated_data = create_groups_table(self.curveplot.data, self.curveplot.selection_group)
+        annotated_data = groups_or_annotated_table(self.curveplot.data, self.curveplot.selection_group)
         self.Outputs.annotated_data.send(annotated_data)
 
         # selected elements

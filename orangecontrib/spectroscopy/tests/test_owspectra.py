@@ -34,6 +34,8 @@ class TestOWSpectra(WidgetTest):
         iris1 = Table(Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
         iris0 = Table(Domain([]), cls.iris)
+        # data set with no lines
+        empty = cls.iris[:0]
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         cls.unknown_last_instance = cls.iris.copy()
@@ -44,7 +46,8 @@ class TestOWSpectra(WidgetTest):
         # a data set with only infs
         cls.only_inf = iris1.copy()
         cls.only_inf.X *= np.Inf
-        cls.strange_data = [iris1, iris0, irisunknown, cls.unknown_last_instance, cls.same_features, cls.only_inf]
+        cls.strange_data = [iris1, iris0, empty, irisunknown, cls.unknown_last_instance,
+                            cls.same_features, cls.only_inf]
 
     def setUp(self):
         self.widget = self.create_widget(OWSpectra)  # OWSpectra
