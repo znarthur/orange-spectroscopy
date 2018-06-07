@@ -337,6 +337,19 @@ class TestPCADenoising(unittest.TestCase):
         newdata = Orange.data.Table(d1.domain, data)
         np.testing.assert_equal(newdata.X, np.nan)
 
+    def test_iris(self):
+        data = Orange.data.Table("iris")
+        proc = PCADenoising(components=2)
+        d1 = proc(data)
+        newdata = Orange.data.Table(d1.domain, data)
+        differences = newdata.X - data.X
+        self.assertTrue(np.all(np.abs(differences) < 0.6))
+        # pin some values to detect changes in the PCA implementation
+        # (for example normalization)
+        np.testing.assert_almost_equal(newdata.X[:2],
+                                       [[5.08718247, 3.51315614, 1.40204280, 0.21105556],
+                                        [4.75015528, 3.15366444, 1.46254138, 0.23693223]])
+
 
 class TestCurveShift(unittest.TestCase):
 
