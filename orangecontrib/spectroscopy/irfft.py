@@ -32,36 +32,36 @@ class PeakSearch(IntEnum):
     ABSOLUTE = 2
 
 
-def find_zpd(Ix, peak_search):
+def find_zpd(ifg, peak_search):
     """
     Find the zero path difference (zpd) position.
 
     Args:
-        Ix (np.array): 1D array with a single interferogram
+        ifg (np.array): 1D array with a single interferogram
         peak_search (IntEnum): One of peak search functions:
             <PeakSearch.MAXIMUM: 0>         : Maximum value
             <PeakSearch.MINIMUM: 1>         : Minumum value
             <PeakSearch.ABSOLUTE: 2>        : Absolute largest value
 
     Returns:
-        zpd: The index of zpd in Ix array.
+        zpd: The index of zpd in ifg array.
     """
     if peak_search == PeakSearch.MAXIMUM:
-        return Ix.argmax()
+        return ifg.argmax()
     elif peak_search == PeakSearch.MINIMUM:
-        return Ix.argmin()
+        return ifg.argmin()
     elif peak_search == PeakSearch.ABSOLUTE:
-        return Ix.argmin() if abs(Ix.min()) > abs(Ix.max()) else Ix.argmax()
+        return ifg.argmin() if abs(ifg.min()) > abs(ifg.max()) else ifg.argmax()
     else:
         raise NotImplementedError
 
-def apodize(Ix, zpd, apod_func):
+def apodize(ifg, zpd, apod_func):
     """
     Perform apodization of asymmetric interferogram using selected apodization
     function
 
     Args:
-        Ix (np.array): 1D array with a single interferogram
+        ifg (np.array): 1D array with a single interferogram
         zpd (int): Index of the Zero Phase Difference (centerburst)
         apod_func (IntEnum): One of apodization function options:
                 <ApodFunc.BOXCAR: 0>            : Boxcar apodization
@@ -70,18 +70,18 @@ def apodize(Ix, zpd, apod_func):
                 <ApodFunc.BLACKMAN_NUTTALL: 3>  : Blackman-Nuttall (Eric Peach implementation)
 
     Returns:
-        Ix_apod (np.array): 1D array of apodized Ix
+        ifg_apod (np.array): 1D array of apodized ifg
     """
 
     # Calculate negative and positive wing size
     # correcting zpd from 0-based index
-    N = Ix.shape[0]
+    ifg_N = ifg.shape[0]
     wing_n = zpd + 1
-    wing_p = N - (zpd + 1)
+    wing_p = ifg_N - (zpd + 1)
 
     if apod_func == ApodFunc.BOXCAR:
         # Boxcar apodization AKA as-collected
-        return Ix
+        return ifg
 
     elif apod_func == ApodFunc.BLACKMAN_HARRIS_3:
         # Blackman-Harris (3-term)
@@ -93,11 +93,11 @@ def apodize(Ix, zpd, apod_func):
         A3 = 0.0
         n_n = np.arange(wing_n)
         n_p = np.arange(wing_p)
-        Bs_n =  A0\
+        Bs_n = A0\
             + A1 * np.cos(np.pi*n_n/wing_n)\
             + A2 * np.cos(np.pi*2*n_n/wing_n)\
             + A3 * np.cos(np.pi*3*n_n/wing_n)
-        Bs_p =  A0\
+        Bs_p = A0\
             + A1 * np.cos(np.pi*n_p/wing_p)\
             + A2 * np.cos(np.pi*2*n_p/wing_p)\
             + A3 * np.cos(np.pi*3*n_p/wing_p)
@@ -113,11 +113,11 @@ def apodize(Ix, zpd, apod_func):
         A3 = 0.01168
         n_n = np.arange(wing_n)
         n_p = np.arange(wing_p)
-        Bs_n =  A0\
+        Bs_n = A0\
             + A1 * np.cos(np.pi*n_n/wing_n)\
             + A2 * np.cos(np.pi*2*n_n/wing_n)\
             + A3 * np.cos(np.pi*3*n_n/wing_n)
-        Bs_p =  A0\
+        Bs_p = A0\
             + A1 * np.cos(np.pi*n_p/wing_p)\
             + A2 * np.cos(np.pi*2*n_p/wing_p)\
             + A3 * np.cos(np.pi*3*n_p/wing_p)
@@ -126,11 +126,11 @@ def apodize(Ix, zpd, apod_func):
     elif apod_func == ApodFunc.BLACKMAN_NUTTALL:
         # Blackman-Nuttall (Eric Peach)
         # TODO I think this has silent problems with asymmetric interferograms
-        delta = np.min([wing_n , wing_p])
+        delta = np.min([wing_n, wing_p])
 
         # Create Blackman Nuttall Window according to the formula given by Wolfram.
-        xs = np.arange(N)
-        Bs = np.zeros(N)
+        xs = np.arange(ifg_N)
+        Bs = np.zeros(ifg_N)
         Bs = 0.3635819\
             - 0.4891775 * np.cos(2*np.pi*xs/(2*delta - 1))\
             + 0.1365995 * np.cos(4*np.pi*xs/(2*delta - 1))\
@@ -138,38 +138,38 @@ def apodize(Ix, zpd, apod_func):
 
     # Apodize the sampled Interferogram
     try:
-        Ix_apod = Ix * Bs
+        ifg_apod = ifg * Bs
     except ValueError as e:
         raise ValueError("Apodization function size mismatch: %s" % e)
 
-    return Ix_apod
+    return ifg_apod
 
-def _zero_fill_size(N, zff):
+def _zero_fill_size(ifg_N, zff):
     # Calculate desired array size
-    Nzff = N * zff
+    Nzff = ifg_N * zff
     # Calculate final size to next power of two for DFT efficiency
     return int(np.exp2(np.ceil(np.log2(Nzff))))
 
-def _zero_fill_pad(Ix, zerofill):
-    return np.hstack((Ix, np.zeros(zerofill, dtype=Ix.dtype)))
+def _zero_fill_pad(ifg, zerofill):
+    return np.hstack((ifg, np.zeros(zerofill, dtype=ifg.dtype)))
 
-def zero_fill(Ix, zff):
+def zero_fill(ifg, zff):
     """
     Zero-fill interferogram.
     Assymetric to prevent zpd from changing index.
 
     Args:
-        Ix (np.array): 1D array with a single interferogram
+        ifg (np.array): 1D array with a single interferogram
         zff (int): Zero-filling factor
 
     Returns:
-        Ix_zff: 1D array of Ix + zero fill
+        np.array: 1D array of ifg + zero fill
     """
-    N = Ix.shape[0]
+    ifg_N = ifg.shape[0]
     # Calculate zero-fill to next power of two for DFT efficiency
-    zero_fill = _zero_fill_size(N, zff) - N
+    zero_fill = _zero_fill_size(ifg_N, zff) - ifg_N
     # Pad array
-    return _zero_fill_pad(Ix, zero_fill)
+    return _zero_fill_pad(ifg, zero_fill)
 
 class IRFFT():
     """
@@ -188,7 +188,7 @@ class IRFFT():
                  apod_func=ApodFunc.BLACKMAN_HARRIS_3, zff=2,
                  phase_res=None, phase_corr=PhaseCorrection.MERTZ,
                  peak_search=PeakSearch.MAXIMUM,
-                 ):
+                ):
         self.dx = dx
         self.apod_func = apod_func
         self.zff = zff
@@ -196,60 +196,60 @@ class IRFFT():
         self.phase_corr = phase_corr
         self.peak_search = peak_search
 
-    def __call__(self, Ix, zpd=None, phase=None):
+    def __call__(self, ifg, zpd=None, phase=None):
         # Stored phase
         self.phase = phase
         # Stored ZPD
         if zpd is not None:
             self.zpd = zpd
         else:
-            self.zpd = find_zpd(Ix, self.peak_search)
+            self.zpd = find_zpd(ifg, self.peak_search)
 
         # Calculate phase on interferogram of specified size 2*L
-        L = self.phase_ifg_size(Ix.shape[0])
+        L = self.phase_ifg_size(ifg.shape[0])
         if L == 0: # Use full ifg for phase
-            Ix = apodize(Ix, self.zpd, self.apod_func)
-            Ix = zero_fill(Ix, self.zff)
+            ifg = apodize(ifg, self.zpd, self.apod_func)
+            ifg = zero_fill(ifg, self.zff)
             # Rotate the Complete IFG so that the centerburst is at edges.
-            Ix = np.hstack((Ix[self.zpd:],Ix[0:self.zpd]))
-            Nzff = Ix.shape[0]
+            ifg = np.hstack((ifg[self.zpd:], ifg[0:self.zpd]))
+            Nzff = ifg.shape[0]
             # Take FFT of Rotated Complete Graph
-            Ix = np.fft.rfft(Ix)
-            self.compute_phase(Ix)
+            ifg = np.fft.rfft(ifg)
+            self.compute_phase(ifg)
         else:
             # Select phase interferogram as copy
             # Note that L is now the zpd index
-            Ixs = Ix[self.zpd - L : self.zpd + L].copy()
-            Ix = apodize(Ix, self.zpd, self.apod_func)
-            Ix = zero_fill(Ix, self.zff)
-            Ix = np.hstack((Ix[self.zpd:],Ix[0:self.zpd]))
-            Nzff = Ix.shape[0]
+            Ixs = ifg[self.zpd - L : self.zpd + L].copy()
+            ifg = apodize(ifg, self.zpd, self.apod_func)
+            ifg = zero_fill(ifg, self.zff)
+            ifg = np.hstack((ifg[self.zpd:], ifg[0:self.zpd]))
+            Nzff = ifg.shape[0]
 
             Ixs = apodize(Ixs, L, self.apod_func)
-            # Zero-fill Ixs to same size as Ix (instead of interpolating later)
+            # Zero-fill Ixs to same size as ifg (instead of interpolating later)
             Ixs = _zero_fill_pad(Ixs, Nzff - Ixs.shape[0])
-            Ixs = np.hstack((Ixs[L:],Ixs[0:L]))
+            Ixs = np.hstack((Ixs[L:], Ixs[0:L]))
 
-            Ix = np.fft.rfft(Ix)
+            ifg = np.fft.rfft(ifg)
             Ixs = np.fft.rfft(Ixs)
             self.compute_phase(Ixs)
 
         self.wavenumbers = np.fft.rfftfreq(Nzff, self.dx)
 
         if self.phase_corr == PhaseCorrection.NONE:
-            self.spectrum = Ix.real
-            self.phase = Ix.imag
+            self.spectrum = ifg.real
+            self.phase = ifg.imag
         else:
             try:
-                self.spectrum = np.cos(self.phase) * Ix.real + np.sin(self.phase) * Ix.imag
+                self.spectrum = np.cos(self.phase) * ifg.real + np.sin(self.phase) * ifg.imag
             except ValueError as e:
                 raise ValueError("Incompatible phase: {}".format(e))
 
         return self.spectrum, self.phase, self.wavenumbers
 
-    def phase_ifg_size(self, N):
+    def phase_ifg_size(self, ifg_N):
         # Determine largest possible double-sided interferogram
-        delta = np.min([self.zpd , N - 1 - self.zpd])
+        delta = np.min([self.zpd, ifg_N - 1 - self.zpd])
         # Reduce to desired resolution if specified
         # TODO make a single function to implement setting output resolution
         if self.phase_res is not None:
@@ -260,7 +260,7 @@ class IRFFT():
 
         return delta
 
-    def compute_phase(self, Ixs_fft):
+    def compute_phase(self, ifg_sub_fft):
         if self.phase_corr == PhaseCorrection.NONE:
             return
         elif self.phase_corr == PhaseCorrection.STORED:
@@ -269,8 +269,8 @@ class IRFFT():
             else:
                 return
         elif self.phase_corr == PhaseCorrection.MERTZ:
-            self.phase = np.arctan2(Ixs_fft.imag, Ixs_fft.real)
+            self.phase = np.arctan2(ifg_sub_fft.imag, ifg_sub_fft.real)
         elif self.phase_corr == PhaseCorrection.MERTZSIGNED:
-            self.phase = np.arctan(Ixs_fft.imag/Ixs_fft.real)
+            self.phase = np.arctan(ifg_sub_fft.imag/ifg_sub_fft.real)
         else:
             raise ValueError("Invalid PhaseCorrection: {}".format(self.phase_corr))

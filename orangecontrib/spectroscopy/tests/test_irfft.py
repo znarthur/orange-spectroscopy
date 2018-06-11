@@ -5,7 +5,7 @@ import numpy as np
 
 from orangecontrib.spectroscopy.irfft import (IRFFT, zero_fill, PhaseCorrection,
                                               find_zpd, PeakSearch,
-                                              )
+                                             )
 
 dx = 1.0 / 15797.337544 / 2.0
 
@@ -46,4 +46,3 @@ class TestIRFFT(unittest.TestCase):
         assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
         data *= -1
         assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
-
