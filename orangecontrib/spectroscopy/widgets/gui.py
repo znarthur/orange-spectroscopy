@@ -299,6 +299,7 @@ class MovableVline(pg.UIGraphicsItem):
             self.report = rep
             self.line.show()
             self.label.show()
+            self._move_label()
         else:
             self.line.hide()
             self.label.hide()
