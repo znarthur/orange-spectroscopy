@@ -346,7 +346,8 @@ class TestOWSpectra(WidgetTest):
         newvars = out.domain.variables + out.domain.metas
         oldvars = data.domain.variables + data.domain.metas
         group_at = [a for a in newvars if a not in oldvars][0]
-        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != 0)]
+        unselected = group_at.to_val("Unselected")
+        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != unselected)]
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o for o in out], [data[i] for i in [1, 2, 3, 4]])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
