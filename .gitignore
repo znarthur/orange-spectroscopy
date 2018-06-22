@@ -22,3 +22,6 @@ __pycache__
 
 # Coverage reports
 htmlcov/*
+
+# check_pylint_diff
+.pylint_cache
