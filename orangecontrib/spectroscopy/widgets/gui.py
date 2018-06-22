@@ -1,5 +1,6 @@
 import math
 from decimal import Decimal
+from abc import ABCMeta, abstractmethod
 
 from AnyQt.QtCore import QLocale, Qt
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
@@ -298,6 +299,7 @@ class MovableVline(pg.UIGraphicsItem):
             self.report = rep
             self.line.show()
             self.label.show()
+            self._move_label()
         else:
             self.line.hide()
             self.label.hide()
@@ -339,6 +341,44 @@ class LineCallFront(gui.ControlledCallFront):
 
     def action(self, value):
         self.control.setValue(floatornone(value))
+
+
+class ValueTransform(metaclass=ABCMeta):
+
+    @abstractmethod
+    def transform(self, v):
+        """Transform the argument"""
+
+    @abstractmethod
+    def inverse(self, v):
+        """Inverse transform"""
+
+
+class ValueCallbackTransform(gui.ControlledCallback):
+
+    def __call__(self, value):
+        self.acyclic_setattr(value)
+
+
+def connect_settings(master, value, value2, transform=None):
+    """
+    Connect two Orange settings, so that both will be mutually updated. One value
+    can be a function of the other. This sets value of the value2 as a function of value.
+
+    :param master: a settings controller
+    :param value: name of the first value
+    :param value2: name of the second value
+    :param transform: a transform from value to value2 (an instance of ValueTransform)
+    """
+    update_value = ValueCallbackTransform(master, value,
+                                          f=transform.inverse if transform is not None else None)
+    update_value2 = ValueCallbackTransform(master, value2,
+                                           f=transform.transform if transform is not None else None)
+    update_value.opposite = update_value2
+    update_value2.opposite = update_value
+    update_value2(getdeepattr(master, value))
+    master.connect_control(value, update_value2)
+    master.connect_control(value2, update_value)
 
 
 def connect_line(line, master, value):
