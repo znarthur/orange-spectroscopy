@@ -20,14 +20,14 @@ fork -> branch -> pull request -> merge workflow common on GitHub. See
 for more details.
 
 Once you have a git checkout of the add-on code, you will want some kind of virtual
-environment to keep your development seperate from your regular Orange install (and
+environment to keep your development separate from your regular Orange install (and
 other Python work/programs you may have). The follow describes how to do this using
 the Anaconda conda environment system, but can also apply to virtualenvs.
 
 Run "Anaconda Prompt" or similar and:
 
     conda config --add channels conda-forge
-    conda create --name="orange-spectroscopy" yorange3
+    conda create --name="orange-spectroscopy" orange3
     conda activate orange-spectroscopy
 
 Navigate to your orange-spectroscopy src directory, then install in development mode:
