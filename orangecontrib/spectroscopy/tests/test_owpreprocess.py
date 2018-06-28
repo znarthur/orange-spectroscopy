@@ -78,3 +78,16 @@ class TestOWPreprocess(WidgetTest):
         OWPreprocess.migrate_settings(settings, 3)
         self.assertEqual(obtain_setting(settings),
                          {'deriv': 2, 'polyorder': 2, 'window': 3})
+
+    def test_migrate_spectral_transforms(self):
+        settings = {"storedsettings": {
+            "preprocessors": [("orangecontrib.infrared.transmittance", {}),
+                              ("orangecontrib.infrared.absorbance", {})]}}
+        OWPreprocess.migrate_settings(settings, 3)
+        self.assertEqual(
+            settings["storedsettings"]["preprocessors"],
+            [("orangecontrib.spectroscopy.transforms",
+              {'from_type': 0, 'to_type': 1}),
+             ("orangecontrib.spectroscopy.transforms",
+              {'from_type': 1, 'to_type': 0})])
+

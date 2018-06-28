@@ -994,32 +994,6 @@ class PCADenoisingEditor(BaseEditor):
         return PCADenoising(components=components)
 
 
-class TransToAbsEditor(BaseEditor):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def setParameters(self, params):
-        pass
-
-    @staticmethod
-    def createinstance(params):
-        return Absorbance(ref=None)
-
-
-class AbsToTransEditor(BaseEditor):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def setParameters(self, params):
-        pass
-
-    @staticmethod
-    def createinstance(params):
-        return Transmittance(ref=None)
-
-
 class SpectralTransformEditor(BaseEditorOrange):
 
     TRANSFORMS = [Absorbance,
@@ -1313,18 +1287,6 @@ PREPROCESSORS = [
         PCADenoisingEditor
     ),
     PreprocessAction(
-        "Transmittance to Absorbance", "orangecontrib.infrared.absorbance", "Transmittance to Absorbance",
-        Description("Transmittance to Absorbance",
-                    icon_path("Discretize.svg")),
-        TransToAbsEditor
-    ),
-    PreprocessAction(
-        "Absorbance to Transmittance", "orangecontrib.infrared.transmittance", "Absorbance to Transmittance",
-        Description("Absorbance to Transmittance",
-                    icon_path("Discretize.svg")),
-        AbsToTransEditor
-    ),
-    PreprocessAction(
         "Spectral Transformations",
         "orangecontrib.spectroscopy.transforms",
         "Spectral Transformations",
@@ -1372,6 +1334,16 @@ def migrate_preprocessor(preprocessor, version):
         settings["polyorder"] = polyorder
         settings["deriv"] = deriv
         version = 4
+    if name == "orangecontrib.infrared.absorbance" and version < 5:
+        name = "orangecontrib.spectroscopy.transforms"
+        settings["from_type"] = 1
+        settings["to_type"] = 0
+        version = 5
+    if name == "orangecontrib.infrared.transmittance" and version < 5:
+        name = "orangecontrib.spectroscopy.transforms"
+        settings["from_type"] = 0
+        settings["to_type"] = 1
+        version = 5
     return [((name, settings), version)]
 
 
@@ -1833,7 +1805,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 4
+    settings_version = 5
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
