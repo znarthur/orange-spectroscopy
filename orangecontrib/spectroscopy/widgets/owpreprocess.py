@@ -1020,6 +1020,50 @@ class AbsToTransEditor(BaseEditor):
         return Transmittance(ref=None)
 
 
+class SpectralTransformEditor(BaseEditorOrange):
+
+    TRANSFORMS = [Absorbance,
+                  Transmittance]
+
+    transform_names = [a.__name__ for a in TRANSFORMS]
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setLayout(QVBoxLayout())
+
+        form = QFormLayout()
+
+        self.fromcb = QComboBox()
+        self.fromcb.addItems(self.transform_names)
+
+        self.tocb = QComboBox()
+        self.tocb.addItems(self.transform_names)
+
+        form.addRow("Original", self.fromcb)
+        form.addRow("Transformed", self.tocb)
+        self.layout().addLayout(form)
+
+        self.fromcb.currentIndexChanged.connect(self.changed)
+        self.fromcb.activated.connect(self.edited)
+        self.tocb.currentIndexChanged.connect(self.changed)
+        self.tocb.activated.connect(self.edited)
+
+    def setParameters(self, params):
+        from_type = params.get("from_type", 0)
+        to_type = params.get("to_type", 1)
+        self.fromcb.setCurrentIndex(from_type)
+        self.tocb.setCurrentIndex(to_type)
+
+    def parameters(self):
+        return {"from_type": self.fromcb.currentIndex(),
+                "to_type": self.tocb.currentIndex()}
+
+    @staticmethod
+    def createinstance(params):
+        to_type = params.get("to_type", 1)
+        return SpectralTransformEditor.TRANSFORMS[to_type]()
+
+
 def layout_widgets(layout):
     if not isinstance(layout, QLayout):
         layout = layout.layout()
@@ -1279,6 +1323,14 @@ PREPROCESSORS = [
         Description("Absorbance to Transmittance",
                     icon_path("Discretize.svg")),
         AbsToTransEditor
+    ),
+    PreprocessAction(
+        "Spectral Transformations",
+        "orangecontrib.spectroscopy.transforms",
+        "Spectral Transformations",
+        Description("Spectral Transformations",
+                    icon_path("Discretize.svg")),
+        SpectralTransformEditor
     ),
     PreprocessAction(
         "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",
