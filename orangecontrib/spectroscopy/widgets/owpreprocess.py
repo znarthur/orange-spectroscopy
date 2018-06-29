@@ -1040,10 +1040,19 @@ class SpectralTransformEditor(BaseEditorOrange):
         to_type = params.get("to_type", 1)
         from_spec_type = SpecTypes(SpectralTransformEditor.from_names[from_type])
         transform = SpectralTransformEditor.TRANSFORMS[to_type]
+        reference = params.get(REFERENCE_DATA_PARAM, None)
         if from_spec_type not in transform.from_types:
             return lambda data: data[:0]  # return an empty data table
-        else:
-            return transform()
+        try:
+            return transform(ref=reference)
+        except TypeError as e:
+            if "unexpected keyword argument \'ref\'" in str(e):
+                return transform()
+            else:
+                raise
+
+    def set_reference_data(self, ref):
+        self.reference = ref
 
 
 def layout_widgets(layout):

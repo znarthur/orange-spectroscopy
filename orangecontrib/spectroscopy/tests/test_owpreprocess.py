@@ -39,6 +39,16 @@ class TestOWPreprocess(WidgetTest):
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
 
+    def test_allpreproc_indv_ref(self):
+        data = Orange.data.Table("peach_juice.dpt")
+        for i,p in enumerate(PREPROCESSORS):
+            self.widget = self.create_widget(OWPreprocess)
+            self.send_signal("Data", data)
+            self.send_signal("Reference", data)
+            self.widget.add_preprocessor(i)
+            # direct calls the preview so that exceptions do not get lost in Qt
+            self.widget.show_preview()
+
     def test_migrate_rubberbard(self):
         settings = {"storedsettings": {"preprocessors":
             [("orangecontrib.infrared.rubberband", {})]}}
