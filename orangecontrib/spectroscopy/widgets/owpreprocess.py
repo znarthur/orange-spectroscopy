@@ -41,6 +41,7 @@ from orangecontrib.spectroscopy.preprocess import (
     RubberbandBaseline
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
+from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
@@ -1000,6 +1001,7 @@ class SpectralTransformEditor(BaseEditorOrange):
                   Transmittance]
 
     transform_names = [a.__name__ for a in TRANSFORMS]
+    from_names = [a.value for a in SpecTypes]
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1008,7 +1010,7 @@ class SpectralTransformEditor(BaseEditorOrange):
         form = QFormLayout()
 
         self.fromcb = QComboBox()
-        self.fromcb.addItems(self.transform_names)
+        self.fromcb.addItems(self.from_names)
 
         self.tocb = QComboBox()
         self.tocb.addItems(self.transform_names)
@@ -1034,8 +1036,14 @@ class SpectralTransformEditor(BaseEditorOrange):
 
     @staticmethod
     def createinstance(params):
+        from_type = params.get("from_type", 0)
         to_type = params.get("to_type", 1)
-        return SpectralTransformEditor.TRANSFORMS[to_type]()
+        from_spec_type = SpecTypes(SpectralTransformEditor.from_names[from_type])
+        transform = SpectralTransformEditor.TRANSFORMS[to_type]
+        if from_spec_type not in transform.from_types:
+            return lambda data: data[:0]  # return an empty data table
+        else:
+            return transform()
 
 
 def layout_widgets(layout):

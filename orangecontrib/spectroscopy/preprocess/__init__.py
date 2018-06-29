@@ -12,6 +12,7 @@ from orangecontrib.spectroscopy.data import getx
 
 from orangecontrib.spectroscopy.preprocess.integrate import Integrate
 from orangecontrib.spectroscopy.preprocess.emsc import EMSC
+from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline
@@ -431,98 +432,6 @@ class InterpolateToDomain(Preprocess):
         data = data.transform(domain)
         data.X = X
         return data
-
-
-class AbsorbanceFeature(SelectColumn):
-    pass
-
-
-class _AbsorbanceCommon(CommonDomain):
-
-    def __init__(self, ref, domain):
-        super().__init__(domain)
-        self.ref = ref
-
-    def transformed(self, data):
-        if self.ref:
-            # Calculate from single-channel data
-            absd = self.ref.X / data.X
-            np.log10(absd, absd)
-        else:
-            # Calculate from transmittance data
-            absd = np.log10(data.X)
-            absd *= -1
-        return absd
-
-
-class Absorbance(Preprocess):
-    """
-    Convert data to absorbance.
-
-    Set ref to calculate from single-channel spectra, otherwise convert from transmittance.
-
-    Parameters
-    ----------
-    ref : reference single-channel (Orange.data.Table)
-    """
-
-    def __init__(self, ref=None):
-        self.ref = ref
-
-    def __call__(self, data):
-        common = _AbsorbanceCommon(self.ref, data.domain)
-        newattrs = [Orange.data.ContinuousVariable(
-                    name=var.name, compute_value=AbsorbanceFeature(i, common))
-                    for i, var in enumerate(data.domain.attributes)]
-        domain = Orange.data.Domain(
-                    newattrs, data.domain.class_vars, data.domain.metas)
-        return data.from_table(domain, data)
-
-
-class TransmittanceFeature(SelectColumn):
-    pass
-
-
-class _TransmittanceCommon(CommonDomain):
-
-    def __init__(self, ref, domain):
-        super().__init__(domain)
-        self.ref = ref
-
-    def transformed(self, data):
-        if self.ref:
-            # Calculate from single-channel data
-            transd = data.X / self.ref.X
-        else:
-            # Calculate from absorbance data
-            transd = data.X.copy()
-            transd *= -1
-            np.power(10, transd, transd)
-        return transd
-
-
-class Transmittance(Preprocess):
-    """
-    Convert data to transmittance.
-
-    Set ref to calculate from single-channel spectra, otherwise convert from absorbance.
-
-    Parameters
-    ----------
-    ref : reference single-channel (Orange.data.Table)
-    """
-
-    def __init__(self, ref=None):
-        self.ref = ref
-
-    def __call__(self, data):
-        common = _TransmittanceCommon(self.ref, data.domain)
-        newattrs = [Orange.data.ContinuousVariable(
-                    name=var.name, compute_value=TransmittanceFeature(i, common))
-                    for i, var in enumerate(data.domain.attributes)]
-        domain = Orange.data.Domain(
-                    newattrs, data.domain.class_vars, data.domain.metas)
-        return data.from_table(domain, data)
 
 
 class CurveShiftFeature(SelectColumn):
