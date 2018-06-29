@@ -14,20 +14,35 @@ class SpecTypes(Enum):
     TRANSMITTANCE = "Transmittance"
     SINGLECHANNEL = "Single Channel"
 
-class AbsorbanceFeature(SelectColumn):
-    pass
 
-
-class _AbsorbanceCommon(CommonDomain):
-
+class CommonDomainRef(CommonDomain):
+    """CommonDomain which also ensures reference domain transformation"""
     def __init__(self, ref, domain):
         super().__init__(domain)
         self.ref = ref
 
-    def transformed(self, data):
-        if self.ref:
+    def __call__(self, data):
+        data = self.transform_domain(data)
+        if self.ref is not None:
+            ref = self.transform_domain(self.ref)
+        else:
+            ref = self.ref
+        return self.transformed(data, ref)
+
+    def transformed(self, data, ref):
+        raise NotImplemented
+
+
+class AbsorbanceFeature(SelectColumn):
+    pass
+
+
+class _AbsorbanceCommon(CommonDomainRef):
+
+    def transformed(self, data, ref):
+        if ref is not None:
             # Calculate from single-channel data
-            absd = self.ref.X / data.X
+            absd = ref.X / data.X
             np.log10(absd, absd)
         else:
             # Calculate from transmittance data
@@ -66,16 +81,12 @@ class TransmittanceFeature(SelectColumn):
     pass
 
 
-class _TransmittanceCommon(CommonDomain):
+class _TransmittanceCommon(CommonDomainRef):
 
-    def __init__(self, ref, domain):
-        super().__init__(domain)
-        self.ref = ref
-
-    def transformed(self, data):
-        if self.ref:
+    def transformed(self, data, ref):
+        if ref is not None:
             # Calculate from single-channel data
-            transd = data.X / self.ref.X
+            transd = data.X / ref.X
         else:
             # Calculate from absorbance data
             transd = data.X.copy()
