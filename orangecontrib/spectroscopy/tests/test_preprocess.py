@@ -82,7 +82,10 @@ def add_different_reference(class_, reference_arg_name, reference, *args, **kwar
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(EMSC, "reference", SMALL_COLLAGEN[0:1]))
 
 for p in [Absorbance, Transmittance]:
+    # single reference
     PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN[0:1]))
+    # multi reference (many:many)
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN))
 
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
