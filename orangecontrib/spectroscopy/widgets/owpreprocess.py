@@ -1024,11 +1024,24 @@ class SpectralTransformEditor(BaseEditorOrange):
         self.tocb.currentIndexChanged.connect(self.changed)
         self.tocb.activated.connect(self.edited)
 
+        self.reference_info = QLabel("", self)
+        self.layout().addWidget(self.reference_info)
+
+        self.reference_curve = pg.PlotCurveItem()
+        self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
+        self.reference_curve.setZValue(10)
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.reference_curve not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.reference_curve)
+
     def setParameters(self, params):
         from_type = params.get("from_type", 0)
         to_type = params.get("to_type", 1)
         self.fromcb.setCurrentIndex(from_type)
         self.tocb.setCurrentIndex(to_type)
+        self.update_reference_info()
 
     def parameters(self):
         return {"from_type": self.fromcb.currentIndex(),
@@ -1053,6 +1066,21 @@ class SpectralTransformEditor(BaseEditorOrange):
 
     def set_reference_data(self, ref):
         self.reference = ref
+        self.update_reference_info()
+
+    def update_reference_info(self):
+        if not self.reference:
+            self.reference_info.setText("Reference: None")
+            self.reference_curve.hide()
+        else:
+            rinfo = "1st of {0:d} spectra".format(len(self.reference)) \
+                if len(self.reference) > 1 else "1 spectrum"
+            self.reference_info.setText("Reference: " + rinfo)
+            X_ref = self.reference.X[0]
+            x = getx(self.reference)
+            xsind = np.argsort(x)
+            self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
+            self.reference_curve.show()
 
 
 def layout_widgets(layout):
