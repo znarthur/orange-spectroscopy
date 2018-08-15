@@ -65,7 +65,11 @@ class Absorbance(Preprocess):
     from_types = (SpecTypes.TRANSMITTANCE, SpecTypes.SINGLECHANNEL)
 
     def __init__(self, ref=None):
-        self.ref = ref
+        if ref:
+            # Only single reference spectra are supported
+            self.ref = ref[0:1]
+        else:
+            self.ref = ref
 
     def __call__(self, data):
         common = _AbsorbanceCommon(self.ref, data.domain)
@@ -109,7 +113,11 @@ class Transmittance(Preprocess):
     from_types = (SpecTypes.ABSORBANCE, SpecTypes.SINGLECHANNEL)
 
     def __init__(self, ref=None):
-        self.ref = ref
+        if ref:
+            # Only single reference spectra are supported
+            self.ref = ref[0:1]
+        else:
+            self.ref = ref
 
     def __call__(self, data):
         common = _TransmittanceCommon(self.ref, data.domain)
