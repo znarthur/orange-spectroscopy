@@ -1049,7 +1049,9 @@ class EMSCEditor(BaseEditorOrange):
         self.preview_data = None
 
         self.order = self.ORDER_DEFAULT
-        gui.spin(self, self, "order", minv=0, maxv=10, callback=self.edited.emit)
+
+        gui.spin(self, self, "order", label="Polynomial order", minv=0, maxv=10, controlWidth=50,
+                 callback=self.edited.emit)
 
         self.scaling = self.SCALING_DEFAULT
         gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
@@ -1088,6 +1090,7 @@ class EMSCEditor(BaseEditorOrange):
     def add_range_selection_ui(self):
         linelayout = gui.hBox(self)
         pmin, pmax = self.preview_min_max()
+        #TODO make the size appropriate so that the sidebar of the Preprocess Spectra doesn't change when the region is added
         mine = XPosLineEdit(label="")
         maxe = XPosLineEdit(label="")
         mine.set_default(pmin)
