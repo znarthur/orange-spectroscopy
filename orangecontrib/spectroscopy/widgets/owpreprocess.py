@@ -137,7 +137,7 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
 
     def update_status(self):
         self.preview_button.setChecked(self.preview)
-        self.tw.setStyleSheet("background:" + self.color + ";" if self.preview else "");
+        self.tw.setStyleSheet("background:" + self.color + ";" if self.preview else "")
 
     def toggle_preview(self):
         self.set_preview(not self.preview)
@@ -442,7 +442,7 @@ class SavitzkyGolayFilteringEditor(BaseEditor):
     @staticmethod
     def createinstance(params):
         window = params.get("window", 5)
-        polyorder = params.get("polyorder",2)
+        polyorder = params.get("polyorder", 2)
         deriv = params.get("deriv", 0)
         # make window, polyorder, deriv valid, even if they were saved differently
         window, polyorder, deriv = int(window), int(polyorder), int(deriv)
@@ -574,7 +574,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.areaform = QFormLayout()
         self.int_method_cb = QComboBox(enabled=False)
         self.int_method_cb.addItems(IntegrateEditor.Integrators)
-        minf,maxf = -sys.float_info.max, sys.float_info.max
+        minf, maxf = -sys.float_info.max, sys.float_info.max
         self.lspin = SetXDoubleSpinBox(
             minimum=minf, maximum=maxf, singleStep=0.5,
             value=self.lower, enabled=False)
@@ -588,10 +588,8 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.__group = group = QButtonGroup(self)
 
         for name, method in self.Normalizers:
-            rb = QRadioButton(
-                        self, text=name,
-                        checked=self.__method == method
-                        )
+            rb = QRadioButton(self, text=name, checked=self.__method == method)
+
             layout.addWidget(rb)
             if method is Normalize.Attribute:
                 layout.addLayout(self.attrform)
@@ -628,7 +626,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
                 self.parent_widget.curveplot.add_marking(self.lline)
             if (self.uline not in self.parent_widget.curveplot.markings
                     and IntegrateEditor.Integrators_classes[self.int_method]
-                        is not Integrate.PeakAt):
+                    is not Integrate.PeakAt):
                 self.parent_widget.curveplot.add_marking(self.uline)
 
     def setParameters(self, params):
@@ -638,7 +636,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
         lower = params.get("lower", 0)
         upper = params.get("upper", 4000)
         int_method = params.get("int_method", 0)
-        if method not in [method for name,method in self.Normalizers]:
+        if method not in [method for name, method in self.Normalizers]:
             # handle old worksheets
             method = Normalize.Vector
         self.setMethod(method)
@@ -765,17 +763,17 @@ class LimitsBox(QHBoxLayout):
         delete = kwargs.pop('delete', True)
         super().__init__(parent, **kwargs)
 
-        minf,maxf = -sys.float_info.max, sys.float_info.max
+        minf, maxf = -sys.float_info.max, sys.float_info.max
 
         if label:
             self.addWidget(QLabel(label))
 
-        self.lowlime = SetXDoubleSpinBox(decimals=2,
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=limits[0], maximumWidth=75)
-        self.highlime = SetXDoubleSpinBox(decimals=2,
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=limits[1], maximumWidth=75)
+        self.lowlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
+                                         maximum=maxf, singleStep=0.5,
+                                         value=limits[0], maximumWidth=75)
+        self.highlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
+                                          maximum=maxf, singleStep=0.5,
+                                          value=limits[1], maximumWidth=75)
         self.lowlime.setValue(limits[0])
         self.highlime.setValue(limits[1])
         self.addWidget(self.lowlime)
@@ -886,7 +884,7 @@ class IntegrateEditor(BaseEditor):
             try:
                 self._limits.append(self._limits[-1])
             except IndexError:
-                self._limits.append([0.,1.])
+                self._limits.append([0., 1.])
         label = "Region {0}".format(row+1)
         limitbox = LimitsBox(limits=self._limits[row], label=label)
         if self.form_lim.rowCount() < row+1:
@@ -938,7 +936,7 @@ class IntegrateEditor(BaseEditor):
         if params: #parameters were manually set somewhere else
             self.user_changed = True
         self.methodcb.setCurrentIndex(params.get("method", self.Integrators_classes.index(Integrate.Baseline)))
-        self.set_all_limits(params.get("limits", [[0.,1.]]), user=False)
+        self.set_all_limits(params.get("limits", [[0., 1.]]), user=False)
 
     def parameters(self):
         return {"method": self.methodcb.currentIndex(),
@@ -955,7 +953,7 @@ class IntegrateEditor(BaseEditor):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                self.set_all_limits([[min(x),max(x)]])
+                self.set_all_limits([[min(x), max(x)]])
                 self.edited.emit()
 
 
@@ -968,7 +966,7 @@ class PCADenoisingEditor(BaseEditor):
         form = QFormLayout()
 
         self.__compspin = compspin = QSpinBox(
-           minimum=1, maximum=100, value=self.__components)
+            minimum=1, maximum=100, value=self.__components)
         form.addRow("N components", compspin)
 
         self.setLayout(form)
@@ -1097,7 +1095,8 @@ class EMSCEditor(BaseEditorOrange):
             w.edited.connect(self.edited)
             w.focusIn.connect(self.activateOptions)
 
-        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "", autoDefault=False)
+        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
+                                    "", autoDefault=False)
         remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
@@ -1529,7 +1528,7 @@ class SpectralPreprocess(OWWidget):
             self.curveplot_after.hide()
 
     def _initialize(self):
-        for i,pp_def in enumerate(self.PREPROCESSORS):
+        for i, pp_def in enumerate(self.PREPROCESSORS):
             description = pp_def.description
             if description.icon:
                 icon = QIcon(description.icon)
@@ -1542,7 +1541,7 @@ class SpectralPreprocess(OWWidget):
                           Qt.ItemIsDragEnabled)
             self.preprocessors.appendRow([item])
             action = QAction(
-                description.title, self, triggered=lambda x,id=i: self.add_preprocessor(id)
+                description.title, self, triggered=lambda x, id=i: self.add_preprocessor(id)
             )
             action.setToolTip(description.summary or "")
             action.setIcon(icon)
