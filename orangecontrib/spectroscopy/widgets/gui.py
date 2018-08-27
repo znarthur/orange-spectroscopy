@@ -258,7 +258,7 @@ class MovableVline(pg.UIGraphicsItem):
         self.line.setParentItem(self)
         self.line.setCursor(Qt.SizeHorCursor)
 
-        self.label = pg.TextItem("", anchor=(0,0))
+        self.label = pg.TextItem("", anchor=(0, 1), angle=-90)
         self.label.setParentItem(self)
 
         self.setValue(position)
