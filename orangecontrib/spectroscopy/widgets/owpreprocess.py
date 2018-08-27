@@ -37,8 +37,8 @@ from orangecontrib.spectroscopy.data import getx, spectra_mean
 
 from orangecontrib.spectroscopy.preprocess import (
     PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering,
-    Absorbance, Transmittance, EMSC, CurveShift, LinearBaseline,
-    RubberbandBaseline
+    Absorbance, Transmittance, XASnormalization, ExtractEXAFS,
+    EMSC, CurveShift, LinearBaseline, RubberbandBaseline
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
@@ -49,6 +49,8 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineE
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
+
+from extranormal3 import curved_tools
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -655,6 +657,364 @@ class SpectralTransformEditor(BaseEditorOrange):
             self.reference_curve.show()
 
 
+
+class XASnormalizationEditor(BaseEditorOrange):
+
+
+    def __initt__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        #OWComponent.__init__(self, parent)
+
+        self.setLayout(QVBoxLayout())
+
+        self.edge = 0.
+        edge_form = QFormLayout()
+        edge_edit = lineEditFloatRange(self, self, "edge", callback=self.edited.emit)
+        edge_form.addRow("Edge", edge_edit)
+        self.layout().addLayout(edge_form)
+
+        # ---------------------------- pre-edge form ------------
+        self.preedge_from = self.preedge_to = 0.
+        self._pre_from_lim = lineEditFloatRange(self, self, "preedge_from", callback=self.edited.emit)
+        self._pre_to_lim = lineEditFloatRange(self, self, "preedge_to", callback=self.edited.emit)
+        self.pre_from_line = MovableVline(label="Pre-edge start")
+        self.pre_to_line = MovableVline(label="Pre-edge end")
+
+        preedge_form = self.init_bounds_form(self.preedge_from, self.preedge_to,
+        #preedge_form = self.init_bounds_hform(self.preedge_from, self.preedge_to,
+                                             self._pre_from_lim, self._pre_to_lim,
+                                             self.pre_from_line, self.pre_to_line,
+                                             "preedge_from", "preedge_to",
+                                             "Pre-edge fit")
+        self.layout().addLayout(preedge_form)
+
+        self.preedge_deg = 1.
+        preedgedeg_form = QFormLayout()
+        preedgedeg_edit = lineEditFloatRange(self, self, "preedge_deg", callback=self.edited.emit)
+        preedgedeg_form.addRow("poly degree", preedgedeg_edit)
+        self.layout().addLayout(preedgedeg_form)
+
+        # ---------------------------- post-edge form ------------
+
+        self.postedge_from = self.postedge_to = 0.
+        self._post_from_lim = lineEditFloatRange(self, self, "postedge_from", callback=self.edited.emit)
+        self._post_to_lim = lineEditFloatRange(self, self, "postedge_to", callback=self.edited.emit)
+        self.post_from_line = MovableVline(label="Post-edge start")
+        self.post_to_line = MovableVline(label="Post-edge end")
+
+        #postedge_form = self.init_bounds_form(self.postedge_from, self.postedge_to,
+        postedge_form = self.init_bounds_hform(self.postedge_from, self.postedge_to,
+                                               self._post_from_lim, self._post_to_lim,
+                                               self.post_from_line, self.post_to_line,
+                                               "postedge_from", "postedge_to",
+                                               "Post-edge fit")
+        self.layout().addLayout(postedge_form)
+
+        self.postedge_deg = 2.
+        postedgedeg_form = QFormLayout()
+        postedgedeg_edit = lineEditFloatRange(self, self, "postedge_deg", callback=self.edited.emit)
+        postedgedeg_form.addRow("poly degree", postedgedeg_edit)
+        self.layout().addLayout(postedgedeg_form)
+
+        self.user_changed = False
+
+
+    def init_bounds_form(self,
+                         from_val, to_val, from_lim, to_lim, from_line, to_line,
+                         from_val_name, to_val_name, title=''):
+
+        from_val = 0.
+        to_val = 0.
+        bounds_form = QFormLayout()
+
+        bounds_form.addRow(" ", QLabel())
+        if title != '':
+            bounds_form.addRow(title, QLabel())
+
+        bounds_form.addRow("from", from_lim)
+        bounds_form.addRow("  to", to_lim)
+
+        from_lim.focusIn.connect(self.activateOptions)
+        to_lim.focusIn.connect(self.activateOptions)
+        self.focusIn = self.activateOptions
+
+        connect_line(from_line, self, from_val_name)
+        from_line.sigMoveFinished.connect(self.edited)
+
+        connect_line(to_line, self, to_val_name)
+        to_line.sigMoveFinished.connect(self.edited)
+
+        return bounds_form
+
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        #OWComponent.__init__(self, parent)
+
+        self.setLayout(QGridLayout())
+        #self.layout().setVerticalSpacing(self.layout().verticalSpacing()+2)
+        #self.layout().setAlignment(AlignCenter)
+        #spacer = QSpacerItem(10, 10)
+        curr_row = 0
+
+        self.edge = 0.
+        edge_form = QFormLayout()
+        edge_form.setFieldGrowthPolicy(0)
+        edge_edit = lineEditFloatRange(self, self, "edge", callback=self.edited.emit)
+        edge_form.addRow("Edge", edge_edit)
+        self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
+        curr_row += 1
+
+        # ---------------------------- pre-edge form ------------
+        self.preedge_from = self.preedge_to = 0.
+        self._pre_from_lim = lineEditFloatRange(self, self, "preedge_from", callback=self.edited.emit)
+        self._pre_to_lim = lineEditFloatRange(self, self, "preedge_to", callback=self.edited.emit)
+        self.pre_from_line = MovableVline(label="Pre-edge start")
+        self.pre_to_line = MovableVline(label="Pre-edge end")
+
+        preedge_form = self.init_bounds_hform(self.preedge_from, self.preedge_to,
+                                             self._pre_from_lim, self._pre_to_lim,
+                                             self.pre_from_line, self.pre_to_line,
+                                             "preedge_from", "preedge_to",
+                                             "Pre-edge fit:")
+        #self.layout().addItem(spacer, curr_row, 0)
+        #curr_row += 1
+        self.layout().addLayout(preedge_form, curr_row, 0, 1, 2)
+        curr_row += 1
+
+        self.preedge_deg = 1.
+        preedgedeg_form = QFormLayout()
+        preedgedeg_form.setFieldGrowthPolicy(0)
+        preedgedeg_edit = lineEditFloatRange(self, self, "preedge_deg", callback=self.edited.emit)
+        preedgedeg_form.addRow("poly degree", preedgedeg_edit)
+        self.layout().addLayout(preedgedeg_form, curr_row, 0, 1, 1)
+        curr_row += 1
+
+
+        # ---------------------------- post-edge form ------------
+
+        self.postedge_from = self.postedge_to = 0.
+        self._post_from_lim = lineEditFloatRange(self, self, "postedge_from", callback=self.edited.emit)
+        self._post_to_lim = lineEditFloatRange(self, self, "postedge_to", callback=self.edited.emit)
+        self.post_from_line = MovableVline(label="Post-edge start")
+        self.post_to_line = MovableVline(label="Post-edge end:")
+
+        #postedge_form = self.init_bounds_form(self.postedge_from, self.postedge_to,
+        postedge_form = self.init_bounds_hform(self.postedge_from, self.postedge_to,
+                                               self._post_from_lim, self._post_to_lim,
+                                               self.post_from_line, self.post_to_line,
+                                               "postedge_from", "postedge_to",
+                                               "Post-edge fit:")
+        self.layout().addLayout(postedge_form, curr_row, 0, 1, 2)
+        curr_row += 1
+
+        self.postedge_deg = 2.
+        postedgedeg_form = QFormLayout()
+        postedgedeg_form.setFieldGrowthPolicy(0)
+        postedgedeg_edit = lineEditFloatRange(self, self, "postedge_deg", callback=self.edited.emit)
+        postedgedeg_form.addRow("poly degree", postedgedeg_edit)
+        self.layout().addLayout(postedgedeg_form, curr_row, 0, 1, 1)
+        curr_row += 1
+
+        self.user_changed = False
+
+
+    def init_bounds_hform(self,
+                          from_val, to_val, from_lim, to_lim, from_line, to_line,
+                          from_val_name, to_val_name, title=''):
+
+        from_val = 0.
+        to_val = 0.
+
+        bounds_form = QGridLayout()
+
+
+        dummylabel = QLabel()
+        dummylabel.setText('')
+        bounds_form.addWidget(dummylabel, 0, 0)
+
+        title_font = QFont()
+        title_font.setBold(True)
+
+        titlabel = QLabel()
+        titlabel.setFont(title_font)
+        if title != '':
+            titlabel.setText(title)
+        bounds_form.addWidget(titlabel, 1, 0)
+        '''
+        bounds_form.addWidget(" ", QLabel())
+        if title != '':
+            bounds_form.addRow(title, QLabel())
+        '''
+
+        left_bound = QFormLayout()
+        left_bound.setFieldGrowthPolicy(0)
+        left_bound.addRow("from", from_lim)
+        right_bound = QFormLayout()
+        right_bound.setFieldGrowthPolicy(0)
+        right_bound.addRow("to", to_lim)
+
+        bounds_form.addLayout(left_bound, 2, 0)
+        #bounds_form.setHorizontalSpacing(5)
+        bounds_form.addLayout(right_bound, 2, 1)
+
+
+        from_lim.focusIn.connect(self.activateOptions)
+        to_lim.focusIn.connect(self.activateOptions)
+        self.focusIn = self.activateOptions
+
+        connect_line(from_line, self, from_val_name)
+        from_line.sigMoveFinished.connect(self.edited)
+
+        connect_line(to_line, self, to_val_name)
+        to_line.sigMoveFinished.connect(self.edited)
+
+        return bounds_form
+
+
+    '''
+    def _reset_normal_params(params_dict):
+        self.params_dict['start'] = None
+        self.params_dict['end'] = None
+        self.params_dict['fit_degree'] = None
+        self.params_dict['fit_func'] = None
+    '''
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        for line in [self.pre_from_line, self.pre_to_line, self.post_from_line, self.post_to_line]:
+            line.report = self.parent_widget.curveplot
+            self.parent_widget.curveplot.add_marking(line)
+
+
+    def setParameters(self, params):
+
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
+
+        self.edge = params.get("edge", 0.)
+
+        self.preedge_from = params.get("preedge_from", 0.)
+        self.preedge_to = params.get("preedge_to", 0.)
+        self.preedge_deg = params.get("preedge_deg", 1)
+
+        self.postedge_from = params.get("postedge_from", 0.)
+        self.postedge_to = params.get("postedge_to", 0.)
+        self.postedge_deg = params.get("postedge_deg", 2)
+
+    '''
+    def set_edge(self, edge):
+        if self.edge != edge:
+            self.edge = edge
+            self.edge_spin.setValue(edge)
+            self.changed.emit()
+    '''
+
+    def set_preview_data(self, data):
+        x = getx(data)
+        y = data.X[0]  # - TODO: check idx out of range
+
+        #print (y.shape)
+
+        if len(x):
+            self._pre_from_lim.set_default(min(x))
+            self._pre_to_lim.set_default(max(x))
+            self._post_from_lim.set_default(min(x))
+            self._post_to_lim.set_default(max(x))
+
+            if not self.user_changed:
+
+                maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x,y])))
+                #print (x[maxderiv_idx])
+                self.edge = x[maxderiv_idx]
+                self.preedge_from = min(x)
+
+                self.preedge_to = self.edge - 50
+                self.postedge_from = self.edge + 50
+                #self.preedge_to = min(x)+(max(x)-min(x))/3
+                #self.postedge_from = self.preedge_to+10
+
+                self.postedge_to = max(x)
+
+                # check at least the vals go in a right order
+
+                self.edited.emit()
+
+    '''
+    @staticmethod
+    def createinstance(params):
+        edge = params.get("edge", 0.00)
+        # make window, polyorder, deriv valid, even if they were saved differently
+        # FIXME notify changes
+        return XASnormalization(edge=edge)
+    '''
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+
+        edge = float(params.get("edge", 0.))
+
+        preedge = {}
+        preedge['from'] = float(params.get("preedge_from", 0.))
+        preedge['to'] = float(params.get("preedge_to", 0.))
+        preedge['deg'] = int(params.get("preedge_deg", 1))
+
+        postedge = {}
+        postedge['from'] = float(params.get("postedge_from", 0.))
+        postedge['to'] = float(params.get("postedge_to", 0.))
+        postedge['deg'] = int(params.get("postedge_deg", 2))
+
+        return XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
+
+
+class ExtractEXAFSEditor(BaseEditorOrange):
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        #OWComponent.__init__(self, parent)
+
+        self.setLayout(QGridLayout())
+        curr_row = 0
+
+        self.edge = 0.
+        edge_form = QFormLayout()
+        edge_form.setFieldGrowthPolicy(0)
+        edge_edit = lineEditFloatRange(self, self, "edge", callback=self.edited.emit)
+        edge_form.addRow("Edge", edge_edit)
+        self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
+        curr_row += 1
+
+        self.poly_deg = 1
+        polydeg_form = QFormLayout()
+        polydeg_form.setFieldGrowthPolicy(0)
+        polydeg_edit = lineEditFloatRange(self, self, "poly_deg", callback=self.edited.emit)
+        polydeg_edit.setMinimumWidth(10)
+        polydeg_form.addRow("poly degree", polydeg_edit)
+        self.layout().addLayout(polydeg_form, curr_row, 0, 1, 1)
+        curr_row += 1
+
+        self.user_changed = False
+
+
+    def setParameters(self, params):
+
+        if params: #parameters were manually set somewhere else
+            self.user_changed = True
+
+        self.edge = params.get("edge", 0.)
+
+
+    @staticmethod
+    def createinstance(params):
+        params = dict(params)
+
+        edge = float(params.get("edge", 0.))
+        poly_deg = int(params.get("poly_deg", 0.))
+
+        return ExtractEXAFS(edge=edge, poly_deg=poly_deg)
+
+
 def layout_widgets(layout):
     if not isinstance(layout, QLayout):
         layout = layout.layout()
@@ -857,6 +1217,12 @@ class EMSCEditor(BaseEditorOrange):
 
 PREPROCESSORS = [
     PreprocessAction(
+        "EXAFS extraction", "orangecontrib.infrared.extractexafs", "EXAFS extraction",
+        Description("EXAFS extraction",
+                    icon_path("Discretize.svg")),
+        ExtractEXAFSEditor
+    ),
+    PreprocessAction(
         "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
         Description("Cut (keep)",
                     icon_path("Discretize.svg")),
@@ -911,6 +1277,12 @@ PREPROCESSORS = [
         Description("Spectral Transformations",
                     icon_path("Discretize.svg")),
         SpectralTransformEditor
+    ),
+    PreprocessAction(
+        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
+        Description("XAS normalization",
+                    icon_path("Discretize.svg")),
+        XASnormalizationEditor
     ),
     PreprocessAction(
         "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",

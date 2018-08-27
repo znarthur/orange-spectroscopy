@@ -18,6 +18,8 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
     WrongReferenceException, replace_infs
 
+from extranormal3 import normal_xas#, extra_exafs
+
 
 class PCADenoisingFeature(SelectColumn):
     pass
@@ -464,6 +466,100 @@ class InterpolateToDomain(Preprocess):
         data = data.transform(domain)
         data.X = X
         return data
+
+
+######################################### XAS normalization ##########
+class XASnormalizationFeature(SelectColumn):
+    pass
+
+
+class _XASnormalizationCommon(CommonDomainOrder):
+
+    def __init__(self, edge, preedge_dict, postedge_dict, domain):
+        super().__init__(domain)
+        self.edge = edge
+        self.preedge_params = preedge_dict
+        self.postedge_params = postedge_dict
+
+
+    def transformed(self, X, energies):
+
+        n_spectra_vals = normal_xas.normalize_all(energies, X,
+                                                  self.edge, self.preedge_params, self.postedge_params)
+        #print (n_spectra_vals.shape)
+
+        return n_spectra_vals
+
+
+class XASnormalization(Preprocess):
+    """
+    XAS Athena like normalization with flattenning
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, edge=None, preedge_dict=None, postedge_dict=None):
+        self.edge = edge
+        self.preedge_params = preedge_dict
+        self.postedge_params = postedge_dict
+
+
+    def __call__(self, data):
+
+        common = _XASnormalizationCommon(self.edge, self.preedge_params, self.postedge_params, data.domain)
+        newattrs = [Orange.data.ContinuousVariable(
+                    name=var.name, compute_value=XASnormalizationFeature(i, common))
+                    for i, var in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(
+                    newattrs, data.domain.class_vars, data.domain.metas)
+        return data.from_table(domain, data)
+
+######################################### EXAFS extraction #####
+class ExtractEXAFSFeature(SelectColumn):
+    pass
+
+class _ExtractEXAFSCommon(CommonDomain):
+
+    def __init__(self, edge, poly_deg, domain):
+        super().__init__(domain)
+        self.edge = edge
+        self.poly_deg = poly_deg
+
+    def transformed(self, data):
+        #print ([attr.name for attr in data.domain])
+        print (data.X.shape)
+
+        #extra_vals = extra_exafs.extract_all(energies, data.X, self.edge)
+
+        return data.X
+
+class ExtractEXAFS(Preprocess):
+    """
+    EXAFS extraction with polynomial background
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, edge=None, poly_deg=None):
+        self.edge = edge
+        self.poly_deg = poly_deg
+
+
+    def __call__(self, data):
+
+        common = _ExtractEXAFSCommon(self.edge, self.poly_deg, data.domain)
+        newattrs = [Orange.data.ContinuousVariable(
+                    name=var.name, compute_value=ExtractEXAFSFeature(i, common))
+                    for i, var in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(newattrs, data.domain.class_vars, data.domain.metas)
+
+        return data.from_table(domain, data)
+
+#######################################################
 
 
 class CurveShiftFeature(SelectColumn):
