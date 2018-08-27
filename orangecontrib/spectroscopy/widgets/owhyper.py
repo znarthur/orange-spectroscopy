@@ -319,7 +319,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         layout = QGridLayout()
         self.plotview.setLayout(layout)
-        self.button = QPushButton("View", self.plotview)
+        self.button = QPushButton("Menu", self.plotview)
         self.button.setAutoDefault(False)
 
         layout.setRowStretch(1, 1)
