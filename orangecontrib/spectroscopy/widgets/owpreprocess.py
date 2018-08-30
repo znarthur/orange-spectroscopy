@@ -375,82 +375,81 @@ class CutEditorInverse(CutEditor):
                 self.edited.emit()
 
 
-class SavitzkyGolayFilteringEditor(BaseEditor):
+class SavitzkyGolayFilteringEditor(BaseEditorOrange):
     """
     Editor for preprocess.savitzkygolayfiltering.
     """
+
+    DEFAULT_WINDOW = 5
+    DEFAULT_POLYORDER = 2
+    DEFAULT_DERIV = 0
+
+    MAX_WINDOW = 99
+    MIN_WINDOW = 3
+    MAX_POLYORDER = MAX_WINDOW - 1
+    MAX_DERIV = 3
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         self.setLayout(QVBoxLayout())
 
-        self.window = 5
-        self.polyorder = 2
-        self.deriv = 0
+        self.window = self.DEFAULT_WINDOW
+        self.polyorder = self.DEFAULT_POLYORDER
+        self.deriv = self.DEFAULT_DERIV
 
         form = QFormLayout()
 
-        self.wspin = QSpinBox(
-            minimum=3, maximum=100, singleStep=2,
-            value=self.window)
-        self.wspin.valueChanged[int].connect(self.setW)
-        self.wspin.editingFinished.connect(self.edited)
+        self.wspin = gui.spin(self, self, "window", minv=self.MIN_WINDOW, maxv=self.MAX_WINDOW,
+                              step=2, callback=self._window_edited)
 
-        self.pspin = QSpinBox(
-            minimum=2, maximum=self.window, singleStep=1,
-            value=self.polyorder)
-        self.pspin.valueChanged[int].connect(self.setP)
-        self.pspin.editingFinished.connect(self.edited)
+        self.pspin = gui.spin(self, self, "polyorder", minv=0, maxv=self.MAX_POLYORDER,
+                              step=1, callback=self._polyorder_edited)
 
-        self.dspin = QSpinBox(
-            minimum=0, maximum=3, singleStep=1,
-            value=self.deriv)
-        self.dspin.valueChanged[int].connect(self.setD)
-        self.dspin.editingFinished.connect(self.edited)
+        self.dspin = gui.spin(self, self, "deriv", minv=0, maxv=self.MAX_DERIV,
+                              step=1, callback=self._deriv_edited)
 
         form.addRow("Window", self.wspin)
         form.addRow("Polynomial Order", self.pspin)
         form.addRow("Derivative Order", self.dspin)
         self.layout().addLayout(form)
 
+    def _window_edited(self):
+        # make window even on hand input
+        if self.window % 2 == 0:
+            self.window += 1
+        # decrease other parameters if needed
+        self.polyorder = min(self.polyorder, self.window - 1)
+        self.deriv = min(self.polyorder, self.deriv)
+        self.edited.emit()
+
+    def _fix_window_for_polyorder(self):
+        # next window will always exist as max polyorder is less than max window
+        if self.polyorder >= self.window:
+            self.window = self.polyorder + 1
+            if self.window % 2 == 0:
+                self.window += 1
+
+    def _polyorder_edited(self):
+        self._fix_window_for_polyorder()
+        self.deriv = min(self.polyorder, self.deriv)
+        self.edited.emit()
+
+    def _deriv_edited(self):
+        # valid polyorder will always exist as max deriv is less than max polyorder
+        self.polyorder = max(self.polyorder, self.deriv)
+        self._fix_window_for_polyorder()
+        self.edited.emit()
+
     def setParameters(self, params):
-        self.setW(params.get("window", 5))
-        self.setP(params.get("polyorder", 2))
-        self.setD(params.get("deriv", 0))
+        self.window = params.get("window", self.DEFAULT_WINDOW)
+        self.polyorder = params.get("polyorder", self.DEFAULT_POLYORDER)
+        self.deriv = params.get("deriv", self.DEFAULT_DERIV)
 
-    def parameters(self):
-        return {"window": self.window, "polyorder": self.polyorder, "deriv": self.deriv}
-
-    def setW(self, window):
-        if self.window != window:
-            self.window = window
-            self.wspin.setValue(window)
-            self.changed.emit()
-
-    def setP(self, polyorder):
-        if self.polyorder != polyorder:
-            self.polyorder = polyorder
-            self.pspin.setValue(polyorder)
-            self.changed.emit()
-
-    def setD(self, deriv):
-        if self.deriv != deriv:
-            self.deriv = deriv
-            self.dspin.setValue(deriv)
-            self.changed.emit()
-
-    @staticmethod
-    def createinstance(params):
-        window = params.get("window", 5)
-        polyorder = params.get("polyorder", 2)
-        deriv = params.get("deriv", 0)
-        # make window, polyorder, deriv valid, even if they were saved differently
-        window, polyorder, deriv = int(window), int(polyorder), int(deriv)
-        if window % 2 == 0:
-            window = window + 1
-        if polyorder >= window:
-            polyorder = window - 1
-        # FIXME notify changes
+    @classmethod
+    def createinstance(cls, params):
+        window = params.get("window", cls.DEFAULT_WINDOW)
+        polyorder = params.get("polyorder", cls.DEFAULT_POLYORDER)
+        deriv = params.get("deriv", cls.DEFAULT_DERIV)
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
 
 
@@ -1243,7 +1242,7 @@ PREPROCESSORS = [
         GaussianSmoothingEditor
     ),
     PreprocessAction(
-        "Savitzky-Golay Filter", "orangecontrib.infrared.savitzkygolay", "Smoothing",
+        "Savitzky-Golay Filter", "orangecontrib.spectroscopy.savitzkygolay", "Smoothing",
         Description("Savitzky-Golay Filter",
         icon_path("Discretize.svg")),
         SavitzkyGolayFilteringEditor
@@ -1307,6 +1306,23 @@ def migrate_preprocessor(preprocessor, version):
         name = "orangecontrib.infrared.baseline"
         settings["baseline_type"] = 1
         version = 2
+    if name == "orangecontrib.infrared.savitzkygolay" and version < 4:
+        name = "orangecontrib.spectroscopy.savitzkygolay"
+        # make window, polyorder, deriv valid, even if they were saved differently
+        SGE = SavitzkyGolayFilteringEditor
+        # some old versions saved these as floats
+        window = int(settings.get("window", SGE.DEFAULT_WINDOW))
+        polyorder = int(settings.get("polyorder", SGE.DEFAULT_POLYORDER))
+        deriv = int(settings.get("deriv", SGE.DEFAULT_DERIV))
+        if window % 2 == 0:
+            window = window + 1
+        window = max(min(window, SGE.MAX_WINDOW), SGE.MIN_WINDOW)
+        polyorder = max(min(polyorder, window - 1), 0)
+        deriv = max(min(SGE.MAX_DERIV, deriv, polyorder), 0)
+        settings["window"] = window
+        settings["polyorder"] = polyorder
+        settings["deriv"] = deriv
+        version = 4
     return [((name, settings), version)]
 
 
@@ -1776,7 +1792,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 3
+    settings_version = 4
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
