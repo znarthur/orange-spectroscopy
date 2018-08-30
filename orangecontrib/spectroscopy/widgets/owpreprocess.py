@@ -19,14 +19,13 @@ from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
 
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QBasicTimer,
-    QPropertyAnimation
+    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QBasicTimer
 )
 from AnyQt.QtWidgets import (
     QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QGraphicsOpacityEffect, QLayout
+    QToolButton, QSplitter, QLayout
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -1321,29 +1320,21 @@ def migrate_preprocessor_list(preprocessors):
 
 
 class TimeoutLabel(QLabel):
-    """ A label that fades out after two seconds. """
+    """ A label that disappears out after two seconds. """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.timer = QBasicTimer()
-        # fadeout effect and animation
-        self.effect = QGraphicsOpacityEffect(self)
-        self.effect.setOpacity(0)
-        self.setGraphicsEffect(self.effect)
-        self.animation = QPropertyAnimation(self.effect, b"opacity")
-        self.animation.setDuration(300)
-        self.animation.setStartValue(1)
-        self.animation.setEndValue(0)
+        self.hide()
 
     def setText(self, t):
         super().setText(t)
-        self.animation.stop()
-        self.effect.setOpacity(1)
+        self.show()
         self.timer.start(2000, self)
 
     def timerEvent(self, event):
         self.timer.stop()
-        self.animation.start()
+        self.hide()
 
 
 class SpectralPreprocess(OWWidget):
