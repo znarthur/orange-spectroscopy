@@ -495,6 +495,9 @@ class BaselineEditor(BaseEditor):
         self.peakcb.setCurrentIndex(peak_dir)
         self.subcb.setCurrentIndex(sub)
 
+        # peak direction is only relevant for rubberband
+        self.peakcb.setEnabled(baseline_type == 1)
+
     def parameters(self):
         return {"baseline_type": self.baselinecb.currentIndex(),
                 "peak_dir": self.peakcb.currentIndex(),
