@@ -524,8 +524,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.markings = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
-        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20, slot=self.mouseMoved, delay=0.1)
+        self.plot.scene().sigMouseMoved.connect(self.mouse_moved_viewhelpers)
         self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
+        self.proxy = pg.SignalProxy(self.plot.scene().sigMouseMoved, rateLimit=20,
+                                    slot=self.mouse_moved_closest, delay=0.1)
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.plot.vb.sigResized.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
@@ -948,8 +950,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.vLine.hide()
             self.hLine.hide()
 
-    def mouseMoved(self, evt):
-        pos = evt[0]
+    def mouse_moved_viewhelpers(self, pos):
         if self.plot.sceneBoundingRect().contains(pos):
             mousePoint = self.plot.vb.mapSceneToView(pos)
             posx, posy = mousePoint.x(), mousePoint.y()
@@ -970,36 +971,42 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                          strdec(posy, self.important_decimals[1])
             self.label.setText(labels, color=(0, 0, 0))
 
-            if self.curves and len(self.curves[0][0]):  # need non-zero x axis!
-                cache = {}
-                bd = None
-                if self.markclosest and self.plot.vb.action != ZOOMING:
-                    xpixel, ypixel = self.plot.vb.viewPixelSize()
-                    distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel,
-                                                 r=self.MOUSE_RADIUS, cache=cache)
-                    try:
-                        mindi = np.nanargmin(distances)
-                        if distances[mindi] < self.MOUSE_RADIUS:
-                            bd = mindi
-                    except ValueError:  # if all distances are NaN
-                        pass
-                if self.highlighted != bd:
-                    QToolTip.hideText()
-                if self.highlighted is not None and bd is None:
-                    self.highlighted = None
-                    self.highlighted_curve.hide()
-                if bd is not None:
-                    self.highlighted = bd
-                    x = self.curves[0][0]
-                    y = self.curves[0][1][self.highlighted]
-                    self.highlighted_curve.setData(x=x, y=y)
-                    self.highlighted_curve.show()
-
             self.vLine.setPos(posx)
             self.hLine.setPos(posy)
             self.viewhelpers_show()
         else:
             self.viewhelpers_hide()
+
+    def mouse_moved_closest(self, evt):
+        pos = evt[0]
+        if self.plot.sceneBoundingRect().contains(pos) and \
+                self.curves and len(self.curves[0][0]):  # need non-zero x axis!
+            mousePoint = self.plot.vb.mapSceneToView(pos)
+            posx, posy = mousePoint.x(), mousePoint.y()
+
+            cache = {}
+            bd = None
+            if self.markclosest and self.plot.vb.action != ZOOMING:
+                xpixel, ypixel = self.plot.vb.viewPixelSize()
+                distances = distancetocurves(self.curves[0], posx, posy, xpixel, ypixel,
+                                             r=self.MOUSE_RADIUS, cache=cache)
+                try:
+                    mindi = np.nanargmin(distances)
+                    if distances[mindi] < self.MOUSE_RADIUS:
+                        bd = mindi
+                except ValueError:  # if all distances are NaN
+                    pass
+            if self.highlighted != bd:
+                QToolTip.hideText()
+            if self.highlighted is not None and bd is None:
+                self.highlighted = None
+                self.highlighted_curve.hide()
+            if bd is not None:
+                self.highlighted = bd
+                x = self.curves[0][0]
+                y = self.curves[0][1][self.highlighted]
+                self.highlighted_curve.setData(x=x, y=y)
+                self.highlighted_curve.show()
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]

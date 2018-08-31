@@ -71,7 +71,8 @@ class TestOWSpectra(WidgetTest):
     def do_mousemove(self):
         mr = self.widget.curveplot.MOUSE_RADIUS
         self.widget.curveplot.MOUSE_RADIUS = 1000
-        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        self.widget.curveplot.mouse_moved_closest(
+            (self.widget.curveplot.plot.sceneBoundingRect().center(),))
         if self.widget.curveplot.data is not None \
                 and np.any(np.isfinite(self.widget.curveplot.data.X)):  # a valid curve exists
             self.assertIsNotNone(self.widget.curveplot.highlighted)
@@ -81,7 +82,8 @@ class TestOWSpectra(WidgetTest):
         # assume nothing is directly in the middle
         # therefore nothing should be highlighted
         self.widget.curveplot.MOUSE_RADIUS = 0.1
-        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        self.widget.curveplot.mouse_moved_closest(
+            (self.widget.curveplot.plot.sceneBoundingRect().center(),))
         self.assertIsNone(self.widget.curveplot.highlighted)
 
         self.widget.curveplot.MOUSE_RADIUS = mr
@@ -106,8 +108,8 @@ class TestOWSpectra(WidgetTest):
         br = vb.mapViewToScene(brs).toPoint() - QPoint(2, 2)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
-        QTest.mouseMove(self.widget.curveplot, pos=tl)  # test mouseMoved code
-        QTest.mouseMove(self.widget.curveplot)  # test mouseMoved code
+        QTest.mouseMove(self.widget.curveplot, pos=tl)
+        QTest.mouseMove(self.widget.curveplot)
         QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
 
@@ -147,9 +149,9 @@ class TestOWSpectra(WidgetTest):
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
         QTest.qWait(1)
-        QTest.mouseMove(self.widget.curveplot, pos=tl)  # test mouseMoved code
+        QTest.mouseMove(self.widget.curveplot, pos=tl)
         QTest.qWait(1)
-        QTest.mouseMove(self.widget.curveplot)  # test mouseMoved code
+        QTest.mouseMove(self.widget.curveplot)
         QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
         vr = vb.viewRect()
@@ -318,7 +320,8 @@ class TestOWSpectra(WidgetTest):
         # select something in the widget and see if it is cleared
         self.send_signal("Data", self.iris)
         self.widget.curveplot.MOUSE_RADIUS = 1000
-        self.widget.curveplot.mouseMoved((self.widget.curveplot.plot.sceneBoundingRect().center(),))
+        self.widget.curveplot.mouse_moved_closest(
+            (self.widget.curveplot.plot.sceneBoundingRect().center(),))
         self.widget.curveplot.select_by_click(None, add=False)
         out = self.get_output("Selection")
         self.assertEqual(len(out), 1)
