@@ -1,5 +1,5 @@
-Infrared Orange documentation
-=============================
+Spectroscopy Orange documentation
+=================================
 
 Contents:
 
@@ -13,6 +13,13 @@ Widgets
    :maxdepth: 1
 
    widgets/spectra
+   widgets/hyperspectra
+   widgets/interpolate
+   widgets/preprocess-spectra
+   widgets/integrate-spectra
+   widgets/multifile
+   widgets/interferogram-to-spectrum
+   widgets/reshape-map
 
 Indices and tables
 ==================
