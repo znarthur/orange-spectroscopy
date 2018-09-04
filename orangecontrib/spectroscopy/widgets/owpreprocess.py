@@ -43,7 +43,7 @@ from orangecontrib.spectroscopy.preprocess import (
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
-    MovableVline, connect_line, floatornone
+    MovableVline, connect_line, floatornone, round_virtual_pixels
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
@@ -345,9 +345,10 @@ class CutEditor(BaseEditorOrange):
     def set_preview_data(self, data):
         x = getx(data)
         if len(x):
-            fullrange = abs(min(x)-max(x))
-            init_lowlim = min(x) + 0.1 * fullrange
-            init_highlim = max(x) - 0.1 * fullrange
+            range = max(x) - min(x)
+
+            init_lowlim = round_virtual_pixels(min(x) + 0.1 * range, range)
+            init_highlim = round_virtual_pixels(max(x) - 0.1 * range, range)
 
             self._lowlime.set_default(init_lowlim)
             self._highlime.set_default(init_highlim)
@@ -365,7 +366,7 @@ class CutEditorInverse(CutEditor):
         params = dict(params)
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
-        return Cut(lowlim=lowlim, highlim=highlim, inverse=True)
+        return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim), inverse=True)
 
 
 class SavitzkyGolayFilteringEditor(BaseEditorOrange):

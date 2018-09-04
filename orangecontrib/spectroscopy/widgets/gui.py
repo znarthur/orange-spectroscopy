@@ -39,6 +39,19 @@ def float_to_str_decimals(f, decimals):
     return ("%0." + str(decimals) + "f") % f
 
 
+def round_virtual_pixels(v, range, pixels=10000):
+    """
+    Round a value acording to some pixel precision as if the given range
+    was displayed on a virtual screen with a given pixel size.
+    :param v: input value
+    :param range: virtual visible range
+    :param pixels: virtual pixels covering the range
+    :return: rounded value as a Decimal.Decimal
+    """
+    pixel_decimals = pixels_to_decimals(range / pixels)
+    return Decimal(float_to_str_decimals(v, pixel_decimals))
+
+
 class FloatOrEmptyValidator(QValidator):
 
     def __init__(self, parent, allow_empty=False, bottom=float("-inf"), top=float("inf"),
