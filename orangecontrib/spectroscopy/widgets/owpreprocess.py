@@ -368,21 +368,6 @@ class CutEditorInverse(CutEditor):
         highlim = params.get("highlim", None)
         return Cut(lowlim=lowlim, highlim=highlim, inverse=True)
 
-    def set_preview_data(self, data):
-        x = getx(data)
-        if len(x):
-            fullrange = abs(min(x)-max(x))
-            init_lowlim = min(x) + 0.1 * fullrange
-            init_highlim = max(x) - 0.1 * fullrange
-
-            self._lowlime.set_default(init_lowlim)
-            self._highlime.set_default(init_highlim)
-
-            if not self.user_changed:
-                self.lowlim = init_lowlim
-                self.highlim = init_highlim
-                self.edited.emit()
-
 
 class SavitzkyGolayFilteringEditor(BaseEditor):
     """
