@@ -270,7 +270,13 @@ class MovableVline(pg.UIGraphicsItem):
         self._lastTransform = None
 
     def setLabel(self, l):
-        self.label.setText(l, color=self.color)
+        # add space on top not to overlap with cursor coordinates
+        # I can not think of a better way: the text
+        # size is decided at rendering time. As it is always the same,
+        # these spaces will scale with the cursor coordinates.
+        top_space = " " * 7
+
+        self.label.setText(top_space + l, color=self.color)
 
     def value(self):
         if self.isnone:
