@@ -115,7 +115,7 @@ if __name__ == '__main__':
         'lint': LintCommand,
     }
 
-    include_documentation('doc/build/html', 'help/orange-spectroscopy')
+    include_documentation('doc/build/htmlhelp', 'help/orange-spectroscopy')
 
     setup(
         name="Orange-Spectroscopy",
