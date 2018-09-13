@@ -123,7 +123,7 @@ if __name__ == '__main__':
         long_description=LONG_DESCRIPTION,
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
-        version="0.3.7",
+        version="0.3.8",
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
         data_files=DATA_FILES,
@@ -144,6 +144,6 @@ if __name__ == '__main__':
         test_suite=TEST_SUITE,
         include_package_data=True,
         zip_safe=False,
-        url="https://github.com/markotoplak/orange-spectroscopy",
+        url="https://github.com/Quasars/orange-spectroscopy",
         cmdclass=cmdclass,
     )
