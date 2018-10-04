@@ -521,6 +521,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot = self.plotview.getPlotItem()
         self.plot.setDownsampling(auto=True, mode="peak")
 
+        self.plot.showAxis("top", True)
+        self.plot.showAxis("right", True)
+        self.topaxis = self.plot.getAxis("top")
+        self.rightaxis = self.plot.getAxis("right")
+        self.topaxis.setStyle(showValues=False)
+        self.rightaxis.setStyle(showValues=False)
+        # TODO would be better to determine from screen resolution, window size, etc.?
+        self.plot.layout.setContentsMargins(0,10,30,0)
+
         self.markings = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
@@ -834,12 +843,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     def save_graph(self):
         try:
             self.viewhelpers_hide()
-            self.plot.showAxis("top", True)
-            self.plot.showAxis("right", True)
             saveplot.save_plot(self.plotview, FileFormat.img_writers)
         finally:
-            self.plot.showAxis("top", False)
-            self.plot.showAxis("right", False)
             self.viewhelpers_show()
 
     def clear_data(self):
