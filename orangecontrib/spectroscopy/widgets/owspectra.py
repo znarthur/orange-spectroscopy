@@ -527,8 +527,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.rightaxis = self.plot.getAxis("right")
         self.topaxis.setStyle(showValues=False)
         self.rightaxis.setStyle(showValues=False)
-        # TODO would be better to determine from screen resolution, window size, etc.?
-        self.plot.layout.setContentsMargins(0,10,30,0)
 
         self.markings = []
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
