@@ -43,7 +43,7 @@ from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_sele
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 # legend
-from Orange.widgets.visualize.owscatterplotgraph import LegendItem as LegendItem, legend_anchor_pos
+from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 
 SELECT_SQUARE = 123
@@ -712,21 +712,16 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.reports = {}  # current reports
 
-        self.legend = self.color_legend = None
-        self.__legend_anchor = (1, 0), (1, 0)
-
+        self.legend = None
         self.viewhelpers_show()
 
     def create_legend(self):
         self.legend = LegendItem()
         self.legend.setParentItem(self.plotview.getViewBox())
-        self.legend.restoreAnchor(self.__legend_anchor)
+        self.legend.restoreAnchor(((1, 0), (1, 0)))
 
     def remove_legend(self):
         if self.legend:
-            anchor = legend_anchor_pos(self.legend)
-            if anchor is not None:
-                self.__legend_anchor = anchor
             self.legend.setParent(None)
             self.legend = None
 
