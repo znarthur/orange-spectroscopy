@@ -99,16 +99,21 @@ def nan_extend_edges_and_interpolate(xs, X):
     if np.any(np.isnan(X)):
         nans = np.isnan(X)
         X = X.copy()
+        xs, xsind, mon, X = transform_to_sorted_wavenumbers(xs, X)
         fill_edges(X)
-        X = interp1d_with_unknowns_numpy(xs, X, xs)
+        X = interp1d_with_unknowns_numpy(xs[xsind], X, xs[xsind])
+        X = transform_back_to_features(xsind, mon, X)
     return X, nans
 
 
 def transform_to_sorted_features(data):
     xs = getx(data)
+    return transform_to_sorted_wavenumbers(xs, data.X)
+
+
+def transform_to_sorted_wavenumbers(xs, X):
     xsind = np.argsort(xs)
     mon = is_increasing(xsind)
-    X = data.X
     X = X if mon else X[:, xsind]
     return xs, xsind, mon, X
 

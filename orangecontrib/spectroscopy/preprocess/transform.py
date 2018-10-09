@@ -4,7 +4,10 @@ import numpy as np
 import Orange.data
 from Orange.preprocess.preprocess import Preprocess
 
-from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain
+from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, interp1d_with_unknowns_numpy, \
+    nan_extend_edges_and_interpolate
+
 
 class SpecTypes(Enum):
     """
@@ -21,16 +24,16 @@ class CommonDomainRef(CommonDomain):
         super().__init__(domain)
         self.ref = ref
 
-    def __call__(self, data):
-        data = self.transform_domain(data)
-        if self.ref is not None:
-            ref = self.transform_domain(self.ref)
-        else:
-            ref = self.ref
-        return self.transformed(data, ref)
-
-    def transformed(self, data, ref):
-        raise NotImplemented
+    def interpolate_extend_to(self, interpolate, wavenumbers):
+        """
+        Interpolate data to given wavenumbers and extend the possibly
+        nan-edges with the nearest values.
+        """
+        # interpolate reference to the given wavenumbers
+        X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
+        # we know that X is not NaN. same handling of reference as of X
+        X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
+        return X
 
 
 class AbsorbanceFeature(SelectColumn):
@@ -39,10 +42,11 @@ class AbsorbanceFeature(SelectColumn):
 
 class _AbsorbanceCommon(CommonDomainRef):
 
-    def transformed(self, data, ref):
-        if ref is not None:
+    def transformed(self, data):
+        if self.ref is not None:
             # Calculate from single-channel data
-            absd = ref.X / data.X
+            ref_X = self.interpolate_extend_to(self.ref, getx(data))
+            absd = ref_X / data.X
             np.log10(absd, absd)
         else:
             # Calculate from transmittance data
@@ -87,10 +91,11 @@ class TransmittanceFeature(SelectColumn):
 
 class _TransmittanceCommon(CommonDomainRef):
 
-    def transformed(self, data, ref):
-        if ref is not None:
+    def transformed(self, data):
+        if self.ref is not None:
             # Calculate from single-channel data
-            transd = data.X / ref.X
+            ref_X = self.interpolate_extend_to(self.ref, getx(data))
+            transd = data.X / ref_X
         else:
             # Calculate from absorbance data
             transd = data.X.copy()

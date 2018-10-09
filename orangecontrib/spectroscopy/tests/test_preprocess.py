@@ -42,7 +42,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
 def make_edges_nan(data):
     s = data.copy()
     s[:, 0:3] = np.nan
-    s[:, s.X.shape[1]-1] = np.nan
+    s[:, s.X.shape[1]-3:] = np.nan
     return s
 
 
@@ -73,6 +73,7 @@ def add_different_reference(class_, reference_arg_name, reference, *args, **kwar
     modified = [reference,
                 shuffle_attr(reference),
                 make_edges_nan(reference),
+                shuffle_attr(make_edges_nan(reference)),
                 make_middle_nan(reference)]
     for d in modified:
         kwargs[reference_arg_name] = d
