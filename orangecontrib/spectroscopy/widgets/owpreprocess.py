@@ -41,6 +41,7 @@ from orangecontrib.spectroscopy.preprocess import (
     RubberbandBaseline
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
+from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
@@ -994,30 +995,92 @@ class PCADenoisingEditor(BaseEditor):
         return PCADenoising(components=components)
 
 
-class TransToAbsEditor(BaseEditor):
+class SpectralTransformEditor(BaseEditorOrange):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    TRANSFORMS = [Absorbance,
+                  Transmittance]
+
+    transform_names = [a.__name__ for a in TRANSFORMS]
+    from_names = [a.value for a in SpecTypes]
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.setLayout(QVBoxLayout())
+
+        form = QFormLayout()
+
+        self.fromcb = QComboBox()
+        self.fromcb.addItems(self.from_names)
+
+        self.tocb = QComboBox()
+        self.tocb.addItems(self.transform_names)
+
+        form.addRow("Original", self.fromcb)
+        form.addRow("Transformed", self.tocb)
+        self.layout().addLayout(form)
+
+        self.fromcb.currentIndexChanged.connect(self.changed)
+        self.fromcb.activated.connect(self.edited)
+        self.tocb.currentIndexChanged.connect(self.changed)
+        self.tocb.activated.connect(self.edited)
+
+        self.reference_info = QLabel("", self)
+        self.layout().addWidget(self.reference_info)
+
+        self.reference_curve = pg.PlotCurveItem()
+        self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
+        self.reference_curve.setZValue(10)
+
+    def activateOptions(self):
+        self.parent_widget.curveplot.clear_markings()
+        if self.reference_curve not in self.parent_widget.curveplot.markings:
+            self.parent_widget.curveplot.add_marking(self.reference_curve)
 
     def setParameters(self, params):
-        pass
+        from_type = params.get("from_type", 0)
+        to_type = params.get("to_type", 1)
+        self.fromcb.setCurrentIndex(from_type)
+        self.tocb.setCurrentIndex(to_type)
+        self.update_reference_info()
+
+    def parameters(self):
+        return {"from_type": self.fromcb.currentIndex(),
+                "to_type": self.tocb.currentIndex()}
 
     @staticmethod
     def createinstance(params):
-        return Absorbance(ref=None)
+        from_type = params.get("from_type", 0)
+        to_type = params.get("to_type", 1)
+        from_spec_type = SpecTypes(SpectralTransformEditor.from_names[from_type])
+        transform = SpectralTransformEditor.TRANSFORMS[to_type]
+        reference = params.get(REFERENCE_DATA_PARAM, None)
+        if from_spec_type not in transform.from_types:
+            return lambda data: data[:0]  # return an empty data table
+        try:
+            return transform(ref=reference)
+        except TypeError as e:
+            if "unexpected keyword argument \'ref\'" in str(e):
+                return transform()
+            else:
+                raise
 
+    def set_reference_data(self, ref):
+        self.reference = ref
+        self.update_reference_info()
 
-class AbsToTransEditor(BaseEditor):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def setParameters(self, params):
-        pass
-
-    @staticmethod
-    def createinstance(params):
-        return Transmittance(ref=None)
+    def update_reference_info(self):
+        if not self.reference:
+            self.reference_info.setText("Reference: None")
+            self.reference_curve.hide()
+        else:
+            rinfo = "1st of {0:d} spectra".format(len(self.reference)) \
+                if len(self.reference) > 1 else "1 spectrum"
+            self.reference_info.setText("Reference: " + rinfo)
+            X_ref = self.reference.X[0]
+            x = getx(self.reference)
+            xsind = np.argsort(x)
+            self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
+            self.reference_curve.show()
 
 
 def layout_widgets(layout):
@@ -1269,16 +1332,12 @@ PREPROCESSORS = [
         PCADenoisingEditor
     ),
     PreprocessAction(
-        "Transmittance to Absorbance", "orangecontrib.infrared.absorbance", "Transmittance to Absorbance",
-        Description("Transmittance to Absorbance",
+        "Spectral Transformations",
+        "orangecontrib.spectroscopy.transforms",
+        "Spectral Transformations",
+        Description("Spectral Transformations",
                     icon_path("Discretize.svg")),
-        TransToAbsEditor
-    ),
-    PreprocessAction(
-        "Absorbance to Transmittance", "orangecontrib.infrared.transmittance", "Absorbance to Transmittance",
-        Description("Absorbance to Transmittance",
-                    icon_path("Discretize.svg")),
-        AbsToTransEditor
+        SpectralTransformEditor
     ),
     PreprocessAction(
         "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",
@@ -1320,6 +1379,16 @@ def migrate_preprocessor(preprocessor, version):
         settings["polyorder"] = polyorder
         settings["deriv"] = deriv
         version = 4
+    if name == "orangecontrib.infrared.absorbance" and version < 5:
+        name = "orangecontrib.spectroscopy.transforms"
+        settings["from_type"] = 1
+        settings["to_type"] = 0
+        version = 5
+    if name == "orangecontrib.infrared.transmittance" and version < 5:
+        name = "orangecontrib.spectroscopy.transforms"
+        settings["from_type"] = 0
+        settings["to_type"] = 1
+        version = 5
     return [((name, settings), version)]
 
 
@@ -1781,7 +1850,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 4
+    settings_version = 5
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS

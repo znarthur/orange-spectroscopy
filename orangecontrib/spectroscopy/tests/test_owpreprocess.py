@@ -1,7 +1,9 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS
+from orangecontrib.spectroscopy.tests.util import smaller_data
 
+SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
 
 class TestOWPreprocess(WidgetTest):
 
@@ -38,6 +40,28 @@ class TestOWPreprocess(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+
+    def test_allpreproc_indv_ref(self):
+        data = Orange.data.Table("peach_juice.dpt")
+        for i,p in enumerate(PREPROCESSORS):
+            self.widget = self.create_widget(OWPreprocess)
+            self.send_signal("Data", data)
+            self.send_signal("Reference", data)
+            self.widget.add_preprocessor(i)
+            # direct calls the preview so that exceptions do not get lost in Qt
+            self.widget.show_preview()
+
+    def test_allpreproc_indv_ref_multi(self):
+        """Test that preprocessors can handle references with multiple instances"""
+        # len(data) must be > maximum preview size (10) to ensure test failure
+        data = SMALL_COLLAGEN
+        for i,p in enumerate(PREPROCESSORS):
+            self.widget = self.create_widget(OWPreprocess)
+            self.send_signal("Data", data)
+            self.send_signal("Reference", data)
+            self.widget.add_preprocessor(i)
+            # direct calls the preview so that exceptions do not get lost in Qt
+            self.widget.show_preview()
 
     def test_migrate_rubberbard(self):
         settings = {"storedsettings": {"preprocessors":
@@ -78,3 +102,16 @@ class TestOWPreprocess(WidgetTest):
         OWPreprocess.migrate_settings(settings, 3)
         self.assertEqual(obtain_setting(settings),
                          {'deriv': 2, 'polyorder': 2, 'window': 3})
+
+    def test_migrate_spectral_transforms(self):
+        settings = {"storedsettings": {
+            "preprocessors": [("orangecontrib.infrared.transmittance", {}),
+                              ("orangecontrib.infrared.absorbance", {})]}}
+        OWPreprocess.migrate_settings(settings, 3)
+        self.assertEqual(
+            settings["storedsettings"]["preprocessors"],
+            [("orangecontrib.spectroscopy.transforms",
+              {'from_type': 0, 'to_type': 1}),
+             ("orangecontrib.spectroscopy.transforms",
+              {'from_type': 1, 'to_type': 0})])
+

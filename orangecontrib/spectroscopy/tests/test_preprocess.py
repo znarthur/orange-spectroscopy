@@ -42,7 +42,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
 def make_edges_nan(data):
     s = data.copy()
     s[:, 0:3] = np.nan
-    s[:, s.X.shape[1]-1] = np.nan
+    s[:, s.X.shape[1]-3:] = np.nan
     return s
 
 
@@ -73,6 +73,7 @@ def add_different_reference(class_, reference_arg_name, reference, *args, **kwar
     modified = [reference,
                 shuffle_attr(reference),
                 make_edges_nan(reference),
+                shuffle_attr(make_edges_nan(reference)),
                 make_middle_nan(reference)]
     for d in modified:
         kwargs[reference_arg_name] = d
@@ -81,6 +82,11 @@ def add_different_reference(class_, reference_arg_name, reference, *args, **kwar
 
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(EMSC, "reference", SMALL_COLLAGEN[0:1]))
 
+for p in [Absorbance, Transmittance]:
+    # single reference
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN[0:1]))
+    # multi reference (many:many)
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN))
 
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
