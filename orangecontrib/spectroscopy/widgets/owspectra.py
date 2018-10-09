@@ -43,7 +43,7 @@ from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_sele
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 # legend
-from Orange.widgets.visualize.owscatterplotgraph import LegendItem as LegendItem, legend_anchor_pos
+from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 
 SELECT_SQUARE = 123
@@ -716,23 +716,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.reports = {}  # current reports
 
-        self.legend = self.color_legend = None
-        self.__legend_anchor = (1, 0), (1, 0)
-
+        self.legend = self._create_legend()
         self.viewhelpers_show()
 
-    def create_legend(self):
-        self.legend = LegendItem()
-        self.legend.setParentItem(self.plotview.getViewBox())
-        self.legend.restoreAnchor(self.__legend_anchor)
-
-    def remove_legend(self):
-        if self.legend:
-            anchor = legend_anchor_pos(self.legend)
-            if anchor is not None:
-                self.__legend_anchor = anchor
-            self.legend.setParent(None)
-            self.legend = None
+    def _create_legend(self):
+        legend = LegendItem()
+        legend.setParentItem(self.plotview.getViewBox())
+        legend.restoreAnchor(((1, 0), (1, 0)))
+        return legend
 
     def init_interface_data(self, data):
         old_domain = self.data.domain if self.data else None
@@ -1101,9 +1092,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.pen_subset.clear()
         self.pen_selected.clear()
         color_var = self._current_color_var()
-        self.remove_legend()
+        self.legend.clear()
         if color_var is not None:
-            self.create_legend()
             colors = color_var.colors
             discrete_palette = ColorPaletteGenerator(
                 number_of_colors=len(colors), rgb_colors=colors)
@@ -1120,6 +1110,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 brush = pg.mkBrush(color=basecolor)
                 self.legend.addItem(pg.ScatterPlotItem(pen=pen, brush=brush, size=10, symbol="o"),
                                     escape(v))
+        self.legend.setVisible(bool(self.legend.items))
 
     def show_individual(self):
         self.view_average_menu.setChecked(False)
