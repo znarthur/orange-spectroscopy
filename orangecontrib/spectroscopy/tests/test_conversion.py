@@ -118,7 +118,11 @@ class TestConversion(unittest.TestCase):
     def test_slightly_different_domain(self):
         """ If test data has a slightly different domain then (with interpolation)
         we should obtain a similar classification score. """
-        learner = LogisticRegressionLearner(preprocessors=[])
+        # rows full of unknowns make LogisticRegression undefined
+        # we can obtain them, for example, with EMSC, if one of the badspectra
+        # is a spectrum from the data
+        learner = LogisticRegressionLearner(preprocessors=[_RemoveNaNRows()])
+
         for proc in PREPROCESSORS:
             # LR that can not handle unknown values
             train, test = separate_learn_test(self.collagen)
@@ -140,3 +144,11 @@ class TestConversion(unittest.TestCase):
             aucnow = AUC(TestOnTestData(train, test, [learner]))
             # the difference should be slight
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05, msg="Preprocessor " + str(proc))
+
+
+class _RemoveNaNRows(Orange.preprocess.preprocess.Preprocess):
+
+    def __call__(self, data):
+        mask = np.isnan(data.X)
+        mask = np.any(mask, axis=1)
+        return data[~mask]

@@ -127,7 +127,7 @@ class _EMSC(CommonDomainOrderUnknowns):
         newspectra = np.zeros((X.shape[0], X.shape[1] + n_add_model))
         for i, rawspectrum in enumerate(X):
             rawspectrumW = (rawspectrum*wei_X)[0]
-            m = np.linalg.lstsq(M_weighted, rawspectrum)[0]
+            m = np.linalg.lstsq(M_weighted, rawspectrum, rcond=-1)[0]
             corrected = rawspectrum
 
             for x in range(0, self.order+1+n_badspec):
