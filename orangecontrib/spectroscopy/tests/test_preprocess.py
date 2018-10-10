@@ -1,8 +1,9 @@
 import random
 import unittest
 
-import Orange
 import numpy as np
+
+import Orange
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
@@ -11,7 +12,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Normalize, LinearBaseline, CurveShift, EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
-SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 10, 2)
+SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
 
 
 # Preprocessors that work per sample and should return the same
@@ -58,35 +59,42 @@ def shuffle_attr(data):
     natts = list(data.domain.attributes)
     random.Random(0).shuffle(natts)
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
-                             metas=data.domain.metas)
+                                 metas=data.domain.metas)
     return Orange.data.Table(ndomain, data)
 
 
 def reverse_attr(data):
     natts = reversed(data.domain.attributes)
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
-                             metas=data.domain.metas)
+                                 metas=data.domain.metas)
     return Orange.data.Table(ndomain, data)
 
 
-def add_different_reference(class_, reference_arg_name, reference, *args, **kwargs):
-    modified = [reference,
-                shuffle_attr(reference),
-                make_edges_nan(reference),
-                shuffle_attr(make_edges_nan(reference)),
-                make_middle_nan(reference)]
+def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, **kwargs):
+    modified = [data_to_modify,
+                shuffle_attr(data_to_modify),
+                make_edges_nan(data_to_modify),
+                shuffle_attr(make_edges_nan(data_to_modify)),
+                make_middle_nan(data_to_modify)]
     for d in modified:
-        kwargs[reference_arg_name] = d
+        kwargs[data_arg_name] = d
         yield class_(*args, **kwargs)
 
 
-PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(EMSC, "reference", SMALL_COLLAGEN[0:1]))
-
 for p in [Absorbance, Transmittance]:
     # single reference
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN[0:1]))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
     # multi reference (many:many)
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_different_reference(p, "ref", SMALL_COLLAGEN))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN))
+
+# EMSC with different kinds of reference
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(
+    add_edge_case_data_parameter(EMSC, "reference", SMALL_COLLAGEN[0:1]))
+# EMSC with different kinds of bad spectra
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(
+    add_edge_case_data_parameter(EMSC, "badspectra", SMALL_COLLAGEN[0:2],
+                                 reference=SMALL_COLLAGEN[-1:]))
+
 
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
@@ -152,7 +160,7 @@ class TestSavitzkyGolay(unittest.TestCase):
         data = data[:1]
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
-            [[4.86857143, 3.47428571, 1.49428571, 0.32857143]])
+                                       [[4.86857143, 3.47428571, 1.49428571, 0.32857143]])
 
 
 class TestGaussian(unittest.TestCase):
@@ -173,7 +181,7 @@ class TestGaussian(unittest.TestCase):
         data = data[:1]
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
-            [[4.4907066, 3.2794677, 1.7641664, 0.6909083]])
+                                       [[4.4907066, 3.2794677, 1.7641664, 0.6909083]])
 
 
 class TestRubberbandBaseline(unittest.TestCase):
@@ -257,10 +265,10 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0])(data)
         np.testing.assert_equal(p.X, data.X / 2)
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
-                lower=0, upper=4)(data)
+                      lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 2)
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
-                lower=2, upper=4)(data)
+                      lower=2, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 2)
 
     def test_attribute_norm_unknown(self):
@@ -279,16 +287,16 @@ class TestCommon(unittest.TestCase):
         """ Preprocessors should not crash when there are no input samples. """
         data = self.collagen[:0]
         for proc in PREPROCESSORS:
-            d2 = proc(data)
+            _ = proc(data)
 
     def test_no_attributes(self):
         """ Preprocessors should not crash when samples have no attributes. """
         data = self.collagen
         data = Orange.data.Table(Orange.data.Domain([],
-                class_vars=data.domain.class_vars,
-                metas=data.domain.metas), data)
+                                                    class_vars=data.domain.class_vars,
+                                                    metas=data.domain.metas), data)
         for proc in PREPROCESSORS:
-            d2 = proc(data)
+            _ = proc(data)
 
     def test_unordered_features(self):
         data = self.collagen
@@ -298,25 +306,26 @@ class TestCommon(unittest.TestCase):
             comparison = np.testing.assert_equal
             # TODO find out why there are small differences for certain preprocessors
             if isinstance(proc, (RubberbandBaseline, Normalize, PCADenoising)):
-                comparison = lambda x,y: np.testing.assert_almost_equal(x, y, decimal=5)
+                comparison = lambda x, y, **kwargs: \
+                    np.testing.assert_almost_equal(x, y, decimal=5, **kwargs)
             pdata = proc(data)
             X = pdata.X[:, np.argsort(getx(pdata))]
             pdata_reversed = proc(data_reversed)
             X_reversed = pdata_reversed.X[:, np.argsort(getx(pdata_reversed))]
-            comparison(X, X_reversed)
+            comparison(X, X_reversed, err_msg="Preprocessor " + str(proc))
             pdata_shuffle = proc(data_shuffle)
             X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
-            comparison(X, X_shuffle)
+            comparison(X, X_shuffle, err_msg="Preprocessor " + str(proc))
 
     def test_unknown_no_propagate(self):
         data = self.collagen.copy()
         # one unknown in line
-        for i in range(len(data)):
+        for i in range(min(len(data), len(data.domain.attributes))):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=1)
-            self.assertFalse(np.any(sumnans > 1))
+            self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
 
 
 class TestPCADenoising(unittest.TestCase):
@@ -336,4 +345,4 @@ class TestCurveShift(unittest.TestCase):
         f = CurveShift(amount=1.1)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
-            [[2.1, 3.1, 4.1, 5.1]])
+                                       [[2.1, 3.1, 4.1, 5.1]])
