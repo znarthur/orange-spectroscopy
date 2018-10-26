@@ -484,11 +484,12 @@ class _XASnormalizationCommon(CommonDomainOrder):
 
     def transformed(self, X, energies):
 
-        n_spectra_vals = normal_xas.normalize_all(energies, X,
+        spectra, jump_vals = normal_xas.normalize_all(energies, X,
                                                   self.edge, self.preedge_params, self.postedge_params)
-        #print (n_spectra_vals.shape)
+        jump_vals = jump_vals.reshape((len(jump_vals),1))
 
-        return n_spectra_vals
+        return np.hstack((spectra, jump_vals ))
+        #return np.hstack((spectra, np.ones((len(jump_vals), 1)) ))
 
 
 class XASnormalization(Preprocess):
@@ -512,8 +513,16 @@ class XASnormalization(Preprocess):
         newattrs = [Orange.data.ContinuousVariable(
                     name=var.name, compute_value=XASnormalizationFeature(i, common))
                     for i, var in enumerate(data.domain.attributes)]
+        newmetas = data.domain.metas + (Orange.data.ContinuousVariable(
+            name='edge_jump', compute_value=XASnormalizationFeature(len(newattrs), common)),)
+        # len(newattrs) is the nb of the last column of the matrix returned by
+        #   XASnormalizationFeature.transformed method
+
+        print ('meta: '+ str(newmetas))
+
         domain = Orange.data.Domain(
-                    newattrs, data.domain.class_vars, data.domain.metas)
+                    newattrs, data.domain.class_vars, newmetas)
+
         return data.from_table(domain, data)
 
 ######################################### EXAFS extraction #####
