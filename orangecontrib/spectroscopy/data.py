@@ -489,16 +489,25 @@ class OPUSReader(FileFormat):
     EXTENSIONS = (".0*", ".1*", ".2*", ".3*", ".4*", ".5*", ".6*", ".7*", ".8*", ".9*")
     DESCRIPTION = 'OPUS Spectrum'
 
+    _OPUS_WARNING = "Opus files require the opusFC module (https://pypi.org/project/opusFC/)"
+
     @property
     def sheets(self):
-        import opusFC
+        try:
+            import opusFC
+        except ImportError:
+            # raising an exception here would just show an generic error in File widget
+            return ()
         dbs = []
         for db in opusFC.listContents(self.filename):
             dbs.append(db[0] + " " + db[1] + " " + db[2])
         return dbs
 
     def read(self):
-        import opusFC
+        try:
+            import opusFC
+        except ImportError:
+            raise RuntimeError(self._OPUS_WARNING)
 
         if self.sheet:
             db = self.sheet

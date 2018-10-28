@@ -11,6 +11,11 @@ from Orange.widgets.utils.filedialogs import format_filter
 from orangecontrib.spectroscopy.data import SPAReader
 from Orange.data.io import TabReader
 
+try:
+    import opusFC
+except ImportError:
+    opusFC = None
+
 
 class TestOWFilesAuxiliary(unittest.TestCase):
 
@@ -97,6 +102,7 @@ class TestOWMultifile(WidgetTest):
         out = self.get_output("Data")
         self.assertIsNone(out)
 
+    @unittest.skipIf(opusFC is None, "opusFC module not installed")
     def test_sheet_file(self):
         self.load_files("peach_juice.0")
         self.widget.sheet_combo.setCurrentIndex(1)

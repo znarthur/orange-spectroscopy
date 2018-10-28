@@ -11,6 +11,11 @@ from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 from orangecontrib.spectroscopy.tests.bigdata import spectra20nea
 
 try:
+    import opusFC
+except ImportError:
+    opusFC = None
+
+try:
     import spc
 except ImportError:
     spc = None
@@ -28,6 +33,7 @@ class TestReaders(unittest.TestCase):
 
 class TestDat(unittest.TestCase):
 
+    @unittest.skipIf(opusFC is None, "opusFC module not installed")
     def test_peach_juice(self):
         d1 = Orange.data.Table("peach_juice.dpt")
         d2 = Orange.data.Table("peach_juice.0")
