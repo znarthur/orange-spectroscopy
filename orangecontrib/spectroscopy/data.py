@@ -1,18 +1,18 @@
-import itertools
-import struct
+from collections import defaultdict
 from functools import reduce
-from _collections import defaultdict
+import numbers
+import struct
 
-import Orange
 import numpy as np
 import spectral.io.envi
+from scipy.interpolate import interp1d
+from scipy.io import matlab
+
+import Orange
 from Orange.data import \
     ContinuousVariable, StringVariable, TimeVariable, Domain, Table
 from Orange.data.io import FileFormat
 import Orange.data.io
-from scipy.interpolate import interp1d
-from scipy.io import matlab
-import numbers
 
 from .pymca5 import OmnicMap
 from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG
@@ -99,9 +99,11 @@ class AsciiMapReader(FileFormat):
     def write_file(filename, data):
         wavelengths = getx(data)
         try:
-            ndom = Domain([data.domain["map_x"], data.domain["map_y"]] + list(data.domain.attributes))
+            ndom = Domain([data.domain["map_x"], data.domain["map_y"]] +
+                          list(data.domain.attributes))
         except KeyError:
-            raise RuntimeError('Data needs to include meta variables "map_x" and "map_y"')
+            raise RuntimeError('Data needs to include meta variables '
+                               '"map_x" and "map_y"')
         data = data.transform(ndom)
         with open(filename, "wb") as f:
             header = ["", ""] + [("%g" % w) for w in wavelengths]
@@ -129,7 +131,7 @@ def _spectra_from_image(X, features, x_locs, y_locs):
     domain = Orange.data.Domain([], None,
                                 metas=[Orange.data.ContinuousVariable.make("map_x"),
                                        Orange.data.ContinuousVariable.make("map_y")]
-                                )
+                               )
     data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)),
                                         metas=np.asarray(metas, dtype=object))
     return features, spectra, data
@@ -456,7 +458,7 @@ class SPCReader(FileFormat):
 
     def single_x_reader(self, spc_file):
         domvals = spc_file.x  # first column is attribute name
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in domvals], None)
+        domain = Domain([ContinuousVariable.make("%f" % f) for f in domvals], None)
         y_data = [sub.y for sub in spc_file.sub]
         y_data = np.array(y_data)
         table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C'))
@@ -469,7 +471,7 @@ class SPCReader(FileFormat):
             x = sub.x
             # assume values in x do not repeat
             all_x = np.union1d(all_x, x)
-        domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("%f" % f) for f in all_x], None)
+        domain = Domain([ContinuousVariable.make("%f" % f) for f in all_x], None)
 
         instances = []
         for sub in spc_file.sub:
@@ -525,7 +527,7 @@ class OPUSReader(FileFormat):
         attrs, clses, metas = [], [], []
 
         attrs = [ContinuousVariable.make(repr(data.x[i]))
-                    for i in range(data.x.shape[0])]
+                 for i in range(data.x.shape[0])]
 
         y_data = None
         meta_data = None
@@ -556,7 +558,7 @@ class OPUSReader(FileFormat):
                           ContinuousVariable.make('map_y'),
                           StringVariable.make('map_region')])
             attrs = [ContinuousVariable.make(repr(data.labels[i]))
-                        for i in range(len(data.labels))]
+                     for i in range(len(data.labels))]
             for region in data.regions:
                 y_data.append(region.spectra)
                 mapX = region.mapX
@@ -588,7 +590,7 @@ class OPUSReader(FileFormat):
                           ContinuousVariable.make('map_y')])
 
             attrs = [ContinuousVariable.make(repr(data.labels[i]))
-                        for i in range(len(data.labels))]
+                     for i in range(len(data.labels))]
             data_3D = data.traces
 
             for i in np.ndindex(data_3D.shape[:1]):
@@ -611,7 +613,7 @@ class OPUSReader(FileFormat):
             meta_data = data.z
 
         elif type(data) == opusFC.SingleDataReturn:
-            y_data = data.y[None,:]
+            y_data = data.y[None, :]
 
         else:
             raise ValueError("Empty or unsupported opusFC DataReturn object: " + type(data))
@@ -622,7 +624,7 @@ class OPUSReader(FileFormat):
             try:
                 param = data.parameters[param_key]
             except KeyError:
-                pass # TODO should notify user?
+                pass  # TODO should notify user?
             else:
                 try:
                     param_name = opusFC.paramDict[param_key]
@@ -697,7 +699,8 @@ class SPAReader(FileFormat, SpectralFileFormat):
         _, _, offset, length = self.sections()[info]
         with open(self.filename, 'rb') as f:
             f.seek(offset)
-            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = struct.unpack('<iiiifff', f.read(28))
+            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = \
+                struct.unpack('<iiiifff', f.read(28))
             return numPoints, firstX, lastX,
 
     def read_spectra(self):
@@ -770,7 +773,7 @@ class GSFReader(FileFormat):
             YRr = np.arange(YR)
             indices = np.transpose([np.tile(XRr, len(YRr)), np.repeat(YRr, len(XRr))])
 
-            domain = Orange.data.Domain([Orange.data.ContinuousVariable.make("value")], None, metas=metas)
+            domain = Domain([ContinuousVariable.make("value")], None, metas=metas)
             data = Orange.data.Table(domain,
                                      X.reshape(meta["XRes"]*meta["YRes"], 1),
                                      metas=np.array(indices, dtype="object"))
@@ -903,11 +906,11 @@ def build_spec_table(wavenumbers, intensities):
 
     # Add dimension to 1D array if necessary
     if intensities.ndim == 1:
-        intensities = intensities[None,:]
+        intensities = intensities[None, :]
 
     # Convert the wavenumbers array into a list of ContinousVariables
     wn_vars = [Orange.data.ContinuousVariable.make(repr(wavenumbers[i]))
-                for i in range(wavenumbers.shape[0])]
+               for i in range(wavenumbers.shape[0])]
 
     # Build an Orange.data.Domain object with wn_vars as
     # independant variables (or "attributes" as Orange calls them)
