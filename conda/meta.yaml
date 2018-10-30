@@ -1,0 +1,49 @@
+{% set data = load_setup_py_data() %}
+{% set version = data['version'] %}
+
+package:
+  name: orange-spectroscopy
+  version: {{ data['version'] }}
+
+source:
+  git_url: ../
+
+build:
+  number: 0
+  noarch: python
+  script:
+    - cd doc && make htmlhelp && cd ..
+    - python setup.py install --single-version-externally-managed --record record.txt
+
+requirements:
+  build:
+    - python
+    - sphinx
+    - setuptools
+    - recommonmark
+  run:
+    - python
+    - orange3 >=3.11
+    - scipy >=0.14.0
+    - spectral >=0.18
+    - serverfiles >=0.2
+    - AnyQt >=0.0.6
+    - pyqtgraph >=0.10.0
+    - colorcet
+    - h5py
+
+test:
+  imports:
+    - orangecontrib.spectroscopy
+  commands:
+    - test -f $PREFIX/help/orange-spectroscopy/index.html  # [unix]
+
+about:
+  home: https://github.com/quasars
+  license: GPL-3
+  license_family: GPL
+  summary: 'Orange-Spectroscopy'
+
+extra:
+  recipe-maintainers:
+    - markotoplak
