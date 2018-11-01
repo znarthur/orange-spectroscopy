@@ -29,6 +29,8 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils import saveplot
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
+from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 try:
     # since Orange 3.17
@@ -44,11 +46,6 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_de
     float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
     selections_to_length, groups_or_annotated_table
-
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
-
-# legend
-from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 
 SELECT_SQUARE = 123

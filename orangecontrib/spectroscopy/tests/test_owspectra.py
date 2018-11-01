@@ -1,18 +1,19 @@
+from AnyQt.QtCore import QRectF, QPoint, Qt
+from AnyQt.QtTest import QTest
 import numpy as np
-import Orange
 import pyqtgraph as pg
+
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, Domain, ContinuousVariable
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
+
 from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.line_geometry import intersect_curves, \
     distance_line_segment
 from orangecontrib.spectroscopy.tests.util import hold_modifiers
 from orangecontrib.spectroscopy.preprocess import Interpolate
-from AnyQt.QtCore import QRectF, QPoint, Qt
-from AnyQt.QtTest import QTest
 
 try:
     qWaitForWindow = QTest.qWaitForWindowShown
@@ -121,14 +122,14 @@ class TestOWSpectra(WidgetTest):
             out = self.get_output("Selection")
             self.assertIsNone(out, None)
             out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
-            sa = out.transform(Orange.data.Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
+            sa = out.transform(Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
             np.testing.assert_equal(sa.X, 0)
             self.select_diagonal()
             out = self.get_output("Selection")
             self.assertEqual(len(data), len(out))
             out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
             self.assertEqual(len(data), len(out))
-            sa = out.transform(Orange.data.Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
+            sa = out.transform(Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
             np.testing.assert_equal(sa.X, 1)
         self.widget.hide()
 
@@ -296,7 +297,7 @@ class TestOWSpectra(WidgetTest):
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, None)
         self.widget.curveplot.feature_color = "iris"
-        self.send_signal("Data", Orange.data.Table("housing"))
+        self.send_signal("Data", Table("housing"))
         self.assertEqual(self.widget.curveplot.feature_color, None)
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
@@ -345,7 +346,7 @@ class TestOWSpectra(WidgetTest):
         out2 = self.get_output("Selection")
         self.assertEqual(len(out), 1)
         # while resending the same data as a different object should
-        self.send_signal("Data", Orange.data.Table("iris"))
+        self.send_signal("Data", Table("iris"))
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
 
@@ -365,7 +366,7 @@ class TestOWSpectra(WidgetTest):
         oldvars = data.domain.variables + data.domain.metas
         group_at = [a for a in newvars if a not in oldvars][0]
         unselected = group_at.to_val("Unselected")
-        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != unselected)]
+        out = out[np.flatnonzero(out.transform(Domain([group_at])).X != unselected)]
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o for o in out], [data[i] for i in [1, 2, 3, 4]])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
