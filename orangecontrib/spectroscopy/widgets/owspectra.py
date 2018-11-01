@@ -492,6 +492,10 @@ class SelectRegion(pg.LinearRegionItem):
         self.setBrush(pg.mkBrush(color))
 
 
+class NoSuchCurve(ValueError):
+    pass
+
+
 class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
@@ -509,6 +513,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     selection_changed = pyqtSignal()
     new_sampling = pyqtSignal(object)
+    highlight_changed = pyqtSignal()
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -1018,15 +1023,27 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                     pass
             if self.highlighted != bd:
                 QToolTip.hideText()
-            if self.highlighted is not None and bd is None:
-                self.highlighted = None
-                self.highlighted_curve.hide()
-            if bd is not None:
-                self.highlighted = bd
+            self.highlight(bd)
+
+    def highlight(self, index):
+        """
+        Highlight shown curve with the given index (of the sampled curves).
+        """
+        old = self.highlighted
+        if index is not None and not 0 <= index < len(self.curves[0][1]):
+            raise NoSuchCurve()
+
+        self.highlighted = index
+        if self.highlighted is None:
+            self.highlighted_curve.hide()
+        else:
+            if old != self.highlighted:
                 x = self.curves[0][0]
                 y = self.curves[0][1][self.highlighted]
                 self.highlighted_curve.setData(x=x, y=y)
-                self.highlighted_curve.show()
+            self.highlighted_curve.show()
+        if old != self.highlighted:
+            self.highlight_changed.emit()
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]

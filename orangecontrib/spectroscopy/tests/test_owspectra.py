@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 from AnyQt.QtCore import QRectF, QPoint, Qt
 from AnyQt.QtTest import QTest
 import numpy as np
@@ -8,7 +10,7 @@ from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
 
 from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
-    PlotCurvesItem
+    PlotCurvesItem, NoSuchCurve
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.line_geometry import intersect_curves, \
     distance_line_segment
@@ -385,3 +387,22 @@ class TestOWSpectra(WidgetTest):
         self.widget.curveplot.cycle_color_attr()
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
         self.widget.curveplot.show_average()
+
+    def test_curveplot_highlight(self):
+        data = self.iris[:10]
+        curveplot = self.widget.curveplot
+        self.send_signal("Data", data)
+        self.assertIsNone(curveplot.highlighted)
+
+        m = Mock()
+        curveplot.highlight_changed.connect(m)
+        curveplot.highlight(4)
+        self.assertEqual(curveplot.highlighted, 4)
+        self.assertEqual(m.call_count, 1)
+
+        curveplot.highlight(0)
+        curveplot.highlight(9)
+        with self.assertRaises(NoSuchCurve):
+            curveplot.highlight(-1)
+        with self.assertRaises(NoSuchCurve):
+            curveplot.highlight(10)
