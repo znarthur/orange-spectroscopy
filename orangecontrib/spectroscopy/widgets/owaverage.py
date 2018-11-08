@@ -5,6 +5,7 @@ import Orange.data
 from Orange.data.filter import SameValue
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
+from Orange.widgets.utils.itemmodels import DomainModel
 
 
 class OWAverage(OWWidget):
@@ -41,7 +42,15 @@ class OWAverage(OWWidget):
         self.data = None
         self.set_data(self.data)  # show warning
 
+        self.group_vars = DomainModel(
+            placeholder="None", separators=False,
+            valid_types=Orange.data.DiscreteVariable)
+        self.group_view = gui.listView(
+            self.controlArea, self, "group_var", box="Group by",
+            model=self.group_vars, callback=self.grouping_changed)
+
         gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
+
 
     @Inputs.data
     def set_data(self, dataset):
@@ -52,6 +61,7 @@ class OWAverage(OWWidget):
         if dataset is None:
             self.Warning.nodata()
         else:
+            self.group_vars.set_domain(dataset.domain)
             self.openContext(dataset.domain)
 
         self.commit()
@@ -61,6 +71,11 @@ class OWAverage(OWWidget):
         mean = np.nanmean(table.X, axis=0, keepdims=True)
         n_domain = Orange.data.Domain(table.domain.attributes, None, None)
         return Orange.data.Table.from_numpy(n_domain, X=mean)
+
+
+    def grouping_changed(self):
+        """Calls commit() indirectly to respect auto_commit setting."""
+        self.commit()
 
     def commit(self):
         averages = None
