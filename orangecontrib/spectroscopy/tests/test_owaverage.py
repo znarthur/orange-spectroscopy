@@ -4,7 +4,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owaverage import OWAverage
 
 
-class TestOWReshape(WidgetTest):
+class TestOWAverage(WidgetTest):
 
     @classmethod
     def setUpClass(cls):
@@ -28,14 +28,15 @@ class TestOWReshape(WidgetTest):
         out = self.get_output("Averages")
         self.assertTrue(out.X.shape[0] == 1)
         self.assertEqual(out.X.shape[1], self.collagen.X.shape[1])
-        np.testing.assert_equal(out.X[:,:3],np.mean(self.collagen.X[:,:3], axis=0, keepdims=True))
+        avg = np.mean(self.collagen.X[:,:3], axis=0, keepdims=True)
+        np.testing.assert_equal(out.X[:,:3], avg)
 
     def test_domain(self):
         self.send_signal("Data", self.collagen)
         out = self.get_output("Averages")
         self.assertEqual(self.collagen.domain.attributes, out.domain.attributes)
 
-    def test_data(self):
+    def test_nan_propagation(self):
         copy = self.collagen.copy()
         copy[:,:2] = np.nan
         copy[3,3] = np.nan

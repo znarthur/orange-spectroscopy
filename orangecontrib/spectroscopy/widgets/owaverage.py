@@ -4,10 +4,6 @@ import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
-from Orange.widgets.utils.annotated_data import get_next_name
-from orangecontrib.spectroscopy.widgets.gui import lineEditIntOrNone
-
-from AnyQt.QtWidgets import QWidget, QFormLayout
 
 
 class OWAverage(OWWidget):
@@ -25,7 +21,7 @@ class OWAverage(OWWidget):
         data = Input("Data", Orange.data.Table, default=True)
 
     class Outputs:
-        map = Output("Averages", Orange.data.Table, default=True)
+        averages = Output("Averages", Orange.data.Table, default=True)
 
     autocommit = settings.Setting(True)
 
@@ -57,7 +53,7 @@ class OWAverage(OWWidget):
             mean = np.nanmean(self.data.X, axis=0, keepdims=True)
             n_domain = Orange.data.Domain(self.data.domain.attributes, None, None)
             averages = Orange.data.Table.from_numpy(n_domain, X=mean)
-        self.Outputs.map.send(averages)
+        self.Outputs.averages.send(averages)
 
 
 def main(argv=sys.argv):
