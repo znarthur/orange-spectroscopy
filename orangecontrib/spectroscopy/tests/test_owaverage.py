@@ -44,3 +44,16 @@ class TestOWAverage(WidgetTest):
         out = self.get_output("Averages")
         self.assertTrue(np.all(np.isnan(out[:,:2])))
         self.assertFalse(np.any(np.isnan(out[:,2:])))
+
+    def test_average_by_group(self):
+        self.send_signal("Data", self.collagen)
+        self.widget.group_var = self.collagen.domain.class_var
+        self.widget.commit()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(self.collagen.domain.class_var.values))
+        self.assertEqual(out.X.shape[1], self.collagen.X.shape[1])
+        # First 195 rows are labelled "collagen"
+        collagen_avg = np.mean(self.collagen.X[0:194], axis=0)
+        # TODO this doesn't verify that the collagen avg row is properly labelled
+        np.testing.assert_equal(out.X[0,], collagen_avg)
+

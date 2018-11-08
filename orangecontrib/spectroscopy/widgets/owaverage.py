@@ -2,6 +2,7 @@ import sys
 import numpy as np
 
 import Orange.data
+from Orange.data.filter import SameValue
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
@@ -23,6 +24,9 @@ class OWAverage(OWWidget):
     class Outputs:
         averages = Output("Averages", Orange.data.Table, default=True)
 
+    settingsHandler = settings.DomainContextHandler()
+    group_var = settings.ContextSetting(None)
+
     autocommit = settings.Setting(True)
 
     want_main_area = False
@@ -42,17 +46,32 @@ class OWAverage(OWWidget):
     @Inputs.data
     def set_data(self, dataset):
         self.Warning.nodata.clear()
+        self.closeContext()
         self.data = dataset
+        self.group_var = None
         if dataset is None:
             self.Warning.nodata()
+        else:
+            self.openContext(dataset.domain)
+
         self.commit()
+
+    @staticmethod
+    def average_table(table):
+        mean = np.nanmean(table.X, axis=0, keepdims=True)
+        n_domain = Orange.data.Domain(table.domain.attributes, None, None)
+        return Orange.data.Table.from_numpy(n_domain, X=mean)
 
     def commit(self):
         averages = None
         if self.data is not None:
-            mean = np.nanmean(self.data.X, axis=0, keepdims=True)
-            n_domain = Orange.data.Domain(self.data.domain.attributes, None, None)
-            averages = Orange.data.Table.from_numpy(n_domain, X=mean)
+            if self.group_var is None:
+                averages = self.average_table(self.data)
+            else:
+                averages = Orange.data.Table.from_domain(self.data.domain)
+                for value in self.group_var.values:
+                    svfilter = SameValue(self.group_var, value)
+                    averages.extend(self.average_table(svfilter(self.data)))
         self.Outputs.averages.send(averages)
 
 
