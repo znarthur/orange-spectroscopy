@@ -18,7 +18,7 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
     WrongReferenceException, replace_infs
 
-from extranormal3 import normal_xas#, extra_exafs
+from extranormal3 import normal_xas, extra_exafs
 
 
 class PCADenoisingFeature(SelectColumn):
@@ -485,11 +485,10 @@ class _XASnormalizationCommon(CommonDomainOrder):
     def transformed(self, X, energies):
 
         spectra, jump_vals = normal_xas.normalize_all(energies, X,
-                                                  self.edge, self.preedge_params, self.postedge_params)
+                                                      self.edge, self.preedge_params, self.postedge_params)
         jump_vals = jump_vals.reshape((len(jump_vals),1))
 
         return np.hstack((spectra, jump_vals ))
-        #return np.hstack((spectra, np.ones((len(jump_vals), 1)) ))
 
 
 class XASnormalization(Preprocess):
@@ -518,7 +517,8 @@ class XASnormalization(Preprocess):
         # len(newattrs) is the nb of the last column of the matrix returned by
         #   XASnormalizationFeature.transformed method
 
-        print ('meta: '+ str(newmetas))
+        #print ('meta: '+ str(newmetas))
+        #print ('newattrs: '+ str(newattrs.shape))
 
         domain = Orange.data.Domain(
                     newattrs, data.domain.class_vars, newmetas)
@@ -531,18 +531,37 @@ class ExtractEXAFSFeature(SelectColumn):
 
 class _ExtractEXAFSCommon(CommonDomain):
 
-    def __init__(self, edge, poly_deg, domain):
+    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, domain):
         super().__init__(domain)
         self.edge = edge
+        self.extra_from = extra_from
+        self.extra_to = extra_to
         self.poly_deg = poly_deg
+        self.kweight = kweight
+        self.m = m
 
     def transformed(self, data):
         #print ([attr.name for attr in data.domain])
-        print (data.X.shape)
+        print ('_ExtractEXAFSCommon.transformed:')
+        #print (data.X.shape)
+        #print (data.metas[:, -1])
 
-        #extra_vals = extra_exafs.extract_all(energies, data.X, self.edge)
 
-        return data.X
+        energies = getx(data)
+        I_jumps = data.metas[:, -1]
+
+        Km_exafs, exafs, bkgr = extra_exafs.extract_all(energies, data.X,
+                                                        self.edge, I_jumps,
+                                                        self.extra_from, self.extra_to,
+                                                        self.poly_deg, self.kweight, self.m)
+
+        print('poly degree = ' + str(self.poly_deg))
+
+        #print (exafs.shape)
+        #print (bkgr.shape)
+
+        return Km_exafs
+
 
 class ExtractEXAFS(Preprocess):
     """
@@ -553,20 +572,43 @@ class ExtractEXAFS(Preprocess):
     ref : reference single-channel (Orange.data.Table)
     """
 
-    def __init__(self, edge=None, poly_deg=None):
+    def __init__(self, edge=None, extra_from=None, extra_to=None, poly_deg=None,
+                 kweight=None, m=None):
         self.edge = edge
+        self.extra_from = extra_from
+        self.extra_to = extra_to
         self.poly_deg = poly_deg
-
+        self.kweight = kweight
+        self.m = m
 
     def __call__(self, data):
 
-        common = _ExtractEXAFSCommon(self.edge, self.poly_deg, data.domain)
+        common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
+                                     self.poly_deg, self.kweight, self.m, data.domain)
+        # --- compute K
+        energies = getx(data)
+
+        start_idx, end_idx = extra_exafs.get_idx_bounds(energies, self.edge,
+                                                        self.extra_from, self.extra_to)
+        #print ('idxs: from ' + str(start_idx) + ' to '+ str(end_idx))
+        print ('energies: from ' + str(energies[start_idx]) + ' to '+ str(energies[end_idx]))
+
+        k_points = extra_exafs.get_K_points(energies, self.edge, start_idx, end_idx)
+        print ('k_points: from ' + str(k_points[0]) + ' to '+ str(k_points[-1]))
+        # ----------
+
+        newattrs = [Orange.data.ContinuousVariable(
+                    name=str(var), compute_value=ExtractEXAFSFeature(i, common))
+                    for i, var in enumerate(k_points)]
+        '''
         newattrs = [Orange.data.ContinuousVariable(
                     name=var.name, compute_value=ExtractEXAFSFeature(i, common))
                     for i, var in enumerate(data.domain.attributes)]
+        '''
+
         domain = Orange.data.Domain(newattrs, data.domain.class_vars, data.domain.metas)
 
-        return data.from_table(domain, data)
+        return data.from_table(domain, data) # <- transformed
 
 #######################################################
 
