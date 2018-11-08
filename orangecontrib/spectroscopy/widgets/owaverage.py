@@ -68,10 +68,37 @@ class OWAverage(OWWidget):
 
     @staticmethod
     def average_table(table):
-        mean = np.nanmean(table.X, axis=0, keepdims=True)
-        n_domain = Orange.data.Domain(table.domain.attributes, None, None)
-        return Orange.data.Table.from_numpy(n_domain, X=mean)
+        """
+        Return a features-averaged table.
 
+        For metas and class_vars,
+          - return average value of ContinuousVariable
+          - return value of DiscreteVariable, StringVariable and TimeVariable
+            if all are the same.
+          - return unknown otherwise.
+        """
+        mean = np.nanmean(table.X, axis=0, keepdims=True)
+        avg_table = Orange.data.Table.from_numpy(table.domain,
+                                            X=mean,
+                                            Y=np.atleast_2d(table.Y[0]),
+                                            metas=np.atleast_2d(table.metas[0]))
+        cont_vars = [var for var in table.domain.class_vars + table.domain.metas
+                        if isinstance(var, Orange.data.ContinuousVariable)]
+        for var in cont_vars:
+            index = table.domain.index(var)
+            col, _ = table.get_column_view(index)
+            avg_table[0, index] = np.nanmean(col)
+
+        other_vars = [var for var in table.domain.class_vars + table.domain.metas
+                      if not isinstance(var, Orange.data.ContinuousVariable)]
+        for var in other_vars:
+            index = table.domain.index(var)
+            col, _ = table.get_column_view(index)
+            val = var.to_val(avg_table[0, var])
+            if not np.all(col == val):
+                avg_table[0, var] = Orange.data.Unknown
+
+        return avg_table
 
     def grouping_changed(self):
         """Calls commit() indirectly to respect auto_commit setting."""
@@ -86,7 +113,8 @@ class OWAverage(OWWidget):
                 averages = Orange.data.Table.from_domain(self.data.domain)
                 for value in self.group_var.values:
                     svfilter = SameValue(self.group_var, value)
-                    averages.extend(self.average_table(svfilter(self.data)))
+                    v_table = self.average_table(svfilter(self.data))
+                    averages.extend(v_table)
         self.Outputs.averages.send(averages)
 
 
