@@ -28,8 +28,8 @@ class TestOWAverage(WidgetTest):
         out = self.get_output("Averages")
         self.assertTrue(out.X.shape[0] == 1)
         self.assertEqual(out.X.shape[1], self.collagen.X.shape[1])
-        avg = np.mean(self.collagen.X[:,:3], axis=0, keepdims=True)
-        np.testing.assert_equal(out.X[:,:3], avg)
+        avg = np.mean(self.collagen.X[:, :3], axis=0, keepdims=True)
+        np.testing.assert_equal(out.X[:, :3], avg)
         # Other variables are unknown if not all the same value
         self.assertTrue(np.isnan(out.Y[0]))
 
@@ -40,12 +40,12 @@ class TestOWAverage(WidgetTest):
 
     def test_nan_propagation(self):
         copy = self.collagen.copy()
-        copy[:,:2] = np.nan
-        copy[3,3] = np.nan
+        copy[:, :2] = np.nan
+        copy[3, 3] = np.nan
         self.send_signal("Data", copy)
         out = self.get_output("Averages")
-        self.assertTrue(np.all(np.isnan(out[:,:2])))
-        self.assertFalse(np.any(np.isnan(out.X[:,2:])))
+        self.assertTrue(np.all(np.isnan(out[:, :2])))
+        self.assertFalse(np.any(np.isnan(out.X[:, 2:])))
 
     def test_average_by_group(self):
         # Alter collagen domain to have ContinuousVariable in metas
