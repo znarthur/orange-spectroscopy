@@ -302,6 +302,14 @@ class TestOWSpectra(WidgetTest):
         self.widget.curveplot.cycle_color_attr()
         self.assertEqual(self.widget.curveplot.feature_color, None)
 
+    def test_color_individual(self):
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.curveplot.color_individual, False)
+        self.widget.curveplot.color_individual_changed()
+        self.assertEqual(self.widget.curveplot.color_individual, True)
+        # colorbrewer set1 has 9 colors, so we should have 9 possible pens
+        self.assertEqual(len(self.widget.curveplot.pen_selected), 9)
+
     def test_open_selection(self):
         # saved selection in the file should be reloaded
         self.widget = self.create_widget(
