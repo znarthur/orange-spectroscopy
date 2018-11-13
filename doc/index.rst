@@ -18,6 +18,7 @@ Widgets
    widgets/preprocess-spectra
    widgets/integrate-spectra
    widgets/multifile
+   widgets/average
    widgets/interferogram-to-spectrum
    widgets/reshape-map
 

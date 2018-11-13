@@ -2,8 +2,10 @@ import sys
 import numpy as np
 
 import Orange.data
+from Orange.data.filter import SameValue
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
+from Orange.widgets.utils.itemmodels import DomainModel
 
 
 class OWAverage(OWWidget):
@@ -23,6 +25,9 @@ class OWAverage(OWWidget):
     class Outputs:
         averages = Output("Averages", Orange.data.Table, default=True)
 
+    settingsHandler = settings.DomainContextHandler()
+    group_var = settings.ContextSetting(None)
+
     autocommit = settings.Setting(True)
 
     want_main_area = False
@@ -37,22 +42,79 @@ class OWAverage(OWWidget):
         self.data = None
         self.set_data(self.data)  # show warning
 
+        self.group_vars = DomainModel(
+            placeholder="None", separators=False,
+            valid_types=Orange.data.DiscreteVariable)
+        self.group_view = gui.listView(
+            self.controlArea, self, "group_var", box="Group by",
+            model=self.group_vars, callback=self.grouping_changed)
+
         gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
+
 
     @Inputs.data
     def set_data(self, dataset):
         self.Warning.nodata.clear()
+        self.closeContext()
         self.data = dataset
+        self.group_var = None
         if dataset is None:
             self.Warning.nodata()
+        else:
+            self.group_vars.set_domain(dataset.domain)
+            self.openContext(dataset.domain)
+
+        self.commit()
+
+    @staticmethod
+    def average_table(table):
+        """
+        Return a features-averaged table.
+
+        For metas and class_vars,
+          - return average value of ContinuousVariable
+          - return value of DiscreteVariable, StringVariable and TimeVariable
+            if all are the same.
+          - return unknown otherwise.
+        """
+        mean = np.nanmean(table.X, axis=0, keepdims=True)
+        avg_table = Orange.data.Table.from_numpy(table.domain,
+                                                 X=mean,
+                                                 Y=np.atleast_2d(table.Y[0]),
+                                                 metas=np.atleast_2d(table.metas[0]))
+        cont_vars = [var for var in table.domain.class_vars + table.domain.metas
+                     if isinstance(var, Orange.data.ContinuousVariable)]
+        for var in cont_vars:
+            index = table.domain.index(var)
+            col, _ = table.get_column_view(index)
+            avg_table[0, index] = np.nanmean(col)
+
+        other_vars = [var for var in table.domain.class_vars + table.domain.metas
+                      if not isinstance(var, Orange.data.ContinuousVariable)]
+        for var in other_vars:
+            index = table.domain.index(var)
+            col, _ = table.get_column_view(index)
+            val = var.to_val(avg_table[0, var])
+            if not np.all(col == val):
+                avg_table[0, var] = Orange.data.Unknown
+
+        return avg_table
+
+    def grouping_changed(self):
+        """Calls commit() indirectly to respect auto_commit setting."""
         self.commit()
 
     def commit(self):
         averages = None
         if self.data is not None:
-            mean = np.nanmean(self.data.X, axis=0, keepdims=True)
-            n_domain = Orange.data.Domain(self.data.domain.attributes, None, None)
-            averages = Orange.data.Table.from_numpy(n_domain, X=mean)
+            if self.group_var is None:
+                averages = self.average_table(self.data)
+            else:
+                averages = Orange.data.Table.from_domain(self.data.domain)
+                for value in self.group_var.values:
+                    svfilter = SameValue(self.group_var, value)
+                    v_table = self.average_table(svfilter(self.data))
+                    averages.extend(v_table)
         self.Outputs.averages.send(averages)
 
 
@@ -68,5 +130,5 @@ def main(argv=sys.argv):
     return 0
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     sys.exit(main())
