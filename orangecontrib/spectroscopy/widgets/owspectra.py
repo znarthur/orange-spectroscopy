@@ -505,6 +505,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     invertX = Setting(False)
     viewtype = Setting(INDIVIDUAL)
+    show_grid = Setting(False)
 
     selection_changed = pyqtSignal()
 
@@ -616,7 +617,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.view_average_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(self.view_average_menu)
 
-        self.show_grid = False
         self.show_grid_a = QAction(
             "Show grid", self, shortcut=Qt.Key_G, checkable=True,
             triggered=self.grid_changed
@@ -716,6 +716,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu.addAction(labels_action)
         self.labels_changed()  # apply saved labels
 
+        self.grid_apply()
         self.invertX_apply()
         self.plot.vb.set_mode_panning()
 
