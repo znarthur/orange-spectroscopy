@@ -69,6 +69,9 @@ NAN = float("nan")
 # distance to the first point in pixels that finishes the polygon
 SELECT_POLYGON_TOLERANCE = 10
 
+COLORBREWER_SET1 = [(228, 26, 28), (55, 126, 184), (77, 175, 74), (152, 78, 163), (255, 127, 0),
+                    (255, 255, 51), (166, 86, 40), (247, 129, 191), (153, 153, 153)]
+
 
 class SelectionGroupMixin:
     selection_group_saved = Setting(None, schema_only=True)
@@ -502,7 +505,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     range_y1 = Setting(None)
     range_y2 = Setting(None)
     feature_color = ContextSetting(None)
-
+    color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
     invertX = Setting(False)
     viewtype = Setting(INDIVIDUAL)
 
@@ -540,9 +543,11 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.plot.vb.sigResized.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
-        self.pen_normal = defaultdict(lambda: pg.mkPen(color=(200, 200, 200, 127), width=1))
-        self.pen_subset = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=1))
-        self.pen_selected = defaultdict(lambda: pg.mkPen(color=(0, 0, 0, 127), width=2, style=Qt.DotLine))
+        pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(0, 0, 0, 127),
+                                                                   QColor(200, 200, 200, 127))
+        self.pen_normal = defaultdict(lambda: pen_normal)
+        self.pen_subset = defaultdict(lambda: pen_subset)
+        self.pen_selected = defaultdict(lambda: pen_selected)
         self.label = pg.TextItem("", anchor=(1, 0))
         self.label.setText("", color=(0, 0, 0))
         self.discrete_palette = None
@@ -680,6 +685,13 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu.addMenu(range_menu)
         self.addActions(actions)
 
+        self.color_individual_menu = QAction(
+            "Color individual curves", self, shortcut=Qt.Key_I, checkable=True,
+            triggered=lambda x: self.color_individual_changed()
+        )
+        self.color_individual_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        view_menu.addAction(self.color_individual_menu)
+
         choose_color_action = QWidgetAction(self)
         choose_color_box = gui.hBox(self)
         choose_color_box.setFocusPolicy(Qt.TabFocus)
@@ -717,6 +729,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.labels_changed()  # apply saved labels
 
         self.invertX_apply()
+        self.color_individual_apply()
+        self._color_individual_cycle = COLORBREWER_SET1
         self.plot.vb.set_mode_panning()
 
         self.reports = {}  # current reports
@@ -832,6 +846,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.vb.setRange(xRange=(0, 1), yRange=(0, 1))
         self.plot.vb.setRange(rect=vr)
         self.invertX_menu.setChecked(self.invertX)
+
+    def color_individual_changed(self):
+        self.color_individual = not self.color_individual
+        self.color_individual_apply()
+        self.update_view()
+
+    def color_individual_apply(self):
+        self.color_individual_menu.setChecked(self.color_individual)
 
     def save_graph(self):
         try:
@@ -1013,7 +1035,11 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         if inselected:
             thispen = self.pen_selected
         color_var = self._current_color_var()
-        value = None if color_var is None else str(self.data[idcdata][color_var])
+        value = None
+        if color_var is not None:
+            value = str(self.data[idcdata][color_var])
+        elif self.color_individual:
+            value = idc % len(self._color_individual_cycle)
         self.curves_cont.objs[idc].setPen(thispen[value])
         self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
 
@@ -1092,29 +1118,42 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             color_var = self.data.domain[self.feature_color]
         return color_var
 
+    @staticmethod
+    def _generate_pens(color, color_unselected=None):
+        pen_subset = pg.mkPen(color=color, width=1)
+        pen_selected = pg.mkPen(color=color, width=2, style=Qt.DotLine)
+        if color_unselected is None:
+            color_unselected = color.lighter(150)
+            color_unselected.setAlphaF(0.5)
+        pen_normal = pg.mkPen(color=color_unselected, width=1)
+        return pen_normal, pen_selected, pen_subset
+
     def set_pen_colors(self):
         self.pen_normal.clear()
         self.pen_subset.clear()
         self.pen_selected.clear()
         color_var = self._current_color_var()
         self.legend.clear()
+        palette, legend = False, False
         if color_var is not None:
             colors = color_var.colors
             discrete_palette = ColorPaletteGenerator(
                 number_of_colors=len(colors), rgb_colors=colors)
-            for v in color_var.values:
-                basecolor = discrete_palette[color_var.to_val(v)]
-                basecolor = QColor(basecolor)
-                basecolor.setAlphaF(0.9)
-                self.pen_subset[v] = pg.mkPen(color=basecolor, width=1)
-                self.pen_selected[v] = pg.mkPen(color=basecolor, width=2, style=Qt.DotLine)
-                notselcolor = basecolor.lighter(150)
-                notselcolor.setAlphaF(0.5)
-                self.pen_normal[v] = pg.mkPen(color=notselcolor, width=1)
-                pen = pg.mkPen(color=basecolor)
-                brush = pg.mkBrush(color=basecolor)
-                self.legend.addItem(pg.ScatterPlotItem(pen=pen, brush=brush, size=10, symbol="o"),
-                                    escape(v))
+            palette = [(v, discrete_palette[color_var.to_val(v)]) for v in color_var.values]
+            legend = True
+        elif self.color_individual:
+            palette = [(i, QColor(*c)) for i, c in enumerate(self._color_individual_cycle)]
+        if palette:
+            for v, color in palette:
+                color = QColor(color)  # copy color
+                color.setAlphaF(0.9)
+                self.pen_normal[v], self.pen_selected[v], self.pen_subset[v] = \
+                    self._generate_pens(color)
+                pen = pg.mkPen(color=color)
+                brush = pg.mkBrush(color=color)
+                if legend:
+                    self.legend.addItem(
+                        pg.ScatterPlotItem(pen=pen, brush=brush, size=10, symbol="o"), escape(v))
         self.legend.setVisible(bool(self.legend.items))
 
     def show_individual(self):
