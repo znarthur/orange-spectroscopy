@@ -369,3 +369,11 @@ class TestOWSpectra(WidgetTest):
         out = self.get_output("Selection")
         np.testing.assert_equal(len(out), 3)
         np.testing.assert_equal([o for o in out], [data[i] for i in [2, 3, 4]])
+
+    def test_unknown_feature_color(self):
+        data = Table("iris")
+        data[0][data.domain.class_var] = np.nan
+        self.send_signal("Data", data)
+        self.widget.curveplot.cycle_color_attr()
+        self.assertEqual(self.widget.curveplot.feature_color, "iris")
+        self.widget.curveplot.show_average()
