@@ -511,6 +511,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     show_grid = Setting(False)
 
     selection_changed = pyqtSignal()
+    new_sampling = pyqtSignal(object)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -867,9 +868,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.data = None
         self.data_x = None  # already sorted x-axis
         self.data_xsind = None  # sorting indices for x-axis
-        self.sampled_indices = []
-        self.sampled_indices_inverse = {}
-        self.sampling = None
         self.discrete_palette = None
 
     def clear_graph(self):
@@ -893,6 +891,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.addItem(self.hLine, ignoreBounds=True)
         self.viewhelpers = True
         self.plot.addItem(self.curves_cont)
+
+        self.sampled_indices = []
+        self.sampled_indices_inverse = {}
+        self.sampling = None
+        self.new_sampling.emit(None)
+
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
 
@@ -1087,6 +1091,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         random.Random(self.sample_seed).shuffle(self.sampled_indices)  # for sequential classes#
         self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
         ys = self.data.X[self.sampled_indices][:, self.data_xsind]
+        self.new_sampling.emit(len(self.sampled_indices))
         self.curves.append((x, ys))
         for y in ys:
             c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
@@ -1370,13 +1375,14 @@ class OWSpectra(OWWidget):
         self.controlArea.hide()
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
+        self.curveplot.new_sampling.connect(self._showing_sample_info)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
 
     @Inputs.data
     def set_data(self, data):
         self.closeContext()  # resets schema_only settings
-        self.Information.showing_sample.clear()
+        self._showing_sample_info(None)
         self.Warning.no_x.clear()
         self.openContext(data)
         self.curveplot.set_data(data, auto_update=False)
@@ -1390,11 +1396,6 @@ class OWSpectra(OWWidget):
 
     def handleNewSignals(self):
         self.curveplot.update_view()
-        if self.curveplot.data:
-            data = self.curveplot.data
-            if self.curveplot.sampled_indices \
-                    and len(self.curveplot.sampled_indices) != len(data):
-                self.Information.showing_sample(len(self.curveplot.sampled_indices), len(data))
 
     def selection_changed(self):
         # selection table
@@ -1408,6 +1409,12 @@ class OWSpectra(OWWidget):
             if len(selection_indices):
                 selected = self.curveplot.data[selection_indices]
         self.Outputs.selected_data.send(selected)
+
+    def _showing_sample_info(self, num):
+        if num is not None and self.curveplot.data and num != len(self.curveplot.data):
+            self.Information.showing_sample(num, len(self.curveplot.data))
+        else:
+            self.Information.showing_sample.clear()
 
     def save_graph(self):
         # directly call save_graph so it hides axes

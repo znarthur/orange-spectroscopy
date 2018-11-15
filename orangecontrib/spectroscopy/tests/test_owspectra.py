@@ -181,6 +181,13 @@ class TestOWSpectra(WidgetTest):
         self.send_signal("Data", self.iris[:100])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
 
+    def test_information_average_mode(self):
+        self.send_signal("Data", self.iris[:100])
+        self.assertFalse(self.widget.Information.showing_sample.is_shown())
+        self.widget.curveplot.show_average()
+        self.send_signal("Data", self.iris[:99])
+        self.assertFalse(self.widget.Information.showing_sample.is_shown())
+
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
         x, cys = self.widget.curveplot.curves[0]
