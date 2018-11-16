@@ -3,6 +3,7 @@ from collections import Iterable
 
 import numpy as np
 import pyqtgraph as pg
+from decimal import Decimal
 
 import Orange.data
 from Orange import preprocess
@@ -49,6 +50,7 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineE
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
+from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 
 from extranormal3 import curved_tools
 
@@ -659,17 +661,20 @@ class SpectralTransformEditor(BaseEditorOrange):
 
 
 def init_bounds_hform(prepro_widget,
-                      from_val, to_val, from_lim, to_lim, from_line, to_line,
-                      from_val_name, to_val_name, title=''):
+                      from_val, to_val, from_lim, to_lim,
+                      title='',
+                      from_line=None, to_line=None,
+                      from_val_name=None, to_val_name=None):
     from_val = 0.
     to_val = 0.
 
     bounds_form = QGridLayout()
 
-
+    '''
     dummylabel = QLabel()
     dummylabel.setText('')
     bounds_form.addWidget(dummylabel, 0, 0)
+    '''
 
     title_font = QFont()
     title_font.setBold(True)
@@ -678,7 +683,7 @@ def init_bounds_hform(prepro_widget,
     titlabel.setFont(title_font)
     if title != '':
         titlabel.setText(title)
-    bounds_form.addWidget(titlabel, 1, 0)
+        bounds_form.addWidget(titlabel, 1, 0)
     '''
     bounds_form.addWidget(" ", QLabel())
     if title != '':
@@ -693,22 +698,22 @@ def init_bounds_hform(prepro_widget,
     right_bound.addRow("to", to_lim)
 
     bounds_form.addLayout(left_bound, 2, 0)
-    #bounds_form.setHorizontalSpacing(5)
+    # bounds_form.setHorizontalSpacing(5)
     bounds_form.addLayout(right_bound, 2, 1)
-
 
     from_lim.focusIn.connect(prepro_widget.activateOptions)
     to_lim.focusIn.connect(prepro_widget.activateOptions)
     prepro_widget.focusIn = prepro_widget.activateOptions
 
-    connect_line(from_line, prepro_widget, from_val_name)
-    from_line.sigMoveFinished.connect(prepro_widget.edited)
+    if (from_line != None and to_line != None and
+            from_val_name != None and to_val_name != None):
+        connect_line(from_line, prepro_widget, from_val_name)
+        from_line.sigMoveFinished.connect(prepro_widget.edited)
 
-    connect_line(to_line, prepro_widget, to_val_name)
-    to_line.sigMoveFinished.connect(prepro_widget.edited)
+        connect_line(to_line, prepro_widget, to_val_name)
+        to_line.sigMoveFinished.connect(prepro_widget.edited)
 
     return bounds_form
-
 
 
 
@@ -729,8 +734,16 @@ class XASnormalizationEditor(BaseEditorOrange):
         edge_form.setFieldGrowthPolicy(0)
         edge_edit = lineEditFloatRange(self, self, "edge", callback=self.edited.emit)
         edge_form.addRow("Edge", edge_edit)
+        dummylabel = QLabel()
+        dummylabel.setText('   ')
+        edge_form.addWidget(dummylabel) # adding vertical space
         self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
         curr_row += 1
+
+        '''
+        self.layout().addWidget(dummylabel, 1, 0)
+        curr_row += 1
+        '''
 
         # ---------------------------- pre-edge form ------------
         self.preedge_from = self.preedge_to = 0.
@@ -742,9 +755,9 @@ class XASnormalizationEditor(BaseEditorOrange):
         preedge_form = init_bounds_hform(self,
                                          self.preedge_from, self.preedge_to,
                                          self._pre_from_lim, self._pre_to_lim,
+                                         "Pre-edge fit:",
                                          self.pre_from_line, self.pre_to_line,
-                                         "preedge_from", "preedge_to",
-                                         "Pre-edge fit:")
+                                         "preedge_from", "preedge_to")
         #self.layout().addItem(spacer, curr_row, 0)
         #curr_row += 1
         self.layout().addLayout(preedge_form, curr_row, 0, 1, 2)
@@ -755,6 +768,9 @@ class XASnormalizationEditor(BaseEditorOrange):
         preedgedeg_form.setFieldGrowthPolicy(0)
         preedgedeg_edit = lineEditFloatRange(self, self, "preedge_deg", callback=self.edited.emit)
         preedgedeg_form.addRow("poly degree", preedgedeg_edit)
+        dummylabel2 = QLabel()
+        dummylabel2.setText('   ')
+        preedgedeg_form.addWidget(dummylabel2)  # adding vertical space
         self.layout().addLayout(preedgedeg_form, curr_row, 0, 1, 1)
         curr_row += 1
 
@@ -771,9 +787,9 @@ class XASnormalizationEditor(BaseEditorOrange):
         postedge_form = init_bounds_hform(self,
                                           self.postedge_from, self.postedge_to,
                                           self._post_from_lim, self._post_to_lim,
+                                          "Post-edge fit:",
                                           self.post_from_line, self.post_to_line,
-                                          "postedge_from", "postedge_to",
-                                          "Post-edge fit:")
+                                          "postedge_from", "postedge_to")
         self.layout().addLayout(postedge_form, curr_row, 0, 1, 2)
         curr_row += 1
 
@@ -875,11 +891,31 @@ class XASnormalizationEditor(BaseEditorOrange):
         return XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
 
 
+class E2K(ValueTransform):
+
+    def __init__(self, xas_prepro_widget):
+        self.xas_prepro_widget = xas_prepro_widget
+
+    def transform(self, v):
+        #print(type(v), type(self.xas_prepro_widget.edge))
+        res = np.sqrt(0.2625 * (float(v)-float(self.xas_prepro_widget.edge)))
+        return Decimal(float_to_str_decimals(res, 2))
+
+    def inverse(self, v):
+        res = (float(v)**2)/0.2625+float(self.xas_prepro_widget.edge)
+        return Decimal(float_to_str_decimals(res, 2))
+
+
 class ExtractEXAFSEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
         #OWComponent.__init__(self, parent)
+
+        title_font = QFont()
+        title_font.setBold(True)
+        titlabel = QLabel()
+        titlabel.setFont(title_font)
 
         self.setLayout(QGridLayout())
         curr_row = 0
@@ -889,9 +925,11 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         edge_form.setFieldGrowthPolicy(0)
         edge_edit = lineEditFloatRange(self, self, "edge", callback=self.edited.emit)
         edge_form.addRow("Edge", edge_edit)
+        dummylabel = QLabel()
+        dummylabel.setText('   ')
+        edge_form.addWidget(dummylabel) # adding vertical space
         self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
         curr_row += 1
-
 
         self.extra_from = self.extra_to = 0.
         self._extrafrom_lim = lineEditFloatRange(self, self, "extra_from", callback=self.edited.emit)
@@ -902,42 +940,54 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         extrabounds_form = init_bounds_hform(self,
                                              self.extra_from, self.extra_to,
                                              self._extrafrom_lim, self._extrato_lim,
+                                             "Energy bounds:",
                                              self.extrafrom_line, self.extrato_line,
-                                             "extra_from", "extra_to",
-                                             "Polynomial extraction:")
+                                             "extra_from", "extra_to")
         self.layout().addLayout(extrabounds_form, curr_row, 0, 1, 2)
         curr_row += 1
 
+        self.extra_fromK = self.extra_toK = 0.
+        self._extrafromK_lim = lineEditFloatRange(self, self, "extra_fromK", callback=self.edited.emit)
+        self._extratoK_lim = lineEditFloatRange(self, self, "extra_toK", callback=self.edited.emit)
+        Kbounds_form = init_bounds_hform(self,
+                                         self.extra_fromK, self.extra_toK,
+                                         self._extrafromK_lim, self._extratoK_lim,
+                                         "K bounds:")
+        self.layout().addLayout(Kbounds_form, curr_row, 0, 1, 2)
+        curr_row += 1
 
+        connect_settings(self, "extra_from", "extra_fromK", transform=E2K(self))
+        connect_settings(self, "extra_to", "extra_toK", transform=E2K(self))
+
+        # ---------------------------
         self.poly_deg = 0
         polydeg_form = QFormLayout()
         polydeg_form.setFieldGrowthPolicy(0)
         polydeg_edit = lineEditFloatRange(self, self, "poly_deg", callback=self.edited.emit)
-        polydeg_edit.setMinimumWidth(10)
-        polydeg_form.addRow("poly degree", polydeg_edit)
-
-        dummylabel = QLabel()
-        dummylabel.setText('')
-        polydeg_form.addWidget(dummylabel)
-
+        #polydeg_edit.setMinimumWidth(10)
+        titlabel.setText("Polynomial degree:")
+        polydeg_form.addRow(titlabel, polydeg_edit)
+        dummylabel2 = QLabel()
+        dummylabel2.setText('   ')
+        polydeg_form.addWidget(dummylabel2)
         self.layout().addLayout(polydeg_form, curr_row, 0, 1, 1)
         curr_row += 1
-
+        # ----------------------------
         self.kweight = 0
         kweight_form = QFormLayout()
         kweight_form.setFieldGrowthPolicy(0)
         kweight_edit = lineEditFloatRange(self, self, "kweight", callback=self.edited.emit)
-        kweight_edit.setMinimumWidth(10)
-        kweight_form.addRow("kweight", kweight_edit)
+        #kweight_edit.setMinimumWidth(5)
+        kweight_form.addRow("Kweight (fit)", kweight_edit)
         self.layout().addLayout(kweight_form, curr_row, 0, 1, 1)
         curr_row += 1
-
+        # ----------------------------
         self.m = 3
         m_form = QFormLayout()
         m_form.setFieldGrowthPolicy(0)
         m_edit = lineEditFloatRange(self, self, "m", callback=self.edited.emit)
         m_edit.setMinimumWidth(10)
-        m_form.addRow("m", m_edit)
+        m_form.addRow("Kweight (plot)", m_edit)
         self.layout().addLayout(m_form, curr_row, 0, 1, 1)
         curr_row += 1
 
@@ -962,7 +1012,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
         self.poly_deg = params.get("poly_deg", 0)
         self.kweight = params.get("kweight", 0)
-        self.m = params.get("m", 3)
+        self.m = params.get("m", 0)
 
 
     def set_preview_data(self, data):
@@ -1209,8 +1259,14 @@ class EMSCEditor(BaseEditorOrange):
 
 PREPROCESSORS = [
     PreprocessAction(
+        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
+        Description("XAS normalization",
+                    icon_path("Discretize.svg")),
+        XASnormalizationEditor
+    ),
+    PreprocessAction(
         "EXAFS extraction", "orangecontrib.infrared.extractexafs", "EXAFS extraction",
-        Description("EXAFS extraction",
+        Description("Polynomial EXAFS extraction",
                     icon_path("Discretize.svg")),
         ExtractEXAFSEditor
     ),
@@ -1269,12 +1325,6 @@ PREPROCESSORS = [
         Description("Spectral Transformations",
                     icon_path("Discretize.svg")),
         SpectralTransformEditor
-    ),
-    PreprocessAction(
-        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
-        Description("XAS normalization",
-                    icon_path("Discretize.svg")),
-        XASnormalizationEditor
     ),
     PreprocessAction(
         "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",

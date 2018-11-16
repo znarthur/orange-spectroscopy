@@ -546,21 +546,25 @@ class _ExtractEXAFSCommon(CommonDomain):
         #print (data.X.shape)
         #print (data.metas[:, -1])
 
-
         energies = getx(data)
-        I_jumps = data.metas[:, -1]
 
-        Km_exafs, exafs, bkgr = extra_exafs.extract_all(energies, data.X,
-                                                        self.edge, I_jumps,
-                                                        self.extra_from, self.extra_to,
-                                                        self.poly_deg, self.kweight, self.m)
+        #print (len(data.metas))
+        I_jumps = None
+        if len(data.metas) == len(data.X):
+            if len(data.metas[0]):
+                if 'float' in str(type(data.metas[0][-1])):  # for what it worth
+                    I_jumps = data.metas[:, -1]
+                    #print (type(I_jumps[0]))
+        if I_jumps is not None:
+            Km_exafs, exafs, bkgr = extra_exafs.extract_all(energies, data.X,
+                                                            self.edge, I_jumps,
+                                                            self.extra_from, self.extra_to,
+                                                            self.poly_deg, self.kweight, self.m)
 
-        print('poly degree = ' + str(self.poly_deg))
+            return Km_exafs
 
-        #print (exafs.shape)
-        #print (bkgr.shape)
-
-        return Km_exafs
+        print ('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
+        return  data.X
 
 
 class ExtractEXAFS(Preprocess):
