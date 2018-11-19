@@ -1736,11 +1736,9 @@ class SpectralPreprocess(OWWidget):
         create = desc.viewclass.createinstance
         return create(params)
 
-    def buildpreproc(self, limit=None):
+    def buildpreproc(self):
         plist = []
-        if limit == None:
-            limit = self.preprocessormodel.rowCount()
-        for i in range(limit):
+        for i in range(self.preprocessormodel.rowCount()):
             item = self.preprocessormodel.item(i)
             plist.append(self._create_preprocessor(item))
 
