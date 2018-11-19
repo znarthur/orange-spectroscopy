@@ -240,6 +240,10 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
 class BaseEditor(BaseEditor):
 
+    def set_preview_data(self, data):
+        """Handle the preview data (initialize parameters)"""
+        pass
+
     def execute_instance(self, instance, data):
         """Execute the preprocessor instance with the given data and return
         the transformed data.
@@ -1584,9 +1588,7 @@ class SpectralPreprocess(OWWidget):
                 if preview_pos == i:
                     preview_data = data
 
-                if hasattr(widgets[i], "set_preview_data"):
-                    widgets[i].set_preview_data(data)
-
+                widgets[i].set_preview_data(data)
                 item = self.preprocessormodel.item(i)
                 preproc = self._create_preprocessor(item)
                 data = widgets[i].execute_instance(preproc, data)

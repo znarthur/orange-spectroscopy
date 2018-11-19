@@ -7,7 +7,7 @@ import numpy as np
 import Orange.data
 from Orange import preprocess
 from Orange.widgets.data.owpreprocess import (
-    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
+    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked
 )
 from Orange.widgets import gui, settings
 from Orange.widgets.widget import Output
@@ -17,7 +17,9 @@ from orangecontrib.spectroscopy.preprocess import Integrate
 
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
-from orangecontrib.spectroscopy.widgets.owpreprocess import SetXDoubleSpinBox, SpectralPreprocess
+from orangecontrib.spectroscopy.widgets.owpreprocess import (
+    SetXDoubleSpinBox, SpectralPreprocess, BaseEditor
+)
 
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 
