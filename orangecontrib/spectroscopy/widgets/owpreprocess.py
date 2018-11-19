@@ -238,6 +238,18 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         return w.color
 
 
+class BaseEditor(BaseEditor):
+
+    def execute_instance(self, instance, data):
+        """Execute the preprocessor instance with the given data and return
+        the transformed data.
+
+        This function will be called when generating previews. An Editor
+        can here handle exceptions in the preprocessor and pass warnings to the interface.
+        """
+        return instance(data)
+
+
 class BaseEditorOrange(BaseEditor, OWComponent):
     """
     Base widget for editing preprocessor's parameters that works with Orange settings.
@@ -272,6 +284,9 @@ class GaussianSmoothingEditor(BaseEditorOrange):
 
     def setParameters(self, params):
         self.sd = params.get("sd", self.DEFAULT_SD)
+
+    def execute_instance(self, instance, data):
+        return instance(data)
 
     @classmethod
     def createinstance(cls, params):
@@ -1574,7 +1589,7 @@ class SpectralPreprocess(OWWidget):
 
                 item = self.preprocessormodel.item(i)
                 preproc = self._create_preprocessor(item)
-                data = preproc(data)
+                data = widgets[i].execute_instance(preproc, data)
 
                 if preview_pos == i:
                     after_data = data
