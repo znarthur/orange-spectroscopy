@@ -55,8 +55,13 @@ class TestConversion(unittest.TestCase):
     def test_predict_samename_domain(self):
         train, test = separate_learn_test(self.collagen)
         test = destroy_atts_conversion(test)
-        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
-        self.assertTrue(0.45 < aucdestroyed < 0.55)
+        try:
+            from Orange.data.table import DomainTransformationError
+            with self.assertRaises(DomainTransformationError):
+                LogisticRegressionLearner()(train)(test)
+        except ImportError:  # until Orange 3.19
+            aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_samename_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
@@ -69,8 +74,13 @@ class TestConversion(unittest.TestCase):
     def test_predict_different_domain(self):
         train, test = separate_learn_test(self.collagen)
         test = Interpolate(points=getx(test) - 1)(test) # other test domain
-        aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
-        self.assertTrue(0.45 < aucdestroyed < 0.55)
+        try:
+            from Orange.data.table import DomainTransformationError
+            with self.assertRaises(DomainTransformationError):
+                LogisticRegressionLearner()(train)(test)
+        except ImportError:  # until Orange 3.19
+            aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_different_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
