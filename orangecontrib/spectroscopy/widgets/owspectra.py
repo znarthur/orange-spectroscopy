@@ -1108,9 +1108,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.new_sampling.emit(len(self.sampled_indices))
         self.curves.append((x, ys))
         for y in ys:
-            c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
-            self.curves_cont.add_curve(c)
-        self.curves_plotted = self.curves
+            self.add_curve(x, y)
 
     def add_curve(self, x, y, pen=None):
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
