@@ -260,6 +260,7 @@ def test_main(argv=sys.argv):
 
     w = OWIntegrate()
     w.set_data(Orange.data.Table("collagen.csv"))
+    w.handleNewSignals()
     w.show()
     w.raise_()
     r = app.exec_()
