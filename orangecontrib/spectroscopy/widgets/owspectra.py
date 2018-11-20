@@ -1025,7 +1025,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 QToolTip.hideText()
             self.highlight(bd)
 
-    def highlight(self, index):
+    def highlight(self, index, emit=True):
         """
         Highlight shown curve with the given index (of the sampled curves).
         """
@@ -1042,8 +1042,20 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 y = self.curves[0][1][self.highlighted]
                 self.highlighted_curve.setData(x=x, y=y)
             self.highlighted_curve.show()
-        if old != self.highlighted:
+        if emit and old != self.highlighted:
             self.highlight_changed.emit()
+
+    def highlighted_index_in_data(self):
+        if self.highlighted is not None and self.viewtype == INDIVIDUAL:
+            return self.sampled_indices[self.highlighted]
+        return None
+
+    def highlight_index_in_data(self, index, emit):
+        if self.viewtype == AVERAGE:  # do not highlight average view
+            index = None
+        if index in self.sampled_indices_inverse:
+            index = self.sampled_indices_inverse[index]
+        self.highlight(index, emit)
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]

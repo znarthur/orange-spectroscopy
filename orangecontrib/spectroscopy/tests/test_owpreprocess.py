@@ -63,6 +63,15 @@ class TestOWPreprocess(WidgetTest):
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
 
+    def test_transfer_highlight(self):
+        data = SMALL_COLLAGEN
+        self.widget = self.create_widget(OWPreprocess)
+        self.send_signal("Data", data)
+        self.widget.curveplot.highlight(1)
+        self.assertEqual(self.widget.curveplot_after.highlighted, 1)
+        self.widget.curveplot.highlight(None)
+        self.assertIsNone(self.widget.curveplot_after.highlighted)
+
     def test_migrate_rubberbard(self):
         settings = {"storedsettings": {"preprocessors":
             [("orangecontrib.infrared.rubberband", {})]}}
