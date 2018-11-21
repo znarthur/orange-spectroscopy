@@ -238,6 +238,22 @@ class SequenceFlow(owpreprocess.SequenceFlow):
         return w.color
 
 
+class BaseEditor(BaseEditor):
+
+    def set_preview_data(self, data):
+        """Handle the preview data (initialize parameters)"""
+        pass
+
+    def execute_instance(self, instance, data):
+        """Execute the preprocessor instance with the given data and return
+        the transformed data.
+
+        This function will be called when generating previews. An Editor
+        can here handle exceptions in the preprocessor and pass warnings to the interface.
+        """
+        return instance(data)
+
+
 class BaseEditorOrange(BaseEditor, OWComponent):
     """
     Base widget for editing preprocessor's parameters that works with Orange settings.
@@ -272,6 +288,9 @@ class GaussianSmoothingEditor(BaseEditorOrange):
 
     def setParameters(self, params):
         self.sd = params.get("sd", self.DEFAULT_SD)
+
+    def execute_instance(self, instance, data):
+        return instance(data)
 
     @classmethod
     def createinstance(cls, params):
@@ -1590,12 +1609,10 @@ class SpectralPreprocess(OWWidget):
                 if preview_pos == i:
                     preview_data = data
 
-                if hasattr(widgets[i], "set_preview_data"):
-                    widgets[i].set_preview_data(data)
-
+                widgets[i].set_preview_data(data)
                 item = self.preprocessormodel.item(i)
                 preproc = self._create_preprocessor(item)
-                data = preproc(data)
+                data = widgets[i].execute_instance(preproc, data)
 
                 if preview_pos == i:
                     after_data = data
@@ -1757,11 +1774,9 @@ class SpectralPreprocess(OWWidget):
         create = desc.viewclass.createinstance
         return create(params)
 
-    def buildpreproc(self, limit=None):
+    def buildpreproc(self):
         plist = []
-        if limit == None:
-            limit = self.preprocessormodel.rowCount()
-        for i in range(limit):
+        for i in range(self.preprocessormodel.rowCount()):
             item = self.preprocessormodel.item(i)
             plist.append(self._create_preprocessor(item))
 
