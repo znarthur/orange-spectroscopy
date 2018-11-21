@@ -2,7 +2,7 @@ import sys
 import numpy as np
 
 import Orange.data
-from Orange.data.filter import SameValue
+from Orange.data.filter import SameValue, IsDefined
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.itemmodels import DomainModel
@@ -77,6 +77,8 @@ class OWAverage(OWWidget):
             if all are the same.
           - return unknown otherwise.
         """
+        if len(table) == 0:
+            return table
         mean = np.nanmean(table.X, axis=0, keepdims=True)
         avg_table = Orange.data.Table.from_numpy(table.domain,
                                                  X=mean,
@@ -123,6 +125,9 @@ class OWAverage(OWWidget):
                     svfilter = SameValue(self.group_var, value)
                     v_table = self.average_table(svfilter(self.data))
                     averages.extend(v_table)
+                deffilter = IsDefined(columns=[self.group_var], negate=True)
+                v_table = self.average_table(deffilter(self.data))
+                averages.extend(v_table)
         self.Outputs.averages.send(averages)
 
 

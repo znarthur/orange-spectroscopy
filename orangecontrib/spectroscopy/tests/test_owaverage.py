@@ -87,3 +87,30 @@ class TestOWAverage(WidgetTest):
         self.assertEqual(collagen[0, gvar], out[1, gvar])
         self.assertEqual(collagen[0, str_var], out[1, str_var])
         np.testing.assert_allclose(collagen[0, time_var], out[1, time_var])
+
+    def test_average_by_group_unknown(self):
+        # Alter collagen to have some unknowns in "type" variable
+        collagen = self.collagen.copy()
+        gvar = collagen.domain.class_var
+        index_unknowns = [3, 15, 100, 500, 650]
+        collagen[index_unknowns, gvar] = Orange.data.Unknown
+
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(gvar.values) + 1)
+        unknown_avg = np.mean(collagen.X[index_unknowns], axis=0)
+        np.testing.assert_equal(out.X[4,], unknown_avg)
+
+    def test_average_by_group_missing(self):
+        # Alter collagen to have a "type" variable value with no members
+        gvar = self.collagen.domain.class_var
+        svfilter = Orange.data.filter.SameValue(gvar, gvar.values[0], negate=True)
+        collagen = svfilter(self.collagen)
+
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(gvar.values) - 1)
