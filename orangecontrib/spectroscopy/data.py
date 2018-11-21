@@ -57,8 +57,7 @@ class DatReader(FileFormat):
     def read(self):
         tbl = np.loadtxt(self.filename, ndmin=2)
         domvals = tbl.T[0]  # first column is attribute name
-        from orangecontrib.spectroscopy.preprocess import features_with_interpolation
-        domain = Orange.data.Domain(features_with_interpolation(domvals), None)
+        domain = Orange.data.Domain([ContinuousVariable.make("%f" % f) for f in domvals], None)
         datavals = tbl.T[1:]
         return Orange.data.Table(domain, datavals)
 
@@ -85,8 +84,7 @@ class AsciiMapReader(FileFormat):
             header = [a.strip() for a in header]
             assert header[0] == header[1] == ""
             dom_vals = [float(v) for v in header[2:]]
-            from orangecontrib.spectroscopy.preprocess import features_with_interpolation
-            domain = Orange.data.Domain(features_with_interpolation(dom_vals), None)
+            domain = Orange.data.Domain([ContinuousVariable.make("%f" % f) for f in dom_vals], None)
             tbl = np.loadtxt(f, ndmin=2)
             data = Orange.data.Table(domain, tbl[:, 2:])
             metas = [ContinuousVariable.make('map_x'), ContinuousVariable.make('map_y')]
