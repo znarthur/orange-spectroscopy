@@ -18,6 +18,10 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline
 
 
+class PCADenoisingFeature(SelectColumn):
+    pass
+
+
 class _PCAReconstructCommon(CommonDomain):
     """Computation common for all PCA variables."""
 
@@ -47,11 +51,8 @@ class PCADenoising(Preprocess):
             maxpca = min(len(data.domain.attributes), len(data))
             pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
             commonfn = _PCAReconstructCommon(pca)
-
-            nats = []
-            for i, at in enumerate(data.domain.attributes):
-                at = at.copy(compute_value=Orange.projection.pca.Projector(self, i, commonfn))
-                nats.append(at)
+            nats = [at.copy(compute_value=PCADenoisingFeature(i, commonfn))
+                    for i, at in enumerate(data.domain.attributes)]
         else:
             # FIXME we should have a warning here
             nats = [ at.copy() for at in data.domain.attributes ]  # unknown values
