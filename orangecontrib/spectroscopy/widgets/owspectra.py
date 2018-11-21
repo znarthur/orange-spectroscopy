@@ -29,6 +29,8 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils import saveplot
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
+from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 try:
     # since Orange 3.17
@@ -44,11 +46,6 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_de
     float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
     selections_to_length, groups_or_annotated_table
-
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
-
-# legend
-from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 
 
 SELECT_SQUARE = 123
@@ -495,6 +492,10 @@ class SelectRegion(pg.LinearRegionItem):
         self.setBrush(pg.mkBrush(color))
 
 
+class NoSuchCurve(ValueError):
+    pass
+
+
 class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
@@ -512,6 +513,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     selection_changed = pyqtSignal()
     new_sampling = pyqtSignal(object)
+    highlight_changed = pyqtSignal()
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -1021,15 +1023,39 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                     pass
             if self.highlighted != bd:
                 QToolTip.hideText()
-            if self.highlighted is not None and bd is None:
-                self.highlighted = None
-                self.highlighted_curve.hide()
-            if bd is not None:
-                self.highlighted = bd
+            self.highlight(bd)
+
+    def highlight(self, index, emit=True):
+        """
+        Highlight shown curve with the given index (of the sampled curves).
+        """
+        old = self.highlighted
+        if index is not None and not 0 <= index < len(self.curves[0][1]):
+            raise NoSuchCurve()
+
+        self.highlighted = index
+        if self.highlighted is None:
+            self.highlighted_curve.hide()
+        else:
+            if old != self.highlighted:
                 x = self.curves[0][0]
                 y = self.curves[0][1][self.highlighted]
                 self.highlighted_curve.setData(x=x, y=y)
-                self.highlighted_curve.show()
+            self.highlighted_curve.show()
+        if emit and old != self.highlighted:
+            self.highlight_changed.emit()
+
+    def highlighted_index_in_data(self):
+        if self.highlighted is not None and self.viewtype == INDIVIDUAL:
+            return self.sampled_indices[self.highlighted]
+        return None
+
+    def highlight_index_in_data(self, index, emit):
+        if self.viewtype == AVERAGE:  # do not highlight average view
+            index = None
+        if index in self.sampled_indices_inverse:
+            index = self.sampled_indices_inverse[index]
+        self.highlight(index, emit)
 
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
@@ -1094,9 +1120,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.new_sampling.emit(len(self.sampled_indices))
         self.curves.append((x, ys))
         for y in ys:
-            c = pg.PlotCurveItem(x=x, y=y, pen=self.pen_normal[None])
-            self.curves_cont.add_curve(c)
-        self.curves_plotted = self.curves
+            self.add_curve(x, y)
 
     def add_curve(self, x, y, pen=None):
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])

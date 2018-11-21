@@ -42,7 +42,7 @@ from orangecontrib.spectroscopy.preprocess import (
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
-from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot
+from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
@@ -1420,6 +1420,22 @@ class TimeoutLabel(QLabel):
         self.hide()
 
 
+def transfer_highlight(from_: CurvePlot, to: CurvePlot):
+    """Highlight the curve that is highlighted on "from_" also on "to"."""
+    if from_.data is None or to.data is None:
+        return
+    highlight = None
+    from_index = from_.highlighted_index_in_data()
+    if from_index is not None:
+        index_with_same_id = np.flatnonzero(to.data.ids == from_.data.ids[from_index])
+        if len(index_with_same_id):
+            highlight = index_with_same_id[0]
+    try:
+        to.highlight_index_in_data(highlight, emit=False)  # do not emit to avoid recursion
+    except NoSuchCurve:
+        pass
+
+
 class SpectralPreprocess(OWWidget):
 
     class Inputs:
@@ -1521,6 +1537,11 @@ class SpectralPreprocess(OWWidget):
 
         self.curveplot_info = overlay(self.curveplot)
         self.curveplot_after_info = overlay(self.curveplot_after)
+
+        self.curveplot.highlight_changed.connect(
+            lambda: transfer_highlight(self.curveplot, self.curveplot_after))
+        self.curveplot_after.highlight_changed.connect(
+            lambda: transfer_highlight(self.curveplot_after, self.curveplot))
 
         self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(splitter)
