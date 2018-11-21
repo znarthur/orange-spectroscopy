@@ -87,7 +87,15 @@ class OWAverage(OWWidget):
         for var in cont_vars:
             index = table.domain.index(var)
             col, _ = table.get_column_view(index)
-            avg_table[0, index] = np.nanmean(col)
+            try:
+                avg_table[0, index] = np.nanmean(col)
+            except AttributeError:
+                # numpy.lib.nanfunctions._replace_nan just guesses and returns
+                # a boolean array mask for object arrays because object arrays
+                # do not support `isnan` (numpy-gh-9009)
+                # Since we know that ContinuousVariable values must be np.float64
+                # do an explicit cast here
+                avg_table[0, index] = np.nanmean(col, dtype=np.float64)
 
         other_vars = [var for var in table.domain.class_vars + table.domain.metas
                       if not isinstance(var, Orange.data.ContinuousVariable)]
