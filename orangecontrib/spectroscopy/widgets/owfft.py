@@ -100,9 +100,7 @@ class OWFFT(OWWidget):
 
         self.data = None
         self.stored_phase = None
-        self.spectra = None
         self.spectra_table = None
-        self.wavenumbers = None
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
 
@@ -313,9 +311,9 @@ class OWFFT(OWWidget):
         Based on mertz module by Eric Peach, 2014
         """
 
-        self.wavenumbers = None
-        self.spectra = None
-        self.phases = None
+        wavenumbers = None
+        spectra = []
+        phases = []
 
         zpd_fwd = []
         zpd_back = []
@@ -359,7 +357,7 @@ class OWFFT(OWWidget):
 
             if self.sweeps in [0, 2, 3]:
                 try:
-                    spectrum_out, phase_out, self.wavenumbers = fft_single(row, zpd=stored_zpd_fwd, phase=stored_phase)
+                    spectrum_out, phase_out, wavenumbers = fft_single(row, zpd=stored_zpd_fwd, phase=stored_phase)
                     zpd_fwd.append(fft_single.zpd)
                 except ValueError as e:
                     self.Error.fft_error(e)
@@ -379,9 +377,9 @@ class OWFFT(OWWidget):
 
                 # Calculate spectrum for both forward and backward sweeps
                 try:
-                    spectrum_fwd, phase_fwd, self.wavenumbers = fft_single(fwd, zpd=stored_zpd_fwd, phase=stored_phase)
+                    spectrum_fwd, phase_fwd, wavenumbers = fft_single(fwd, zpd=stored_zpd_fwd, phase=stored_phase)
                     zpd_fwd.append(fft_single.zpd)
-                    spectrum_back, phase_back, self.wavenumbers = fft_single(back, zpd=stored_zpd_back, phase=stored_phase)
+                    spectrum_back, phase_back, wavenumbers = fft_single(back, zpd=stored_zpd_back, phase=stored_phase)
                     zpd_back.append(fft_single.zpd)
                 except ValueError as e:
                     self.Error.fft_error(e)
@@ -393,14 +391,13 @@ class OWFFT(OWWidget):
             else:
                 return
 
-            if self.spectra is not None:
-                self.spectra = np.vstack((self.spectra, spectrum_out))
-                self.phases = np.vstack((self.phases, phase_out))
-            else:
-                self.spectra = spectrum_out
-                self.phases = phase_out
+            spectra.append(spectrum_out)
+            phases.append(phase_out)
 
-        self.phases_table = build_spec_table(self.wavenumbers, self.phases)
+        spectra = np.vstack(spectra)
+        phases = np.vstack(phases)
+
+        self.phases_table = build_spec_table(wavenumbers, phases)
         self.phases_table = add_meta_to_table(self.phases_table,
                                          ContinuousVariable.make("zpd_fwd"),
                                          zpd_fwd)
@@ -410,16 +407,16 @@ class OWFFT(OWWidget):
                                          zpd_back)
 
         if self.limit_output is True:
-            limits = np.searchsorted(self.wavenumbers,
+            limits = np.searchsorted(wavenumbers,
                                      [self.out_limit1, self.out_limit2])
-            self.wavenumbers = self.wavenumbers[limits[0]:limits[1]]
+            wavenumbers = wavenumbers[limits[0]:limits[1]]
             # Handle 1D array if necessary
-            if self.spectra.ndim == 1:
-                self.spectra = self.spectra[None,limits[0]:limits[1]]
+            if spectra.ndim == 1:
+                spectra = spectra[None,limits[0]:limits[1]]
             else:
-                self.spectra = self.spectra[:,limits[0]:limits[1]]
+                spectra = spectra[:,limits[0]:limits[1]]
 
-        self.spectra_table = build_spec_table(self.wavenumbers, self.spectra)
+        self.spectra_table = build_spec_table(wavenumbers, spectra)
 
         self.Outputs.spectra.send(self.spectra_table)
         self.Outputs.phases.send(self.phases_table)
