@@ -114,3 +114,18 @@ class TestOWAverage(WidgetTest):
         self.widget.grouping_changed()
         out = self.get_output("Averages")
         self.assertEqual(out.X.shape[0], len(gvar.values) - 1)
+
+    def test_average_by_group_objectvar(self):
+        # Test with group_var in metas (object array)
+        gvar = self.collagen.domain.class_var
+        c_domain = self.collagen.domain
+        str_var = Orange.data.StringVariable.make(name="stringtest")
+        n_domain = Orange.data.Domain(c_domain.attributes,
+                                      None,
+                                      [c_domain.attributes[0], c_domain.class_var, str_var])
+        collagen = self.collagen.transform(n_domain)
+
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")

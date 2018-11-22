@@ -2,7 +2,7 @@ import sys
 import numpy as np
 
 import Orange.data
-from Orange.data.filter import SameValue, IsDefined
+from Orange.data.filter import SameValue, FilterDiscrete, Values
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.itemmodels import DomainModel
@@ -125,7 +125,11 @@ class OWAverage(OWWidget):
                     svfilter = SameValue(self.group_var, value)
                     v_table = self.average_table(svfilter(self.data))
                     averages.extend(v_table)
-                deffilter = IsDefined(columns=[self.group_var], negate=True)
+                # Using "None" as in OWSelectRows
+                # Values is required because FilterDiscrete doesn't have
+                # negate keyword or IsDefined method
+                deffilter = Values(conditions=[FilterDiscrete(self.group_var, None)],
+                                   negate=True)
                 v_table = self.average_table(deffilter(self.data))
                 averages.extend(v_table)
         self.Outputs.averages.send(averages)
