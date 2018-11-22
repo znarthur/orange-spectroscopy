@@ -122,10 +122,13 @@ class TestOWAverage(WidgetTest):
         str_var = Orange.data.StringVariable.make(name="stringtest")
         n_domain = Orange.data.Domain(c_domain.attributes,
                                       None,
-                                      [c_domain.attributes[0], c_domain.class_var, str_var])
+                                      [c_domain.class_var, str_var])
         collagen = self.collagen.transform(n_domain)
-
+        # collagen.metas[:, 1] = np.atleast_2d(self.collagen.Y)
         self.send_signal("Data", collagen)
         self.widget.group_var = gvar
         self.widget.grouping_changed()
         out = self.get_output("Averages")
+        # First 195 rows are labelled "collagen"
+        collagen_avg = np.mean(self.collagen.X[:195], axis=0)
+        np.testing.assert_equal(out.X[1,], collagen_avg)
