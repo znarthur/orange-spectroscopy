@@ -82,8 +82,8 @@ class OWAverage(OWWidget):
         mean = np.nanmean(table.X, axis=0, keepdims=True)
         avg_table = Orange.data.Table.from_numpy(table.domain,
                                                  X=mean,
-                                                 Y=np.atleast_2d(table.Y.copy()[0]),
-                                                 metas=np.atleast_2d(table.metas.copy()[0]))
+                                                 Y=np.atleast_2d(table.Y[0].copy()),
+                                                 metas=np.atleast_2d(table.metas[0].copy()))
         cont_vars = [var for var in table.domain.class_vars + table.domain.metas
                      if isinstance(var, Orange.data.ContinuousVariable)]
         for var in cont_vars:
