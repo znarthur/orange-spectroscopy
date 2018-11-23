@@ -2,7 +2,7 @@ import sys
 import numpy as np
 
 import Orange.data
-from Orange.data.filter import SameValue
+from Orange.data.filter import SameValue, FilterDiscrete, Values
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.itemmodels import DomainModel
@@ -77,17 +77,27 @@ class OWAverage(OWWidget):
             if all are the same.
           - return unknown otherwise.
         """
+        if len(table) == 0:
+            return table
         mean = np.nanmean(table.X, axis=0, keepdims=True)
         avg_table = Orange.data.Table.from_numpy(table.domain,
                                                  X=mean,
-                                                 Y=np.atleast_2d(table.Y[0]),
-                                                 metas=np.atleast_2d(table.metas[0]))
+                                                 Y=np.atleast_2d(table.Y[0].copy()),
+                                                 metas=np.atleast_2d(table.metas[0].copy()))
         cont_vars = [var for var in table.domain.class_vars + table.domain.metas
                      if isinstance(var, Orange.data.ContinuousVariable)]
         for var in cont_vars:
             index = table.domain.index(var)
             col, _ = table.get_column_view(index)
-            avg_table[0, index] = np.nanmean(col)
+            try:
+                avg_table[0, index] = np.nanmean(col)
+            except AttributeError:
+                # numpy.lib.nanfunctions._replace_nan just guesses and returns
+                # a boolean array mask for object arrays because object arrays
+                # do not support `isnan` (numpy-gh-9009)
+                # Since we know that ContinuousVariable values must be np.float64
+                # do an explicit cast here
+                avg_table[0, index] = np.nanmean(col, dtype=np.float64)
 
         other_vars = [var for var in table.domain.class_vars + table.domain.metas
                       if not isinstance(var, Orange.data.ContinuousVariable)]
@@ -115,6 +125,13 @@ class OWAverage(OWWidget):
                     svfilter = SameValue(self.group_var, value)
                     v_table = self.average_table(svfilter(self.data))
                     averages.extend(v_table)
+                # Using "None" as in OWSelectRows
+                # Values is required because FilterDiscrete doesn't have
+                # negate keyword or IsDefined method
+                deffilter = Values(conditions=[FilterDiscrete(self.group_var, None)],
+                                   negate=True)
+                v_table = self.average_table(deffilter(self.data))
+                averages.extend(v_table)
         self.Outputs.averages.send(averages)
 
 

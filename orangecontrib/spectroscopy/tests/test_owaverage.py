@@ -48,13 +48,28 @@ class TestOWAverage(WidgetTest):
         self.assertFalse(np.any(np.isnan(out.X[:, 2:])))
 
     def test_average_by_group(self):
-        # Alter collagen domain to have ContinuousVariable in metas
+        self.send_signal("Data", self.collagen)
+        gvar = self.widget.group_var = self.collagen.domain.class_var
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(gvar.values))
+        self.assertEqual(out.X.shape[1], self.collagen.X.shape[1])
+        # First 195 rows are labelled "collagen"
+        collagen_avg = np.mean(self.collagen.X[:195], axis=0)
+        np.testing.assert_equal(out.X[1,], collagen_avg)
+
+    def test_average_by_group_metas(self):
+        # Alter collagen domain to have Continuous/String/TimeVariables in metas
         c_domain = self.collagen.domain
+        str_var = Orange.data.StringVariable.make(name="stringtest")
+        time_var = Orange.data.TimeVariable.make(name="timetest")
         n_domain = Orange.data.Domain(c_domain.attributes,
                                       c_domain.class_vars,
-                                      [c_domain.attributes[0]])
+                                      [c_domain.attributes[0], str_var, time_var])
         collagen = self.collagen.transform(n_domain)
         collagen.metas[:, 0] = np.atleast_2d(collagen.X[:, 0])
+        collagen.metas[:, 1] = ["string"] * len(collagen)
+        collagen.metas[:, 2] = [1560.3] * len(collagen)
 
         self.send_signal("Data", collagen)
         gvar = self.widget.group_var = collagen.domain.class_var
@@ -70,3 +85,50 @@ class TestOWAverage(WidgetTest):
         np.testing.assert_allclose(out[0, 0], out[0, -1])
         # Other variables keep first if all the same
         self.assertEqual(collagen[0, gvar], out[1, gvar])
+        self.assertEqual(collagen[0, str_var], out[1, str_var])
+        np.testing.assert_allclose(collagen[0, time_var], out[1, time_var])
+
+    def test_average_by_group_unknown(self):
+        # Alter collagen to have some unknowns in "type" variable
+        collagen = self.collagen.copy()
+        gvar = collagen.domain.class_var
+        index_unknowns = [3, 15, 100, 500, 650]
+        collagen[index_unknowns, gvar] = Orange.data.Unknown
+
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(gvar.values) + 1)
+        unknown_avg = np.mean(collagen.X[index_unknowns], axis=0)
+        np.testing.assert_equal(out.X[4,], unknown_avg)
+
+    def test_average_by_group_missing(self):
+        # Alter collagen to have a "type" variable value with no members
+        gvar = self.collagen.domain.class_var
+        svfilter = Orange.data.filter.SameValue(gvar, gvar.values[0], negate=True)
+        collagen = svfilter(self.collagen)
+
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        self.assertEqual(out.X.shape[0], len(gvar.values) - 1)
+
+    def test_average_by_group_objectvar(self):
+        # Test with group_var in metas (object array)
+        gvar = self.collagen.domain.class_var
+        c_domain = self.collagen.domain
+        str_var = Orange.data.StringVariable.make(name="stringtest")
+        n_domain = Orange.data.Domain(c_domain.attributes,
+                                      None,
+                                      [c_domain.class_var, str_var])
+        collagen = self.collagen.transform(n_domain)
+        # collagen.metas[:, 1] = np.atleast_2d(self.collagen.Y)
+        self.send_signal("Data", collagen)
+        self.widget.group_var = gvar
+        self.widget.grouping_changed()
+        out = self.get_output("Averages")
+        # First 195 rows are labelled "collagen"
+        collagen_avg = np.mean(self.collagen.X[:195], axis=0)
+        np.testing.assert_equal(out.X[1,], collagen_avg)
