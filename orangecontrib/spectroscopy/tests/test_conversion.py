@@ -108,8 +108,8 @@ class TestConversion(unittest.TestCase):
             train, test = separate_learn_test(data)
             train = proc(train)
             test_transformed = Orange.data.Table(train.domain, test)
-            np.testing.assert_equal(test_transformed.X, test1.X,
-                                    err_msg="Preprocessor " + str(proc))
+            np.testing.assert_almost_equal(test_transformed.X, test1.X,
+                                           err_msg="Preprocessor " + str(proc))
 
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
