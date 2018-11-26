@@ -303,19 +303,14 @@ class TestCommon(unittest.TestCase):
         data_reversed = reverse_attr(data)
         data_shuffle = shuffle_attr(data)
         for proc in PREPROCESSORS:
-            comparison = np.testing.assert_equal
-            # TODO find out why there are small differences for certain preprocessors
-            if isinstance(proc, (RubberbandBaseline, Normalize, PCADenoising)):
-                comparison = lambda x, y, **kwargs: \
-                    np.testing.assert_almost_equal(x, y, decimal=5, **kwargs)
             pdata = proc(data)
             X = pdata.X[:, np.argsort(getx(pdata))]
             pdata_reversed = proc(data_reversed)
             X_reversed = pdata_reversed.X[:, np.argsort(getx(pdata_reversed))]
-            comparison(X, X_reversed, err_msg="Preprocessor " + str(proc))
+            np.testing.assert_almost_equal(X, X_reversed, err_msg="Preprocessor " + str(proc))
             pdata_shuffle = proc(data_shuffle)
             X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
-            comparison(X, X_shuffle, err_msg="Preprocessor " + str(proc))
+            np.testing.assert_almost_equal(X, X_shuffle, err_msg="Preprocessor " + str(proc))
 
     def test_unknown_no_propagate(self):
         data = self.collagen.copy()
