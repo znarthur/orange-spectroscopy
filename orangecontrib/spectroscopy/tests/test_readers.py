@@ -164,3 +164,15 @@ class TestSpc(unittest.TestCase):
         self.assertEqual(len(data), 512)
         self.assertAlmostEqual(float(data.domain[0].name), 8401.800003)
         self.assertAlmostEqual(float(data.domain[len(data.domain)-1].name), 137768.800049)
+
+
+class TestMatlab(unittest.TestCase):
+
+    def test_simple(self):
+        """
+        octave --eval "A = [ 5:7; 4:6 ]; save -6 simple.mat A"
+        """
+        data = Orange.data.Table("matlab/simple.mat")
+        np.testing.assert_equal(data.X, [[5, 6, 7], [4, 5, 6]])
+        names = [a.name for a in data.domain.attributes]
+        self.assertEqual(names, ["0", "1", "2"])

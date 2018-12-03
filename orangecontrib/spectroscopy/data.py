@@ -195,7 +195,7 @@ class MatlabReader(FileFormat):
                 f.resize(sizemetas, 1)
                 metadata.append(f)
 
-            metadata = np.hstack(tuple(metadata))
+            metadata = np.hstack(tuple(metadata)) if metadata else None
 
             domain = Domain(attributes, metas=metaattributes)
             if X is None:
