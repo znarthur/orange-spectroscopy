@@ -78,7 +78,7 @@ class TestAsciiMapReader(unittest.TestCase):
 class TestAgilentReader(unittest.TestCase):
 
     def test_image_read(self):
-        d = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        d = Orange.data.Table("agilent/4_noimage_agg256.dat")
         self.assertEqual(len(d), 64)
         # Pixel sizes are 5.5 * 16 = 88.0 (binning to reduce test data)
         self.assertAlmostEqual(
@@ -94,7 +94,7 @@ class TestAgilentReader(unittest.TestCase):
         self.assertEqual(max(getx(d)), 2113.600132)
 
     def test_mosaic_read(self):
-        d = Orange.data.Table("agilent/5_mosaic_agg1024.dms")
+        d = Orange.data.Table("agilent/5_mosaic_agg1024.dmt")
         self.assertEqual(len(d), 32)
         # Pixel sizes are 5.5 * 32 = 176.0 (binning to reduce test data)
         self.assertAlmostEqual(
@@ -112,13 +112,13 @@ class TestAgilentReader(unittest.TestCase):
 
     def test_envi_comparison(self):
         # Image
-        d1_a = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        d1_a = Orange.data.Table("agilent/4_noimage_agg256.dat")
         d1_e = Orange.data.Table("agilent/4_noimage_agg256.hdr")
         np.testing.assert_equal(d1_a.X, d1_e.X)
         # Wavenumbers are rounded in .hdr files
         np.testing.assert_allclose(getx(d1_a), getx(d1_e))
         # Mosaic
-        d2_a = Orange.data.Table("agilent/5_mosaic_agg1024.dms")
+        d2_a = Orange.data.Table("agilent/5_mosaic_agg1024.dmt")
         d2_e = Orange.data.Table("agilent/5_mosaic_agg1024.hdr")
         np.testing.assert_equal(d2_a.X, d2_e.X)
         np.testing.assert_allclose(getx(d2_a), getx(d2_e))

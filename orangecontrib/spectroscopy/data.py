@@ -48,7 +48,7 @@ class SpectralFileFormat:
             return ret_data
 
 
-class DatReader(FileFormat):
+class AsciiColReader(FileFormat):
     """ Reader for files with multiple columns of numbers. The first column
     contains the wavelengths, the others contain the spectra. """
     EXTENSIONS = ('.dat', '.dpt', '.xy',)
@@ -293,7 +293,7 @@ class OmnicMapReader(FileFormat, SpectralFileFormat):
 
 class AgilentImageReader(FileFormat, SpectralFileFormat):
     """ Reader for Agilent FPA single tile image files"""
-    EXTENSIONS = ('.seq',)
+    EXTENSIONS = ('.dat',)
     DESCRIPTION = 'Agilent Single Tile Image'
 
     def read_spectra(self):
@@ -320,7 +320,7 @@ class AgilentImageReader(FileFormat, SpectralFileFormat):
 
 class agilentMosaicReader(FileFormat, SpectralFileFormat):
     """ Reader for Agilent FPA mosaic image files"""
-    EXTENSIONS = ('.dms',)
+    EXTENSIONS = ('.dmt',)
     DESCRIPTION = 'Agilent Mosaic Image'
 
     def read_spectra(self):
@@ -828,6 +828,21 @@ def getx(data):
     except:
         pass
     return x
+
+
+class DatMetaReader(FileFormat):
+    """ Meta-reader to handle agilentImageReader and AsciiColReader name clash
+    over .dat extension. """
+    EXTENSIONS = ('.dat',)
+    DESCRIPTION = 'Spectra ASCII or Agilent Single Tile Image'
+    PRIORITY = min(AsciiColReader.PRIORITY, AgilentImageReader.PRIORITY) - 1
+
+    def read(self):
+        try:
+            # agilentImage requires the .bsp file to be present as well
+            return AgilentImageReader(filename=self.filename).read()
+        except OSError:
+            return AsciiColReader(filename=self.filename).read()
 
 
 def spectra_mean(X):
