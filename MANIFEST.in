@@ -1,5 +1,7 @@
 # Ref https://docs.python.org/2/distutils/sourcedist.html#commands
 recursive-include orangecontrib *.ows icons/* datasets/*
+recursive-include orangecontrib/spectroscopy/datasets matlab/*
+
 global-exclude __pycache__
 
 # Include it in the source package

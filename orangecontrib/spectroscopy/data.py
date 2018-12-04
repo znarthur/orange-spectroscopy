@@ -146,61 +146,81 @@ class MatlabReader(FileFormat):
             raise IOError("Couldn't load matlab file " + self.filename)
         else:
             ml = matlab.loadmat(self.filename, chars_as_strings=True)
-
             ml = {a: b for a, b in ml.items() if isinstance(b, np.ndarray)}
 
+            def num_elements(array):
+                return reduce(lambda x, y: x * y, array.shape, 1)
+
+            def find_biggest(arrays):
+                sizes = []
+                for n, c in arrays.items():
+                    sizes.append((num_elements(c), n))
+                return max(sizes)[1]
+
+            def is_string_array(array):
+                return issubclass(array.dtype.type, np.str_)
+
+            def is_number_array(array):
+                return issubclass(array.dtype.type, numbers.Number)
+
+            numeric = {n: a for n, a in ml.items() if is_number_array(a)}
+
             # X is the biggest numeric array
-            numarrays = []
-            for name, con in ml.items():
-                 if issubclass(con.dtype.type, numbers.Number):
-                    numarrays.append((name, reduce(lambda x, y: x*y, con.shape, 1)))
-            X = None
-            if numarrays:
-                nameX = max(numarrays, key=lambda x: x[1])[0]
-                X = ml.pop(nameX)
+            X = ml.pop(find_biggest(numeric)) if numeric else None
 
             # find an array with compatible shapes
             attributes = []
             if X is not None:
-                nameattributes = None
-                for name, con in ml.items():
+                name_array = None
+                for name in sorted(ml):
+                    con = ml[name]
                     if con.shape in [(X.shape[1],), (1, X.shape[1])]:
-                        nameattributes = name
+                        name_array = name
                         break
-                attributenames = ml.pop(nameattributes).ravel() if nameattributes else range(X.shape[1])
-                attributenames = [str(a).strip() for a in attributenames]  # strip because of numpy char array
-                attributes = [ContinuousVariable.make(a) for a in attributenames]
+                names = ml.pop(name_array).ravel() if name_array else range(X.shape[1])
+                names = [str(a).rstrip() for a in names]  # remove matlab char padding
+                attributes = [ContinuousVariable.make(a) for a in names]
 
+            meta_names = []
             metas = []
-            metaattributes = []
 
-            sizemetas = None
+            meta_size = None
             if X is None:
                 counts = defaultdict(list)
                 for name, con in ml.items():
                     counts[len(con)].append(name)
                 if counts:
-                    sizemetas = max(counts.keys(), key=lambda x: len(counts[x]))
+                    meta_size = max(counts.keys(), key=lambda x: len(counts[x]))
             else:
-                sizemetas = len(X)
-            if sizemetas:
+                meta_size = len(X)
+            if meta_size:
                 for name, con in ml.items():
-                    if len(con) == sizemetas:
-                        metas.append(name)
+                    if len(con) == meta_size:
+                        meta_names.append(name)
 
-            metadata = []
-            for m in sorted(metas):
+            meta_data = []
+            for m in sorted(meta_names):
                 f = ml[m]
-                metaattributes.append(StringVariable.make(m))
-                f.resize(sizemetas, 1)
-                metadata.append(f)
+                if is_string_array(f) and len(f.shape) == 1:  # 1D string arrays
+                    metas.append(StringVariable.make(m))
+                    f = np.array([a.rstrip() for a in f])  # remove matlab char padding
+                    f.resize(meta_size, 1)
+                    meta_data.append(f)
+                elif is_number_array(f) and len(f.shape) == 2:
+                    if f.shape[1] == 1:
+                        names = [m]
+                    else:
+                        names = [m + "_" + str(i+1) for i in range(f.shape[1])]
+                    for n in names:
+                        metas.append(ContinuousVariable.make(n))
+                    meta_data.append(f)
 
-            metadata = np.hstack(tuple(metadata))
+            meta_data = np.hstack(tuple(meta_data)) if meta_data else None
 
-            domain = Domain(attributes, metas=metaattributes)
+            domain = Domain(attributes, metas=metas)
             if X is None:
-                X = np.zeros((sizemetas, 0))
-            return Orange.data.Table.from_numpy(domain, X, Y=None, metas=metadata)
+                X = np.zeros((meta_size, 0))
+            return Orange.data.Table.from_numpy(domain, X, Y=None, metas=meta_data)
 
 
 class EnviMapReader(FileFormat, SpectralFileFormat):

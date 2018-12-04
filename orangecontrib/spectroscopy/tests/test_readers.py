@@ -164,3 +164,80 @@ class TestSpc(unittest.TestCase):
         self.assertEqual(len(data), 512)
         self.assertAlmostEqual(float(data.domain[0].name), 8401.800003)
         self.assertAlmostEqual(float(data.domain[len(data.domain)-1].name), 137768.800049)
+
+
+class TestMatlab(unittest.TestCase):
+
+    def test_simple(self):
+        """
+        octave --eval "A = [ 5:7; 4:6 ]; save -6 simple.mat A"
+        """
+        data = Orange.data.Table("matlab/simple.mat")
+        np.testing.assert_equal(data.X, [[5, 6, 7], [4, 5, 6]])
+        names = [a.name for a in data.domain.attributes]
+        self.assertEqual(names, ["0", "1", "2"])
+
+    def test_with_wavenumbers(self):
+        """
+        octave --eval "A = [ 5:7; 4:6 ];
+                       W = [ 0, 0.5, 1.0 ];
+                       save -6 wavenumbers.mat A W"
+        """
+        data = Orange.data.Table("matlab/wavenumbers.mat")
+        names = [a.name for a in data.domain.attributes]
+        self.assertEqual(["0.0", "0.5", "1.0"], names)
+
+    def test_with_names(self):
+        """
+        octave --eval 'A = [ 5:7; 4:6 ];
+                       W = [ "aa"; "bb"; "cc" ];
+                       save -6 names.mat A W'
+        """
+        data = Orange.data.Table("matlab/names.mat")
+        names = [a.name for a in data.domain.attributes]
+        self.assertEqual(["aa", "bb", "cc"], names)
+
+    def test_string_metas(self):
+        """
+        octave --eval 'A = [ 5:7; 4:6 ];
+                       M = [ "first row"; "second row" ];
+                       save -6 metas_string.mat A M'
+        """
+        data = Orange.data.Table("matlab/metas_string.mat")
+        self.assertEqual(["first row", "second row"], list(data.metas[:, 0]))
+
+    def test_numeric_metas(self):
+        """
+        octave --eval 'A = [ 5:7; 4:6 ];
+                       M = [ 11, 12; 21, 22 ];
+                       N = [ 8; 9 ];
+                       save -6 metas_numeric.mat A M N'
+        """
+        data = Orange.data.Table("matlab/metas_numeric.mat")
+        names = [a.name for a in data.domain.metas]
+        self.assertEqual(["M_1", "M_2", "N"], names)
+        np.testing.assert_equal([[11, 12, 8], [21, 22, 9]], data.metas)
+
+    def test_mixed_metas(self):
+        """
+        octave --eval 'A = [ 5:7; 4:6 ];
+                       M = [ "first row"; "second row" ];
+                       N = [ 8; 9 ];
+                       save -6 metas_mixed.mat A M N'
+        """
+        data = Orange.data.Table("matlab/metas_mixed.mat")
+        names = [a.name for a in data.domain.metas]
+        self.assertEqual(["M", "N"], names)
+        self.assertEqual(["first row", "second row"], list(data.metas[:, 0]))
+        # extract numbers as numeric variables
+        extracted = data.transform(Orange.data.Domain([data.domain.metas[1]]))
+        np.testing.assert_equal([[8], [9]], extracted.X)
+
+    def test_only_annotations(self):
+        """
+        octave --eval 'M = [ "first row"; "second row" ];
+                       save -6 only_annotations.mat M'
+        """
+        data = Orange.data.Table("matlab/only_annotations.mat")
+        self.assertEqual("M", data.domain.metas[0].name)
+        self.assertEqual(["first row", "second row"], list(data.metas[:, 0]))
