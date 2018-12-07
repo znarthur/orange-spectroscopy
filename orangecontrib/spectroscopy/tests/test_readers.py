@@ -2,10 +2,11 @@ import unittest
 
 import numpy as np
 import Orange
+from Orange.data.io import FileFormat
 from Orange.tests import named_file
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
-from orangecontrib.spectroscopy.data import SPAReader
+from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 
 from orangecontrib.spectroscopy.tests.bigdata import spectra20nea
 
@@ -122,6 +123,39 @@ class TestAgilentReader(unittest.TestCase):
         d2_e = Orange.data.Table("agilent/5_mosaic_agg1024.hdr")
         np.testing.assert_equal(d2_a.X, d2_e.X)
         np.testing.assert_allclose(getx(d2_a), getx(d2_e))
+
+    def test_image_ifg_read(self):
+        d = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        self.assertEqual(len(d), 64)
+        self.assertEqual(len(d.domain.attributes), 311)
+        # Pixel sizes are 5.5 * 16 = 88.0 (binning to reduce test data)
+        self.assertAlmostEqual(
+            d[1]["map_x"] - d[0]["map_x"], 88.0)
+        self.assertAlmostEqual(
+            d[8]["map_y"] - d[7]["map_y"], 88.0)
+        self.assertAlmostEqual(d[-1]["map_x"], 616.0)
+        self.assertAlmostEqual(d[-1]["map_y"], 616.0)
+        self.assertAlmostEqual(d[9][0], 0.64558595)
+        self.assertAlmostEqual(d[18][0], 0.5792696)
+
+    def test_mosaic_ifg_read(self):
+        # This reader will only be selected manually due to shared .dmt extension
+        absolute_filename = FileFormat.locate("agilent/5_mosaic_agg1024.dmt",
+                                              Orange.data.table.dataset_dirs)
+        d = agilentMosaicIFGReader(absolute_filename).read()
+        self.assertEqual(len(d), 32)
+        self.assertEqual(len(d.domain.attributes), 311)
+        # Pixel sizes are 5.5 * 32 = 176.0 (binning to reduce test data)
+        self.assertAlmostEqual(
+            d[1]["map_x"] - d[0]["map_x"], 176.0)
+        self.assertAlmostEqual(
+            d[4]["map_y"] - d[3]["map_y"], 176.0)
+        # Last pixel should start at (4 - 1) * 176.0 = 528.0
+        self.assertAlmostEqual(d[-1]["map_x"], 528.0)
+        # 1 x 2 mosiac, (8 - 1) * 176.0 = 1232.0
+        self.assertAlmostEqual(d[-1]["map_y"], 1232.0)
+        self.assertAlmostEqual(d[21][0], 0.7116039)
+        self.assertAlmostEqual(d[26][0], 0.48532167)
 
 
 class TestGSF(unittest.TestCase):

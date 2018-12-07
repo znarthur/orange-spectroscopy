@@ -15,7 +15,7 @@ from scipy.io import matlab
 import numbers
 
 from .pymca5 import OmnicMap
-from .agilent import agilentImage, agilentMosaic
+from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG
 
 
 class SpectralFileFormat:
@@ -319,6 +319,29 @@ class AgilentImageReader(FileFormat, SpectralFileFormat):
         return _spectra_from_image(X, features, x_locs, y_locs)
 
 
+class AgilentImageIFGReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA single tile image files (IFG)"""
+    EXTENSIONS = ('.seq',)
+    DESCRIPTION = 'Agilent Single Tile Image (IFG)'
+
+    def read_spectra(self):
+        ai = agilentImageIFG(self.filename)
+        info = ai.info
+        X = ai.data
+
+        features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
 class agilentMosaicReader(FileFormat, SpectralFileFormat):
     """ Reader for Agilent FPA mosaic image files"""
     EXTENSIONS = ('.dmt',)
@@ -334,6 +357,30 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
         except KeyError:
             #just start counting from 0 when nothing is known
             features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dmt',)
+    DESCRIPTION = 'Agilent Mosaic Image (IFG)'
+    PRIORITY = agilentMosaicReader.PRIORITY + 1
+
+    def read_spectra(self):
+        am = agilentMosaicIFG(self.filename)
+        info = am.info
+        X = am.data
+
+        features = np.arange(X.shape[-1])
 
         try:
             px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
