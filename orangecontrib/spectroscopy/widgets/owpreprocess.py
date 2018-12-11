@@ -1464,10 +1464,10 @@ class SpectralPreprocess(OWWidget):
         preprocessed_data = Output("Preprocessed Data", Orange.data.Table, default=True)
         preprocessor = Output("Preprocessor", preprocess.preprocess.Preprocess)
 
-    storedsettings = settings.Setting({})
+    storedsettings = settings.Setting({}, schema_only=True)
     autocommit = settings.Setting(False)
     preview_curves = settings.Setting(3)
-    preview_n = settings.Setting(0)
+    preview_n = settings.Setting(0, schema_only=True)
 
     curveplot = settings.SettingProvider(CurvePlot)
     curveplot_after = settings.SettingProvider(CurvePlot)
