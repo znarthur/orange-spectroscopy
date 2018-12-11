@@ -40,11 +40,12 @@ class SpectralFileFormat:
             domain = Orange.data.Domain(features, None)
             return Orange.data.Table(domain, data)
         else:
-            domain = Orange.data.Domain(features,
-                                        class_vars=additional_table.domain.class_vars,
-                                        metas=additional_table.domain.metas)
-            ret_data = additional_table.transform(domain)
-            ret_data.X = data
+
+            domain = Domain(features,
+                            class_vars=additional_table.domain.class_vars,
+                            metas=additional_table.domain.metas)
+            ret_data = Table.from_numpy(domain, X=data, Y=additional_table.Y,
+                                        metas=additional_table.metas)
             return ret_data
 
 
