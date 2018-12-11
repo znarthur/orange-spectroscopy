@@ -339,7 +339,29 @@ class AgilentImageIFGReader(FileFormat, SpectralFileFormat):
         x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
         y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
 
-        return _spectra_from_image(X, features, x_locs, y_locs)
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        import_params = ['Effective Laser Wavenumber',
+                         'Under Sampling Ratio',
+        ]
+        new_attributes = []
+        new_columns = []
+        for param_key in import_params:
+            try:
+                param = info[param_key]
+            except KeyError:
+                pass
+            else:
+                new_attributes.append(ContinuousVariable.make(param_key))
+                new_columns.append(np.full((len(data),), param))
+
+        domain = Domain(additional_table.domain.attributes,
+                        additional_table.domain.class_vars,
+                        additional_table.domain.metas + tuple(new_attributes))
+        table = additional_table.transform(domain)
+        table[:, new_attributes] = np.asarray(new_columns).T
+
+        return (features, data, table)
 
 
 class agilentMosaicReader(FileFormat, SpectralFileFormat):
@@ -390,7 +412,29 @@ class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
         x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
         y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
 
-        return _spectra_from_image(X, features, x_locs, y_locs)
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        import_params = ['Effective Laser Wavenumber',
+                         'Under Sampling Ratio',
+        ]
+        new_attributes = []
+        new_columns = []
+        for param_key in import_params:
+            try:
+                param = info[param_key]
+            except KeyError:
+                pass
+            else:
+                new_attributes.append(ContinuousVariable.make(param_key))
+                new_columns.append(np.full((len(data),), param))
+
+        domain = Domain(additional_table.domain.attributes,
+                        additional_table.domain.class_vars,
+                        additional_table.domain.metas + tuple(new_attributes))
+        table = additional_table.transform(domain)
+        table[:, new_attributes] = np.asarray(new_columns).T
+
+        return (features, data, table)
 
 
 class SPCReader(FileFormat):

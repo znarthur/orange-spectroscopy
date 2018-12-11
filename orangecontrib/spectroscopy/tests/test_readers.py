@@ -137,6 +137,9 @@ class TestAgilentReader(unittest.TestCase):
         self.assertAlmostEqual(d[-1]["map_y"], 616.0)
         self.assertAlmostEqual(d[9][0], 0.64558595)
         self.assertAlmostEqual(d[18][0], 0.5792696)
+        # Metadata
+        self.assertEqual(d.metas[0, 2], 1.57980039e+04)
+        self.assertEqual(d.metas[0, 3], 4)
 
     def test_mosaic_ifg_read(self):
         # This reader will only be selected manually due to shared .dmt extension
@@ -156,6 +159,9 @@ class TestAgilentReader(unittest.TestCase):
         self.assertAlmostEqual(d[-1]["map_y"], 1232.0)
         self.assertAlmostEqual(d[21][0], 0.7116039)
         self.assertAlmostEqual(d[26][0], 0.48532167)
+        # Metadata
+        self.assertEqual(d.metas[0, 2], 1.57980039e+04)
+        self.assertEqual(d.metas[0, 3], 4)
 
 
 class TestGSF(unittest.TestCase):
