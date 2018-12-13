@@ -40,6 +40,7 @@ except ImportError:
 
 
 from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.utils import apply_columns_numpy
 from orangecontrib.spectroscopy.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
@@ -1267,9 +1268,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                         part_selection = indices & self.subset_indices
                         pen = self.pen_subset
                     if np.any(part_selection):
-                        ys = self.data.X[part_selection]
-                        std = np.nanstd(ys, axis=0)
-                        mean = np.nanmean(ys, axis=0)
+                        std = apply_columns_numpy(self.data.X,
+                                                  lambda x: np.nanstd(x, axis=0),
+                                                  part_selection)
+                        mean = apply_columns_numpy(self.data.X,
+                                                   lambda x: np.nanmean(x, axis=0),
+                                                   part_selection)
                         std = std[self.data_xsind]
                         mean = mean[self.data_xsind]
                         ysall.append(mean)
