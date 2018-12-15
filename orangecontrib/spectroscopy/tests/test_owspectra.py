@@ -91,6 +91,11 @@ class TestOWSpectra(WidgetTest):
 
         self.widget.curveplot.MOUSE_RADIUS = mr
 
+    def test_average(self):
+        for data in self.normal_data + self.strange_data:
+            self.send_signal("Data", data)
+            self.widget.curveplot.show_average()
+
     def test_empty(self):
         self.send_signal("Data", None)
         self.do_mousemove()
