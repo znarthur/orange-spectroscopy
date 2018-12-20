@@ -26,7 +26,7 @@ from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QLayout
+    QToolButton, QSplitter, QLayout, QMessageBox
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -52,7 +52,7 @@ from orangecontrib.spectroscopy.widgets.preprocessors.normalize import Normalize
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 
-from extranormal3 import curved_tools
+from extranormal3 import curved_tools, extra_exafs
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -723,6 +723,12 @@ class XASnormalizationEditor(BaseEditorOrange):
         super().__init__(parent, **kwargs)
         #OWComponent.__init__(self, parent)
 
+        self.warning_msg = QMessageBox()
+        self.warning_msg.setWindowTitle("WARNING")
+        self.warning_msg.setIcon(QMessageBox.Warning)
+        self.warning_msg.setStandardButtons(QMessageBox.Ok)
+
+
         self.setLayout(QGridLayout())
         #self.layout().setVerticalSpacing(self.layout().verticalSpacing()+2)
         #self.layout().setAlignment(AlignCenter)
@@ -888,7 +894,37 @@ class XASnormalizationEditor(BaseEditorOrange):
         postedge['to'] = float(params.get("postedge_to", 0.))
         postedge['deg'] = int(params.get("postedge_deg", 2))
 
+        warning_popup = QMessageBox(params.get("warning_msg", None))
+        '''
+        # 1 - It shows up for a sec
+        warning_popup.setText('Coucou')
+        warning_popup.show()
+        # How to make it stay ??
+        '''
+        '''
+        # Is it possible to do as follows
+        try:
+            xasn = XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
+        except Exception as exmatter:
+            warning_popup.setText(str(exmatter))
+            warning_popup.show()
+            raise Exception(str(exmatter))
+
+        return xasn
+        '''
         return XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
+
+
+    def execute_instance(self, instance, data):
+        try:
+            return instance(data)
+        except normal_xas.InvalidInput as ii:
+            self.warning_msg.setText(str(ii))
+            self.warning_msg.show()
+            print(ii)
+            d = data.copy()
+            d.X[:,:] = np.nan
+            return d
 
 
 class E2K(ValueTransform):
@@ -1055,6 +1091,14 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
         return ExtractEXAFS(edge=edge, extra_from=extra_from, extra_to=extra_to,
                             poly_deg=poly_deg, kweight=kweight, m=m)
+
+    '''
+    def execute_instance(self, instance, data):
+        try:
+            return instance(data)
+        except extra_exafs.NoJunpsEx as e:
+            print(e)
+    '''
 
 
 def layout_widgets(layout):
@@ -1569,7 +1613,7 @@ class SpectralPreprocess(OWWidget):
         self.final_preview_toggle = False
         if not self.preview_on_image:
             self.final_preview = gui.button(
-                box, self, "Final preview",self.flow_view.preview_changed,
+                box, self, "Final preview", self.flow_view.preview_changed,
                 toggleButton=True, value="final_preview_toggle", autoDefault=False)
         gui.spin(box, self, "preview_curves", 1, self._max_preview_spectra, label="Show spectra",
                  callback=self._update_preview_number)
