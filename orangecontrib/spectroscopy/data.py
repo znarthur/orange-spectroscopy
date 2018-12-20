@@ -285,24 +285,21 @@ class HDF5Reader_HERMES(FileFormat, SpectralFileFormat):
             intensities = np.array(hdf5_file['entry1/Counter0/data']).T
         return _spectra_from_image(intensities, energy, x_locs, y_locs)
 
+
 class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
-    """ A very case specific reader for hyperspectral imaging HDF5 files from the ROCK beamline in SOLEIL"""
+    """ A very case specific reader for hyperspectral imaging HDF5
+    files from the ROCK beamline in SOLEIL"""
     EXTENSIONS = ('.h5',)
     DESCRIPTION = 'HDF5 file @ROCK(hyperspectral imaging)/SOLEIL'
 
     def read_spectra(self):
         import h5py
         hdf5_file = h5py.File(self.filename)
-        #if hdf5_file['entry1/collection/beamline'].value.astype('str') == 'Hermes':
-        #    x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
-        #    y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
-        #    energy = np.array(hdf5_file['entry1/Counter0/energy'])
-        #    intensities = np.array(hdf5_file['entry1/Counter0/data']).T
-
-        #intensities = np.array(hdf5_file['data/cube_av40_00001'])
-        #lenE, height, width = np.shape(intensities)
-        #intensities = np.transpose(np.array(hdf5_file['data/cube_av40_00001']), (1, 2, 0))
-        intensities = np.transpose(np.array(hdf5_file['data/cube_00001']), (1, 2, 0))
+        #cube = hdf5_file['data/cube_av40_00001']
+        cube = hdf5_file['data/cube_00001']
+        npcube = np.empty(cube.shape, dtype=np.float64)
+        cube.read_direct(npcube)
+        intensities = np.transpose(npcube, (1, 2, 0))
         height, width, lenE = np.shape(intensities)
         x_locs = np.arange(width)
         y_locs = np.arange(height)
