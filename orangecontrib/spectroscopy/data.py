@@ -62,8 +62,25 @@ class SelectcolumnReader(FileFormat):
     EXTENSIONS = ('.txt',)
     DESCRIPTION = 'XAS ascii spectrum from ROCK'
 
+    @property
+    def sheets(self):
+
+        with open(self.filename, 'r') as dataf:
+            for l in dataf:
+                if not l.startswith('#'):
+                    break
+            col_nbrs = range(2, min(len(l.split())+1, 11))
+
+        return list(map(str, col_nbrs))
+
     def read(self):
-        spectrum = np.loadtxt(self.filename, comments = '#', usecols=(0,2),
+
+        if self.sheet:
+            col_nb = int(self.sheet)
+        else:
+            col_nb = int(self.sheets[0])
+
+        spectrum = np.loadtxt(self.filename, comments = '#', usecols=(0,col_nb-1),
                          unpack=True )
         domvals = spectrum[0]  # first column is attribute name
         features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
