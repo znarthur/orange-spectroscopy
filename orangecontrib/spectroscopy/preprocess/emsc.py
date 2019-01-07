@@ -3,7 +3,11 @@ from numpy import nextafter
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
-from Orange.widgets.utils.annotated_data import get_next_name
+
+try:  # get_unique_names was introduced in Orange 3.20
+    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
+except ImportError:
+    from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
@@ -173,18 +177,18 @@ class EMSC(Preprocess):
         if self.output_model:
             i = len(data.domain.attributes)
             for o in range(self.order+1):
-                n = get_next_name(used_names, "EMSC parameter " + str(o))
+                n = get_unique_names(used_names, "EMSC parameter " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
                                                    compute_value=EMSCModel(i, common)))
                 i += 1
             for o in range(n_badspec):
-                n = get_next_name(used_names, "EMSC parameter bad spec " + str(o))
+                n = get_unique_names(used_names, "EMSC parameter bad spec " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
                                                    compute_value=EMSCModel(i, common)))
                 i += 1
-            n = get_next_name(used_names, "EMSC scaling parameter")
+            n = get_unique_names(used_names, "EMSC scaling parameter")
             model_metas.append(
                 Orange.data.ContinuousVariable(name=n,
                                                compute_value=EMSCModel(i, common)))

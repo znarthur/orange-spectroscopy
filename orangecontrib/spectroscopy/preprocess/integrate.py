@@ -4,7 +4,12 @@ import Orange
 import numpy as np
 from Orange.data.util import SharedComputeValue
 from Orange.preprocess.preprocess import Preprocess
-from Orange.widgets.utils.annotated_data import get_next_name
+
+try:  # get_unique_names was introduced in Orange 3.20
+    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
+except ImportError:
+    from Orange.data.util import get_unique_names
+
 from AnyQt.QtCore import Qt
 
 from orangecontrib.spectroscopy.data import getx
@@ -258,7 +263,7 @@ class Integrate(Preprocess):
             # no names in data should be repeated
             used_names = [var.name for var in data.domain.variables + data.domain.metas]
             for i, n in enumerate(names):
-                n = get_next_name(used_names, n)
+                n = get_unique_names(used_names, n)
                 names[i] = n
                 used_names.append(n)
             for limits, method, name in zip(self.limits, methods, names):

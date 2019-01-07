@@ -1,7 +1,6 @@
 import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from Orange.widgets.utils.annotated_data import get_next_name
 from orangecontrib.spectroscopy.widgets.owreshape import OWReshape
 
 

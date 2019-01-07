@@ -4,7 +4,12 @@ import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
-from Orange.widgets.utils.annotated_data import get_next_name
+
+try:  # get_unique_names was introduced in Orange 3.20
+    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
+except ImportError:
+    from Orange.data.util import get_unique_names
+
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntOrNone
 
 from AnyQt.QtWidgets import QWidget, QFormLayout
@@ -100,8 +105,8 @@ class OWReshape(OWWidget):
         if self.data and self.xpoints is not None and self.ypoints is not None \
                 and self.xpoints * self.ypoints == len(self.data):
             used_names = [var.name for var in self.data.domain.variables + self.data.domain.metas]
-            xmeta = Orange.data.ContinuousVariable.make(get_next_name(used_names, "X"))
-            ymeta = Orange.data.ContinuousVariable.make(get_next_name(used_names, "Y"))
+            xmeta = Orange.data.ContinuousVariable.make(get_unique_names(used_names, "X"))
+            ymeta = Orange.data.ContinuousVariable.make(get_unique_names(used_names, "Y"))
             # add new variables for X and Y dimension ot the data domain
             metas = self.data.domain.metas + (xmeta, ymeta)
             domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
@@ -130,6 +135,7 @@ def main(argv=sys.argv):
     ow.set_data(dataset)
     app.exec_()
     return 0
+
 
 if __name__=="__main__":
     sys.exit(main())
