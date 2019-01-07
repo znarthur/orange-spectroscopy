@@ -22,6 +22,7 @@ def add_meta_to_table(data, var, values):
     newtable[:, var] = np.atleast_1d(values).reshape(-1, 1)
     return newtable
 
+DEFAULT_HENE = 15797.337544
 
 class OWFFT(OWWidget):
     # Widget's name as displayed in the canvas
@@ -48,7 +49,7 @@ class OWFFT(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owfft.OWFFT"]
 
     # Define widget settings
-    laser_wavenumber = settings.Setting(15797.337544)
+    laser_wavenumber = settings.Setting(DEFAULT_HENE)
     dx_HeNe = settings.Setting(True)
     dx = settings.Setting(1.0)
     auto_sweeps = settings.Setting(True)
@@ -109,6 +110,7 @@ class OWFFT(OWWidget):
         infoBox = gui.widgetBox(self.controlArea, "Info")
         self.infoa = gui.widgetLabel(infoBox, "No data on input.")
         self.infob = gui.widgetLabel(infoBox, "")
+        self.infoc = gui.widgetLabel(infoBox, "")
 
         # Input Data control area
         self.dataBox = gui.widgetBox(self.controlArea, "Input Data")
@@ -122,13 +124,13 @@ class OWFFT(OWWidget):
             valueType=float,
             controlWidth=100, disabled=self.dx_HeNe
             )
-        cb = gui.checkBox(
+        self.dx_HeNe_cb = gui.checkBox(
             self.dataBox, self, "dx_HeNe",
             label="HeNe laser",
             callback=self.dx_changed,
             )
         lb = gui.widgetLabel(self.dataBox, "cm")
-        grid.addWidget(cb, 0, 0)
+        grid.addWidget(self.dx_HeNe_cb, 0, 0)
         grid.addWidget(self.dx_edit, 0, 1)
         grid.addWidget(lb, 0, 2)
 
@@ -252,6 +254,7 @@ class OWFFT(OWWidget):
                                (dataset.X.shape[0],
                                 (["Single"] + 3*["Forward-Backward"])[self.sweeps]))
             self.infob.setText('%d points each' % dataset.X.shape[1])
+            self.check_metadata()
             self.dataBox.setDisabled(False)
             self.optionsBox.setDisabled(False)
             self.commit()
@@ -466,6 +469,35 @@ class OWFFT(OWWidget):
         elif sweeps == 1 and self.sweeps == 0:
             # Coerce setting to match input data (single -> forward)
             self.sweeps = 2
+
+
+    def check_metadata(self):
+        """ Look for laser wavenumber and sampling interval metadata """
+        try:
+            lwn, _ = self.data.get_column_view("Effective Laser Wavenumber")
+        except ValueError:
+            if not self.dx_HeNe_cb.isEnabled():
+                # Only reset if disabled by this code, otherwise leave alone
+                self.dx_HeNe_cb.setDisabled(False)
+                self.infoc.setText("")
+                self.dx_HeNe = True
+                self.dx_edit.setDisabled(self.dx_HeNe)
+                self.dx = 1.0 / self.laser_wavenumber / 2.0
+            return
+        else:
+            lwn = lwn[0] if (lwn == lwn[0]).all() else ValueError()
+            self.dx_HeNe = False
+            self.dx_HeNe_cb.setDisabled(True)
+            self.dx_edit.setDisabled(True)
+        try:
+            udr, _ = self.data.get_column_view("Under Sampling Ratio")
+        except ValueError:
+            udr = 1
+        else:
+            udr = udr[0] if (udr == udr[0]).all() else ValueError()
+
+        self.dx = (1 / lwn / 2 ) * udr
+        self.infoc.setText("{0} cm<sup>-1</sup> laser, {1} sampling interval".format(lwn, udr))
 
 
 # Simple main stub function in case being run outside Orange Canvas
