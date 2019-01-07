@@ -2,7 +2,6 @@ import unittest
 
 import Orange
 import numpy as np
-from Orange.widgets.utils.annotated_data import get_next_name
 
 from orangecontrib.spectroscopy.preprocess import Integrate
 
