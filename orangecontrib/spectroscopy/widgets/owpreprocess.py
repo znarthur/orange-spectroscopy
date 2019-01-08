@@ -59,9 +59,6 @@ class ViewController(Controller):
     def createWidgetFor(self, index):
         w = super().createWidgetFor(index)
         w.parent_widget = self.parent()
-        # set reference data for a new control
-        if hasattr(w, "set_reference_data"):
-            w.set_reference_data(self.parent().reference_data)
         return w
 
     # ensure that view on the right
@@ -242,6 +239,10 @@ class BaseEditor(BaseEditor):
 
     def set_preview_data(self, data):
         """Handle the preview data (initialize parameters)"""
+        pass
+
+    def set_reference_data(self, data):
+        """Set the reference data"""
         pass
 
     def execute_instance(self, instance, data):
@@ -1043,6 +1044,8 @@ class SpectralTransformEditor(BaseEditorOrange):
         self.tocb.currentIndexChanged.connect(self.changed)
         self.tocb.activated.connect(self.edited)
 
+        self.reference = None
+
         self.reference_info = QLabel("", self)
         self.layout().addWidget(self.reference_info)
 
@@ -1598,6 +1601,7 @@ class SpectralPreprocess(OWWidget):
 
         if self.data is not None:
             orig_data = data = self.preview_data
+            reference_data = self.reference_data
             widgets = self.flow_view.widgets()
             preview_pos = self.flow_view.preview_n()
             n = self.preprocessormodel.rowCount()
@@ -1609,10 +1613,13 @@ class SpectralPreprocess(OWWidget):
                 if preview_pos == i:
                     preview_data = data
 
+                widgets[i].set_reference_data(reference_data)
                 widgets[i].set_preview_data(data)
                 item = self.preprocessormodel.item(i)
-                preproc = self._create_preprocessor(item)
+                preproc = self._create_preprocessor(item, reference_data)
                 data = widgets[i].execute_instance(preproc, data)
+                if reference_data is not None and i != n - 1:
+                    reference_data = preproc(reference_data)
 
                 if preview_pos == i:
                     after_data = data
@@ -1760,30 +1767,19 @@ class SpectralPreprocess(OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
-    def _prepare_params(self, params):
+    def _prepare_params(self, params, reference):
         if not isinstance(params, dict):
             params = {}
         # add optional reference data
-        params["_reference_data"] = self.reference_data
+        params[REFERENCE_DATA_PARAM] = reference
         return params
 
-    def _create_preprocessor(self, item):
+    def _create_preprocessor(self, item, reference):
         desc = item.data(DescriptionRole)
         params = item.data(ParametersRole)
-        params = self._prepare_params(params)
+        params = self._prepare_params(params, reference)
         create = desc.viewclass.createinstance
         return create(params)
-
-    def buildpreproc(self):
-        plist = []
-        for i in range(self.preprocessormodel.rowCount()):
-            item = self.preprocessormodel.item(i)
-            plist.append(self._create_preprocessor(item))
-
-        if len(plist) == 1:
-            return plist[0]
-        else:
-            return preprocess.preprocess.PreprocessorList(plist)
 
     def apply(self):
         # Sync the model into storedsettings on every apply.
@@ -1791,17 +1787,29 @@ class SpectralPreprocess(OWWidget):
         self.show_preview()
 
         self.storeSpecificSettings()
-        preprocessor = self.buildpreproc()
+
+        plist = []
 
         if self.data is not None:
             self.Error.applying.clear()
             try:
-                data = preprocessor(self.data)
+                data = self.data
+                reference = self.reference_data
+                n = self.preprocessormodel.rowCount()
+                for i in range(n):
+                    item = self.preprocessormodel.item(i)
+                    pp = self._create_preprocessor(item, reference)
+                    plist.append(pp)
+                    data = pp(data)
+                    if reference is not None and i != n - 1:
+                        reference = pp(reference)
             except ValueError as e:
                 self.Error.applying()
                 return
         else:
             data = None
+
+        preprocessor = preprocess.preprocess.PreprocessorList(plist)
 
         self.Outputs.preprocessor.send(preprocessor)
         self.Outputs.preprocessed_data.send(data)
@@ -1871,10 +1879,6 @@ class SpectralPreprocessReference(SpectralPreprocess):
     @Inputs.reference
     def set_reference(self, ref):
         self.reference_data = ref
-        # set reference data to all widgets
-        for w in self.flow_view.widgets():
-            if hasattr(w, "set_reference_data"):
-                w.set_reference_data(self.reference_data)
 
 
 class OWPreprocess(SpectralPreprocessReference):
