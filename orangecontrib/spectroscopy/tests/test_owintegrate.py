@@ -20,6 +20,7 @@ class TestOWIntegrate(WidgetTest):
             self.widget.add_preprocessor(i)
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
+            self.widget.apply()
 
     def test_allint_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -28,6 +29,7 @@ class TestOWIntegrate(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+            self.widget.apply()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = Orange.data.Table(Orange.data.Domain([],
@@ -38,3 +40,4 @@ class TestOWIntegrate(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+            self.widget.apply()

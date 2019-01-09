@@ -22,6 +22,7 @@ class TestOWPreprocess(WidgetTest):
             self.widget.add_preprocessor(i)
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
+            self.widget.apply()
 
     def test_allpreproc_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -30,6 +31,7 @@ class TestOWPreprocess(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+            self.widget.apply()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = Orange.data.Table(Orange.data.Domain([],
@@ -40,6 +42,7 @@ class TestOWPreprocess(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(i)
             self.widget.show_preview()  # direct call
+            self.widget.apply()
 
     def test_allpreproc_indv_ref(self):
         data = Orange.data.Table("peach_juice.dpt")
@@ -50,6 +53,7 @@ class TestOWPreprocess(WidgetTest):
             self.widget.add_preprocessor(i)
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
+            self.widget.apply()
 
     def test_allpreproc_indv_ref_multi(self):
         """Test that preprocessors can handle references with multiple instances"""
@@ -62,6 +66,7 @@ class TestOWPreprocess(WidgetTest):
             self.widget.add_preprocessor(i)
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
+            self.widget.apply()
 
     def test_transfer_highlight(self):
         data = SMALL_COLLAGEN
