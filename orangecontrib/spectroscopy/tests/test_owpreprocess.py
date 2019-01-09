@@ -1,9 +1,11 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
+    PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
+
 
 class TestOWPreprocess(WidgetTest):
 
@@ -129,3 +131,66 @@ class TestOWPreprocess(WidgetTest):
              ("orangecontrib.spectroscopy.transforms",
               {'from_type': 1, 'to_type': 0})])
 
+
+class RememberData:
+    reference = None
+    data = None
+
+    def __init__(self, reference):
+        RememberData.reference = reference
+
+    def __call__(self, data):
+        RememberData.data = data
+        return data
+
+
+class RememberDataEditor(BaseEditorOrange):
+
+    def setParameters(self, p):
+        pass
+
+    @staticmethod
+    def createinstance(params):
+        return RememberData(reference=params[REFERENCE_DATA_PARAM])
+
+
+def pack_editor(editor):
+    return PreprocessAction("", "", "", Description("Packed"), editor)
+
+
+class TestSampling(WidgetTest):
+
+    def setUp(self):
+        self.widget = self.create_widget(OWPreprocess)
+
+    def test_preview_sampled(self):
+        data = SMALL_COLLAGEN
+        assert len(data) > 3
+        self.send_signal("Data", data)
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.preview_curves = 3
+        self.widget.show_preview()
+        self.assertEqual(3, len(RememberData.data))
+
+    def test_preview_keep_order(self):
+        data = SMALL_COLLAGEN
+        assert len(data) > 4
+        self.send_signal("Data", data)
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.preview_curves = 3
+        self.widget.show_preview()
+        ids_old = RememberData.data.ids
+        self.widget.preview_curves = 4
+        self.widget.show_preview()
+        ids_new = RememberData.data.ids
+        self.assertEqual(4, len(ids_new))
+        self.assertEqual(list(ids_old), list(ids_new[:len(ids_old)]))
+
+    def test_apply_on_everything(self):
+        data = SMALL_COLLAGEN
+        assert len(data) > 3
+        self.send_signal("Data", data)
+        self.widget.preview_curves = 3
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.apply()
+        self.assertEqual(len(data), len(RememberData.data))

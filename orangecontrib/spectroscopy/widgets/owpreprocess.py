@@ -1584,23 +1584,21 @@ class SpectralPreprocess(OWWidget):
         self._initialize()
 
     def _update_preview_number(self):
-        self.sample_preview_data()
         self.show_preview(show_info=False)
 
-    def sample_preview_data(self):
-        if self.data is not None:
-            data = self.data
-            if len(data) > self.preview_curves: #sample data
-                sampled_indices = random.Random(0).sample(range(len(data)), self.preview_curves)
-                data = data[sampled_indices]
-            self.preview_data = data
+    def sample_data(self, data):
+        if data is not None and len(data) > self.preview_curves:
+            sampled_indices = random.Random(0).sample(range(len(data)), self.preview_curves)
+            return data[sampled_indices]
+        else:
+            return self.data
 
     def show_preview(self, show_info=False):
         """ Shows preview and also passes preview data to the widgets """
         #self.storeSpecificSettings()
 
         if self.data is not None:
-            orig_data = data = self.preview_data
+            orig_data = data = self.sample_data(self.data)
             reference_data = self.reference_data
             widgets = self.flow_view.widgets()
             preview_pos = self.flow_view.preview_n()
@@ -1753,14 +1751,14 @@ class SpectralPreprocess(OWWidget):
     def set_data(self, data=None):
         """Set the input data set."""
         self.data = data
-        self.sample_preview_data()
 
     def handleNewSignals(self):
         self.show_preview(True)
         self.apply()
 
-    def add_preprocessor(self, index):
-        action = self.PREPROCESSORS[index]
+    def add_preprocessor(self, action):
+        if isinstance(action, int):
+            action = self.PREPROCESSORS[action]
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
