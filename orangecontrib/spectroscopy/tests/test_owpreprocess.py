@@ -36,9 +36,11 @@ class TestOWPreprocess(WidgetTest):
             self.widget.apply()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
-        data = Orange.data.Table(Orange.data.Domain([],
-                class_vars=data.domain.class_vars,
-                metas=data.domain.metas), data)
+        data = Orange.data.Table(
+            Orange.data.Domain([],
+                               class_vars=data.domain.class_vars,
+                               metas=data.domain.metas),
+            data)
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
@@ -80,8 +82,8 @@ class TestOWPreprocess(WidgetTest):
         self.assertIsNone(self.widget.curveplot_after.highlighted)
 
     def test_migrate_rubberbard(self):
-        settings = {"storedsettings": {"preprocessors":
-            [("orangecontrib.infrared.rubberband", {})]}}
+        settings = {"storedsettings":
+                        {"preprocessors": [("orangecontrib.infrared.rubberband", {})]}}
         OWPreprocess.migrate_settings(settings, 1)
         self.assertEqual(settings["storedsettings"]["preprocessors"],
                          [("orangecontrib.infrared.baseline", {'baseline_type': 1})])
