@@ -1648,7 +1648,7 @@ class SpectralPreprocess(OWWidget):
             self.curveplot_after.hide()
 
     def _initialize(self):
-        for i, pp_def in enumerate(self.PREPROCESSORS):
+        for pp_def in self.PREPROCESSORS:
             description = pp_def.description
             if description.icon:
                 icon = QIcon(description.icon)
@@ -1661,7 +1661,7 @@ class SpectralPreprocess(OWWidget):
                           Qt.ItemIsDragEnabled)
             self.preprocessors.appendRow([item])
             action = QAction(
-                description.title, self, triggered=lambda x, id=i: self.add_preprocessor(id)
+                description.title, self, triggered=lambda x, p=pp_def: self.add_preprocessor(p)
             )
             action.setToolTip(description.summary or "")
             action.setIcon(icon)
@@ -1757,8 +1757,6 @@ class SpectralPreprocess(OWWidget):
         self.apply()
 
     def add_preprocessor(self, action):
-        if isinstance(action, int):
-            action = self.PREPROCESSORS[action]
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
