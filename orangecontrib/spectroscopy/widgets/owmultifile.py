@@ -123,9 +123,9 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
     file_idx = []
 
-    sheet = Setting(None)
-    label = Setting("")
-    recent_paths = Setting([])
+    sheet = Setting(None, schema_only=True)
+    label = Setting("", schema_only=True)
+    recent_paths = Setting([], schema_only=True)
 
     def __init__(self):
         widget.OWWidget.__init__(self)
