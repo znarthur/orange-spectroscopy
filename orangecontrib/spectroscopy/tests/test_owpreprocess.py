@@ -84,7 +84,7 @@ class TestOWPreprocess(WidgetTest):
         self.widget.curveplot.highlight(None)
         self.assertIsNone(self.widget.curveplot_after.highlighted)
 
-    def test_migrate_rubberbard(self):
+    def test_migrate_rubberband(self):
         settings = {"storedsettings":
                         {"preprocessors": [("orangecontrib.infrared.rubberband", {})]}}
         OWPreprocess.migrate_settings(settings, 1)
