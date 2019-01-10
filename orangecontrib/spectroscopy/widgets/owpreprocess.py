@@ -1472,6 +1472,9 @@ class SpectralPreprocess(OWWidget):
     preview_curves = settings.Setting(3)
     preview_n = settings.Setting(0, schema_only=True)
 
+    # compatibility for old workflows when reference was not processed
+    process_reference = settings.Setting(True, schema_only=True)
+
     curveplot = settings.SettingProvider(CurvePlot)
     curveplot_after = settings.SettingProvider(CurvePlot)
 
@@ -1480,6 +1483,11 @@ class SpectralPreprocess(OWWidget):
 
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
+
+    class Warning(OWWidget.Warning):
+        reference_compat = Msg("Reference is not processed for compatibility with the loaded "
+                               "workflow. New instances of this widget will also process "
+                               "the reference input.")
 
     def __init__(self):
         super().__init__()
@@ -1593,9 +1601,15 @@ class SpectralPreprocess(OWWidget):
         else:
             return self.data
 
+    def _reference_compat_warning(self):
+        self.Warning.reference_compat.clear()
+        if not self.process_reference and self.reference_data is not None:
+            self.Warning.reference_compat()
+
     def show_preview(self, show_info=False):
         """ Shows preview and also passes preview data to the widgets """
         #self.storeSpecificSettings()
+        self._reference_compat_warning()
 
         if self.data is not None:
             orig_data = data = self.sample_data(self.data)
@@ -1616,7 +1630,7 @@ class SpectralPreprocess(OWWidget):
                 item = self.preprocessormodel.item(i)
                 preproc = self._create_preprocessor(item, reference_data)
                 data = widgets[i].execute_instance(preproc, data)
-                if reference_data is not None and i != n - 1:
+                if self.process_reference and reference_data is not None and i != n - 1:
                     reference_data = preproc(reference_data)
 
                 if preview_pos == i:
@@ -1781,6 +1795,7 @@ class SpectralPreprocess(OWWidget):
         # Sync the model into storedsettings on every apply.
 
         self.show_preview()
+        self._reference_compat_warning()
 
         self.storeSpecificSettings()
 
@@ -1797,7 +1812,7 @@ class SpectralPreprocess(OWWidget):
                     pp = self._create_preprocessor(item, reference)
                     plist.append(pp)
                     data = pp(data)
-                    if reference is not None and i != n - 1:
+                    if self.process_reference and reference is not None and i != n - 1:
                         reference = pp(reference)
             except ValueError as e:
                 self.Error.applying()
@@ -1862,6 +1877,17 @@ class SpectralPreprocess(OWWidget):
 
     @classmethod
     def migrate_settings(cls, settings_, version):
+        # For backwards compatibility, set process_reference=False
+        # but only if there were multiple preprocessors
+        if "process_reference" not in settings_:
+            settings_["process_reference"] = not(
+                version <= 5
+                and "storedsettings" in settings_
+                and "preprocessors" in settings_["storedsettings"]
+                and len(settings_["storedsettings"]["preprocessors"]) > 1
+            )
+
+        # migrate individual preprocessors
         if "storedsettings" in settings_ and "preprocessors" in settings_["storedsettings"]:
             settings_["storedsettings"]["preprocessors"], _ = \
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
@@ -1886,7 +1912,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 5
+    settings_version = 6
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS

@@ -219,6 +219,7 @@ class TestReference(WidgetTest):
         removed = set(original) - set(processed)
         self.assertGreater(len(removed), 0)
         self.assertEqual(set(), set(processed) - set(original))
+        self.assertFalse(self.widget.Warning.reference_compat.is_shown())
 
     def test_reference_preprocessed_preview(self):
         data = SMALL_COLLAGEN
@@ -236,3 +237,39 @@ class TestReference(WidgetTest):
         removed = set(original) - set(processed)
         self.assertGreater(len(removed), 0)
         self.assertEqual(set(), set(processed) - set(original))
+        self.assertFalse(self.widget.Warning.reference_compat.is_shown())
+
+    def test_reference_not_processed(self):
+        """Testing setting for compatibility wih older saved schemas"""
+        data = SMALL_COLLAGEN
+        self.widget.process_reference = False
+        self.assertFalse(self.widget.Warning.reference_compat.is_shown())
+        self.send_signal("Data", data)
+        self.send_signal("Reference", data)
+        self.widget.add_preprocessor(pack_editor(CutEditor))
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.show_preview()
+        self.assertIs(data, RememberData.reference)
+        self.assertTrue(self.widget.Warning.reference_compat.is_shown())
+        self.widget.apply()
+        self.assertIs(data, RememberData.reference)
+        self.assertTrue(self.widget.Warning.reference_compat.is_shown())
+
+    def test_workflow_compat_change_preprocess(self):
+        settings = {}
+        OWPreprocess.migrate_settings(settings, 5)
+        self.assertTrue(settings["process_reference"])
+
+        settings = {"storedsettings": {"preprocessors": [("orangecontrib.infrared.cut", {})]}}
+        OWPreprocess.migrate_settings(settings, 5)
+        self.assertTrue(settings["process_reference"])
+
+        # multiple preprocessors: set to support old workflows
+        settings = {"storedsettings": {"preprocessors": [("orangecontrib.infrared.cut", {}),
+                                                         ("orangecontrib.infrared.cut", {})]}}
+        OWPreprocess.migrate_settings(settings, 5)
+        self.assertFalse(settings["process_reference"])
+
+        # migrating the same settings keeps the setting false
+        OWPreprocess.migrate_settings(settings, 6)
+        self.assertFalse(settings["process_reference"])
