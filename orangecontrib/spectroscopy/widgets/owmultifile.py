@@ -2,21 +2,24 @@ import os
 from functools import reduce
 from itertools import chain, repeat
 from collections import Counter
+from warnings import catch_warnings
 
-from AnyQt.QtCore import Qt
-from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDialog, QApplication, QStyle,\
-    QListWidget
 import numpy as np
 
-import Orange
-import orangecontrib.spectroscopy
-from orangecontrib.spectroscopy.data import SpectralFileFormat
+from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDialog,\
+    QApplication, QStyle, QListWidget
+
+from Orange.data import Domain, Table, ContinuousVariable, StringVariable
 from Orange.data.io import FileFormat, class_from_qualified_name
 from Orange.widgets import widget, gui
-import Orange.widgets.data.owfile
+from Orange.widgets.settings import Setting
 from Orange.widgets.utils.domaineditor import DomainEditor
-from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath, open_filename_dialog
-from warnings import catch_warnings
+from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath,\
+    open_filename_dialog
+import Orange.widgets.data.owfile
+
+from orangecontrib.spectroscopy.data import SpectralFileFormat
 
 
 def unique(seq):
@@ -28,7 +31,7 @@ def unique(seq):
 
 
 def domain_union(A, B):
-    union = Orange.data.Domain(
+    union = Domain(
         tuple(unique(A.attributes + B.attributes)),
         tuple(unique(A.class_vars + B.class_vars)),
         tuple(unique(A.metas + B.metas))
@@ -56,33 +59,34 @@ def domain_union_for_spectra(tables):
     """
     Works with tables of spectra-specific 3-tuples
     """
-    domains = [t.domain if isinstance(t, Orange.data.Table) else t[2].domain for t in tables]
-    domain = reduce(domain_union, domains, Orange.data.Domain(attributes=[]))
+    domains = [t.domain if isinstance(t, Table) else t[2].domain for t in tables]
+    domain = reduce(domain_union, domains, Domain(attributes=[]))
 
-    xss = [t[0] for t in tables if not isinstance(t, Orange.data.Table)]
+    xss = [t[0] for t in tables if not isinstance(t, Table)]
     xs = reduce(numpy_union_keep_order, xss, np.array([]))
 
     xsset = set("%f" % f for f in xs)  # future attribute names
     attributes_name_set = set(a.name for a in domain.attributes)
     if xsset & attributes_name_set:
         # TODO test
-        raise RuntimeError("Mixing files of different times with overlapping domain values is not supported")
+        raise RuntimeError("Mixing files of different times with overlapping domain "
+                           "values is not supported")
 
     return domain, xs
 
 
 def concatenate_data(tables, filenames, label):
     domain, xs = domain_union_for_spectra(tables)
-    ntables = [(table if isinstance(table, Orange.data.Table) else table[2]).transform(domain)
+    ntables = [(table if isinstance(table, Table) else table[2]).transform(domain)
                for table in tables]
     data = type(ntables[0]).concatenate(ntables, axis=0)
-    source_var = Orange.data.StringVariable.make("Filename")
-    label_var = Orange.data.StringVariable.make("Label")
+    source_var = StringVariable.make("Filename")
+    label_var = StringVariable.make("Label")
 
     # add other variables
-    xs_atts = tuple([Orange.data.ContinuousVariable.make("%f" % f) for f in xs])
-    domain = Orange.data.Domain(xs_atts + domain.attributes, domain.class_vars,
-                                domain.metas + (source_var, label_var))
+    xs_atts = tuple([ContinuousVariable.make("%f" % f) for f in xs])
+    domain = Domain(xs_atts + domain.attributes, domain.class_vars,
+                    domain.metas + (source_var, label_var))
     data = data.transform(domain)
 
     # fill in spectral data
@@ -90,8 +94,8 @@ def concatenate_data(tables, filenames, label):
     xs_sorted = xs[xs_sind]
     pos = 0
     for table in tables:
-        t = table if isinstance(table, Orange.data.Table) else table[2]
-        if not isinstance(table, Orange.data.Table):
+        t = table if isinstance(table, Table) else table[2]
+        if not isinstance(table, Table):
             indices = xs_sind[np.searchsorted(xs_sorted, table[0])]
             data.X[pos:pos+len(t), indices] = table[1]
         pos += len(t)
@@ -119,9 +123,9 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
     file_idx = []
 
-    sheet = Orange.widgets.settings.Setting(None)
-    label = Orange.widgets.settings.Setting("")
-    recent_paths = Orange.widgets.settings.Setting([])
+    sheet = Setting(None)
+    label = Setting("")
+    recent_paths = Setting([])
 
     def __init__(self):
         widget.OWWidget.__init__(self)
@@ -179,8 +183,8 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         layout.addWidget(self.sheet_box, 0, 5)
 
         label_box = gui.hBox(None, addToLayout=False, margin=0)
-        label = gui.lineEdit(label_box, self, "label", callback=self.set_label,
-                             label="Label", orientation=Qt.Horizontal)
+        gui.lineEdit(label_box, self, "label", callback=self.set_label,
+                     label="Label", orientation=Qt.Horizontal)
         layout.addWidget(label_box, 0, 6)
 
         layout.setColumnStretch(3, 2)
@@ -190,7 +194,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         self.editor_model = self.domain_editor.model()
         box.layout().addWidget(self.domain_editor)
 
-        for i, rp in enumerate(self.recent_paths):
+        for rp in self.recent_paths:
             self.lb.addItem(rp.abspath)
 
         # TODO unresolved paths just disappear! Modify _relocate_recent_files
@@ -264,7 +268,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         self.load_data()
 
     def remove_item(self):
-        ri = [ i.row() for i in  self.lb.selectedIndexes() ]
+        ri = [i.row() for i in self.lb.selectedIndexes()]
         for i in sorted(ri, reverse=True):
             self.recent_paths.pop(i)
             self.lb.takeItem(i)
@@ -305,7 +309,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
         data_list = []
         fnok_list = []
 
-        empty_domain = Orange.data.Domain(attributes=[])
+        empty_domain = Domain(attributes=[])
         for rp in self.recent_paths:
             fn = rp.abspath
             reader = _get_reader(rp)
@@ -317,7 +321,7 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
                     if isinstance(reader, SpectralFileFormat):
                         xs, vals, additional = reader.read_spectra()
                         if additional is None:
-                            additional = Orange.data.Table.from_domain(empty_domain, n_rows=len(vals))
+                            additional = Table.from_domain(empty_domain, n_rows=len(vals))
                         data_list.append((xs, vals, additional))
                     else:
                         data_list.append(reader.read())
