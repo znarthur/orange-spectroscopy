@@ -1,7 +1,10 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
+
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
-    PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM
+    PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM, \
+    CutEditor
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
@@ -196,3 +199,40 @@ class TestSampling(WidgetTest):
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
         self.widget.apply()
         self.assertEqual(len(data), len(RememberData.data))
+
+
+class TestReference(WidgetTest):
+
+    def setUp(self):
+        self.widget = self.create_widget(OWPreprocess)
+
+    def test_reference_preprocessed(self):
+        data = SMALL_COLLAGEN
+        self.send_signal("Data", data)
+        self.send_signal("Reference", data)
+        self.widget.add_preprocessor(pack_editor(CutEditor))
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.apply()
+        processed = getx(RememberData.reference)
+        original = getx(data)
+        # cut by default cuts 10% of the data on both edges
+        removed = set(original) - set(processed)
+        self.assertGreater(len(removed), 0)
+        self.assertEqual(set(), set(processed) - set(original))
+
+    def test_reference_preprocessed_preview(self):
+        data = SMALL_COLLAGEN
+        self.widget.preview_curves = 3
+        self.send_signal("Data", data)
+        self.send_signal("Reference", data)
+        self.widget.add_preprocessor(pack_editor(CutEditor))
+        self.widget.add_preprocessor(pack_editor(RememberDataEditor))
+        self.widget.show_preview()
+        processed = getx(RememberData.reference)
+        # cut by default cuts 10% of the data on both edges
+        original = getx(data)
+        # confirm that we are looking at preview data
+        self.assertEqual(3, len(RememberData.data))
+        removed = set(original) - set(processed)
+        self.assertGreater(len(removed), 0)
+        self.assertEqual(set(), set(processed) - set(original))
