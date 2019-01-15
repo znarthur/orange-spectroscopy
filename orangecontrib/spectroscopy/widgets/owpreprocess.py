@@ -1,5 +1,6 @@
 import random
 import sys
+from collections import Iterable
 
 import numpy as np
 
@@ -176,9 +177,10 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
     def set_preview_n(self, n):
         """Set the preview position"""
+        n = set(n if isinstance(n, Iterable) else [n])
         for i, item in enumerate(self.layout_iter(self.__flowlayout)):
             f = item.widget()
-            f.set_preview(i == n)
+            f.set_preview(i in n)
 
     def preview_changed(self):
         if not self.multiple_previews:  # disable other previews
