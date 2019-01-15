@@ -14,27 +14,32 @@ class TestOWIntegrate(WidgetTest):
 
     def test_allint_indv(self):
         data = Orange.data.Table("peach_juice.dpt")
-        for i,p in enumerate(PREPROCESSORS):
+        for p in PREPROCESSORS:
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
-            self.widget.add_preprocessor(i)
+            self.widget.add_preprocessor(p)
             # direct calls the preview so that exceptions do not get lost in Qt
             self.widget.show_preview()
+            self.widget.apply()
 
     def test_allint_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
-        for i, p in enumerate(PREPROCESSORS):
+        for p in PREPROCESSORS:
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
-            self.widget.add_preprocessor(i)
+            self.widget.add_preprocessor(p)
             self.widget.show_preview()  # direct call
+            self.widget.apply()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
-        data = Orange.data.Table(Orange.data.Domain([],
-                class_vars=data.domain.class_vars,
-                metas=data.domain.metas), data)
-        for i, p in enumerate(PREPROCESSORS):
+        data = Orange.data.Table(
+            Orange.data.Domain([],
+                               class_vars=data.domain.class_vars,
+                               metas=data.domain.metas),
+            data)
+        for p in PREPROCESSORS:
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
-            self.widget.add_preprocessor(i)
+            self.widget.add_preprocessor(p)
             self.widget.show_preview()  # direct call
+            self.widget.apply()

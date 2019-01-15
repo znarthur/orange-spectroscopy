@@ -13,14 +13,16 @@ Outputs
     Preprocessed Data
         transformed data set
     Preprocessor
-    	  preprocessing methods
+        preprocessing methods
 
 
 The **Preprocess Spectra** widget applied several preprocessing methods to spectral data. You select the preprocessing method from the list and press the triangle button on the right to apply it. The order of the preprocessing matters, so to change the order of the preprocessing, just drag and drop the method to its proper place.
 
 The input data for the selected method are displayed in the top plot, while the preprocessed data are displayed in the bottom plot.
 
-You can observe each preprocessing step by pressing the triangle button on the right. To apply all of then and observe the final result in a spactra plot, press *Final preview*. To output the data, press *Commit*.
+You can observe each preprocessing step by pressing the triangle button on the right. To apply all of then and observe the final result plot, press *Final preview*. To output the data, press *Commit*.
+
+The reference data set is processed along the input data: only the first preprocessor uses the reference as on the input. If the reference needs to stay fixed, split your preprocessing methods among multiple **Preprocess Spectra** widgets and connect references accordingly.
 
 .. figure:: images/Preprocess-Spectra-stamped.png
 
