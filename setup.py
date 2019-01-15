@@ -146,4 +146,5 @@ if __name__ == '__main__':
         zip_safe=False,
         url="https://github.com/Quasars/orange-spectroscopy",
         cmdclass=cmdclass,
+        license='GPLv3+',
     )
