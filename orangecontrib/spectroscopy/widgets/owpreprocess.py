@@ -1481,7 +1481,7 @@ class SpectralPreprocess(OWWidget):
     storedsettings = settings.Setting({}, schema_only=True)
     autocommit = settings.Setting(False)
     preview_curves = settings.Setting(3)
-    preview_n = settings.Setting(0, schema_only=True)
+    preview_n = settings.Setting(None, schema_only=True)
 
     # compatibility for old workflows when reference was not processed
     process_reference = settings.Setting(True, schema_only=True)
@@ -1852,6 +1852,7 @@ class SpectralPreprocess(OWWidget):
     def storeSpecificSettings(self):
         """Reimplemented."""
         self.storedsettings = self.save(self.preprocessormodel)
+        self.preview_n = self.flow_view.preview_n()
         super().storeSpecificSettings()
 
     def onDeleteWidget(self):
