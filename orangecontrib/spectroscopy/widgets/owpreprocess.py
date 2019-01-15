@@ -9,6 +9,7 @@ import pyqtgraph as pg
 from Orange import preprocess
 from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
+from Orange.widgets.settings import SettingsHandler
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets.data.owpreprocess import (
     Controller, StandardItemModel,
@@ -1458,6 +1459,14 @@ def transfer_highlight(from_: CurvePlot, to: CurvePlot):
         pass
 
 
+class PrepareSavingSettingsHandler(SettingsHandler):
+    """Calls storeSpecificSettings, which is currently not called from non-context handlers."""
+
+    def pack_data(self, widget):
+        widget.storeSpecificSettings()
+        return super().pack_data(widget)
+
+
 class SpectralPreprocess(OWWidget):
 
     class Inputs:
@@ -1466,6 +1475,8 @@ class SpectralPreprocess(OWWidget):
     class Outputs:
         preprocessed_data = Output("Preprocessed Data", Orange.data.Table, default=True)
         preprocessor = Output("Preprocessor", preprocess.preprocess.Preprocess)
+
+    settingsHandler = PrepareSavingSettingsHandler()
 
     storedsettings = settings.Setting({}, schema_only=True)
     autocommit = settings.Setting(False)
@@ -1608,7 +1619,6 @@ class SpectralPreprocess(OWWidget):
 
     def show_preview(self, show_info=False):
         """ Shows preview and also passes preview data to the widgets """
-        #self.storeSpecificSettings()
         self._reference_compat_warning()
 
         if self.data is not None:
@@ -1797,8 +1807,6 @@ class SpectralPreprocess(OWWidget):
         self.show_preview()
         self._reference_compat_warning()
 
-        self.storeSpecificSettings()
-
         plist = []
 
         if self.data is not None:
@@ -1845,12 +1853,6 @@ class SpectralPreprocess(OWWidget):
         """Reimplemented."""
         self.storedsettings = self.save(self.preprocessormodel)
         super().storeSpecificSettings()
-
-    def saveSettings(self):
-        """Reimplemented."""
-        self.storedsettings = self.save(self.preprocessormodel)
-        self.preview_n = self.flow_view.preview_n()
-        super().saveSettings()
 
     def onDeleteWidget(self):
         self.data = None
