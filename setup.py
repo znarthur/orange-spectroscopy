@@ -131,7 +131,6 @@ if __name__ == '__main__':
             'Orange3>=3.11.0',
             'scipy>=0.14.0',
             'spectral>=0.18',
-            'opusFC>=1.1.0',
             'serverfiles>=0.2',
             'AnyQt>=0.0.6',
             'pyqtgraph>=0.10.0',

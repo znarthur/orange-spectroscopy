@@ -11,6 +11,11 @@ from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 from orangecontrib.spectroscopy.tests.bigdata import spectra20nea
 
 try:
+    import opusFC
+except ImportError:
+    opusFC = None
+
+try:
     import spc
 except ImportError:
     spc = None
@@ -28,6 +33,7 @@ class TestReaders(unittest.TestCase):
 
 class TestDat(unittest.TestCase):
 
+    @unittest.skipIf(opusFC is None, "opusFC module not installed")
     def test_peach_juice(self):
         d1 = Orange.data.Table("peach_juice.dpt")
         d2 = Orange.data.Table("peach_juice.0")
@@ -168,7 +174,7 @@ class TestGSF(unittest.TestCase):
 
     def test_open_line(self):
         data = Orange.data.Table("Au168mA_nodisplacement.gsf")
-        self.assertEqual(data.X.shape, (20480,1))
+        self.assertEqual(data.X.shape, (20480, 1))
 
     def test_open_2d(self):
         data = Orange.data.Table("whitelight.gsf")
@@ -187,7 +193,7 @@ class TestNea(unittest.TestCase):
 class TestSpa(unittest.TestCase):
 
     def test_open(self):
-        data = Orange.data.Table("sample1.spa")
+        _ = Orange.data.Table("sample1.spa")
 
     def test_read_header(self):
         fn = Orange.data.Table("sample1.spa").__file__

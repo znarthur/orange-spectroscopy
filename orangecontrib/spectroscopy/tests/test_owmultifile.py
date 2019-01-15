@@ -4,12 +4,17 @@ from unittest.mock import patch
 import numpy as np
 
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 from Orange.data import FileFormat, dataset_dirs, Table
 from Orange.widgets.utils.filedialogs import format_filter
+from Orange.data.io import TabReader
 
 from orangecontrib.spectroscopy.data import SPAReader
-from Orange.data.io import TabReader
+from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
+
+try:
+    import opusFC
+except ImportError:
+    opusFC = None
 
 
 class TestOWFilesAuxiliary(unittest.TestCase):
@@ -97,6 +102,7 @@ class TestOWMultifile(WidgetTest):
         out = self.get_output("Data")
         self.assertIsNone(out)
 
+    @unittest.skipIf(opusFC is None, "opusFC module not installed")
     def test_sheet_file(self):
         self.load_files("peach_juice.0")
         self.widget.sheet_combo.setCurrentIndex(1)
