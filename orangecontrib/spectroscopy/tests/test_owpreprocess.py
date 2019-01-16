@@ -84,6 +84,14 @@ class TestOWPreprocess(WidgetTest):
         self.widget.curveplot.highlight(None)
         self.assertIsNone(self.widget.curveplot_after.highlighted)
 
+    def test_saving_preprocessors(self):
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual([], settings["storedsettings"]["preprocessors"])
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual('orangecontrib.infrared.cut',
+                         settings["storedsettings"]["preprocessors"][0][0])
+
     def test_migrate_rubberband(self):
         settings = {"storedsettings":
                         {"preprocessors": [("orangecontrib.infrared.rubberband", {})]}}
