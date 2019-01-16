@@ -1,5 +1,6 @@
 import random
 import sys
+from collections import Iterable
 
 import numpy as np
 
@@ -176,9 +177,10 @@ class SequenceFlow(owpreprocess.SequenceFlow):
 
     def set_preview_n(self, n):
         """Set the preview position"""
+        n = set(n if isinstance(n, Iterable) else [n])
         for i, item in enumerate(self.layout_iter(self.__flowlayout)):
             f = item.widget()
-            f.set_preview(i == n)
+            f.set_preview(i in n)
 
     def preview_changed(self):
         if not self.multiple_previews:  # disable other previews
@@ -1481,7 +1483,7 @@ class SpectralPreprocess(OWWidget):
     storedsettings = settings.Setting({}, schema_only=True)
     autocommit = settings.Setting(False)
     preview_curves = settings.Setting(3)
-    preview_n = settings.Setting(0, schema_only=True)
+    preview_n = settings.Setting(None, schema_only=True)
 
     # compatibility for old workflows when reference was not processed
     process_reference = settings.Setting(True, schema_only=True)
@@ -1852,6 +1854,7 @@ class SpectralPreprocess(OWWidget):
     def storeSpecificSettings(self):
         """Reimplemented."""
         self.storedsettings = self.save(self.preprocessormodel)
+        self.preview_n = self.flow_view.preview_n()
         super().storeSpecificSettings()
 
     def onDeleteWidget(self):

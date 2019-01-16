@@ -43,3 +43,20 @@ class TestOWIntegrate(WidgetTest):
             self.widget.add_preprocessor(p)
             self.widget.show_preview()  # direct call
             self.widget.apply()
+
+    def test_saving_preview_position(self):
+        self.send_signal("Data", Orange.data.Table("iris.tab"))
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWIntegrate, stored_settings=settings)
+        self.assertEqual([], self.widget.preview_n)
+        self.widget.flow_view.set_preview_n(1)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWIntegrate, stored_settings=settings)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual([1], settings["preview_n"])
+        self.widget.flow_view.set_preview_n(None)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWIntegrate, stored_settings=settings)
+        self.assertEqual([], self.widget.preview_n)

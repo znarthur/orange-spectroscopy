@@ -92,6 +92,23 @@ class TestOWPreprocess(WidgetTest):
         self.assertEqual('orangecontrib.infrared.cut',
                          settings["storedsettings"]["preprocessors"][0][0])
 
+    def test_saving_preview_position(self):
+        self.assertEqual(None, self.widget.preview_n)
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWPreprocess, stored_settings=settings)
+        self.assertEqual(None, self.widget.preview_n)
+        self.widget.flow_view.set_preview_n(0)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWPreprocess, stored_settings=settings)
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual(0, settings["preview_n"])
+        self.widget.flow_view.set_preview_n(None)
+        self.widget.flow_view.set_preview_n(3)  # some invalid call
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWPreprocess, stored_settings=settings)
+        self.assertEqual(None, self.widget.preview_n)
+
     def test_migrate_rubberband(self):
         settings = {"storedsettings":
                         {"preprocessors": [("orangecontrib.infrared.rubberband", {})]}}
