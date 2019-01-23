@@ -126,7 +126,7 @@ class TestAgilentReader(unittest.TestCase):
         np.testing.assert_allclose(getx(d1_a), getx(d1_e))
         # Mosaic
         d2_a = Orange.data.Table("agilent/5_mosaic_agg1024.dmt")
-        d2_e = Orange.data.Table("agilent/5_mosaic_agg1024.hdr")
+        d2_e = Orange.data.Table("agilent/5_Mosaic_agg1024.hdr")
         np.testing.assert_equal(d2_a.X, d2_e.X)
         np.testing.assert_allclose(getx(d2_a), getx(d2_e))
 
