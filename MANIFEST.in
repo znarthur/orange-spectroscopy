@@ -7,3 +7,4 @@ global-exclude __pycache__
 
 # Include it in the source package
 include README.pypi
+include LICENSE
