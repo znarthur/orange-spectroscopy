@@ -2,8 +2,12 @@ import unittest
 
 import numpy as np
 
+from Orange.data import Table
+from Orange.widgets.tests.base import WidgetTest
+
+from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
 from orangecontrib.spectroscopy.widgets.owstackalign import \
-    alignstack, RegisterTranslation, shift_fill
+    alignstack, RegisterTranslation, shift_fill, OWStackAlign
 
 
 def test_image():
@@ -88,3 +92,90 @@ class TestUtils(unittest.TestCase):
         np.testing.assert_equal(np.isnan(a), np.isnan(_left(im, np.nan)))
         a = shift_fill(im, (0, -0.45))
         np.testing.assert_equal(np.isnan(a), False)
+
+
+def diamond():
+    return np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 1, 1, 6, 1, 1, 0, 0, 0],
+        [0, 0, 1, 1, 5, 1, 7, 1, 1, 0, 0],
+        [0, 0, 0, 1, 1, 8, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=float)
+
+
+def fake_stxm_from_image(image):
+    spectral = np.zeros(image.shape + (5,))
+    spectral[:, :, 0] = diamond()
+    spectral[:, :, 1] = _up(diamond())
+    spectral[:, :, 2] = _down(diamond())
+    spectral[:, :, 3] = _right(diamond())
+    spectral[:, :, 4] = _down(_right(_down(diamond())))
+    return spectral
+
+
+def orange_table_from_3d(image3d):
+    info = _spectra_from_image(image3d,
+                               range(5),
+                               range(image3d[:, :, 0].shape[1]),
+                               range(image3d[:, :, 0].shape[0]))
+    data = build_spec_table(*info)
+    return data
+
+
+stxm_diamond = orange_table_from_3d(fake_stxm_from_image(diamond()))
+
+
+def orange_table_to_3d(data):
+    nz = len(data.domain.attributes)
+    minx = int(min(data.metas[:, 0]))
+    miny = int(min(data.metas[:, 1]))
+    maxx = int(max(data.metas[:, 0]))
+    maxy = int(max(data.metas[:, 1]))
+    image3d = np.ones((maxy-miny+1, maxx-minx+1, nz)) * np.nan
+    for d in data:
+        x, y = int(d.metas[0]), int(d.metas[1])
+        image3d[y - miny, x - minx, :] = d.x
+    return image3d
+
+
+class TestOWStackAlign(WidgetTest):
+
+    def setUp(self):
+        self.widget = self.create_widget(OWStackAlign)
+
+    def test_add_remove_data(self):
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.assertIsInstance(out, Table)
+        self.send_signal(OWStackAlign.Inputs.data, None)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.assertIs(out, None)
+
+    def test_output_aligned(self):
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        image3d = orange_table_to_3d(out)
+        for z in range(1, image3d.shape[2]):
+            np.testing.assert_almost_equal(image3d[:, :, 0], image3d[:, :, z])
+
+    def test_output_cropped(self):
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        image3d = orange_table_to_3d(out)
+        # for a cropped image all have to be defined
+        self.assertFalse(np.any(np.isnan(image3d)))
+        # for diamond test data, extreme movement
+        # in X was just one right,
+        # in Y was one up and 2 down
+        # try to crop manually to see if the obtained image is the same
+        np.testing.assert_equal(image3d[:, :, 0], diamond()[1:-2, :-1])

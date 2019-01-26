@@ -7,7 +7,7 @@ from skimage.feature import register_translation
 from AnyQt.QtWidgets import QWidget, QFormLayout
 
 from Orange.data import Table, Domain
-from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.widgets.widget import OWWidget, Input, Output
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
@@ -135,9 +135,6 @@ class OWStackAlign(OWWidget):
 
     pxwidth = settings.Setting(None)
 
-    class Warning(OWWidget.Warning):
-        nodata = Msg("No useful data on input!")
-
     def __init__(self):
         super().__init__()
 
@@ -163,10 +160,9 @@ class OWStackAlign(OWWidget):
     @Inputs.data
     def set_data(self, dataset):
         if dataset is not None:
-            self.Warning.nodata.clear()
             self.data = dataset
         else:
-            self.Warning.nodata()
+            self.data = None
         self.commit()
 
     def le1_changed(self):
@@ -192,14 +188,15 @@ class OWStackAlign(OWWidget):
             return
 
 
-def main(argv=sys.argv):
+def main():
+    argv = sys.argv
     from AnyQt.QtWidgets import QApplication
     app = QApplication(list(argv))
     ow = OWStackAlign()
     ow.show()
     ow.raise_()
-    # TODO make a small file with test data that can be uploaded with the code
-    dataset = Table("/Users/marko/STXM_align_stack/Sample_Stack_2016-04-20_136_2.hdf5")
+    from orangecontrib.spectroscopy.tests.test_owalignstack import stxm_diamond
+    dataset = stxm_diamond
     ow.set_data(dataset)
     app.exec_()
     return 0
