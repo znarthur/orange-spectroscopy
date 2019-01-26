@@ -96,8 +96,8 @@ def process_stack(data, upsample_factor):
     ymin, ymax = int(round(ymin)), int(round(ymax))
 
     shape = hypercube.shape
-    slicex = slice(xmax, (shape[1]+xmin))
-    slicey = slice(ymax, (shape[0]+ymin))
+    slicex = slice(max(xmax, 0), min(shape[1], shape[1]+xmin))
+    slicey = slice(max(ymax, 0), min(shape[0], shape[0]+ymin))
     cropped = np.array(aligned_stack).T[slicey, slicex]
 
     # transform numpy array back to Orange.data.Table
