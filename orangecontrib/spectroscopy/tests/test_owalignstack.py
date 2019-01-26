@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import Mock, patch
 
 import numpy as np
+from scipy.ndimage import sobel
 
 from Orange.data import Table
 from Orange.widgets.tests.base import WidgetTest
@@ -57,6 +59,18 @@ class TestUtils(unittest.TestCase):
         _, aligned = alignstack([im, _up(im), _down(im), _right(im)],
                                 shiftfn=RegisterTranslation())
         self.assertEqual(aligned.shape, (4, 5, 7))
+
+    def test_alignstack_calls_filterfn(self):
+        filterfn = Mock()
+        filterfn.side_effect = lambda x: x
+        im = test_image()
+        up = _up(im)
+        down = _down(im)
+        alignstack([im, up, down],
+                   shiftfn=RegisterTranslation(),
+                   filterfn=filterfn)
+        for i, t in enumerate([im, up, down]):
+            self.assertIs(filterfn.call_args_list[i][0][0], t)
 
     def test_shift_fill(self):
         im = test_image()
@@ -179,3 +193,13 @@ class TestOWStackAlign(WidgetTest):
         # in Y was one up and 2 down
         # try to crop manually to see if the obtained image is the same
         np.testing.assert_equal(image3d[:, :, 0], diamond()[1:-2, :-1])
+
+    def test_sobel_called(self):
+        with patch("orangecontrib.spectroscopy.widgets.owstackalign.sobel",
+                   Mock(side_effect=sobel)) as mock:
+            self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+            _ = self.get_output(OWStackAlign.Outputs.newstack)
+            self.assertFalse(mock.called)
+            self.widget.controls.sobel_filter.toggle()
+            _ = self.get_output(OWStackAlign.Outputs.newstack)
+            self.assertTrue(mock.called)

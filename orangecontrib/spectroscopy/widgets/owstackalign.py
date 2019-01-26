@@ -2,15 +2,14 @@ import sys
 
 import numpy as np
 
+from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
 from skimage.feature import register_translation
-from AnyQt.QtWidgets import QWidget, QFormLayout
 
 from Orange.data import Table, Domain
 from Orange.widgets.widget import OWWidget, Input, Output
 from Orange.widgets import gui, settings
 
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx
 
@@ -47,12 +46,12 @@ def shift_fill(img, sh, fill=np.nan):
     return aligned
 
 
-def alignstack(raw, shiftfn):
+def alignstack(raw, shiftfn, filterfn=lambda x: x):
     """Align to the first image"""
-    base = raw[0]
+    base = filterfn(raw[0])
     shifts = [(0, 0)]
     for image in raw[1:]:
-        shifts.append(shiftfn(base, image))
+        shifts.append(shiftfn(base, filterfn(image)))
     shifts = np.array(shifts)
 
     aligned = np.zeros((len(raw),) + raw[0].shape, dtype=raw[0].dtype)
@@ -64,10 +63,9 @@ def alignstack(raw, shiftfn):
     return shifts, aligned
 
 
-def process_stack(data, upsample_factor):
+def process_stack(data, upsample_factor, use_sobel):
     # TODO: make sure that the variable names are handled dynamically for future data readers
     # TODO: stack aligner crashes not work if there is any nan in the image
-    # TODO: add optional sobel filtering (removed in refactoring)
     xat = data.domain["map_x"]
     yat = data.domain["map_y"]
 
@@ -88,7 +86,10 @@ def process_stack(data, upsample_factor):
     hypercube[yindex, xindex] = data.X
 
     calculate_shift = RegisterTranslation(upsample_factor=upsample_factor)
-    shifts, aligned_stack = alignstack(hypercube.T, shiftfn=calculate_shift)
+    filterfn = sobel if use_sobel else lambda x: x
+    shifts, aligned_stack = alignstack(hypercube.T,
+                                       shiftfn=calculate_shift,
+                                       filterfn=filterfn)
 
     xmin, ymin = shifts[:, 0].min(), shifts[:, 1].min()
     xmax, ymax = shifts[:, 0].max(), shifts[:, 1].max()
@@ -133,29 +134,26 @@ class OWStackAlign(OWWidget):
     want_main_area = False
     resizing_enabled = False
 
-    pxwidth = settings.Setting(None)
+    sobel_filter = settings.Setting(False)
 
     def __init__(self):
         super().__init__()
 
         box = gui.widgetBox(self.controlArea, "Parameters")
 
-        form = QWidget()
-        formlayout = QFormLayout()
-        form.setLayout(formlayout)
-        box.layout().addWidget(form)
+        gui.checkBox(box, self, "sobel_filter",
+                     label="Use sobel filter",
+                     callback=self._sobel_changed)
 
-        # TODO:
-        # implement options
-        #   [x] pixel width
-        #   [ ] feedback for how well the images are aligned
-        self.le1 = lineEditFloatOrNone(box, self, "pxwidth", callback=self.le1_changed)
-        formlayout.addRow("Pixel Width", self.le1)
+        # TODO:  feedback for how well the images are aligned
 
         self.data = None
         self.set_data(self.data)
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
+
+    def _sobel_changed(self):
+        self.commit()
 
     @Inputs.data
     def set_data(self, dataset):
@@ -165,14 +163,11 @@ class OWStackAlign(OWWidget):
             self.data = None
         self.commit()
 
-    def le1_changed(self):
-        self.commit()
-
     def commit(self):
         new_stack = None
 
         if self.data:
-            new_stack = process_stack(self.data, 100)
+            new_stack = process_stack(self.data, 100, self.sobel_filter)
 
         self.Outputs.newstack.send(new_stack)
 
