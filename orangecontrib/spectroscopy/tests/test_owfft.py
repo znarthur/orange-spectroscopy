@@ -1,3 +1,5 @@
+import numpy as np
+
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owfft import OWFFT
@@ -29,3 +31,12 @@ class TestOWFFT(WidgetTest):
         self.widget.dx_changed()
         self.send_signal("Interferogram", self.ifg_single)
         self.assertEqual(self.widget.dx, 5)
+
+    def test_keep_metas(self):
+        self.widget.autocommit = True
+        input = self.ifg_seq
+        self.send_signal(OWFFT.Inputs.data, input)
+        spectra = self.get_output(OWFFT.Outputs.spectra)
+        phases = self.get_output(OWFFT.Outputs.phases)
+        np.testing.assert_equal(input.metas, spectra.metas)
+        np.testing.assert_equal(input.metas, phases.metas[:, :input.metas.shape[1]])
