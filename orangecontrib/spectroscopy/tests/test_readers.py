@@ -4,7 +4,7 @@ import numpy as np
 import Orange
 from Orange.data.io import FileFormat
 from Orange.tests import named_file
-from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 
@@ -287,3 +287,18 @@ class TestMatlab(unittest.TestCase):
         data = Orange.data.Table("matlab/only_annotations.mat")
         self.assertEqual("M", data.domain.metas[0].name)
         self.assertEqual(["first row", "second row"], list(data.metas[:, 0]))
+
+
+class TestDataUtil(unittest.TestCase):
+
+    def test_build_spec_table_not_copy(self):
+        """build_spec_table should not copy tables if not neccessary"""
+        xs = np.arange(3)
+        # float32 table will force a copy because Orange X is float64
+        X = np.ones([4, 3], dtype=np.float32)
+        data = build_spec_table(xs, X)
+        self.assertFalse(np.may_share_memory(data.X, X))
+        # float64 will not force a copy
+        X = np.ones([4, 3], dtype=np.float64)
+        data = build_spec_table(xs, X)
+        self.assertTrue(np.may_share_memory(data.X, X))
