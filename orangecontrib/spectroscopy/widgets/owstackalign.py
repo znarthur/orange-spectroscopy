@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 
 from scipy.ndimage import sobel
@@ -177,19 +175,7 @@ class OWStackAlign(OWWidget):
         ))
 
 
-def main():
-    argv = sys.argv
-    from AnyQt.QtWidgets import QApplication
-    app = QApplication(list(argv))
-    ow = OWStackAlign()
-    ow.show()
-    ow.raise_()
+if __name__ == "__main__":  # pragma: no cover
     from orangecontrib.spectroscopy.tests.test_owalignstack import stxm_diamond
-    dataset = stxm_diamond
-    ow.set_data(dataset)
-    app.exec_()
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWStackAlign).run(stxm_diamond)
