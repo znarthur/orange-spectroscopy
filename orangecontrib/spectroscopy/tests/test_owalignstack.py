@@ -203,3 +203,7 @@ class TestOWStackAlign(WidgetTest):
             self.widget.controls.sobel_filter.toggle()
             _ = self.get_output(OWStackAlign.Outputs.newstack)
             self.assertTrue(mock.called)
+
+    def test_report(self):
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        self.widget.send_report()

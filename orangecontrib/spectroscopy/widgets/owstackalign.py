@@ -172,15 +172,9 @@ class OWStackAlign(OWWidget):
         self.Outputs.newstack.send(new_stack)
 
     def send_report(self):
-        # TODO
-        # there is a js error:
-        # js: Uncaught TypeError: Cannot read property 'id' of undefined
-        if self.pxwidth is not None:
-            self.report_items((
-                ("Image stack was aligned. Pixel width", self.pxwidth),
-            ))
-        else:
-            return
+        self.report_items((
+            ("Use sobel filter", str(self.sobel_filter)),
+        ))
 
 
 def main():
