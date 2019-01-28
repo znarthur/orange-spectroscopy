@@ -403,7 +403,8 @@ class OWFFT(OWWidget):
         spectra = np.vstack(spectra)
         phases = np.vstack(phases)
 
-        self.phases_table = build_spec_table(wavenumbers, phases)
+        self.phases_table = build_spec_table(wavenumbers, phases,
+                                             additional_table=self.data)
         self.phases_table = add_meta_to_table(self.phases_table,
                                               ContinuousVariable.make("zpd_fwd"),
                                               zpd_fwd)
@@ -422,8 +423,8 @@ class OWFFT(OWWidget):
             else:
                 spectra = spectra[:, limits[0]:limits[1]]
 
-        self.spectra_table = build_spec_table(wavenumbers, spectra)
-
+        self.spectra_table = build_spec_table(wavenumbers, spectra,
+                                              additional_table=self.data)
         self.Outputs.spectra.send(self.spectra_table)
         self.Outputs.phases.send(self.phases_table)
 
@@ -469,7 +470,6 @@ class OWFFT(OWWidget):
         elif sweeps == 1 and self.sweeps == 0:
             # Coerce setting to match input data (single -> forward)
             self.sweeps = 2
-
 
     def check_metadata(self):
         """ Look for laser wavenumber and sampling interval metadata """

@@ -33,20 +33,7 @@ class SpectralFileFormat:
         pass
 
     def read(self):
-        domvals, data, additional_table = self.read_spectra()
-        data = np.asarray(data, dtype=np.float64)  # Orange assumes X to be float64
-        features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
-        if additional_table is None:
-            domain = Orange.data.Domain(features, None)
-            return Orange.data.Table(domain, data)
-        else:
-
-            domain = Domain(features,
-                            class_vars=additional_table.domain.class_vars,
-                            metas=additional_table.domain.metas)
-            ret_data = Table.from_numpy(domain, X=data, Y=additional_table.Y,
-                                        metas=additional_table.metas)
-            return ret_data
+        return build_spec_table(*self.read_spectra())
 
 
 class AsciiColReader(FileFormat):
@@ -891,34 +878,24 @@ class NeaReader(FileFormat):
             return Orange.data.Table(domain, final_data, metas=final_metas)
 
 
-def build_spec_table(wavenumbers, intensities):
+def build_spec_table(domvals, data, additional_table=None):
+    """Create a an Orange data table from a triplet:
+        - 1D numpy array defining wavelengths (size m)
+        - 2D numpy array (shape (n, m)) with values
+        - Orange.data.Table with only meta or class attributes (size n)
     """
-    Converts numpy arrays of wavenumber and intensity into an
-    Orange.data.Table spectra object.
-
-    Args:
-        wavenumbers (np.array): 1D array of wavenumbers
-        intensities (np.array): 2D array of (multi-spectra) intensities
-
-    Returns:
-        table: Orange.data.Table object, spectra format
-    """
-
-    # Add dimension to 1D array if necessary
-    if intensities.ndim == 1:
-        intensities = intensities[None, :]
-
-    # Convert the wavenumbers array into a list of ContinousVariables
-    wn_vars = [Orange.data.ContinuousVariable.make(repr(wavenumbers[i]))
-               for i in range(wavenumbers.shape[0])]
-
-    # Build an Orange.data.Domain object with wn_vars as
-    # independant variables (or "attributes" as Orange calls them)
-    domain = Orange.data.Domain(wn_vars)
-
-    # Finally, build the table using the damain and intensity arrays:
-    table = Orange.data.Table.from_numpy(domain, intensities)
-    return table
+    data = np.atleast_2d(data)
+    features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
+    if additional_table is None:
+        domain = Orange.data.Domain(features, None)
+        return Orange.data.Table(domain, data)
+    else:
+        domain = Domain(features,
+                        class_vars=additional_table.domain.class_vars,
+                        metas=additional_table.domain.metas)
+        ret_data = Table.from_numpy(domain, X=data, Y=additional_table.Y,
+                                    metas=additional_table.metas)
+        return ret_data
 
 
 def getx(data):
