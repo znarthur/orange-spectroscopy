@@ -2,7 +2,6 @@ import numpy as np
 
 from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
-from skimage.feature import register_translation
 
 from Orange.data import Table, Domain
 from Orange.widgets.widget import OWWidget, Input, Output
@@ -11,6 +10,10 @@ from Orange.widgets import gui, settings
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx
 
+# the following line imports the copied code so that
+# we do not need to depend on scikit-learn
+from orangecontrib.spectroscopy.utils.skimage.register_translation import register_translation
+# instead of from skimage.feature import register_translation
 
 # stack alignment code originally from: https://github.com/jpacold/STXM_live
 

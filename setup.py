@@ -66,8 +66,8 @@ class CoverageCommand(Command):
         sys.exit(subprocess.call(r'''
         coverage run --source=orangecontrib.spectroscopy -m unittest
         echo; echo
-        coverage report --omit="*/tests/*"
-        coverage html --omit="*/tests/*" &&
+        coverage report --omit="*/tests/*"  --omit="*/utils/skimage/*"
+        coverage html --omit="*/tests/*" --omit="*/utils/skimage/*" &&
             { echo; echo "See also: file://$(pwd)/htmlcov/index.html"; echo; }
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
@@ -136,7 +136,6 @@ if __name__ == '__main__':
             'pyqtgraph>=0.10.0',
             'colorcet',
             'h5py',
-            'scikit-image>=0.14.1',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,

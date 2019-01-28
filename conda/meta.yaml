@@ -31,7 +31,6 @@ requirements:
     - pyqtgraph >=0.10.0
     - colorcet
     - h5py
-    - scikit-image >=0.14.1
 
 test:
   imports:
