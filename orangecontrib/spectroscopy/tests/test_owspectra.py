@@ -17,10 +17,6 @@ from orangecontrib.spectroscopy.widgets.line_geometry import intersect_curves, \
 from orangecontrib.spectroscopy.tests.util import hold_modifiers
 from orangecontrib.spectroscopy.preprocess import Interpolate
 
-try:
-    qWaitForWindow = QTest.qWaitForWindowShown
-except AttributeError:
-    qWaitForWindow = QTest.qWaitForWindowActive
 
 NAN = float("nan")
 
@@ -109,21 +105,18 @@ class TestOWSpectra(WidgetTest):
         vb = self.widget.curveplot.plot.vb
         vb.set_mode_select()
         vr = vb.viewRect()
-        QTest.qWait(100)
         tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
         brs = vr.topLeft() if self.widget.curveplot.invertX else vr.topRight()
-        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 2)
+        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 100)  # avoid menu button
         br = vb.mapViewToScene(brs).toPoint() - QPoint(2, 2)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
-        QTest.mouseMove(self.widget.curveplot, pos=tl)
-        QTest.mouseMove(self.widget.curveplot)
+        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl)
+        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl + QPoint(10, 10))
         QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
 
     def test_select_line(self):
-        self.widget.show()
-        qWaitForWindow(self.widget)
         for data in self.normal_data:
             self.send_signal("Data", data)
             out = self.get_output("Selection")
@@ -138,7 +131,6 @@ class TestOWSpectra(WidgetTest):
             self.assertEqual(len(data), len(out))
             sa = out.transform(Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
             np.testing.assert_equal(sa.X, 1)
-        self.widget.hide()
 
     def do_zoom_rect(self, invertX):
         """ Test zooming with two clicks. """
