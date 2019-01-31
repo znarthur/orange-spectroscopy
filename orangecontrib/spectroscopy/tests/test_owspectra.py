@@ -140,26 +140,26 @@ class TestOWSpectra(WidgetTest):
             np.testing.assert_equal(sa.X, 1)
         self.widget.hide()
 
-    def test_zoom_rect(self):
+    def do_zoom_rect(self, invertX):
         """ Test zooming with two clicks. """
-        self.widget.show()
-        qWaitForWindow(self.widget)
         self.send_signal("Data", self.iris)
         vb = self.widget.curveplot.plot.vb
+        self.widget.curveplot.invertX = invertX
+        self.widget.curveplot.invertX_apply()
         vb.set_mode_zooming()
         vr = vb.viewRect()
-        QTest.qWait(100)
         tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
-        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 2)
+        # move down to avoid clicking on the menu button
+        tl = vb.mapViewToScene(tls).toPoint() + QPoint(0, 100)
         br = vb.mapViewToScene(vr.center()).toPoint()
         tlw = vb.mapSceneToView(tl)
         brw = vb.mapSceneToView(br)
         ca = self.widget.curveplot.childAt(tl)
         QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
         QTest.qWait(1)
-        QTest.mouseMove(self.widget.curveplot, pos=tl)
+        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl)
         QTest.qWait(1)
-        QTest.mouseMove(self.widget.curveplot)
+        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl + QPoint(10, 10))
         QTest.qWait(1)
         QTest.mouseClick(ca, Qt.LeftButton, pos=br)
         vr = vb.viewRect()
@@ -171,7 +171,10 @@ class TestOWSpectra(WidgetTest):
         else:
             self.assertAlmostEqual(vr.left(), tlw.x())
             self.assertAlmostEqual(vr.right(), brw.x())
-        self.widget.hide()
+
+    def test_zoom_rect(self):
+        self.do_zoom_rect(invertX=False)
+        self.do_zoom_rect(invertX=True)
 
     def test_warning_no_x(self):
         self.send_signal("Data", self.iris)
