@@ -155,13 +155,6 @@ def closestindex(array, v, side="left"):
         return fi - 1 if v - array[fi - 1] < array[fi] - v else fi
 
 
-def searchsorted_cached(cache, arr, v, side="left"):
-    key = (id(arr), v, side)
-    if key not in cache:
-        cache[key] = np.searchsorted(arr, v, side=side)
-    return cache[key]
-
-
 def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     # xpixel, ypixel are sizes of pixels
     # r how many pixels do we look around
@@ -1205,16 +1198,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def rescale_current_view_y(self):
         if self.curves_plotted:
-            cache = {}
             qrect = self.plot.vb.targetRect()
             bleft = qrect.left()
             bright = qrect.right()
 
-            ymax = max(np.max(ys[:, searchsorted_cached(cache, x, bleft):
-                                    searchsorted_cached(cache, x, bright, side="right")])
+            ymax = max(np.max(ys[:, np.searchsorted(x, bleft):
+                                    np.searchsorted(x, bright, side="right")])
                        for x, ys in self.curves_plotted)
-            ymin = min(np.min(ys[:, searchsorted_cached(cache, x, bleft):
-                                    searchsorted_cached(cache, x, bright, side="right")])
+            ymin = min(np.min(ys[:, np.searchsorted(x, bleft):
+                                    np.searchsorted(x, bright, side="right")])
                        for x, ys in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
