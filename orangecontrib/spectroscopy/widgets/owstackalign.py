@@ -12,7 +12,7 @@ from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
-from orangecontrib.spectroscopy.data import _spectra_from_image, getx
+from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
 
 # the following line imports the copied code so that
 # we do not need to depend on scikit-learn
@@ -109,12 +109,10 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     cropped = np.array(aligned_stack).T[slicey, slicex]
 
     # transform numpy array back to Orange.data.Table
-    _, spectra, data_a = _spectra_from_image(cropped,
-                                             getx(data),
-                                             np.linspace(*lsx)[slicex],
-                                             np.linspace(*lsy)[slicey])
-
-    return Table.from_numpy(data.domain, X=spectra, Y=data_a.Y, metas=data_a.metas)
+    return build_spec_table(*_spectra_from_image(cropped,
+                                                 getx(data),
+                                                 np.linspace(*lsx)[slicex],
+                                                 np.linspace(*lsy)[slicey]))
 
 
 class OWStackAlign(OWWidget):

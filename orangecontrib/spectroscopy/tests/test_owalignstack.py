@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 from scipy.ndimage import sobel
 
-from Orange.data import Table
+from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
@@ -215,3 +215,16 @@ class TestOWStackAlign(WidgetTest):
         self.assertTrue(self.widget.Error.nan_in_image.is_shown())
         self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
         self.assertFalse(self.widget.Error.nan_in_image.is_shown())
+
+    def test_with_class_columns(self):
+        data = stxm_diamond
+        cv = DiscreteVariable(name="class", values=["a", "b"])
+        z = ContinuousVariable(name="z")
+        domain = Domain(data.domain.attributes, class_vars=[cv], metas=data.domain.metas + (z,))
+        data = data.transform(domain)
+        self.send_signal(OWStackAlign.Inputs.data, data)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        # The alignment rearranges table columns. Because we do not know, which
+        # wavenumber they belong to, forget them for now.
+        self.assertEqual(out.domain.class_vars, tuple())
+        self.assertEqual(len(out.domain.metas), 2)
