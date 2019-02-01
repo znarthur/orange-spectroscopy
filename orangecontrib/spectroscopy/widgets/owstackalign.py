@@ -72,6 +72,10 @@ class NanInsideHypercube(Exception):
     pass
 
 
+class InvalidAxisException(Exception):
+    pass
+
+
 def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     ndom = Domain([xat, yat])
     datam = Table(ndom, data)
@@ -81,6 +85,11 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     lsx = values_to_linspace(coorx)
     lsy = values_to_linspace(coory)
     lsz = data.X.shape[1]
+
+    if lsx is None:
+        raise InvalidAxisException("x")
+    if lsy is None:
+        raise InvalidAxisException("y")
 
     # set data
     hypercube = np.ones((lsy[2], lsx[2], lsz)) * np.nan
@@ -136,6 +145,7 @@ class OWStackAlign(OWWidget):
 
     class Error(OWWidget.Error):
         nan_in_image = Msg("Unknown values within images: {} unknowns")
+        invalid_axis = Msg("Invalid axis: {}")
 
     autocommit = settings.Setting(True)
 
@@ -208,12 +218,14 @@ class OWStackAlign(OWWidget):
         else:
             self.data = None
         self.Error.nan_in_image.clear()
+        self.Error.invalid_axis.clear()
         self.commit()
 
     def commit(self):
         new_stack = None
 
         self.Error.nan_in_image.clear()
+        self.Error.invalid_axis.clear()
 
         if self.data:
             try:
@@ -221,6 +233,8 @@ class OWStackAlign(OWWidget):
                                           upsample_factor=100, use_sobel=self.sobel_filter)
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
+            except InvalidAxisException as e:
+                self.Error.invalid_axis(e.args[0])
 
         self.Outputs.newstack.send(new_stack)
 

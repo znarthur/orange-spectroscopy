@@ -228,3 +228,11 @@ class TestOWStackAlign(WidgetTest):
         # wavenumber they belong to, forget them for now.
         self.assertEqual(out.domain.class_vars, tuple())
         self.assertEqual(len(out.domain.metas), 2)
+
+    def test_invalid_axis(self):
+        data = stxm_diamond.copy()
+        data.metas[:, 0] = np.nan
+        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.assertTrue(self.widget.Error.invalid_axis.is_shown())
+        self.send_signal(OWStackAlign.Inputs.data, None)
+        self.assertFalse(self.widget.Error.invalid_axis.is_shown())
