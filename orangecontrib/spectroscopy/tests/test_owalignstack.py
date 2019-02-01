@@ -236,3 +236,9 @@ class TestOWStackAlign(WidgetTest):
         self.assertTrue(self.widget.Error.invalid_axis.is_shown())
         self.send_signal(OWStackAlign.Inputs.data, None)
         self.assertFalse(self.widget.Error.invalid_axis.is_shown())
+
+    def test_missing_metas(self):
+        domain = Domain(stxm_diamond.domain.attributes)
+        data = stxm_diamond.transform(domain)
+        # this should not crash
+        self.send_signal(OWStackAlign.Inputs.data, data)
