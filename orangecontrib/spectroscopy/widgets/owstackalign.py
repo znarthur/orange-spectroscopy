@@ -4,7 +4,7 @@ from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
 
 from Orange.data import Table, Domain
-from Orange.widgets.widget import OWWidget, Input, Output
+from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
@@ -64,9 +64,12 @@ def alignstack(raw, shiftfn, filterfn=lambda x: x):
     return shifts, aligned
 
 
+class NanInsideHypercube(Exception):
+    pass
+
+
 def process_stack(data, upsample_factor, use_sobel):
     # TODO: make sure that the variable names are handled dynamically for future data readers
-    # TODO: stack aligner crashes not work if there is any nan in the image
     xat = data.domain["map_x"]
     yat = data.domain["map_y"]
 
@@ -85,6 +88,9 @@ def process_stack(data, upsample_factor, use_sobel):
     xindex = index_values(coorx, lsx)
     yindex = index_values(coory, lsy)
     hypercube[yindex, xindex] = data.X
+
+    if np.any(np.isnan(hypercube)):
+        raise NanInsideHypercube(np.sum(np.isnan(hypercube)))
 
     calculate_shift = RegisterTranslation(upsample_factor=upsample_factor)
     filterfn = sobel if use_sobel else lambda x: x
@@ -130,6 +136,9 @@ class OWStackAlign(OWWidget):
     class Outputs:
         newstack = Output("Aligned image stack", Table, default=True)
 
+    class Error(OWWidget.Error):
+        nan_in_image = Msg("Unknown values within images: {} unknowns")
+
     autocommit = settings.Setting(True)
 
     want_main_area = False
@@ -162,13 +171,19 @@ class OWStackAlign(OWWidget):
             self.data = dataset
         else:
             self.data = None
+        self.Error.nan_in_image.clear()
         self.commit()
 
     def commit(self):
         new_stack = None
 
+        self.Error.nan_in_image.clear()
+
         if self.data:
-            new_stack = process_stack(self.data, 100, self.sobel_filter)
+            try:
+                new_stack = process_stack(self.data, 100, self.sobel_filter)
+            except NanInsideHypercube as e:
+                self.Error.nan_in_image(e.args[0])
 
         self.Outputs.newstack.send(new_stack)
 

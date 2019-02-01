@@ -207,3 +207,11 @@ class TestOWStackAlign(WidgetTest):
     def test_report(self):
         self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
         self.widget.send_report()
+
+    def test_nan_in_image(self):
+        data = stxm_diamond.copy()
+        data.X[1, 2] = np.nan
+        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.assertTrue(self.widget.Error.nan_in_image.is_shown())
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        self.assertFalse(self.widget.Error.nan_in_image.is_shown())
