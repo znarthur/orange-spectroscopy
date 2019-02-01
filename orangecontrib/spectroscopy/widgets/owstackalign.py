@@ -3,7 +3,11 @@ import numpy as np
 from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
 
-from Orange.data import Table, Domain
+from AnyQt.QtCore import Qt
+
+from Orange.data import Table, Domain, ContinuousVariable
+from Orange.widgets.settings import DomainContextHandler, ContextSetting
+from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
@@ -68,11 +72,7 @@ class NanInsideHypercube(Exception):
     pass
 
 
-def process_stack(data, upsample_factor, use_sobel):
-    # TODO: make sure that the variable names are handled dynamically for future data readers
-    xat = data.domain["map_x"]
-    yat = data.domain["map_y"]
-
+def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     ndom = Domain([xat, yat])
     datam = Table(ndom, data)
     coorx = datam.X[:, 0]
@@ -144,10 +144,30 @@ class OWStackAlign(OWWidget):
     want_main_area = False
     resizing_enabled = False
 
+    settingsHandler = DomainContextHandler()
+
     sobel_filter = settings.Setting(False)
+    attr_x = ContextSetting(None)
+    attr_y = ContextSetting(None)
 
     def __init__(self):
         super().__init__()
+
+        box = gui.widgetBox(self.controlArea, "Axes")
+
+        common_options = dict(
+            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
+            valueType=str)
+        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+                                    valid_types=ContinuousVariable)
+        self.cb_attr_x = gui.comboBox(
+            box, self, "attr_x", label="Axis x:", callback=self._update_attr,
+            model=self.xy_model, **common_options)
+        self.cb_attr_y = gui.comboBox(
+            box, self, "attr_y", label="Axis y:", callback=self._update_attr,
+            model=self.xy_model, **common_options)
+
+        self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         box = gui.widgetBox(self.controlArea, "Parameters")
 
@@ -158,15 +178,33 @@ class OWStackAlign(OWWidget):
         # TODO:  feedback for how well the images are aligned
 
         self.data = None
-        self.set_data(self.data)
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
     def _sobel_changed(self):
         self.commit()
 
+    def _init_attr_values(self, data):
+        domain = data.domain if data is not None else None
+        self.xy_model.set_domain(domain)
+        self.attr_x = self.xy_model[0] if self.xy_model else None
+        self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
+            else self.attr_x
+
+    def _init_interface_data(self, args):
+        data = args[0]
+        same_domain = (self.data and data and
+                       data.domain == self.data.domain)
+        if not same_domain:
+            self._init_attr_values(data)
+
+    def _update_attr(self):
+        self.commit()
+
     @Inputs.data
     def set_data(self, dataset):
+        self.closeContext()
+        self.openContext(dataset)
         if dataset is not None:
             self.data = dataset
         else:
@@ -181,7 +219,8 @@ class OWStackAlign(OWWidget):
 
         if self.data:
             try:
-                new_stack = process_stack(self.data, 100, self.sobel_filter)
+                new_stack = process_stack(self.data, self.attr_x, self.attr_y,
+                                          upsample_factor=100, use_sobel=self.sobel_filter)
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
 
