@@ -242,3 +242,16 @@ class TestOWStackAlign(WidgetTest):
         data = stxm_diamond.transform(domain)
         # this should not crash
         self.send_signal(OWStackAlign.Inputs.data, data)
+
+    def test_no_wavenumbers(self):
+        domain = Domain(stxm_diamond.domain.attributes[:0], metas=stxm_diamond.domain.metas)
+        data = stxm_diamond.transform(domain)
+        self.send_signal(OWStackAlign.Inputs.data, data)
+
+    def test_single_wavenumber(self):
+        domain = Domain(stxm_diamond.domain.attributes[:1], metas=stxm_diamond.domain.metas)
+        data = stxm_diamond.transform(domain)
+        self.send_signal(OWStackAlign.Inputs.data, data)
+        out = self.get_output(OWStackAlign.Outputs.newstack)
+        image3d = orange_table_to_3d(out)
+        np.testing.assert_equal(image3d[:, :, 0], diamond())

@@ -227,7 +227,7 @@ class OWStackAlign(OWWidget):
         self.Error.nan_in_image.clear()
         self.Error.invalid_axis.clear()
 
-        if self.data and self.attr_x and self.attr_y:
+        if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
                 new_stack = process_stack(self.data, self.attr_x, self.attr_y,
                                           upsample_factor=100, use_sobel=self.sobel_filter)
