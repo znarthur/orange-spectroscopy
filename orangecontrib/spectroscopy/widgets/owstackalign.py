@@ -134,7 +134,7 @@ class OWStackAlign(OWWidget):
         "Builds or modifies the shape of the input dataset to create 2D maps "
         "from series data or change the dimensions of existing 2D datasets.")
 
-    icon = "icons/category.svg"
+    icon = "icons/stackalign.svg"
 
     # Define inputs and outputs
     class Inputs:
