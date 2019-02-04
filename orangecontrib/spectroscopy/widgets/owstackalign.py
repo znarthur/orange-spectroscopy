@@ -129,10 +129,8 @@ class OWStackAlign(OWWidget):
     name = "Align Stack"
 
     # Short widget description
-    # TODO
     description = (
-        "Builds or modifies the shape of the input dataset to create 2D maps "
-        "from series data or change the dimensions of existing 2D datasets.")
+        "Aligns and crops a stack of images using various methods.")
 
     icon = "icons/stackalign.svg"
 
