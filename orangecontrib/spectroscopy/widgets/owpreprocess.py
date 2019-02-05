@@ -3,22 +3,23 @@ import sys
 from collections import Iterable
 
 import numpy as np
+import pyqtgraph as pg
 
 import Orange.data
-import Orange.widgets.data.owpreprocess as owpreprocess
-import pyqtgraph as pg
 from Orange import preprocess
 from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
 from Orange.widgets.settings import SettingsHandler
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
+from Orange.widgets.data.utils.preprocess import SequenceFlow, Controller, \
+    StandardItemModel
 from Orange.widgets.data.owpreprocess import (
-    Controller, StandardItemModel,
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
 )
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
+from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QSize, QMimeData, QTimer, QBasicTimer
@@ -47,7 +48,6 @@ from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
-from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
@@ -90,7 +90,7 @@ class ViewController(Controller):
         self.view.reset_preview_colors()
 
 
-class FocusFrame(owpreprocess.SequenceFlow.Frame):
+class FocusFrame(SequenceFlow.Frame):
     preview_changed = Signal()
 
     def __init__(self, parent=None, **kwargs):
@@ -156,7 +156,7 @@ class FocusFrame(owpreprocess.SequenceFlow.Frame):
             self.title_label.setText(title)
 
 
-class SequenceFlow(owpreprocess.SequenceFlow):
+class SequenceFlow(SequenceFlow):
     """
     FIXME Ugly hack: using the same name for access to private variables!
     """
@@ -1707,7 +1707,8 @@ class SpectralPreprocess(OWWidget):
             # will be triggered by LayoutRequest event on the `flow_view`)
             self.__update_size_constraint()
 
-        self.apply()
+        # call apply() to output the preprocessor even if there is no input data
+        self.unconditional_commit()
 
     def load(self, saved):
         """Load a preprocessor list from a dict."""
@@ -1780,7 +1781,7 @@ class SpectralPreprocess(OWWidget):
 
     def handleNewSignals(self):
         self.show_preview(True)
-        self.apply()
+        self.unconditional_commit()
 
     def add_preprocessor(self, action):
         item = QStandardItem()
@@ -1804,8 +1805,6 @@ class SpectralPreprocess(OWWidget):
         return create(params)
 
     def apply(self):
-        # Sync the model into storedsettings on every apply.
-
         self.show_preview()
         self._reference_compat_warning()
 
@@ -1836,6 +1835,10 @@ class SpectralPreprocess(OWWidget):
         self.Outputs.preprocessed_data.send(data)
 
     def commit(self):
+        # Do not run() apply immediately: delegate it to the event loop.
+        # Protects against running apply() in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Now, apply() will usually be only called once.
         if not self._invalidated:
             self._invalidated = True
             QApplication.postEvent(self, QEvent(QEvent.User))
