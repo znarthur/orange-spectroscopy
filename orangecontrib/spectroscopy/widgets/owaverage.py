@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 
 import Orange.data
@@ -120,32 +119,22 @@ class OWAverage(OWWidget):
             if self.group_var is None:
                 averages = self.average_table(self.data)
             else:
-                averages = Orange.data.Table.from_domain(self.data.domain)
+                parts = []
                 for value in self.group_var.values:
                     svfilter = SameValue(self.group_var, value)
                     v_table = self.average_table(svfilter(self.data))
-                    averages.extend(v_table)
+                    parts.append(v_table)
                 # Using "None" as in OWSelectRows
                 # Values is required because FilterDiscrete doesn't have
                 # negate keyword or IsDefined method
                 deffilter = Values(conditions=[FilterDiscrete(self.group_var, None)],
                                    negate=True)
                 v_table = self.average_table(deffilter(self.data))
-                averages.extend(v_table)
+                parts.append(v_table)
+                averages = Orange.data.Table.concatenate(parts, axis=0)
         self.Outputs.averages.send(averages)
 
 
-def main(argv=sys.argv):
-    from AnyQt.QtWidgets import QApplication
-    app = QApplication(list(argv))
-    ow = OWAverage()
-    ow.show()
-    ow.raise_()
-    dataset = Orange.data.Table("collagen.csv")
-    ow.set_data(dataset)
-    app.exec_()
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWAverage).run(Orange.data.Table("iris"))
