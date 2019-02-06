@@ -180,6 +180,11 @@ class OWStackAlign(OWWidget):
         self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         box = gui.widgetBox(self.controlArea, "Parameters")
+
+        gui.checkBox(box, self, "sobel_filter",
+                     label="Use sobel filter",
+                     callback=self._sobel_changed)
+
         gui.rubber(self.controlArea)
 
         # TODO:  feedback for how well the images are aligned
@@ -187,11 +192,6 @@ class OWStackAlign(OWWidget):
         self.plotview = pg.PlotWidget(background="w")
         plot_box.layout().addWidget(self.plotview)
         # self.resize(500, 300) ## TODO check this....
-
-        gui.checkBox(box, self, "sobel_filter",
-                     label="Use sobel filter",
-                     callback=self._sobel_changed)
-
 
         self.data = None
 
