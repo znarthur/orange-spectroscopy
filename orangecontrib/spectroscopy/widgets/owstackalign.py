@@ -1,4 +1,5 @@
 import numpy as np
+import pyqtgraph as pg
 
 from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
@@ -13,9 +14,7 @@ from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
-from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
-    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate, SelectionGroupMixin, selection_modifiers
+
 
 # the following line imports the copied code so that
 # we do not need to depend on scikit-learn
@@ -163,6 +162,7 @@ class OWStackAlign(OWWidget):
     def __init__(self):
         super().__init__()
 
+        #TODO: add input box for selecting which should be the reference frame
         box = gui.widgetBox(self.controlArea, "Axes")
 
         common_options = dict(
@@ -184,10 +184,9 @@ class OWStackAlign(OWWidget):
 
         # TODO:  feedback for how well the images are aligned
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
-        self.curveplot = CurvePlot(self, select=SELECTMANY)
-        ### TODO make this a simple curvplot - how? modify the class or add a condition in the original to display or not the menu?
-        self.mainArea.layout().addWidget(self.curveplot) ## QQQ why doesn't this go into the grey box?
-        self.resize(900, 700)
+        self.plotview = pg.PlotWidget(background="w")
+        plot_box.layout().addWidget(self.plotview)
+        # self.resize(500, 300) ## TODO check this....
 
         gui.checkBox(box, self, "sobel_filter",
                      label="Use sobel filter",
@@ -240,8 +239,17 @@ class OWStackAlign(OWWidget):
             try:
                 shifts, new_stack = process_stack(self.data, self.attr_x, self.attr_y,
                                           upsample_factor=100, use_sobel=self.sobel_filter)
-                self.curveplot.add_curve(np.linspace(1,shifts.shape[0],shifts.shape[0]), shifts) #how to properly plot? make a data table?
-                # self.curveplot.add_curve(shifts[0:], shifts[1:])
+
+                self.plotview.plotItem.clear()
+                self.plotview.plotItem.plot(np.linspace(1, shifts.shape[0], shifts.shape[0]), shifts[:,0],
+                                            pen=pg.mkPen(color=(255,40,0), width=3),
+                                            symbol='o', symbolBrush=(255,40,0), symbolPen='w', symbolSize=7)
+                self.plotview.plotItem.plot(np.linspace(1, shifts.shape[0], shifts.shape[0]), shifts[:,1],
+                                            pen = pg.mkPen(color=(0,139,139), width=3),
+                                            symbol='o', symbolBrush=(0,139,139), symbolPen='w', symbolSize=7)
+                self.plotview.getPlotItem().setLabel('bottom', 'Frame number')
+                self.plotview.getPlotItem().setLabel('left', 'Shift / pixel')
+
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
