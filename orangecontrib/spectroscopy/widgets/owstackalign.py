@@ -240,8 +240,6 @@ class OWStackAlign(OWWidget):
             try:
                 shifts, new_stack = process_stack(self.data, self.attr_x, self.attr_y,
                                           upsample_factor=100, use_sobel=self.sobel_filter)
-                print(np.linspace(1,shifts.shape[0],shifts.shape[0]))
-                print(shifts[:,0])
                 self.curveplot.add_curve(np.linspace(1,shifts.shape[0],shifts.shape[0]), shifts) #how to properly plot? make a data table?
                 # self.curveplot.add_curve(shifts[0:], shifts[1:])
             except NanInsideHypercube as e:
