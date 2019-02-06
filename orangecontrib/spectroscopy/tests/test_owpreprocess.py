@@ -1,10 +1,13 @@
+import numpy as np
+
 import Orange
 from Orange.widgets.tests.base import WidgetTest
+from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
     PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM, \
-    CutEditor
+    CutEditor, SavitzkyGolayFilteringEditor
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
@@ -108,6 +111,37 @@ class TestOWPreprocess(WidgetTest):
         settings = self.widget.settingsHandler.pack_data(self.widget)
         self.widget = self.create_widget(OWPreprocess, stored_settings=settings)
         self.assertEqual(None, self.widget.preview_n)
+
+    def test_output_preprocessor_without_data(self):
+        self.widget.add_preprocessor(pack_editor(CutEditor))
+        self.widget.apply()
+        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        self.assertIsInstance(out, Preprocess)
+
+    def test_empty_no_inputs(self):
+        self.widget.apply()
+        p = self.get_output(OWPreprocess.Outputs.preprocessor)
+        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        self.assertEqual(None, p)
+        self.assertEqual(None, d)
+
+    def test_no_preprocessors(self):
+        data = SMALL_COLLAGEN
+        self.send_signal(OWPreprocess.Inputs.data, data)
+        self.widget.apply()
+        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        self.assertEqual(SMALL_COLLAGEN, d)
+
+    def test_widget_vs_manual(self):
+        data = SMALL_COLLAGEN
+        self.send_signal(OWPreprocess.Inputs.data, data)
+        self.widget.add_preprocessor(pack_editor(CutEditor))
+        self.widget.add_preprocessor(pack_editor(SavitzkyGolayFilteringEditor))
+        self.widget.apply()
+        p = self.get_output(OWPreprocess.Outputs.preprocessor)
+        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        manual = p(data)
+        np.testing.assert_equal(d.X, manual.X)
 
     def test_migrate_rubberband(self):
         settings = {"storedsettings":

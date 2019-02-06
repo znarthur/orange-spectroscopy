@@ -1808,30 +1808,28 @@ class SpectralPreprocess(OWWidget):
         self.show_preview()
         self._reference_compat_warning()
 
-        plist = []
+        self.Error.applying.clear()
 
-        if self.data is not None:
-            self.Error.applying.clear()
+        plist = []
+        data = self.data
+        reference = self.reference_data
+        n = self.preprocessormodel.rowCount()
+        for i in range(n):
+            item = self.preprocessormodel.item(i)
+            pp = self._create_preprocessor(item, reference)
+            plist.append(pp)
             try:
-                data = self.data
-                reference = self.reference_data
-                n = self.preprocessormodel.rowCount()
-                for i in range(n):
-                    item = self.preprocessormodel.item(i)
-                    pp = self._create_preprocessor(item, reference)
-                    plist.append(pp)
+                if data is not None:
                     data = pp(data)
-                    if self.process_reference and reference is not None and i != n - 1:
-                        reference = pp(reference)
+                if self.process_reference and reference is not None and i != n - 1:
+                    reference = pp(reference)
             except ValueError as e:
                 self.Error.applying()
-                return
-        else:
-            data = None
 
-        preprocessor = preprocess.preprocess.PreprocessorList(plist)
-
+        # output None if there are no preprocessors
+        preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
         self.Outputs.preprocessor.send(preprocessor)
+
         self.Outputs.preprocessed_data.send(data)
 
     def commit(self):
