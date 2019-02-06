@@ -13,6 +13,9 @@ from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
+from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
+    MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
+    HelpEventDelegate, SelectionGroupMixin, selection_modifiers
 
 # the following line imports the copied code so that
 # we do not need to depend on scikit-learn
@@ -147,7 +150,8 @@ class OWStackAlign(OWWidget):
 
     autocommit = settings.Setting(True)
 
-    want_main_area = False
+    want_main_area = True
+    want_control_area = True
     resizing_enabled = False
 
     settingsHandler = DomainContextHandler()
@@ -176,6 +180,12 @@ class OWStackAlign(OWWidget):
         self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         box = gui.widgetBox(self.controlArea, "Parameters")
+
+        plot_box = gui.widgetBox(self.mainArea, "Shift curves")
+        self.curveplot = CurvePlot(self, select=SELECTMANY)
+        ### TODO make this a simple curvplot - how? modify the class or add a condition in the original to display or not the menu?
+        self.mainArea.layout().addWidget(self.curveplot) ## QQQ why doesn't this go into the grey box?
+        self.resize(900, 700)
 
         gui.checkBox(box, self, "sobel_filter",
                      label="Use sobel filter",
