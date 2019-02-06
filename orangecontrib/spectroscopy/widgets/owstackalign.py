@@ -121,7 +121,7 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     cropped = np.array(aligned_stack).T[slicey, slicex]
 
     # transform numpy array back to Orange.data.Table
-    return build_spec_table(*_spectra_from_image(cropped,
+    return shifts, build_spec_table(*_spectra_from_image(cropped,
                                                  getx(data),
                                                  np.linspace(*lsx)[slicex],
                                                  np.linspace(*lsy)[slicey]))
@@ -180,7 +180,9 @@ class OWStackAlign(OWWidget):
         self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         box = gui.widgetBox(self.controlArea, "Parameters")
+        gui.rubber(self.controlArea)
 
+        # TODO:  feedback for how well the images are aligned
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         ### TODO make this a simple curvplot - how? modify the class or add a condition in the original to display or not the menu?
@@ -191,7 +193,6 @@ class OWStackAlign(OWWidget):
                      label="Use sobel filter",
                      callback=self._sobel_changed)
 
-        # TODO:  feedback for how well the images are aligned
 
         self.data = None
 
@@ -237,8 +238,12 @@ class OWStackAlign(OWWidget):
 
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
-                new_stack = process_stack(self.data, self.attr_x, self.attr_y,
+                shifts, new_stack = process_stack(self.data, self.attr_x, self.attr_y,
                                           upsample_factor=100, use_sobel=self.sobel_filter)
+                print(np.linspace(1,shifts.shape[0],shifts.shape[0]))
+                print(shifts[:,0])
+                self.curveplot.add_curve(np.linspace(1,shifts.shape[0],shifts.shape[0]), shifts) #how to properly plot? make a data table?
+                # self.curveplot.add_curve(shifts[0:], shifts[1:])
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
