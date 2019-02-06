@@ -18,6 +18,14 @@ class PreprocessException(Exception):
             return self.__class__.__name__
 
 
+class MissingReferenceException(Exception):
+    pass
+
+
+class WrongReferenceException(Exception):
+    pass
+
+
 class SelectColumn(SharedComputeValue):
 
     def __init__(self, feature, commonfn):
@@ -47,6 +55,24 @@ class CommonDomain:
 
     def transformed(self, data):
         raise NotImplemented
+
+
+class CommonDomainRef(CommonDomain):
+    """CommonDomain which also ensures reference domain transformation"""
+    def __init__(self, ref, domain):
+        super().__init__(domain)
+        self.ref = ref
+
+    def interpolate_extend_to(self, interpolate, wavenumbers):
+        """
+        Interpolate data to given wavenumbers and extend the possibly
+        nan-edges with the nearest values.
+        """
+        # interpolate reference to the given wavenumbers
+        X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
+        # we know that X is not NaN. same handling of reference as of X
+        X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
+        return X
 
 
 class CommonDomainOrder(CommonDomain):

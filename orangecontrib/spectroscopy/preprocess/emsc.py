@@ -11,7 +11,7 @@ except ImportError:
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException
 
 
 def ranges_to_weight_table(ranges):
@@ -143,10 +143,6 @@ class _EMSC(CommonDomainOrderUnknowns):
             newspectra[i] = corrected
 
         return newspectra
-
-
-class MissingReferenceException(Exception):
-    pass
 
 
 class EMSC(Preprocess):
