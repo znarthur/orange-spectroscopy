@@ -121,9 +121,9 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
 
     # transform numpy array back to Orange.data.Table
     return shifts, build_spec_table(*_spectra_from_image(cropped,
-                                                 getx(data),
-                                                 np.linspace(*lsx)[slicex],
-                                                 np.linspace(*lsy)[slicey]))
+                                                         getx(data),
+                                                         np.linspace(*lsx)[slicex],
+                                                         np.linspace(*lsy)[slicey]))
 
 
 class OWStackAlign(OWWidget):
@@ -162,7 +162,7 @@ class OWStackAlign(OWWidget):
     def __init__(self):
         super().__init__()
 
-        #TODO: add input box for selecting which should be the reference frame
+        # TODO: add input box for selecting which should be the reference frame
         box = gui.widgetBox(self.controlArea, "Axes")
 
         common_options = dict(
@@ -191,7 +191,7 @@ class OWStackAlign(OWWidget):
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
         self.plotview = pg.PlotWidget(background="w")
         plot_box.layout().addWidget(self.plotview)
-        # self.resize(500, 300) ## TODO check this....
+        # TODO:  resize widget to make it a bit smaller
 
         self.data = None
 
@@ -235,25 +235,29 @@ class OWStackAlign(OWWidget):
         self.Error.nan_in_image.clear()
         self.Error.invalid_axis.clear()
 
+        self.plotview.plotItem.clear()
+
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
                 shifts, new_stack = process_stack(self.data, self.attr_x, self.attr_y,
-                                          upsample_factor=100, use_sobel=self.sobel_filter)
-
-                self.plotview.plotItem.clear()
-                self.plotview.plotItem.plot(np.linspace(1, shifts.shape[0], shifts.shape[0]), shifts[:,0],
-                                            pen=pg.mkPen(color=(255,40,0), width=3),
-                                            symbol='o', symbolBrush=(255,40,0), symbolPen='w', symbolSize=7)
-                self.plotview.plotItem.plot(np.linspace(1, shifts.shape[0], shifts.shape[0]), shifts[:,1],
-                                            pen = pg.mkPen(color=(0,139,139), width=3),
-                                            symbol='o', symbolBrush=(0,139,139), symbolPen='w', symbolSize=7)
-                self.plotview.getPlotItem().setLabel('bottom', 'Frame number')
-                self.plotview.getPlotItem().setLabel('left', 'Shift / pixel')
-
+                                                  upsample_factor=100, use_sobel=self.sobel_filter)
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
+            else:
+                # TODO: label axes
+                frames = np.linspace(1, shifts.shape[0], shifts.shape[0])
+                self.plotview.plotItem.plot(frames, shifts[:, 0],
+                                            pen=pg.mkPen(color=(255, 40, 0), width=3),
+                                            symbol='o', symbolBrush=(255, 40, 0), symbolPen='w',
+                                            symbolSize=7)
+                self.plotview.plotItem.plot(frames, shifts[:, 1],
+                                            pen=pg.mkPen(color=(0, 139, 139), width=3),
+                                            symbol='o', symbolBrush=(0, 139, 139), symbolPen='w',
+                                            symbolSize=7)
+                self.plotview.getPlotItem().setLabel('bottom', 'Frame number')
+                self.plotview.getPlotItem().setLabel('left', 'Shift / pixel')
 
         self.Outputs.newstack.send(new_stack)
 
