@@ -1122,13 +1122,9 @@ class SpectralTransformEditor(BaseEditorOrange):
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if from_spec_type not in transform.from_types:
             return lambda data: data[:0]  # return an empty data table
-        try:
-            return transform(ref=reference)
-        except TypeError as e:
-            if "unexpected keyword argument \'ref\'" in str(e):
-                return transform()
-            else:
-                raise
+        if reference:
+            reference = reference[:1]
+        return transform(ref=reference)
 
     def set_reference_data(self, ref):
         self.reference = ref
@@ -1997,7 +1993,7 @@ def test_main(argv=sys.argv):
     w = OWPreprocess()
     data = Orange.data.Table("collagen")
     w.set_data(data)
-    w.set_reference(data[:1])
+    w.set_reference(data[:2])
     w.handleNewSignals()
     w.show()
     w.raise_()

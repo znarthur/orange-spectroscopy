@@ -85,8 +85,6 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
 for p in [Absorbance, Transmittance]:
     # single reference
     PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
-    # multi reference (many:many)
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN))
 
 # EMSC with different kinds of reference
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
