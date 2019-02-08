@@ -5,6 +5,7 @@ from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
 
 from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QLabel
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.settings import DomainContextHandler, ContextSetting
@@ -14,6 +15,7 @@ from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
+from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
 
 # the following line imports the copied code so that
@@ -53,18 +55,20 @@ def shift_fill(img, sh, fill=np.nan):
     return aligned
 
 
-def alignstack(raw, shiftfn, filterfn=lambda x: x):
+def alignstack(raw, shiftfn, ref_frame_num=0, filterfn=lambda x: x):
     """Align to the first image"""
-    base = filterfn(raw[0])
-    shifts = [(0, 0)]
-    for image in raw[1:]:
-        shifts.append(shiftfn(base, filterfn(image)))
+    base = filterfn(raw[ref_frame_num])
+    shifts = []
+
+    for i, image in enumerate(raw):
+        if i != ref_frame_num:
+            shifts.append(shiftfn(base, filterfn(image)))
+        else:
+            shifts.append((0, 0))
     shifts = np.array(shifts)
 
     aligned = np.zeros((len(raw),) + raw[0].shape, dtype=raw[0].dtype)
-    aligned[0] = raw[0][::]
-
-    for k in range(1, len(raw)):
+    for k in range(len(raw)):
         aligned[k] = shift_fill(raw[k], shifts[k])
 
     return shifts, aligned
@@ -78,7 +82,7 @@ class InvalidAxisException(Exception):
     pass
 
 
-def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
+def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False, ref_frame_num=0):
     ndom = Domain([xat, yat])
     datam = Table(ndom, data)
     coorx = datam.X[:, 0]
@@ -107,6 +111,7 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False):
     filterfn = sobel if use_sobel else lambda x: x
     shifts, aligned_stack = alignstack(hypercube.T,
                                        shiftfn=calculate_shift,
+                                       ref_frame_num=ref_frame_num,
                                        filterfn=filterfn)
 
     xmin, ymin = shifts[:, 0].min(), shifts[:, 1].min()
@@ -158,6 +163,7 @@ class OWStackAlign(OWWidget):
     sobel_filter = settings.Setting(False)
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
+    ref_frame_num = settings.Setting(0)
 
     def __init__(self):
         super().__init__()
@@ -184,10 +190,15 @@ class OWStackAlign(OWWidget):
         gui.checkBox(box, self, "sobel_filter",
                      label="Use sobel filter",
                      callback=self._sobel_changed)
+        gui.separator(box)
+        hbox = gui.hBox(box)
+        self.le1 = lineEditIntRange(box, self, "ref_frame_num", bottom=1, default=1,
+                                    callback=self._ref_frame_changed)
+        hbox.layout().addWidget(QLabel("Reference frame:", self))
+        hbox.layout().addWidget(self.le1)
 
         gui.rubber(self.controlArea)
 
-        # TODO:  feedback for how well the images are aligned
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
         self.plotview = pg.PlotWidget(background="w")
         plot_box.layout().addWidget(self.plotview)
@@ -196,6 +207,15 @@ class OWStackAlign(OWWidget):
         self.data = None
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
+
+
+    def _sanitize_ref_frame(self):
+        if self.ref_frame_num > self.data.X.shape[1]:
+            self.ref_frame_num = self.data.X.shape[1]
+
+    def _ref_frame_changed(self):
+        self._sanitize_ref_frame()
+        self.commit()
 
     def _sobel_changed(self):
         self.commit()
@@ -223,6 +243,7 @@ class OWStackAlign(OWWidget):
         self.openContext(dataset)
         if dataset is not None:
             self.data = dataset
+            self._sanitize_ref_frame()
         else:
             self.data = None
         self.Error.nan_in_image.clear()
@@ -240,7 +261,8 @@ class OWStackAlign(OWWidget):
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
                 shifts, new_stack = process_stack(self.data, self.attr_x, self.attr_y,
-                                                  upsample_factor=100, use_sobel=self.sobel_filter)
+                                                  upsample_factor=100, use_sobel=self.sobel_filter,
+                                                  ref_frame_num=self.ref_frame_num-1)
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
@@ -258,6 +280,9 @@ class OWStackAlign(OWWidget):
                                             symbolSize=7)
                 self.plotview.getPlotItem().setLabel('bottom', 'Frame number')
                 self.plotview.getPlotItem().setLabel('left', 'Shift / pixel')
+                self.plotview.getPlotItem().addLine(self.ref_frame_num,
+                                                    pen=pg.mkPen(color=(150, 150, 150), width=3,
+                                                                 style=Qt.DashDotDotLine))
 
         self.Outputs.newstack.send(new_stack)
 
