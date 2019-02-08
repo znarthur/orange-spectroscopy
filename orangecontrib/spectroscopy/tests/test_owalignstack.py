@@ -9,7 +9,7 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
 from orangecontrib.spectroscopy.widgets.owstackalign import \
-    alignstack, RegisterTranslation, shift_fill, OWStackAlign
+    alignstack, RegisterTranslation, shift_fill, OWStackAlign, process_stack
 
 
 def test_image():
@@ -137,6 +137,22 @@ def fake_stxm_from_image(image):
     return spectral
 
 
+class SideEffect():
+    def __init__(self, fn):
+        self.fn = fn
+        self.return_value = None
+
+    def __call__(self, *args, **kwargs):
+        self.return_value = self.fn(*args, **kwargs)
+        return self.return_value
+
+
+def lineedit_type(le, text):
+    le.clear()
+    le.insert(text)
+    le.editingFinished.emit()
+
+
 def orange_table_from_3d(image3d):
     info = _spectra_from_image(image3d,
                                range(5),
@@ -165,7 +181,7 @@ def orange_table_to_3d(data):
 class TestOWStackAlign(WidgetTest):
 
     def setUp(self):
-        self.widget = self.create_widget(OWStackAlign)
+        self.widget = self.create_widget(OWStackAlign)  # type: OWStackAlign
 
     def test_add_remove_data(self):
         self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
@@ -192,7 +208,7 @@ class TestOWStackAlign(WidgetTest):
         # in X was just one right,
         # in Y was one up and 2 down
         # try to crop manually to see if the obtained image is the same
-        np.testing.assert_equal(image3d[:, :, 0], diamond()[1:-2, :-1])
+        np.testing.assert_almost_equal(image3d[:, :, 0], diamond()[1:-2, :-1])
 
     def test_sobel_called(self):
         with patch("orangecontrib.spectroscopy.widgets.owstackalign.sobel",
@@ -254,4 +270,37 @@ class TestOWStackAlign(WidgetTest):
         self.send_signal(OWStackAlign.Inputs.data, data)
         out = self.get_output(OWStackAlign.Outputs.newstack)
         image3d = orange_table_to_3d(out)
-        np.testing.assert_equal(image3d[:, :, 0], diamond())
+        np.testing.assert_almost_equal(image3d[:, :, 0], diamond())
+
+    def test_frame_changes_output(self):
+        self.widget.ref_frame_num = 1
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        out1 = self.get_output(OWStackAlign.Outputs.newstack)
+        lineedit_type(self.widget.controls.ref_frame_num, "2")
+        self.assertEqual(self.widget.ref_frame_num, 2)
+        out2 = self.get_output(OWStackAlign.Outputs.newstack)
+        self.assertIsNot(out1, out2)
+        # due to cropping we get the same output on this very simple problem
+        np.testing.assert_equal(out1.X, out2.X)
+
+    def test_frame_limits(self):
+        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        lineedit_type(self.widget.controls.ref_frame_num, "1")
+        self.assertEqual(1, self.widget.ref_frame_num)
+        # could not test input 0 for the first because lineedit_type does not use validatiors
+        lineedit_type(self.widget.controls.ref_frame_num, "5")
+        self.assertEqual(5, self.widget.ref_frame_num)
+        lineedit_type(self.widget.controls.ref_frame_num, "6")
+        self.assertEqual(5, self.widget.ref_frame_num)
+
+    def test_frame_shifts(self):
+        se = SideEffect(process_stack)
+        with patch("orangecontrib.spectroscopy.widgets.owstackalign.process_stack",
+                   Mock(side_effect=se)) as mock:
+            self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+            lineedit_type(self.widget.controls.ref_frame_num, "1")
+            self.assertEqual(2, mock.call_count)
+            np.testing.assert_equal(se.return_value[0][0], (0, 0))
+            lineedit_type(self.widget.controls.ref_frame_num, "3")
+            self.assertEqual(3, mock.call_count)
+            np.testing.assert_equal(se.return_value[0][2], (0, 0))

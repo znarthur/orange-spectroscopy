@@ -52,12 +52,10 @@ def round_virtual_pixels(v, range, pixels=10000):
     return Decimal(float_to_str_decimals(v, pixel_decimals))
 
 
-class FloatOrEmptyValidator(QValidator):
+class AnyOrEmptyValidator(QValidator):
 
-    def __init__(self, parent, allow_empty=False, bottom=float("-inf"), top=float("inf"),
-                 default_text=""):
+    def __init__(self, parent, allow_empty, bottom, top, default_text):
         super().__init__(parent)
-        self.dv = QDoubleValidator(parent)
         self.allow_empty = allow_empty
         self.default_text = default_text
         self.dv.setLocale(QLocale.c())
@@ -78,7 +76,7 @@ class FloatOrEmptyValidator(QValidator):
         #   invalid, because they are synchronized and every change
         # = called before returnPressedHandler
         try:
-            f = float(p_str)
+            f = self.valid_type(p_str)
             if f > self.dv.top():
                 return str(self.dv.top())
             if f < self.dv.bottom():
@@ -95,17 +93,24 @@ class FloatOrEmptyValidator(QValidator):
             return self.dv.validate(s, pos)
 
 
-class IntOrEmptyValidator(QValidator):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.dv = QIntValidator(parent)
-        self.dv.setLocale(QLocale.c())
+class FloatOrEmptyValidator(AnyOrEmptyValidator):
 
-    def validate(self, s, pos):
-        if len(s) == 0:
-            return (QValidator.Acceptable, s, pos)
-        else:
-            return self.dv.validate(s, pos)
+    def __init__(self, parent, allow_empty=False, bottom=float("-inf"), top=float("inf"),
+                 default_text=""):
+        self.dv = QDoubleValidator(parent)
+        self.valid_type = float
+        super().__init__(parent, allow_empty=allow_empty, bottom=bottom, top=top,
+                         default_text=default_text)
+
+
+class IntOrEmptyValidator(AnyOrEmptyValidator):
+
+    def __init__(self, parent, allow_empty=False, bottom=-2147483647, top=2147483647,
+                 default_text=""):
+        self.dv = QIntValidator(parent)
+        self.valid_type = int
+        super().__init__(parent, allow_empty=allow_empty, bottom=bottom, top=top,
+                         default_text=default_text)
 
 
 def floatornone(a):
@@ -236,6 +241,19 @@ def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("i
                              valueType=Decimal,  # every text need to be a valid float before saving setting
                              valueToStr=str,
                              **kwargs)
+    le.set_default = lambda v: le.validator().setDefault(str(v))
+    return le
+
+
+def lineEditIntRange(widget, master, value, bottom=-2147483647, top=2147483647,
+                     default=0, **kwargs):
+    le = lineEditValidator(widget, master, value,
+                           validator=IntOrEmptyValidator(master, allow_empty=False,
+                                                         bottom=bottom, top=top,
+                                                         default_text=str(default)),
+                           valueType=int,  # every text need to be a valid before saving
+                           valueToStr=str,
+                           **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
     return le
 
