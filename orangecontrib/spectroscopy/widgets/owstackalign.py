@@ -280,6 +280,9 @@ class OWStackAlign(OWWidget):
                                             symbolSize=7)
                 self.plotview.getPlotItem().setLabel('bottom', 'Frame number')
                 self.plotview.getPlotItem().setLabel('left', 'Shift / pixel')
+                self.plotview.getPlotItem().addLine(self.ref_frame_num,
+                                                    pen=pg.mkPen(color=(150, 150, 150), width=3,
+                                                                 style=Qt.DashDotDotLine))
 
         self.Outputs.newstack.send(new_stack)
 
