@@ -136,6 +136,7 @@ if __name__ == '__main__':
             'pyqtgraph>=0.10.0',
             'colorcet',
             'h5py',
+            'extranormal3',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
