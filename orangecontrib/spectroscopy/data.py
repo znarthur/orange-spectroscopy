@@ -56,7 +56,7 @@ class AsciiColReader(FileFormat, SpectralFileFormat):
         np.savetxt(filename, table, delimiter="\t", fmt="%g")
 
 
-class SelectcolumnReader(FileFormat):
+class SelectColumnReader(FileFormat, SpectralFileFormat):
     """ Reader for files with multiple columns of numbers. The first column
     contains the wavelengths, the others contain the spectra. """
     EXTENSIONS = ('.txt',)
@@ -69,24 +69,21 @@ class SelectcolumnReader(FileFormat):
             for l in dataf:
                 if not l.startswith('#'):
                     break
-            col_nbrs = range(2, min(len(l.split())+1, 11))
+            col_nbrs = range(2, min(len(l.split()) + 1, 11))
 
         return list(map(str, col_nbrs))
 
-    def read(self):
+    def read_spectra(self):
 
         if self.sheet:
             col_nb = int(self.sheet)
         else:
             col_nb = int(self.sheets[0])
 
-        spectrum = np.loadtxt(self.filename, comments = '#', usecols=(0,col_nb-1),
-                         unpack=True )
-        domvals = spectrum[0]  # first column is attribute name
-        features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
-        domain = Orange.data.Domain(features, None)
-        datavals = np.array([spectrum[1], ])
-        return Orange.data.Table(domain, datavals)
+        spectrum = np.loadtxt(self.filename, comments='#',
+                              usecols=(0, col_nb - 1),
+                              unpack=True)
+        return spectrum[0], np.atleast_2d(spectrum[1]), None
 
     @staticmethod
     def write_file(filename, data):
