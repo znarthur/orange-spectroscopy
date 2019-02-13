@@ -535,48 +535,25 @@ class XASnormalization(Preprocess):
 class ExtractEXAFSFeature(SelectColumn):
     pass
 
-class _ExtractEXAFSCommon(CommonDomain):
+class _ExtractEXAFSCommon(CommonDomainOrder):
 
-    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, domain):
-        super().__init__(domain)
+    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, I_jumps, domain):
+        super().__init__(domain, restore_order=False)
         self.edge = edge
         self.extra_from = extra_from
         self.extra_to = extra_to
         self.poly_deg = poly_deg
         self.kweight = kweight
         self.m = m
+        self.I_jumps = I_jumps
 
-    def transformed(self, data):
-        #print ([attr.name for attr in data.domain])
-        print ('_ExtractEXAFSCommon.transformed:')
-        #print (data.X.shape)
-        #print (data.metas[:, -1])
+    def transformed(self, X, energies):
+        Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
+                                                    self.edge, self.I_jumps,
+                                                    self.extra_from, self.extra_to,
+                                                    self.poly_deg, self.kweight, self.m)
 
-        energies = getx(data)
-
-        #print (len(data.metas))
-        I_jumps = None
-        if "edge_jump" in data.domain:
-            edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
-            I_jumps = edges.X[:, 0]
-            #print(I_jumps)
-        '''
-        if len(data.metas) == len(data.X):
-            if len(data.metas[0]):
-                if 'float' in str(type(data.metas[0][-1])):  # for what it worth
-                    I_jumps = data.metas[:, -1]
-                    #print (type(I_jumps[0]))
-        '''
-        if I_jumps is not None:
-            Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, data.X,
-                                                            self.edge, I_jumps,
-                                                            self.extra_from, self.extra_to,
-                                                            self.poly_deg, self.kweight, self.m)
-
-            return Km_Chi
-
-        print ('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
-        return  data.X
+        return Km_Chi
 
 
 class ExtractEXAFS(Preprocess):
@@ -598,33 +575,35 @@ class ExtractEXAFS(Preprocess):
         self.m = m
 
     def __call__(self, data):
+        if "edge_jump" in data.domain:
+            edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
+            I_jumps = edges.X[:, 0]
 
-        common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
-                                     self.poly_deg, self.kweight, self.m, data.domain)
-        # --- compute K
-        energies = getx(data)
+            common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
+                                         self.poly_deg, self.kweight, self.m, I_jumps, data.domain)
 
-        start_idx, end_idx = extra_exafs.get_idx_bounds(energies, self.edge,
-                                                        self.extra_from, self.extra_to)
-        #print ('idxs: from ' + str(start_idx) + ' to '+ str(end_idx))
-        print ('energies: from ' + str(energies[start_idx]) + ' to '+ str(energies[end_idx]))
+            # --- compute K
+            energies = np.sort(getx(data))  # input data can be in any order
 
-        k_interp, k_points = extra_exafs.get_K_points(energies, self.edge, start_idx, end_idx)
-        print ('k_points: from ' + str(k_interp[0]) + ' to '+ str(k_interp[-1]))
-        # ----------
+            start_idx, end_idx = extra_exafs.get_idx_bounds(energies, self.edge,
+                                                            self.extra_from, self.extra_to)
+            #print ('idxs: from ' + str(start_idx) + ' to '+ str(end_idx))
+            print ('energies: from ' + str(energies[start_idx]) + ' to '+ str(energies[end_idx]))
 
-        newattrs = [Orange.data.ContinuousVariable(
-                    name=str(var), compute_value=ExtractEXAFSFeature(i, common))
-                    for i, var in enumerate(k_interp)]
-        '''
-        newattrs = [Orange.data.ContinuousVariable(
-                    name=var.name, compute_value=ExtractEXAFSFeature(i, common))
-                    for i, var in enumerate(data.domain.attributes)]
-        '''
+            k_interp, k_points = extra_exafs.get_K_points(energies, self.edge, start_idx, end_idx)
+            print ('k_points: from ' + str(k_interp[0]) + ' to '+ str(k_interp[-1]))
+            # ----------
+
+            newattrs = [Orange.data.ContinuousVariable(
+                        name=str(var), compute_value=ExtractEXAFSFeature(i, common))
+                        for i, var in enumerate(k_interp)]
+        else:
+            print('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
+            newattrs = []
 
         domain = Orange.data.Domain(newattrs, data.domain.class_vars, data.domain.metas)
+        return data.transform(domain)
 
-        return data.from_table(domain, data) # <- transformed
 
 
 class CurveShiftFeature(SelectColumn):
