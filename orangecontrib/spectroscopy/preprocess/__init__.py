@@ -481,18 +481,18 @@ class _XASnormalizationCommon(CommonDomainOrder):
         self.preedge_params = preedge_dict
         self.postedge_params = postedge_dict
 
-
     def transformed(self, X, energies):
+        if X.shape[0] == 0:
+            return np.zeros((0, X.shape[1]+1))
+
         try:
             spectra, jump_vals = normal_xas.normalize_all(energies, X,
                                                           self.edge, self.preedge_params, self.postedge_params)
+            jump_vals = jump_vals.reshape(-1, 1)
         except Exception as exmatter:
             print ('ERROR occured during nomalization:  '+str(exmatter))
-            dummy_jumps = np.zeros(len(X))
-            dummy_jumps = dummy_jumps.reshape((len(dummy_jumps),1))
-            return np.hstack((X, dummy_jumps ))
-
-        jump_vals = jump_vals.reshape((len(jump_vals),1))
+            spectra = X
+            jump_vals = np.zeros((len(X), 1))
 
         return np.hstack((spectra, jump_vals ))
 
