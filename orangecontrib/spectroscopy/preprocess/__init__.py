@@ -548,11 +548,14 @@ class _ExtractEXAFSCommon(CommonDomainOrder):
         self.I_jumps = I_jumps
 
     def transformed(self, X, energies):
+        # FIXME to fix test_no_common this function has to return the same width
+        #       even if the data was empty
+        # FIXME it should also return the same Ks for whatever data you put into it:
+        #       it probably needs to a special function that takes the precomputed Ks
         Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
                                                     self.edge, self.I_jumps,
                                                     self.extra_from, self.extra_to,
                                                     self.poly_deg, self.kweight, self.m)
-
         return Km_Chi
 
 
@@ -575,7 +578,7 @@ class ExtractEXAFS(Preprocess):
         self.m = m
 
     def __call__(self, data):
-        if "edge_jump" in data.domain:
+        if "edge_jump" in data.domain and data.X.shape[1] > 0:
             edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
             I_jumps = edges.X[:, 0]
 
