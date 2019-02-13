@@ -94,7 +94,7 @@ class TestOWPreprocess(WidgetTest):
         self.assertEqual([], settings["storedsettings"]["preprocessors"])
         self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
         settings = self.widget.settingsHandler.pack_data(self.widget)
-        self.assertEqual('orangecontrib.infrared.cut',
+        self.assertEqual(self.widget.PREPROCESSORS[0].qualname,
                          settings["storedsettings"]["preprocessors"][0][0])
 
     def test_saving_preview_position(self):
