@@ -1054,21 +1054,22 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
 
     def set_preview_data(self, data):
-        x = getx(data)
-        y = data.X[0]  # - TODO: check idx out of range
+        if data is None:
+            return
 
-        #print ('max x = '+ str(max(x)))
-        #print (y.shape)
+        x = getx(data)
 
         if len(x):
             self._extrafrom_lim.set_default(min(x))
             self._extrato_lim.set_default(max(x))
 
             if not self.user_changed:
-
-                maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x,y])))
-                #print (x[maxderiv_idx])
-                self.edge = x[maxderiv_idx]
+                if data:
+                    y = data.X[0]
+                    maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x,y])))
+                    self.edge = x[maxderiv_idx]
+                else:
+                    self.edge = (max(x) - min(x)) / 2
 
                 self.extra_from = self.edge
                 self.extra_to = max(x)
