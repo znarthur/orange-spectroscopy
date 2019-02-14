@@ -16,7 +16,7 @@ from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmit
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
-    WrongReferenceException, replace_infs
+    WrongReferenceException, replace_infs, transform_to_sorted_features
 
 from extranormal3 import normal_xas, extra_exafs
 
@@ -537,7 +537,7 @@ class ExtractEXAFSFeature(SelectColumn):
 
 class _ExtractEXAFSCommon(CommonDomainOrder):
 
-    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, I_jumps, domain):
+    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, k_interp, domain):
         super().__init__(domain, restore_order=False)
         self.edge = edge
         self.extra_from = extra_from
@@ -545,17 +545,39 @@ class _ExtractEXAFSCommon(CommonDomainOrder):
         self.poly_deg = poly_deg
         self.kweight = kweight
         self.m = m
-        self.I_jumps = I_jumps
+        self.k_interp = k_interp
 
-    def transformed(self, X, energies):
-        # FIXME to fix test_no_common this function has to return the same width
-        #       even if the data was empty
-        # FIXME it should also return the same Ks for whatever data you put into it:
-        #       it probably needs to a special function that takes the precomputed Ks
+    def __call__(self, data):
+        data = self.transform_domain(data)
+
+        if "edge_jump" in data.domain and data.X.shape[1] > 0:
+            edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
+            I_jumps = edges.X[:, 0]
+        else:
+            I_jumps = np.full(len(data), np.nan)
+
+        # order X by wavenumbers
+        xs, xsind, mon, X = transform_to_sorted_features(data)
+        xc = X.shape[1]
+
+        # do the transformation
+        X = self.transformed(X, xs[xsind], I_jumps)
+
+        # restore order
+        return self._restore_order(X, mon, xsind, xc)
+
+    def transformed(self, X, energies, I_jumps):
         Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
-                                                    self.edge, self.I_jumps,
+                                                    self.edge, I_jumps,
                                                     self.extra_from, self.extra_to,
                                                     self.poly_deg, self.kweight, self.m)
+
+        # this function always needs to return the expected input size - even
+        # if the test data was empty - force the output size
+        correct_shape = (X.shape[0], len(self.k_interp))
+        if Km_Chi.shape != correct_shape:
+            return np.full(correct_shape, np.nan)
+
         return Km_Chi
 
 
@@ -578,13 +600,7 @@ class ExtractEXAFS(Preprocess):
         self.m = m
 
     def __call__(self, data):
-        if "edge_jump" in data.domain and data.X.shape[1] > 0:
-            edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
-            I_jumps = edges.X[:, 0]
-
-            common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
-                                         self.poly_deg, self.kweight, self.m, I_jumps, data.domain)
-
+        if data.X.shape[1] > 0:
             # --- compute K
             energies = np.sort(getx(data))  # input data can be in any order
 
@@ -596,6 +612,9 @@ class ExtractEXAFS(Preprocess):
             k_interp, k_points = extra_exafs.get_K_points(energies, self.edge, start_idx, end_idx)
             print ('k_points: from ' + str(k_interp[0]) + ' to '+ str(k_interp[-1]))
             # ----------
+
+            common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
+                                         self.poly_deg, self.kweight, self.m, k_interp, data.domain)
 
             newattrs = [Orange.data.ContinuousVariable(
                         name=str(var), compute_value=ExtractEXAFSFeature(i, common))

@@ -41,7 +41,6 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     CurveShift(1),
 ]
 
-
 xas_norm_collagen = XASnormalization(edge=1630,
                                      preedge_dict={'from': 1000, 'to': 1300, 'deg': 1},
                                      postedge_dict={'from': 1650, 'to': 1700, 'deg': 1})
