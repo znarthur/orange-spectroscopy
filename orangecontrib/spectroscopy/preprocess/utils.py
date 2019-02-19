@@ -78,11 +78,6 @@ class CommonDomainRef(CommonDomain):
 class CommonDomainOrder(CommonDomain):
     """CommonDomain + it also handles wavenumber order.
     """
-
-    def __init__(self, *args, restore_order=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.restore_order = restore_order
-
     def __call__(self, data):
         data = self.transform_domain(data)
 
@@ -97,11 +92,8 @@ class CommonDomainOrder(CommonDomain):
         return self._restore_order(X, mon, xsind, xc)
 
     def _restore_order(self, X, mon, xsind, xc):
-        # possibly restore order and leave additional columns as they are
-        if self.restore_order:
-            restored = transform_back_to_features(xsind, mon, X[:, :xc])
-        else:
-            restored = X[:, :xc]
+        # restore order and leave additional columns as they are
+        restored = transform_back_to_features(xsind, mon, X[:, :xc])
         return np.hstack((restored, X[:, xc:]))
 
     def transformed(self, X, wavenumbers):

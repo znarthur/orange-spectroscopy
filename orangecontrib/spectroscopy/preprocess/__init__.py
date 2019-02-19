@@ -535,10 +535,10 @@ class XASnormalization(Preprocess):
 class ExtractEXAFSFeature(SelectColumn):
     pass
 
-class _ExtractEXAFSCommon(CommonDomainOrder):
+class _ExtractEXAFSCommon(CommonDomain):
 
     def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, k_interp, domain):
-        super().__init__(domain, restore_order=False)
+        super().__init__(domain)
         self.edge = edge
         self.extra_from = extra_from
         self.extra_to = extra_to
@@ -550,21 +550,22 @@ class _ExtractEXAFSCommon(CommonDomainOrder):
     def __call__(self, data):
         data = self.transform_domain(data)
 
-        if "edge_jump" in data.domain and data.X.shape[1] > 0:
+        if "edge_jump" in data.domain:
             edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
             I_jumps = edges.X[:, 0]
         else:
+            # TODO need to display the error to the user
+            print('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
             I_jumps = np.full(len(data), np.nan)
 
         # order X by wavenumbers
         xs, xsind, mon, X = transform_to_sorted_features(data)
-        xc = X.shape[1]
 
         # do the transformation
         X = self.transformed(X, xs[xsind], I_jumps)
 
-        # restore order
-        return self._restore_order(X, mon, xsind, xc)
+        # k scores are always ordered, so do not restore order
+        return X
 
     def transformed(self, X, energies, I_jumps):
         Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
@@ -620,7 +621,6 @@ class ExtractEXAFS(Preprocess):
                         name=str(var), compute_value=ExtractEXAFSFeature(i, common))
                         for i, var in enumerate(k_interp)]
         else:
-            print('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
             newattrs = []
 
         domain = Orange.data.Domain(newattrs, data.domain.class_vars, data.domain.metas)
