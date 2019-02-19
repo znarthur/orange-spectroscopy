@@ -473,7 +473,7 @@ class XASnormalizationFeature(SelectColumn):
     pass
 
 
-class _XASnormalizationCommon(CommonDomainOrder):
+class _XASnormalizationCommon(CommonDomainOrderUnknowns):
 
     def __init__(self, edge, preedge_dict, postedge_dict, domain):
         super().__init__(domain)
@@ -560,6 +560,9 @@ class _ExtractEXAFSCommon(CommonDomain):
 
         # order X by wavenumbers
         xs, xsind, mon, X = transform_to_sorted_features(data)
+
+        X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
+        # TODO notify the user if some unknown values were interpolated
 
         # do the transformation
         X = self.transformed(X, xs[xsind], I_jumps)
