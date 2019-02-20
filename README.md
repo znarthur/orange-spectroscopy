@@ -22,7 +22,7 @@ Usage
 After the installation, the widgets from this add-on will appear in the toolbox 
 under the section Spectroscopy.
 
-For introduction to this add-on, see the following YouTube channels:
+For an introduction to this add-on, see the following YouTube channels:
 
 * [Getting started with Orange](https://www.youtube.com/playlist?list=PLmNPvQr9Tf-ZSDLwOzxpvY-HrE0yv-8Fy) -
   introduces data analysis with Orange 
