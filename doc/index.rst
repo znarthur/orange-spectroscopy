@@ -8,7 +8,7 @@ To use it, download and install the `Quasar distribution of Orange
 You can also install it into your `Orange <https://orange.biolab.si/>`_
 data mining suite with the "Add-ons" menu (Options->Add-ons).
 
-For introduction to Orange and widgets from this add-on, see
+For an introduction to Orange and widgets from this add-on, see
 the following YouTube channels:
 
 * `Getting started with Orange <https://www.youtube.com/playlist?list=PLmNPvQr9Tf-ZSDLwOzxpvY-HrE0yv-8Fy>`_ -
