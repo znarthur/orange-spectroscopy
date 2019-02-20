@@ -13,7 +13,7 @@ To use this add-on, download and install the
 [Quasar distribution of Orange](https://quasar.codes/), which comes with 
 the Orange Spectroscopy add-on pre-installed.
 
-Alternatively, you can install it into a pre-installed `Orange <https://orange.biolab.si/>`_
+Alternatively, you can install it into a pre-installed [Orange](https://orange.biolab.si/)
 data mining suite with the "Add-ons" dialog, which can be opened from the Options menu.
 
 Usage
@@ -33,7 +33,7 @@ For more, see the widget documentation:
 
 * [Orange widgets](https://orange.biolab.si/toolbox/) - general data analysis widgets 
 * [Spectroscopy widgets](https://orange-spectroscopy.readthedocs.io/) - 
-  widgets specific to spectroscopy.
+  widgets specific to spectroscopy
 
 For developers
 --------------
