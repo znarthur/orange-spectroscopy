@@ -9,19 +9,31 @@ of spectral data.
 Installation
 ------------
 
-To use this add-on, first download and install the current version of
-[Orange3](http://orange.biolab.si). Next, install the add-on:
+To use this add-on, download and install the
+[Quasar distribution of Orange](https://quasar.codes/), which comes with 
+the Orange Spectroscopy add-on pre-installed.
 
-1. Open Orange Canvas, choose "Options" from the menu and then "Add-ons".
-2. A new window will open. There, tick the checkbox in front of "Spectroscopy" and confirm.
-3. Restart Orange.
+Alternatively, you can install it into a pre-installed `Orange <https://orange.biolab.si/>`_
+data mining suite with the "Add-ons" dialog, which can be opened from the Options menu.
 
 Usage
 -----
 
-After the installation, the widgets from this add-on are registered with
-Orange. The new widgets will appear in Orange Canvas, in the toolbox bar
+After the installation, the widgets from this add-on will appear in the toolbox 
 under the section Spectroscopy.
+
+For an introduction to this add-on, see the following YouTube channels:
+
+* [Getting started with Orange](https://www.youtube.com/playlist?list=PLmNPvQr9Tf-ZSDLwOzxpvY-HrE0yv-8Fy) -
+  introduces data analysis with Orange 
+* [Spectral Orange](https://www.youtube.com/playlist?list=PLmNPvQr9Tf-bPWjDJvJBPZJ6us_KTAD5T) -
+  tutorials that use the Spectroscopy add-on on spectral data 
+
+For more, see the widget documentation:
+
+* [Orange widgets](https://orange.biolab.si/toolbox/) - general data analysis widgets 
+* [Spectroscopy widgets](https://orange-spectroscopy.readthedocs.io/) - 
+  widgets specific to spectroscopy.
 
 For developers
 --------------
