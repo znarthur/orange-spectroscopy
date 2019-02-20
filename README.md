@@ -33,7 +33,7 @@ For more, see the widget documentation:
 
 * [Orange widgets](https://orange.biolab.si/toolbox/) - general data analysis widgets 
 * [Spectroscopy widgets](https://orange-spectroscopy.readthedocs.io/) - 
-  widgets specific to spectroscopy.
+  widgets specific to spectroscopy
 
 For developers
 --------------
