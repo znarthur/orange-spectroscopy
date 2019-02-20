@@ -13,7 +13,7 @@ To use this add-on, download and install the
 [Quasar distribution of Orange](https://quasar.codes/), which comes with 
 the Orange Spectroscopy add-on pre-installed.
 
-Alternatively, you can install it into a pre-installed `Orange <https://orange.biolab.si/>`_
+Alternatively, you can install it into a pre-installed [Orange](https://orange.biolab.si/)
 data mining suite with the "Add-ons" dialog, which can be opened from the Options menu.
 
 Usage
