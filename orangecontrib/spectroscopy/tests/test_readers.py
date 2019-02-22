@@ -56,6 +56,18 @@ class TestDat(unittest.TestCase):
             np.testing.assert_equal(d1.X, d2.X)
 
 
+class TestHermesHDF5Reader(unittest.TestCase):
+
+    def test_read(self):
+        d = Orange.data.Table("Hermes_HDF5/small_OK.hdf5")
+        self.assertEqual(d[0, 0], 1000.1)
+        self.assertEqual(d[1, 0], 2000.1)
+        self.assertEqual(min(getx(d)), 100.1)
+        self.assertEqual(max(getx(d)), 101.1)
+        self.assertEqual(d[1]["map_x"], 2.1)
+        self.assertEqual(d[1]["map_y"], 11.1)
+
+
 class TestAsciiMapReader(unittest.TestCase):
 
     def test_read(self):
