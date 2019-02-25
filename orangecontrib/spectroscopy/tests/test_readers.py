@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import Orange
@@ -287,6 +288,11 @@ class TestMatlab(unittest.TestCase):
         data = Orange.data.Table("matlab/only_annotations.mat")
         self.assertEqual("M", data.domain.metas[0].name)
         self.assertEqual(["first row", "second row"], list(data.metas[:, 0]))
+
+    def test_IOError(self):
+        with patch("scipy.io.matlab.whosmat", lambda x: []):
+            with self.assertRaises(IOError):
+                Orange.data.Table("matlab/simple.mat")
 
 
 class TestDataUtil(unittest.TestCase):
