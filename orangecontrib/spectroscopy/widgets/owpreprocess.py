@@ -729,7 +729,7 @@ class XASnormalizationEditor(BaseEditorOrange):
         self.warning_msg.setStandardButtons(QMessageBox.Ok)
 
 
-        self.setLayout(QGridLayout())
+        self.controlArea.setLayout(QGridLayout())
         #self.layout().setVerticalSpacing(self.layout().verticalSpacing()+2)
         #self.layout().setAlignment(AlignCenter)
         #spacer = QSpacerItem(10, 10)
@@ -743,7 +743,7 @@ class XASnormalizationEditor(BaseEditorOrange):
         dummylabel = QLabel()
         dummylabel.setText('   ')
         edge_form.addWidget(dummylabel) # adding vertical space
-        self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(edge_form, curr_row, 0, 1, 1)
         curr_row += 1
 
         '''
@@ -766,7 +766,7 @@ class XASnormalizationEditor(BaseEditorOrange):
                                          "preedge_from", "preedge_to")
         #self.layout().addItem(spacer, curr_row, 0)
         #curr_row += 1
-        self.layout().addLayout(preedge_form, curr_row, 0, 1, 2)
+        self.controlArea.layout().addLayout(preedge_form, curr_row, 0, 1, 2)
         curr_row += 1
 
         self.preedge_deg = 1.
@@ -777,7 +777,7 @@ class XASnormalizationEditor(BaseEditorOrange):
         dummylabel2 = QLabel()
         dummylabel2.setText('   ')
         preedgedeg_form.addWidget(dummylabel2)  # adding vertical space
-        self.layout().addLayout(preedgedeg_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(preedgedeg_form, curr_row, 0, 1, 1)
         curr_row += 1
 
 
@@ -796,7 +796,7 @@ class XASnormalizationEditor(BaseEditorOrange):
                                           "Post-edge fit:",
                                           self.post_from_line, self.post_to_line,
                                           "postedge_from", "postedge_to")
-        self.layout().addLayout(postedge_form, curr_row, 0, 1, 2)
+        self.controlArea.layout().addLayout(postedge_form, curr_row, 0, 1, 2)
         curr_row += 1
 
         self.postedge_deg = 2.
@@ -804,7 +804,7 @@ class XASnormalizationEditor(BaseEditorOrange):
         postedgedeg_form.setFieldGrowthPolicy(0)
         postedgedeg_edit = lineEditFloatRange(self, self, "postedge_deg", callback=self.edited.emit)
         postedgedeg_form.addRow("poly degree", postedgedeg_edit)
-        self.layout().addLayout(postedgedeg_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(postedgedeg_form, curr_row, 0, 1, 1)
         curr_row += 1
 
         self.user_changed = False
