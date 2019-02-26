@@ -222,6 +222,9 @@ class InteractiveViewBox(ViewBox):
         if self.tiptexts:  # if initialized
             self.scene().select_tooltip.setPos(10, self.height())
 
+    def enableAutoRange(self, axis=None, enable=True, x=None, y=None):
+        super().enableAutoRange(axis=axis, enable=False, x=x, y=y)
+
     def update_selection_tooltip(self, modifiers=Qt.NoModifier):
         if not self.tiptexts:
             self._create_select_tooltip()
@@ -525,6 +528,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
+        self.plot.hideButtons()  # hide the autorange button
         self.plot.setDownsampling(auto=True, mode="peak")
 
         for pos in ["top", "right"]:
@@ -882,7 +886,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
-        self.plot.addItem(self.highlighted_curve)
+        self.plot.addItem(self.highlighted_curve, ignoreBounds=True)
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
         self.viewhelpers = True
