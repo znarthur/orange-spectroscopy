@@ -10,6 +10,7 @@ from Orange import preprocess
 from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
 from Orange.widgets.settings import SettingsHandler
+from Orange.widgets.utils.messages import WidgetMessagesMixin
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets.data.utils.preprocess import SequenceFlow, Controller, \
     StandardItemModel
@@ -258,13 +259,30 @@ class BaseEditor(BaseEditor):
         return instance(data)
 
 
-class BaseEditorOrange(BaseEditor, OWComponent):
+class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
     """
     Base widget for editing preprocessor's parameters that works with Orange settings.
     """
+    # the following signals need to defined for WidgetMessagesMixin
+    messageActivated = Signal(Msg)
+    messageDeactivated = Signal(Msg)
+
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
         OWComponent.__init__(self, parent)
+        WidgetMessagesMixin.__init__(self)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self.controlArea = QWidget(self)
+        self.controlArea.setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.controlArea)
+
+        self.insert_message_bar()  # from WidgetMessagesMixin
+
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
 
     def parameters(self):
@@ -282,7 +300,7 @@ class GaussianSmoothingEditor(BaseEditorOrange):
         super().__init__(parent, **kwargs)
 
         layout = QFormLayout()
-        self.setLayout(layout)
+        self.controlArea.setLayout(layout)
         self.sd = self.DEFAULT_SD
 
         # editing will always return a valid output (in the range)
@@ -318,6 +336,9 @@ class CutEditor(BaseEditorOrange):
     Editor for Cut
     """
 
+    class Warning(WidgetMessagesMixin.Warning):
+        out_of_range = Msg("Limits are out of range.")
+
     def __init__(self, parent=None, **kwargs):
         BaseEditorOrange.__init__(self, parent, **kwargs)
 
@@ -325,8 +346,7 @@ class CutEditor(BaseEditorOrange):
         self.highlim = 1.
 
         layout = QFormLayout()
-
-        self.setLayout(layout)
+        self.controlArea.setLayout(layout)
 
         self._lowlime = lineEditFloatRange(self, self, "lowlim", callback=self.edited.emit)
         self._highlime = lineEditFloatRange(self, self, "highlim", callback=self.edited.emit)
@@ -365,6 +385,18 @@ class CutEditor(BaseEditorOrange):
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
         return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
+
+    def execute_instance(self, instance: Cut, data):
+        self.Warning.out_of_range.clear()
+        xs = getx(data)
+        if len(xs):
+            minx = np.min(xs)
+            maxx = np.max(xs)
+            if (instance.lowlim < minx and instance.highlim < minx) \
+                    or (instance.lowlim > maxx and instance.highlim > maxx):
+                self.parent_widget.Warning.preprocessor()
+                self.Warning.out_of_range()
+        return instance(data)
 
     def set_preview_data(self, data):
         x = getx(data)
@@ -409,7 +441,6 @@ class SavitzkyGolayFilteringEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.setLayout(QVBoxLayout())
 
         self.window = self.DEFAULT_WINDOW
         self.polyorder = self.DEFAULT_POLYORDER
@@ -429,7 +460,7 @@ class SavitzkyGolayFilteringEditor(BaseEditorOrange):
         form.addRow("Window", self.wspin)
         form.addRow("Polynomial Order", self.pspin)
         form.addRow("Derivative Order", self.dspin)
-        self.layout().addLayout(form)
+        self.controlArea.setLayout(form)
 
     def _window_edited(self):
         # make window even on hand input
@@ -546,12 +577,10 @@ class CurveShiftEditor(BaseEditorOrange):
 
         self.amount = 0.
 
-        self.setLayout(QVBoxLayout())
         form = QFormLayout()
-
         amounte = lineEditFloatRange(self, self, "amount", callback=self.edited.emit)
         form.addRow("Shift Amount", amounte)
-        self.layout().addLayout(form)
+        self.controlArea.setLayout(form)
 
     def setParameters(self, params):
         self.amount = params.get("amount", 0.)
@@ -1028,7 +1057,7 @@ class SpectralTransformEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.setLayout(QVBoxLayout())
+        self.controlArea.setLayout(QVBoxLayout())
 
         form = QFormLayout()
 
@@ -1040,7 +1069,7 @@ class SpectralTransformEditor(BaseEditorOrange):
 
         form.addRow("Original", self.fromcb)
         form.addRow("Transformed", self.tocb)
-        self.layout().addLayout(form)
+        self.controlArea.layout().addLayout(form)
 
         self.fromcb.currentIndexChanged.connect(self.changed)
         self.fromcb.activated.connect(self.edited)
@@ -1050,7 +1079,7 @@ class SpectralTransformEditor(BaseEditorOrange):
         self.reference = None
 
         self.reference_info = QLabel("", self)
-        self.layout().addWidget(self.reference_info)
+        self.controlArea.layout().addWidget(self.reference_info)
 
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
@@ -1125,30 +1154,31 @@ class EMSCEditor(BaseEditorOrange):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setLayout(QVBoxLayout())
+        self.controlArea.setLayout(QVBoxLayout())
 
         self.reference = None
         self.preview_data = None
 
         self.order = self.ORDER_DEFAULT
 
-        gui.spin(self, self, "order", label="Polynomial order", minv=0, maxv=10, controlWidth=50,
-                 callback=self.edited.emit)
+        gui.spin(self.controlArea, self, "order", label="Polynomial order", minv=0, maxv=10,
+                 controlWidth=50, callback=self.edited.emit)
 
         self.scaling = self.SCALING_DEFAULT
-        gui.checkBox(self, self, "scaling", "Scaling", callback=self.edited.emit)
+        gui.checkBox(self.controlArea, self, "scaling", "Scaling", callback=self.edited.emit)
 
         self.reference_info = QLabel("", self)
-        self.layout().addWidget(self.reference_info)
+        self.controlArea.layout().addWidget(self.reference_info)
 
         self.output_model = self.OUTPUT_MODEL_DEFAULT
-        gui.checkBox(self, self, "output_model", "Output EMSC model as metas", callback=self.edited.emit)
+        gui.checkBox(self.controlArea, self, "output_model", "Output EMSC model as metas",
+                     callback=self.edited.emit)
 
-        self.ranges_box = gui.vBox(self)  # container for ranges
+        self.ranges_box = gui.vBox(self.controlArea)  # container for ranges
 
         self.range_button = QPushButton("Select Region", autoDefault=False)
         self.range_button.clicked.connect(self.add_range_selection)
-        self.layout().addWidget(self.range_button)
+        self.controlArea.layout().addWidget(self.range_button)
 
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
@@ -1496,11 +1526,13 @@ class SpectralPreprocess(OWWidget):
 
     class Error(OWWidget.Error):
         applying = Msg("Error applying preprocessors.")
+        preprocessor = Msg("Preprocessor error: see the widget for details.")
 
     class Warning(OWWidget.Warning):
         reference_compat = Msg("Reference is not processed for compatibility with the loaded "
                                "workflow. New instances of this widget will also process "
                                "the reference input.")
+        preprocessor = Msg("Preprocessor warning: see the widget for details.")
 
     def __init__(self):
         super().__init__()
@@ -1622,6 +1654,8 @@ class SpectralPreprocess(OWWidget):
     def show_preview(self, show_info=False):
         """ Shows preview and also passes preview data to the widgets """
         self._reference_compat_warning()
+        self.Warning.preprocessor.clear()
+        self.Error.preprocessor.clear()
 
         if self.data is not None:
             orig_data = data = self.sample_data(self.data)
