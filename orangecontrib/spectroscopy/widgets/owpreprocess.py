@@ -955,7 +955,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         titlabel = QLabel()
         titlabel.setFont(title_font)
 
-        self.setLayout(QGridLayout())
+        self.controlArea.setLayout(QGridLayout())
         curr_row = 0
 
         self.edge = 0.
@@ -966,7 +966,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         dummylabel = QLabel()
         dummylabel.setText('   ')
         edge_form.addWidget(dummylabel) # adding vertical space
-        self.layout().addLayout(edge_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(edge_form, curr_row, 0, 1, 1)
         curr_row += 1
 
         self.extra_from = self.extra_to = 0.
@@ -981,7 +981,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
                                              "Energy bounds:",
                                              self.extrafrom_line, self.extrato_line,
                                              "extra_from", "extra_to")
-        self.layout().addLayout(extrabounds_form, curr_row, 0, 1, 2)
+        self.controlArea.layout().addLayout(extrabounds_form, curr_row, 0, 1, 2)
         curr_row += 1
 
         self.extra_fromK = self.extra_toK = 0.
@@ -991,7 +991,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
                                          self.extra_fromK, self.extra_toK,
                                          self._extrafromK_lim, self._extratoK_lim,
                                          "K bounds:")
-        self.layout().addLayout(Kbounds_form, curr_row, 0, 1, 2)
+        self.controlArea.layout().addLayout(Kbounds_form, curr_row, 0, 1, 2)
         curr_row += 1
 
         connect_settings(self, "extra_from", "extra_fromK", transform=E2K(self))
@@ -1008,7 +1008,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         dummylabel2 = QLabel()
         dummylabel2.setText('   ')
         polydeg_form.addWidget(dummylabel2)
-        self.layout().addLayout(polydeg_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(polydeg_form, curr_row, 0, 1, 1)
         curr_row += 1
         # ----------------------------
         self.kweight = 0
@@ -1017,7 +1017,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         kweight_edit = lineEditFloatRange(self, self, "kweight", callback=self.edited.emit)
         #kweight_edit.setMinimumWidth(5)
         kweight_form.addRow("Kweight (fit)", kweight_edit)
-        self.layout().addLayout(kweight_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(kweight_form, curr_row, 0, 1, 1)
         curr_row += 1
         # ----------------------------
         self.m = 3
@@ -1026,7 +1026,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         m_edit = lineEditFloatRange(self, self, "m", callback=self.edited.emit)
         m_edit.setMinimumWidth(10)
         m_form.addRow("Kweight (plot)", m_edit)
-        self.layout().addLayout(m_form, curr_row, 0, 1, 1)
+        self.controlArea.layout().addLayout(m_form, curr_row, 0, 1, 1)
         curr_row += 1
 
         self.user_changed = False
