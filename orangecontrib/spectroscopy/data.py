@@ -292,19 +292,38 @@ class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
     EXTENSIONS = ('.h5',)
     DESCRIPTION = 'HDF5 file @ROCK(hyperspectral imaging)/SOLEIL'
 
+    @property
+    def sheets(self):
+        import h5py as h5
+
+        with h5.File(self.filename, "r") as dataf:
+            cube_nbrs = range(1, len(dataf["data"].keys())+1)
+
+        return list(map(str, cube_nbrs))
+
     def read_spectra(self):
-        import h5py
-        hdf5_file = h5py.File(self.filename)
-        #cube = hdf5_file['data/cube_av40_00001']
-        cube = hdf5_file['data/cube_00001']
-        npcube = np.empty(cube.shape, dtype=np.float64)
-        cube.read_direct(npcube)
-        intensities = np.transpose(npcube, (1, 2, 0))
-        height, width, lenE = np.shape(intensities)
+
+        import h5py as h5
+
+        if self.sheet:
+            cube_nb = int(self.sheet)
+        else:
+            cube_nb = 1
+
+        with h5.File(self.filename, "r") as dataf:
+            cube_h5 = dataf["data/cube_{:0>5d}".format(cube_nb)]
+
+            cube_np = np.empty(cube_h5.shape, dtype=np.float64)
+            cube_h5.read_direct(cube_np)
+
+            energies = np.array(dataf['context/energies'])
+
+        intensities = np.transpose(cube_np, (1, 2, 0))
+        height, width, _ = np.shape(intensities)
         x_locs = np.arange(width)
         y_locs = np.arange(height)
-        energy = np.arange(lenE)
-        return _spectra_from_image(intensities, energy, x_locs, y_locs)
+
+        return _spectra_from_image(intensities, energies, x_locs, y_locs)
 
 
 class OmnicMapReader(FileFormat, SpectralFileFormat):
