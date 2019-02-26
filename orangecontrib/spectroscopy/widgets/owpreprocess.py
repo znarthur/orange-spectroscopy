@@ -283,7 +283,15 @@ class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
 
         self.insert_message_bar()  # from WidgetMessagesMixin
 
+        # support for pre-Orange 3.20
+        self.messageActivated.connect(self.update_message_visibility)
+        self.messageDeactivated.connect(self.update_message_visibility)
+
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    def update_message_visibility(self):
+        # For earlier versions than Orange 3.20 we need to show messages explicitly
+        self.message_bar.setVisible(bool(len(self.message_bar.messages())))
 
     def parameters(self):
         return {k: getattr(self, k) for k in self.controlled_attributes}

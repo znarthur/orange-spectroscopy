@@ -3,6 +3,8 @@ import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from Orange.preprocess.preprocess import Preprocess
+from Orange.widgets.utils.messages import WidgetMessagesMixin
+from Orange.widgets.widget import Msg
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
@@ -332,3 +334,67 @@ class TestReference(WidgetTest):
         # migrating the same settings keeps the setting false
         OWPreprocess.migrate_settings(settings, 6)
         self.assertFalse(settings["process_reference"])
+
+
+class WarningEditor(BaseEditorOrange):
+
+    class Warning(WidgetMessagesMixin.Warning):
+        some_warning = Msg("Warn.")
+
+    def __init__(self):
+        super().__init__()
+        self.warn_editor = False
+        self.warn_widget = False
+
+    def setParameters(self, p):
+        pass
+
+    def execute_instance(self, instance, data):
+        if self.warn_editor:
+            self.Warning.some_warning()
+        else:
+            self.Warning.some_warning.clear()
+
+        if self.warn_widget:
+            self.parent_widget.Warning.preprocessor()
+
+        return instance(data)
+
+    @staticmethod
+    def createinstance(params):
+        return lambda x, **kwargs: x
+
+
+class TestWarning(WidgetTest):
+
+    def setUp(self):
+        self.widget = self.create_widget(OWPreprocess)
+        data = SMALL_COLLAGEN
+        self.send_signal("Data", data)
+        self.widget.add_preprocessor(pack_editor(WarningEditor))
+        self.editor = self.widget.flow_view.widgets()[0]
+        self.assertIsInstance(self.editor, WarningEditor)
+
+    def test_no_warnings(self):
+        self.widget.show_preview()
+        self.assertFalse(self.widget.Warning.preprocessor.is_shown())
+        self.assertFalse(self.editor.Warning.some_warning.is_shown())
+        self.assertTrue(self.editor.message_bar.isHidden())
+
+    def test_warn_widget(self):
+        self.editor.warn_widget = True
+        self.widget.show_preview()
+        self.assertTrue(self.widget.Warning.preprocessor.is_shown())
+        self.editor.warn_widget = False
+        self.widget.show_preview()
+        self.assertFalse(self.widget.Warning.preprocessor.is_shown())
+
+    def test_warn_editor(self):
+        self.editor.warn_editor = True
+        self.widget.show_preview()
+        self.assertTrue(self.editor.Warning.some_warning.is_shown())
+        self.assertFalse(self.editor.message_bar.isHidden())
+        self.editor.warn_editor = False
+        self.widget.show_preview()
+        self.assertFalse(self.editor.Warning.some_warning.is_shown())
+        self.assertTrue(self.editor.message_bar.isHidden())
