@@ -336,6 +336,9 @@ class CutEditor(BaseEditorOrange):
     Editor for Cut
     """
 
+    class Warning(WidgetMessagesMixin.Warning):
+        out_of_range = Msg("Limits are out of range.")
+
     def __init__(self, parent=None, **kwargs):
         BaseEditorOrange.__init__(self, parent, **kwargs)
 
@@ -382,6 +385,18 @@ class CutEditor(BaseEditorOrange):
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
         return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
+
+    def execute_instance(self, instance: Cut, data):
+        self.Warning.out_of_range.clear()
+        xs = getx(data)
+        if len(xs):
+            minx = np.min(xs)
+            maxx = np.max(xs)
+            if (instance.lowlim < minx and instance.highlim < minx) \
+                    or (instance.lowlim > maxx and instance.highlim > maxx):
+                self.parent_widget.Warning.preprocessor()
+                self.Warning.out_of_range()
+        return instance(data)
 
     def set_preview_data(self, data):
         x = getx(data)
