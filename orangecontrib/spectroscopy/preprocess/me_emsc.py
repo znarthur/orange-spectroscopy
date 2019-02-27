@@ -2,6 +2,7 @@ import numpy as np
 from numpy import nextafter
 from scipy.signal import hilbert
 from sklearn.decomposition import TruncatedSVD
+import matplotlib.pyplot as plt
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
@@ -97,13 +98,48 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
             return interpolated
 
-        def calculate_Qext_components(ref_X, wavenumbers, resonant=False):
-            n0 = np.linspace(1.1, 1.4, 10)
-            a = np.linspace(2, 7.1, 10)
-            h = 0.25
-            alpha0 = (4 * np.pi * a * (n0 - 1)) * 1e-6
-            gamma = h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (n0 - 1) * a * 1e-6)
+        def make_basic_emsc_mod(ref_X):
+            N = wavenumbers.shape[0]
+            m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
+            c_coeff = 0.5 * (wavenumbers[0] + wavenumbers[N - 1])
+            M_basic = []
+            for x in range(0, 3):
+                M_basic.append((m0 * (wavenumbers - c_coeff)) ** x)
+            M_basic.append(ref_X)  # always add reference spectrum to the model
+            M_basic = np.vstack(M_basic).T
+            return M_basic
 
+        def cal_emsc_basic(M_basic, spectrum):
+            m = np.linalg.lstsq(M_basic, spectrum, rcond=-1)[0]
+            corrected = spectrum
+            for x in range(0, 3):
+                corrected = (corrected - (m[x] * M_basic[:, x]))
+            corrected = corrected / m[3]
+            scaled_spectrum = corrected
+            return scaled_spectrum
+
+        def calculate_complex_n(ref_X,wavenumbers):
+            """Calculates the scaled imaginary part and scaled fluctuating real part of the refractive index."""
+            npr = ref_X
+            nprs = npr / (wavenumbers * 100)
+
+            # Extend absorbance spectrum
+            dw = wavenumbers[1] - wavenumbers[0]
+            wavenumbers_extended = np.hstack(
+                (dw * np.linspace(1, 200, 200) + (wavenumbers[0] - dw * 201), wavenumbers,
+                 dw * np.linspace(1, 200, 200) + (wavenumbers[-1])))
+            extension1 = npr[0] * np.ones(200)
+            extension2 = npr[-1] * np.ones(200)
+            npr_extended = np.hstack((extension1, npr, extension2))
+
+            # Calculate Hilbert transform
+            nkks_extended = (-hilbert(npr_extended / (wavenumbers_extended * 100)).imag)
+
+            # Cut extended spectrum
+            nkks = nkks_extended[200:-200]
+            return nprs, nkks
+
+        def calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers):
             def mie_hulst_extinction(rho, tanbeta):
                 beta = np.arctan(tanbeta)
                 cosbeta = np.cos(beta)
@@ -111,52 +147,81 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                         4 * np.e ** (-rho * tanbeta) * (cosbeta / rho) ** 2 * np.cos(rho - 2 * beta) +
                         4 * (cosbeta / rho) ** 2 * np.cos(2 * beta))
 
-            if resonant:
-                npr = ref_X
-
-                # Extend absorbance spectrum
-                dw = wavenumbers[1] - wavenumbers[0]
-                wavenumbers_extended = np.hstack(
-                    (dw * np.linspace(1, 200, 200) + (wavenumbers[0] - dw * 201), wavenumbers, dw * np.linspace(1, 200, 200) + (wavenumbers[-1])))
-                npr_extended = np.hstack((npr[1] * np.ones(200), npr.T, npr[-1] * np.ones(200)))
-
-                # Calculate Hilbert transform
-                nkks_extended = (-hilbert(npr_extended / (wavenumbers_extended * 100)).imag)
-
-                # Cut extended spectrum
-                nkks = nkks_extended[200:-200]
-            else:
-                npr = np.zeros(len(wavenumbers))
-                nkks = np.zeros(len(wavenumbers))
-            nprs = npr / (wavenumbers * 100)
-
             rho = np.array(
                 [alpha0val * (1 + gammaval * nkks) * (wavenumbers * 100) for alpha0val in alpha0 for gammaval in gamma])
             tanbeta = [nprs / (1 / gammaval + nkks) for _ in alpha0 for gammaval in gamma]
             Qext = np.array([mie_hulst_extinction(rhoval, tanbetaval) for rhoval, tanbetaval in zip(rho, tanbeta)])
+            return Qext
 
-            # HERE DO THE ORTHOGONALIZATION
+        def orthogonalize_Qext(Qext, ref_X):
+            m = np.dot(ref_X,ref_X)
+            norm = np.sqrt(m)
+            rnorm = ref_X/norm
+            s = np.dot(Qext, rnorm)
+            Qext_orthogonalized = Qext - s[:, np.newaxis]*rnorm[np.newaxis, :]
+            return Qext_orthogonalized
 
+        def compress_Mie_curves(Qext_orthogonalized):
             svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
-            svd.fit(Qext)
+            svd.fit(Qext_orthogonalized)
             badspectra = svd.components_[0:self.ncomp, :]
             return badspectra
 
+        def make_emsc_model(badspectra):
+            M = np.ones([len(wavenumbers), self.ncomp+2])
+            M[:,1:self.ncomp+1] = np.array([spectrum for spectrum in badspectra.T])
+            M[:,self.ncomp+1] = ref_X
+            return M
+
+        def cal_emsc(M, X):
+            newspectra = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
+            residuals = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
+            # Maybe this one should take only one spectrum at a time? We have to do it anyways like this
+            for i, rawspectrum in enumerate(X):
+                m = np.linalg.lstsq(M, rawspectrum, rcond=-1)[0]
+                corrected = rawspectrum
+
+                for x in range(0, 1 + self.ncomp):
+                    corrected = (corrected - (m[x] * M[:, x]))
+                corrected = corrected / m[1 + self.ncomp]
+                corrected[np.isinf(corrected)] = np.nan  # fix values caused by zero weights
+                corrected = np.hstack((corrected, m))  # append the model parameters
+                newspectra[i] = corrected
+            params = corrected[-(self.ncomp+2):]
+            params = params[np.newaxis, :]
+            res = X - np.dot(params, M.T)
+            return newspectra, res
+
+        def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
+            #first iteration is outside, this one makes the M_basic, alpha0 and gamma
+
+            # scale with basic EMSC:
+
+            reference = cal_emsc_basic(M_basic, reference)
+
+            # calculate Qext-curves
+            nonzeroReference = reference
+            nonzeroReference[nonzeroReference < 0] = 0
+            nprs, nkks = calculate_complex_n(nonzeroReference, wavenumbers)
+
+            Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
+            Qext = orthogonalize_Qext(Qext, reference)
+            badspectra = compress_Mie_curves(Qext)
+            # build model
+            M = make_emsc_model(badspectra)
+            # calculate parameters and corrected spectra
+            newspectrum, res = cal_emsc(M, spectrum)
+            return newspectrum, res
+
         def iterate():
             # new reference is the corrected spectrum
-            # scale with basic EMSC: make scale function
-            # calculate Qext-curves
-            # build model
-            # calculate parameters and corrected spectra
-            # check convergence
+            # iteration step
+            # check convergence, if converged give output
             return 0
 
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
-
-        #Qext_curves = calculate_Qext(ref_X, wavenumbers)
-        #svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
-        #svd.fit(Qext_curves)
+        ref_X = ref_X[0]
 
         if self.weights:
             # CHANGE THIS COMPLETELY
@@ -168,38 +233,52 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
-        badspectra = calculate_Qext_components(ref_X, wavenumbers)
-        # badspectra = svd.components_[0:self.ncomp, :]
-        #n_badspec = len(self.badspectra)
 
-        #self.badspectra_X = interpolate_to_data(getx(badspectra), badspectra.X)
+        n0 = np.linspace(1.1, 1.4, 10)
+        a = np.linspace(2, 7.1, 10)
+        h = 0.25
+        alpha0 = (4 * np.pi * a * (n0 - 1)) * 1e-6
+        gamma = h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (n0 - 1) * a * 1e-6)
 
-        def make_emsc_model(badspectra):
-            M = [np.ones(len(wavenumbers))]
-            for y in range(0, self.ncomp):
-                M.append(badspectra[y])
-            M.append(ref_X)  # always add reference spectrum to the model
+        resonant = True
 
-            M = np.vstack(M).T # M is for the correction, for par. estimation M_weighted is used
-            return M
+        if resonant:
+            nprs, nkks = calculate_complex_n(ref_X, wavenumbers)
+        else:
+            npr = np.zeros(len(wavenumbers))
+            nprs = npr / (wavenumbers * 100)
+            nkks = np.zeros(len(wavenumbers))
+
+        M_basic = make_basic_emsc_mod(ref_X)
+
+        Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
+        Qext = orthogonalize_Qext(Qext, ref_X)
+        badspectra = compress_Mie_curves(Qext)
 
         M = make_emsc_model(badspectra)
 
-        def cal_emsc(M, X):
-            n_add_model = M.shape[1]
-            newspectra = np.zeros((X.shape[0], X.shape[1] + n_add_model))
-            for i, rawspectrum in enumerate(X):
-                m = np.linalg.lstsq(M, rawspectrum, rcond=-1)[0]
-                corrected = rawspectrum
+        newspectra, res = cal_emsc(M, X)
+        # newspectra,res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
 
-                for x in range(0, 1 + self.ncomp):
-                    corrected = (corrected - (m[x] * M[:, x]))
-                corrected[np.isinf(corrected)] = np.nan  # fix values caused by zero weights
-                corrected = np.hstack((corrected, m))  # append the model parameters
-                newspectra[i] = corrected
-            return newspectra
+        iter1_5spec = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/oneIter5spec.csv',
+                             delimiter=",")
+        model_5spec_iter1 = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/MieModel_1it.csv',
+                             delimiter=",")
+        # TEST IF SPECTRA OUTPUT ARE THE SAME
+        #plt.figure()
+        #plt.plot(iter1_5spec[0,:])
+        #plt.plot(newspectra[0,:-11])
+        #plt.show()
+        #print(np.sum(np.abs(newspectra[:,:-11] - iter1_5spec))<1e-3)
 
-        newspectra = cal_emsc(M, X)
+        # TEST IF THE MODEL SPECTRA ARE THE SAME
+        #a = M[:,2]
+        #b=model_5spec_iter1[:,3]
+        #plt.figure()
+        #plt.plot(a)
+        #plt.plot(-b)
+        #plt.show()
+        #print(np.sum(np.abs(a) - np.abs(b)) < 1e-3)
 
         return newspectra
 

@@ -13,6 +13,8 @@ Matrigel = Matrigel.reshape(1,-1)
 Matrigel = Matrigel/np.max(Matrigel)
 
 Spectra = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/JosepSpectra.csv', delimiter=",")
+Spectra = Spectra[:1,:]
+Spectra = Spectra[:5,:]
 
 wnM = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/wn.csv', delimiter=",")
 wnM = wnM.T
