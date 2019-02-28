@@ -1585,7 +1585,8 @@ class SpectralPreprocess(OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow(preview_callback=self.show_preview, multiple_previews=self.preview_on_image)
+        self.flow_view = SequenceFlow(preview_callback=self.show_preview,
+                                      multiple_previews=self.preview_on_image)
         self.controler = ViewController(self.flow_view, parent=self)
 
         self.scroll_area = QScrollArea(
@@ -1644,9 +1645,11 @@ class SpectralPreprocess(OWWidget):
         box = gui.widgetBox(self.controlArea, "Preview")
         self.final_preview_toggle = False
         if not self.preview_on_image:
-            self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed,
-                                            toggleButton=True, value="final_preview_toggle", autoDefault=False)
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self._update_preview_number)
+            self.final_preview = gui.button(
+                box, self, "Final preview",self.flow_view.preview_changed,
+                toggleButton=True, value="final_preview_toggle", autoDefault=False)
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra",
+                 callback=self._update_preview_number)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
         b = gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
@@ -1992,9 +1995,6 @@ def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
     w = OWPreprocess()
-    # data = Orange.data.Table("iris")
-    # ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
-    # data = data.transform(ndom)
     data = Orange.data.Table("collagen")
     w.set_data(data)
     w.set_reference(data[:1])
