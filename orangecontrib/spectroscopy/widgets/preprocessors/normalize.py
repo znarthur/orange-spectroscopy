@@ -8,10 +8,13 @@ from Orange.widgets.data.utils.preprocess import blocked
 from Orange.widgets.gui import OWComponent
 from Orange.widgets.utils.itemmodels import DomainModel
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import Normalize, Integrate
+from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, SetXDoubleSpinBox
+
+
+NORMALIZE_BY_REFERENCE = 42
 
 
 class NormalizeEditor(BaseEditor, OWComponent):
@@ -22,7 +25,8 @@ class NormalizeEditor(BaseEditor, OWComponent):
     Normalizers = [
         ("Vector Normalization", Normalize.Vector),
         ("Area Normalization", Normalize.Area),
-        ("Attribute Normalization", Normalize.Attribute)]
+        ("Attribute Normalization", Normalize.Attribute),
+        ("Normalize by Reference", NORMALIZE_BY_REFERENCE)]
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -58,7 +62,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
         self.areaform.addRow("Lower limit", self.lspin)
         self.areaform.addRow("Upper limit", self.uspin)
 
-        self.__group = group = QButtonGroup(self)
+        self._group = group = QButtonGroup(self)
 
         for name, method in self.Normalizers:
             rb = QRadioButton(self, text=name, checked=self.__method == method)
@@ -126,7 +130,7 @@ class NormalizeEditor(BaseEditor, OWComponent):
     def setMethod(self, method):
         if self.__method != method:
             self.__method = method
-            b = self.__group.button(method)
+            b = self._group.button(method)
             b.setChecked(True)
             for widget in [self.attrcb, self.int_method_cb, self.lspin, self.uspin]:
                 widget.setEnabled(False)
@@ -179,9 +183,9 @@ class NormalizeEditor(BaseEditor, OWComponent):
             self.changed.emit()
 
     def __on_buttonClicked(self):
-        method = self.__group.checkedId()
+        method = self._group.checkedId()
         if method != self.__method:
-            self.setMethod(self.__group.checkedId())
+            self.setMethod(self._group.checkedId())
             self.edited.emit()
 
     @staticmethod
@@ -192,8 +196,14 @@ class NormalizeEditor(BaseEditor, OWComponent):
         int_method_index = params.get("int_method", 0)
         int_method = IntegrateEditor.Integrators_classes[int_method_index]
         attr = params.get("attr", None)
-        return Normalize(method=method, lower=lower, upper=upper,
-                         int_method=int_method, attr=attr)
+        if method != NORMALIZE_BY_REFERENCE:
+            return Normalize(method=method, lower=lower, upper=upper,
+                             int_method=int_method, attr=attr)
+        else:
+            # avoids circular imports
+            from orangecontrib.spectroscopy.widgets.owpreprocess import REFERENCE_DATA_PARAM
+            reference = params.get(REFERENCE_DATA_PARAM, None)
+            return NormalizeReference(reference=reference)
 
     def set_preview_data(self, data):
         edited = False
