@@ -9,6 +9,15 @@ def is_increasing(a):
     return np.all(np.diff(a) >= 0)
 
 
+class PreprocessException(Exception):
+
+    def message(self):
+        if self.args:
+            return self.args[0]
+        else:
+            return self.__class__.__name__
+
+
 class SelectColumn(SharedComputeValue):
 
     def __init__(self, feature, commonfn):

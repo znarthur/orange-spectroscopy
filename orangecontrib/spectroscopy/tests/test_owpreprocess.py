@@ -3,10 +3,10 @@ import numpy as np
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from Orange.preprocess.preprocess import Preprocess
-from Orange.widgets.utils.messages import WidgetMessagesMixin
 from Orange.widgets.widget import Msg
 
 from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
     PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM, \
     CutEditor, SavitzkyGolayFilteringEditor
@@ -338,16 +338,20 @@ class TestReference(WidgetTest):
 
 class WarningEditor(BaseEditorOrange):
 
-    class Warning(WidgetMessagesMixin.Warning):
+    class Warning(BaseEditorOrange.Warning):
         some_warning = Msg("Warn.")
 
     def __init__(self):
         super().__init__()
         self.warn_editor = False
         self.warn_widget = False
+        self.raise_exception = False
 
     def setParameters(self, p):
         pass
+
+    def parameters(self):
+        return {"raise_exception": self.raise_exception}
 
     def execute_instance(self, instance, data):
         if self.warn_editor:
@@ -362,6 +366,8 @@ class WarningEditor(BaseEditorOrange):
 
     @staticmethod
     def createinstance(params):
+        if params.get("raise_exception", False):
+            raise PreprocessException("42")
         return lambda x, **kwargs: x
 
 
@@ -370,7 +376,7 @@ class TestWarning(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
         data = SMALL_COLLAGEN
-        self.send_signal("Data", data)
+        self.send_signal(OWPreprocess.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(WarningEditor))
         self.editor = self.widget.flow_view.widgets()[0]
         self.assertIsInstance(self.editor, WarningEditor)
@@ -398,3 +404,35 @@ class TestWarning(WidgetTest):
         self.widget.show_preview()
         self.assertFalse(self.editor.Warning.some_warning.is_shown())
         self.assertTrue(self.editor.message_bar.isHidden())
+
+    def test_exception_preview(self):
+        self.editor.raise_exception = True
+        self.editor.edited.emit()
+        self.widget.show_preview()
+        self.assertTrue(self.editor.Error.exception.is_shown())
+        self.assertTrue(self.widget.Error.preview.is_shown())
+        self.assertFalse(self.editor.message_bar.isHidden())
+        self.assertIsNone(self.widget.curveplot_after.data)
+
+        self.editor.raise_exception = False
+        self.editor.edited.emit()
+        self.widget.show_preview()
+        self.assertFalse(self.editor.Error.exception.is_shown())
+        self.assertFalse(self.widget.Error.preview.is_shown())
+        self.assertTrue(self.editor.message_bar.isHidden())
+        self.assertIsNotNone(self.widget.curveplot_after.data)
+
+    def test_exception_apply(self):
+        self.editor.raise_exception = True
+        self.editor.edited.emit()
+        self.widget.apply()
+        self.assertTrue(self.widget.Error.applying.is_shown())
+        self.assertIsNone(self.get_output(OWPreprocess.Outputs.preprocessed_data))
+        self.assertIsNone(self.get_output(OWPreprocess.Outputs.preprocessor))
+
+        self.editor.raise_exception = False
+        self.editor.edited.emit()
+        self.widget.apply()
+        self.assertFalse(self.widget.Error.applying.is_shown())
+        self.assertIsNotNone(self.get_output(OWPreprocess.Outputs.preprocessed_data))
+        self.assertIsNotNone(self.get_output(OWPreprocess.Outputs.preprocessor))
