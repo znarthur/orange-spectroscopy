@@ -8,8 +8,9 @@ from Orange.widgets.widget import Msg
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
-    PreprocessAction, Description, BaseEditorOrange, REFERENCE_DATA_PARAM, \
+    PreprocessAction, Description, REFERENCE_DATA_PARAM, \
     CutEditor, SavitzkyGolayFilteringEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
