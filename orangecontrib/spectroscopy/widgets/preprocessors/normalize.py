@@ -11,13 +11,14 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, SetXDoubleSpinBox
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
+    BaseEditorOrange, SetXDoubleSpinBox
 
 
 NORMALIZE_BY_REFERENCE = 42
 
 
-class NormalizeEditor(BaseEditor, OWComponent):
+class NormalizeEditor(BaseEditorOrange):
     """
     Normalize spectra.
     """
@@ -30,9 +31,8 @@ class NormalizeEditor(BaseEditor, OWComponent):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        OWComponent.__init__(self, parent)
         layout = QVBoxLayout()
-        self.setLayout(layout)
+        self.controlArea.setLayout(layout)
 
         self.__method = Normalize.Vector
         self.lower = 0

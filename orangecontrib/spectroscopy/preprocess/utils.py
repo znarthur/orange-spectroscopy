@@ -18,11 +18,11 @@ class PreprocessException(Exception):
             return self.__class__.__name__
 
 
-class MissingReferenceException(Exception):
+class MissingReferenceException(PreprocessException):
     pass
 
 
-class WrongReferenceException(Exception):
+class WrongReferenceException(PreprocessException):
     pass
 
 
