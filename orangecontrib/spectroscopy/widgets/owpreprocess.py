@@ -7,27 +7,24 @@ import pyqtgraph as pg
 
 import Orange.data
 from Orange import preprocess
-from Orange.data import ContinuousVariable
 from Orange.widgets import gui, settings
 from Orange.widgets.settings import SettingsHandler
-from Orange.widgets.utils.messages import WidgetMessagesMixin
-from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets.data.utils.preprocess import SequenceFlow, Controller, \
     StandardItemModel
 from Orange.widgets.data.owpreprocess import (
-    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, BaseEditor, blocked
+    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked
 )
-from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 from AnyQt.QtCore import (
-    Qt, QObject, QEvent, QSize, QMimeData, QTimer, QBasicTimer
+    Qt, QEvent, QSize, QMimeData, QTimer, QBasicTimer
 )
 from AnyQt.QtWidgets import (
-    QWidget, QButtonGroup, QRadioButton, QDoubleSpinBox, QComboBox, QSpinBox,
-    QListView, QVBoxLayout, QHBoxLayout, QFormLayout, QSizePolicy, QStyle,
+    QWidget, QComboBox, QSpinBox,
+    QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
     QToolButton, QSplitter, QLayout
 )
@@ -40,8 +37,8 @@ from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 
 from orangecontrib.spectroscopy.preprocess import (
-    PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering, Normalize,
-    Integrate, Absorbance, Transmittance, EMSC, CurveShift, LinearBaseline,
+    PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering,
+    Absorbance, Transmittance, EMSC, CurveShift, LinearBaseline,
     RubberbandBaseline
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
@@ -50,7 +47,9 @@ from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
-
+from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -240,67 +239,6 @@ class SequenceFlow(SequenceFlow):
         return w.color
 
 
-class BaseEditor(BaseEditor):
-
-    def set_preview_data(self, data):
-        """Handle the preview data (initialize parameters)"""
-        pass
-
-    def set_reference_data(self, data):
-        """Set the reference data"""
-        pass
-
-    def execute_instance(self, instance, data):
-        """Execute the preprocessor instance with the given data and return
-        the transformed data.
-
-        This function will be called when generating previews. An Editor
-        can here handle exceptions in the preprocessor and pass warnings to the interface.
-        """
-        return instance(data)
-
-
-class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
-    """
-    Base widget for editing preprocessor's parameters that works with Orange settings.
-    """
-    # the following signals need to defined for WidgetMessagesMixin
-    messageActivated = Signal(Msg)
-    messageDeactivated = Signal(Msg)
-
-    class Error(OWWidget.Error):
-        exception = Msg("{}")
-
-    def __init__(self, parent=None, **kwargs):
-        BaseEditor.__init__(self, parent, **kwargs)
-        OWComponent.__init__(self, parent)
-        WidgetMessagesMixin.__init__(self)
-
-        layout = QVBoxLayout()
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-        self.controlArea = QWidget(self)
-        self.controlArea.setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.controlArea)
-
-        self.insert_message_bar()  # from WidgetMessagesMixin
-
-        # support for pre-Orange 3.20
-        self.messageActivated.connect(self.update_message_visibility)
-        self.messageDeactivated.connect(self.update_message_visibility)
-
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-    def update_message_visibility(self):
-        # For earlier versions than Orange 3.20 we need to show messages explicitly
-        self.message_bar.setVisible(bool(len(self.message_bar.messages())))
-
-    def parameters(self):
-        return {k: getattr(self, k) for k in self.controlled_attributes}
-
-
 class GaussianSmoothingEditor(BaseEditorOrange):
     """
     Editor for GaussianSmoothing
@@ -331,16 +269,6 @@ class GaussianSmoothingEditor(BaseEditorOrange):
         params = dict(params)
         sd = params.get("sd", cls.DEFAULT_SD)
         return GaussianSmoothing(sd=float(sd))
-
-
-class SetXDoubleSpinBox(QDoubleSpinBox):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def focusInEvent(self, *e):
-        self.focusIn()
-        return super().focusInEvent(*e)
 
 
 class CutEditor(BaseEditorOrange):
@@ -604,420 +532,6 @@ class CurveShiftEditor(BaseEditorOrange):
         return CurveShift(amount=amount)
 
 
-class NormalizeEditor(BaseEditor, OWComponent):
-    """
-    Normalize spectra.
-    """
-    # Normalization methods
-    Normalizers = [
-        ("Vector Normalization", Normalize.Vector),
-        ("Area Normalization", Normalize.Area),
-        ("Attribute Normalization", Normalize.Attribute)]
-
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-        OWComponent.__init__(self, parent)
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.__method = Normalize.Vector
-        self.lower = 0
-        self.upper = 4000
-        self.int_method = 0
-        self.attrs = DomainModel(DomainModel.METAS | DomainModel.CLASSES, valid_types=ContinuousVariable)
-        self.attrform = QFormLayout()
-        self.chosen_attr = None
-        self.last_domain = None
-        self.saved_attr = None
-        self.attrcb = gui.comboBox(None, self, "chosen_attr", callback=self.edited.emit, model=self.attrs)
-        self.attrform.addRow("Normalize to", self.attrcb)
-
-        self.areaform = QFormLayout()
-        self.int_method_cb = QComboBox(enabled=False)
-        self.int_method_cb.addItems(IntegrateEditor.Integrators)
-        minf, maxf = -sys.float_info.max, sys.float_info.max
-        self.lspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.lower, enabled=False)
-        self.uspin = SetXDoubleSpinBox(
-            minimum=minf, maximum=maxf, singleStep=0.5,
-            value=self.upper, enabled=False)
-        self.areaform.addRow("Normalize to", self.int_method_cb)
-        self.areaform.addRow("Lower limit", self.lspin)
-        self.areaform.addRow("Upper limit", self.uspin)
-
-        self.__group = group = QButtonGroup(self)
-
-        for name, method in self.Normalizers:
-            rb = QRadioButton(self, text=name, checked=self.__method == method)
-
-            layout.addWidget(rb)
-            if method is Normalize.Attribute:
-                layout.addLayout(self.attrform)
-            elif method is Normalize.Area:
-                layout.addLayout(self.areaform)
-            group.addButton(rb, method)
-
-        group.buttonClicked.connect(self.__on_buttonClicked)
-
-        self.lspin.focusIn = self.activateOptions
-        self.uspin.focusIn = self.activateOptions
-        self.focusIn = self.activateOptions
-
-        self.lspin.valueChanged[float].connect(self.setL)
-        self.lspin.editingFinished.connect(self.reorderLimits)
-        self.uspin.valueChanged[float].connect(self.setU)
-        self.uspin.editingFinished.connect(self.reorderLimits)
-        self.int_method_cb.currentIndexChanged.connect(self.setinttype)
-        self.int_method_cb.activated.connect(self.edited)
-
-        self.lline = MovableVline(position=self.lower, label="Low limit")
-        self.lline.sigMoved.connect(self.setL)
-        self.lline.sigMoveFinished.connect(self.reorderLimits)
-        self.uline = MovableVline(position=self.upper, label="High limit")
-        self.uline.sigMoved.connect(self.setU)
-        self.uline.sigMoveFinished.connect(self.reorderLimits)
-
-        self.user_changed = False
-
-    def activateOptions(self):
-        self.parent_widget.curveplot.clear_markings()
-        if self.__method == Normalize.Area:
-            if self.lline not in self.parent_widget.curveplot.markings:
-                self.parent_widget.curveplot.add_marking(self.lline)
-            if (self.uline not in self.parent_widget.curveplot.markings
-                    and IntegrateEditor.Integrators_classes[self.int_method]
-                    is not Integrate.PeakAt):
-                self.parent_widget.curveplot.add_marking(self.uline)
-
-    def setParameters(self, params):
-        if params: #parameters were manually set somewhere else
-            self.user_changed = True
-        method = params.get("method", Normalize.Vector)
-        lower = params.get("lower", 0)
-        upper = params.get("upper", 4000)
-        int_method = params.get("int_method", 0)
-        if method not in [method for name, method in self.Normalizers]:
-            # handle old worksheets
-            method = Normalize.Vector
-        self.setMethod(method)
-        self.int_method_cb.setCurrentIndex(int_method)
-        self.setL(lower, user=False)
-        self.setU(upper, user=False)
-        self.saved_attr = params.get("attr")  # chosen_attr will be set when data are connected
-
-    def parameters(self):
-        return {"method": self.__method, "lower": self.lower,
-                "upper": self.upper, "int_method": self.int_method,
-                "attr": self.chosen_attr}
-
-    def setMethod(self, method):
-        if self.__method != method:
-            self.__method = method
-            b = self.__group.button(method)
-            b.setChecked(True)
-            for widget in [self.attrcb, self.int_method_cb, self.lspin, self.uspin]:
-                widget.setEnabled(False)
-            if method is Normalize.Attribute:
-                self.attrcb.setEnabled(True)
-            elif method is Normalize.Area:
-                self.int_method_cb.setEnabled(True)
-                self.lspin.setEnabled(True)
-                self.uspin.setEnabled(True)
-            self.activateOptions()
-            self.changed.emit()
-
-    def setL(self, lower, user=True):
-        if user:
-            self.user_changed = True
-        if self.lower != lower:
-            self.lower = lower
-            with blocked(self.lspin):
-                self.lspin.setValue(lower)
-                self.lline.setValue(lower)
-            self.changed.emit()
-
-    def setU(self, upper, user=True):
-        if user:
-            self.user_changed = True
-        if self.upper != upper:
-            self.upper = upper
-            with blocked(self.uspin):
-                self.uspin.setValue(upper)
-                self.uline.setValue(upper)
-            self.changed.emit()
-
-    def reorderLimits(self):
-        if (IntegrateEditor.Integrators_classes[self.int_method]
-                is Integrate.PeakAt):
-            self.upper = self.lower + 10
-        limits = [self.lower, self.upper]
-        self.lower, self.upper = min(limits), max(limits)
-        self.lspin.setValue(self.lower)
-        self.uspin.setValue(self.upper)
-        self.lline.setValue(self.lower)
-        self.uline.setValue(self.upper)
-        self.edited.emit()
-
-    def setinttype(self):
-        if self.int_method != self.int_method_cb.currentIndex():
-            self.int_method = self.int_method_cb.currentIndex()
-            self.reorderLimits()
-            self.activateOptions()
-            self.changed.emit()
-
-    def __on_buttonClicked(self):
-        method = self.__group.checkedId()
-        if method != self.__method:
-            self.setMethod(self.__group.checkedId())
-            self.edited.emit()
-
-    @staticmethod
-    def createinstance(params):
-        method = params.get("method", Normalize.Vector)
-        lower = params.get("lower", 0)
-        upper = params.get("upper", 4000)
-        int_method_index = params.get("int_method", 0)
-        int_method = IntegrateEditor.Integrators_classes[int_method_index]
-        attr = params.get("attr", None)
-        return Normalize(method=method, lower=lower, upper=upper,
-                         int_method=int_method, attr=attr)
-
-    def set_preview_data(self, data):
-        edited = False
-        if not self.user_changed:
-            x = getx(data)
-            if len(x):
-                self.setL(min(x))
-                self.setU(max(x))
-                edited = True
-        if data is not None and data.domain != self.last_domain:
-            self.last_domain = data.domain
-            self.attrs.set_domain(data.domain)
-            try:  # try to load the feature
-                self.chosen_attr = self.saved_attr
-            except ValueError:  # could not load the chosen attr
-                self.chosen_attr = self.attrs[0] if self.attrs else None
-                self.saved_attr = self.chosen_attr
-            edited = True
-        if edited:
-            self.edited.emit()
-
-
-class LimitsBox(QHBoxLayout):
-    """
-    Box with two limits and optional selection lines
-
-    Args:
-        limits (list): List containing low and high limit set
-        label  (str) : Label widget
-        delete (bool): Include self-deletion button
-    """
-
-    valueChanged = Signal(list, QObject)
-    editingFinished = Signal(QObject)
-    deleted = Signal(QObject)
-
-    def __init__(self, parent=None, **kwargs):
-        limits = kwargs.pop('limits', None)
-        label = kwargs.pop('label', None)
-        delete = kwargs.pop('delete', True)
-        super().__init__(parent, **kwargs)
-
-        minf, maxf = -sys.float_info.max, sys.float_info.max
-
-        if label:
-            self.addWidget(QLabel(label))
-
-        self.lowlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
-                                         maximum=maxf, singleStep=0.5,
-                                         value=limits[0], maximumWidth=75)
-        self.highlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
-                                          maximum=maxf, singleStep=0.5,
-                                          value=limits[1], maximumWidth=75)
-        self.lowlime.setValue(limits[0])
-        self.highlime.setValue(limits[1])
-        self.addWidget(self.lowlime)
-        self.addWidget(self.highlime)
-
-        if delete:
-            self.button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton), "")
-            self.addWidget(self.button)
-            self.button.clicked.connect(self.selfDelete)
-
-        self.lowlime.valueChanged[float].connect(self.limitChanged)
-        self.highlime.valueChanged[float].connect(self.limitChanged)
-        self.lowlime.editingFinished.connect(self.editFinished)
-        self.highlime.editingFinished.connect(self.editFinished)
-
-        self.lowlime.focusIn = self.focusInChild
-        self.highlime.focusIn = self.focusInChild
-
-        self.line1 = MovableVline(position=limits[0], label=label + " - Low")
-        self.line1.sigMoved.connect(self.lineLimitChanged)
-        self.line2 = MovableVline(position=limits[1], label=label + " - High")
-        self.line2.sigMoved.connect(self.lineLimitChanged)
-
-        self.line1.sigMoveFinished.connect(self.editFinished)
-        self.line2.sigMoveFinished.connect(self.editFinished)
-
-    def focusInEvent(self, *e):
-        self.focusIn()
-        return super().focusInEvent(*e)
-
-    def focusInChild(self):
-        self.focusIn()
-
-    def limitChanged(self):
-        newlimits = [self.lowlime.value(), self.highlime.value()]
-        self.line1.setValue(newlimits[0])
-        self.line2.setValue(newlimits[1])
-        self.valueChanged.emit(newlimits, self)
-
-    def lineLimitChanged(self):
-        newlimits = [self.line1.value(), self.line2.value()]
-        self.lowlime.setValue(newlimits[0])
-        self.highlime.setValue(newlimits[1])
-        self.limitChanged()
-
-    def editFinished(self):
-        self.editingFinished.emit(self)
-
-    def selfDelete(self):
-        self.deleted.emit(self)
-        self.removeLayout()
-
-    def removeLayout(self):
-        while self.count():
-            self.takeAt(0).widget().setParent(None)
-        self.setParent(None)
-
-
-class IntegrateEditor(BaseEditor):
-    """
-    Editor to integrate defined regions.
-    """
-
-    Integrators_classes = Integrate.INTEGRALS
-    Integrators = [a.name for a in Integrators_classes]
-
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-
-        self._limits = []
-
-        self.setLayout(QVBoxLayout())
-        self.form_set = QFormLayout()
-        self.form_lim = QFormLayout()
-        self.layout().addLayout(self.form_set)
-        self.layout().addLayout(self.form_lim)
-
-        self.methodcb = QComboBox()
-        self.methodcb.addItems(self.Integrators)
-
-        self.form_set.addRow("Integration method:", self.methodcb)
-        self.methodcb.currentIndexChanged.connect(self.changed)
-        self.methodcb.activated.connect(self.edited)
-
-        self.focusIn = self.activateOptions
-
-        self.add_limit()
-
-        button = QPushButton("Add Region")
-        self.layout().addWidget(button)
-        button.clicked.connect(self.add_limit)
-
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-
-        self.user_changed = False
-
-    def activateOptions(self):
-        self.parent_widget.curveplot.clear_markings()
-        for row in range(self.form_lim.count()):
-            limitbox = self.form_lim.itemAt(row, 1)
-            if limitbox:
-                self.parent_widget.curveplot.add_marking(limitbox.line1)
-                self.parent_widget.curveplot.add_marking(limitbox.line2)
-
-    def add_limit(self, *args, row=None):
-        if row is None:
-            row = len(self._limits)
-            try:
-                self._limits.append(self._limits[-1])
-            except IndexError:
-                self._limits.append([0., 1.])
-        label = "Region {0}".format(row+1)
-        limitbox = LimitsBox(limits=self._limits[row], label=label)
-        if self.form_lim.rowCount() < row+1:
-            # new row
-            self.form_lim.addRow(limitbox)
-        else:
-            # row already exists
-            self.form_lim.setLayout(row, 2, limitbox)
-        limitbox.focusIn = self.activateOptions
-        limitbox.valueChanged.connect(self.set_limits)
-        limitbox.editingFinished.connect(self.edited)
-        limitbox.deleted.connect(self.remove_limit)
-        self.edited.emit()
-        return limitbox
-
-    def remove_limit(self, limitbox):
-        row, role = self.form_lim.getLayoutPosition(limitbox)
-        for r in range(row, len(self._limits)):
-            limitbox = self.form_lim.itemAt(r, 1)
-            limitbox.removeLayout()
-        self._limits.pop(row)
-        self.set_all_limits(self._limits)
-
-    def set_limits(self, limits, limitbox, user=True):
-        if user:
-            self.user_changed = True
-        row, role = self.form_lim.getLayoutPosition(limitbox)
-        if self._limits[row] != limits:
-            self._limits[row] = limits
-            with blocked(self.form_lim):
-                limitbox.lowlime.setValue(limits[0])
-                limitbox.highlime.setValue(limits[1])
-            self.changed.emit()
-
-    def set_all_limits(self, limits, user=True):
-        if user:
-            self.user_changed = True
-        self._limits = limits
-        for row in range(len(limits)):
-            limitbox = self.form_lim.itemAt(row, 1)
-            if limitbox is None:
-                limitbox = self.add_limit(row=row)
-            with blocked(limitbox):
-                limitbox.lowlime.setValue(limits[row][0])
-                limitbox.highlime.setValue(limits[row][1])
-        self.changed.emit()
-
-    def setParameters(self, params):
-        if params: #parameters were manually set somewhere else
-            self.user_changed = True
-        self.methodcb.setCurrentIndex(params.get("method", self.Integrators_classes.index(Integrate.Baseline)))
-        self.set_all_limits(params.get("limits", [[0., 1.]]), user=False)
-
-    def parameters(self):
-        return {"method": self.methodcb.currentIndex(),
-                "limits": self._limits}
-
-    @staticmethod
-    def createinstance(params):
-        methodindex = params.get("method", IntegrateEditor.Integrators_classes.index(Integrate.Baseline))
-        method = IntegrateEditor.Integrators_classes[methodindex]
-        limits = params.get("limits", None)
-        return Integrate(methods=method, limits=limits)
-
-    def set_preview_data(self, data):
-        if not self.user_changed:
-            x = getx(data)
-            if len(x):
-                self.set_all_limits([[min(x), max(x)]])
-                self.edited.emit()
-
-
 class PCADenoisingEditor(BaseEditor):
 
     def __init__(self, parent=None, **kwargs):
@@ -1122,13 +636,9 @@ class SpectralTransformEditor(BaseEditorOrange):
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if from_spec_type not in transform.from_types:
             return lambda data: data[:0]  # return an empty data table
-        try:
-            return transform(ref=reference)
-        except TypeError as e:
-            if "unexpected keyword argument \'ref\'" in str(e):
-                return transform()
-            else:
-                raise
+        if reference:
+            reference = reference[:1]
+        return transform(ref=reference)
 
     def set_reference_data(self, ref):
         self.reference = ref
@@ -1997,7 +1507,7 @@ def test_main(argv=sys.argv):
     w = OWPreprocess()
     data = Orange.data.Table("collagen")
     w.set_data(data)
-    w.set_reference(data[:1])
+    w.set_reference(data[:2])
     w.handleNewSignals()
     w.show()
     w.raise_()

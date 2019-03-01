@@ -9,7 +9,8 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
-    Normalize, LinearBaseline, CurveShift, EMSC
+    Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
+    WrongReferenceException, NormalizeReference
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
@@ -84,8 +85,6 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
 for p in [Absorbance, Transmittance]:
     # single reference
     PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
-    # multi reference (many:many)
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN))
 
 # EMSC with different kinds of reference
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
@@ -95,6 +94,8 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
     add_edge_case_data_parameter(EMSC, "badspectra", SMALL_COLLAGEN[0:2],
                                  reference=SMALL_COLLAGEN[-1:]))
 
+PREPROCESSORS_INDEPENDENT_SAMPLES += \
+    list(add_edge_case_data_parameter(NormalizeReference, "reference", SMALL_COLLAGEN[:1]))
 
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
@@ -275,6 +276,21 @@ class TestNormalize(unittest.TestCase):
         data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
         p = Normalize(method=Normalize.Attribute, attr="unknown")(data)
         self.assertTrue(np.all(np.isnan(p.X)))
+
+
+class TestNormalizeReference(unittest.TestCase):
+
+    def test_reference(self):
+        data = Orange.data.Table([[2, 1, 3], [4, 2, 6]])
+        ref = data[:1]
+        p = NormalizeReference(reference=ref)(data)
+        np.testing.assert_almost_equal(p, [[1, 1, 1], [2, 2, 2]])
+
+    def test_reference_exceptions(self):
+        with self.assertRaises(MissingReferenceException):
+            NormalizeReference(reference=None)
+        with self.assertRaises(WrongReferenceException):
+            NormalizeReference(reference=Orange.data.Table([[2], [6]]))
 
 
 class TestCommon(unittest.TestCase):

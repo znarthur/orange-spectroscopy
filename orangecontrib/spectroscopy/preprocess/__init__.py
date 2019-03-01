@@ -12,10 +12,11 @@ from orangecontrib.spectroscopy.data import getx
 
 from orangecontrib.spectroscopy.preprocess.integrate import Integrate
 from orangecontrib.spectroscopy.preprocess.emsc import EMSC
-from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance
+from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance, CommonDomainRef
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
-    interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline
+    interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
+    WrongReferenceException
 
 
 class PCADenoisingFeature(SelectColumn):
@@ -319,12 +320,40 @@ class Normalize(Preprocess):
 
     def __call__(self, data):
         common = _NormalizeCommon(self.method, self.lower, self.upper,
-                                           self.int_method, self.attr, data.domain)
+                                  self.int_method, self.attr, data.domain)
         atts = [a.copy(compute_value=NormalizeFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)
+
+
+class _NormalizeReferenceCommon(CommonDomainRef):
+
+    def transformed(self, data):
+        if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
+            ref_X = self.interpolate_extend_to(self.ref, getx(data))
+            return data.X/ref_X
+        else:
+            return data
+
+
+class NormalizeReference(Preprocess):
+
+    def __init__(self, reference):
+        if reference is None:
+            raise MissingReferenceException()
+        elif len(reference) != 1:
+            raise WrongReferenceException("Reference data should have length 1")
+        self.reference = reference
+
+    def __call__(self, data):
+        common = _NormalizeReferenceCommon(self.reference, data.domain)
+        atts = [a.copy(compute_value=NormalizeFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.transform(domain)
 
 
 def features_with_interpolation(points, kind="linear", domain=None, handle_nans=True, interpfn=None):

@@ -18,8 +18,9 @@ from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owpreprocess import (
-    SetXDoubleSpinBox, SpectralPreprocess, BaseEditor
+    SpectralPreprocess
 )
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, SetXDoubleSpinBox
 
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 
