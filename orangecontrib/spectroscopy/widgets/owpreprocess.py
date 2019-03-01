@@ -46,6 +46,7 @@ from orangecontrib.spectroscopy.preprocess import (
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
+from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
@@ -267,6 +268,9 @@ class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
     messageActivated = Signal(Msg)
     messageDeactivated = Signal(Msg)
 
+    class Error(OWWidget.Error):
+        exception = Msg("{}")
+
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
         OWComponent.__init__(self, parent)
@@ -344,7 +348,7 @@ class CutEditor(BaseEditorOrange):
     Editor for Cut
     """
 
-    class Warning(WidgetMessagesMixin.Warning):
+    class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("Limits are out of range.")
 
     def __init__(self, parent=None, **kwargs):
@@ -1533,7 +1537,8 @@ class SpectralPreprocess(OWWidget):
     preview_on_image = False
 
     class Error(OWWidget.Error):
-        applying = Msg("Error applying preprocessors.")
+        applying = Msg("Preprocessing error. {}")
+        preview = Msg("Preview error. {}")
         preprocessor = Msg("Preprocessor error: see the widget for details.")
 
     class Warning(OWWidget.Warning):
@@ -1580,7 +1585,8 @@ class SpectralPreprocess(OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow(preview_callback=self.show_preview, multiple_previews=self.preview_on_image)
+        self.flow_view = SequenceFlow(preview_callback=self.show_preview,
+                                      multiple_previews=self.preview_on_image)
         self.controler = ViewController(self.flow_view, parent=self)
 
         self.scroll_area = QScrollArea(
@@ -1626,6 +1632,11 @@ class SpectralPreprocess(OWWidget):
         self.curveplot_after.highlight_changed.connect(
             lambda: transfer_highlight(self.curveplot_after, self.curveplot))
 
+        if not self.preview_on_image:
+            self.curveplot_after.show()
+        else:
+            self.curveplot_after.hide()
+
         self.controlArea.layout().addWidget(self.scroll_area)
         self.mainArea.layout().addWidget(splitter)
 
@@ -1634,9 +1645,11 @@ class SpectralPreprocess(OWWidget):
         box = gui.widgetBox(self.controlArea, "Preview")
         self.final_preview_toggle = False
         if not self.preview_on_image:
-            self.final_preview = gui.button(box, self, "Final preview", self.flow_view.preview_changed,
-                                            toggleButton=True, value="final_preview_toggle", autoDefault=False)
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra", callback=self._update_preview_number)
+            self.final_preview = gui.button(
+                box, self, "Final preview",self.flow_view.preview_changed,
+                toggleButton=True, value="final_preview_toggle", autoDefault=False)
+        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra",
+                 callback=self._update_preview_number)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
         b = gui.auto_commit(self.output_box, self, "autocommit", "Commit", box=False)
@@ -1664,11 +1677,16 @@ class SpectralPreprocess(OWWidget):
         self._reference_compat_warning()
         self.Warning.preprocessor.clear()
         self.Error.preprocessor.clear()
+        self.Error.preview.clear()
+
+        widgets = self.flow_view.widgets()
+        for w in widgets:
+            if getattr(w, "Error", None):  # only BaseEditorOrange supports errors
+                w.Error.exception.clear()
 
         if self.data is not None:
             orig_data = data = self.sample_data(self.data)
             reference_data = self.reference_data
-            widgets = self.flow_view.widgets()
             preview_pos = self.flow_view.preview_n()
             n = self.preprocessormodel.rowCount()
 
@@ -1682,10 +1700,16 @@ class SpectralPreprocess(OWWidget):
                 widgets[i].set_reference_data(reference_data)
                 widgets[i].set_preview_data(data)
                 item = self.preprocessormodel.item(i)
-                preproc = self._create_preprocessor(item, reference_data)
-                data = widgets[i].execute_instance(preproc, data)
-                if self.process_reference and reference_data is not None and i != n - 1:
-                    reference_data = preproc(reference_data)
+                try:
+                    preproc = self._create_preprocessor(item, reference_data)
+                    data = widgets[i].execute_instance(preproc, data)
+                    if self.process_reference and reference_data is not None and i != n - 1:
+                        reference_data = preproc(reference_data)
+                except PreprocessException as e:
+                    widgets[i].Error.exception(e.message())
+                    self.Error.preview(e.message())
+                    data = None
+                    break
 
                 if preview_pos == i:
                     after_data = data
@@ -1705,15 +1729,10 @@ class SpectralPreprocess(OWWidget):
                 self.final_preview_toggle = False
 
             self.curveplot.set_data(preview_data)
-            if after_data is not None:
-                self.curveplot_after.set_data(after_data)
-                self.curveplot_after.show()
-            else:
-                self.curveplot_after.hide()
+            self.curveplot_after.set_data(after_data)
         else:
             self.curveplot.set_data(None)
             self.curveplot_after.set_data(None)
-            self.curveplot_after.hide()
 
     def _initialize(self):
         for pp_def in self.PREPROCESSORS:
@@ -1858,15 +1877,18 @@ class SpectralPreprocess(OWWidget):
         n = self.preprocessormodel.rowCount()
         for i in range(n):
             item = self.preprocessormodel.item(i)
-            pp = self._create_preprocessor(item, reference)
-            plist.append(pp)
             try:
+                pp = self._create_preprocessor(item, reference)
+                plist.append(pp)
                 if data is not None:
                     data = pp(data)
                 if self.process_reference and reference is not None and i != n - 1:
                     reference = pp(reference)
-            except ValueError as e:
-                self.Error.applying()
+            except PreprocessException as e:
+                self.Error.applying(e.message())
+                plist = []
+                data = None
+                break
 
         # output None if there are no preprocessors
         preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
@@ -1973,9 +1995,6 @@ def test_main(argv=sys.argv):
     argv = list(argv)
     app = QApplication(argv)
     w = OWPreprocess()
-    # data = Orange.data.Table("iris")
-    # ndom = Orange.data.Domain(data.domain.attributes[:2], data.domain.class_var, metas=data.domain.attributes[2:])
-    # data = data.transform(ndom)
     data = Orange.data.Table("collagen")
     w.set_data(data)
     w.set_reference(data[:1])
