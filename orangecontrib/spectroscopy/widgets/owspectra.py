@@ -1,3 +1,4 @@
+import itertools
 import sys
 from collections import defaultdict
 import gc
@@ -9,7 +10,7 @@ from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtCore import pyqtSignal
 
 import numpy as np
@@ -61,7 +62,8 @@ SELECTNONE = 0
 SELECTONE = 1
 SELECTMANY = 2
 
-MAX_INSTANCES_DRAWN = 100
+MAX_INSTANCES_DRAWN = 1000
+MAX_THICK_SELECTED = 10
 NAN = float("nan")
 
 # distance to the first point in pixels that finishes the polygon
@@ -221,6 +223,9 @@ class InteractiveViewBox(ViewBox):
     def position_tooltip(self):
         if self.tiptexts:  # if initialized
             self.scene().select_tooltip.setPos(10, self.height())
+
+    def enableAutoRange(self, axis=None, enable=True, x=None, y=None):
+        super().enableAutoRange(axis=axis, enable=False, x=x, y=y)
 
     def update_selection_tooltip(self, modifiers=Qt.NoModifier):
         if not self.tiptexts:
@@ -525,6 +530,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
+        self.plot.hideButtons()  # hide the autorange button
         self.plot.setDownsampling(auto=True, mode="peak")
 
         for pos in ["top", "right"]:
@@ -541,8 +547,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.plot.vb.sigResized.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
-        pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(0, 0, 0, 127),
-                                                                   QColor(200, 200, 200, 127))
+        pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(60, 60, 60, 200),
+                                                                   QColor(200, 200, 200, 127),
+                                                                   QColor(0, 0, 0, 255))
+        self._default_pen_selected = pen_selected
         self.pen_normal = defaultdict(lambda: pen_normal)
         self.pen_subset = defaultdict(lambda: pen_subset)
         self.pen_selected = defaultdict(lambda: pen_selected)
@@ -882,7 +890,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
-        self.plot.addItem(self.highlighted_curve)
+        self.plot.addItem(self.highlighted_curve, ignoreBounds=True)
         self.plot.addItem(self.vLine, ignoreBounds=True)
         self.plot.addItem(self.hLine, ignoreBounds=True)
         self.viewhelpers = True
@@ -919,6 +927,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
         redraw_curve_indices = set()
+
+        def current_selection():
+            return set(icurve for idata, icurve in invd.items() if self.selection_group[idata])
+
+        old_sel_ci = current_selection()
+
         if add_to_group:  # both keys - need to test it before add_group
             selnum = np.max(self.selection_group)
         elif add_group:
@@ -927,8 +941,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             selnum = 0
         else:
             # remove the current selection
-            redraw_curve_indices.update(
-                icurve for idata, icurve in invd.items() if self.selection_group[idata])
+            redraw_curve_indices.update(old_sel_ci)
             self.selection_group *= 0  # remove
             selnum = 1
         # add new
@@ -936,8 +949,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.selection_group[data_indices] = selnum
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if idata in data_indices_set)
-            # TODO this can redraw needless curves (removed and then added to the same group)
         self.make_selection_valid()
+
+        new_sel_ci = current_selection()
+
+        # redraw whole selection if it increased or decreased over the threshold
+        if len(old_sel_ci) <= MAX_THICK_SELECTED < len(new_sel_ci) or \
+           len(old_sel_ci) > MAX_THICK_SELECTED >= len(new_sel_ci):
+            redraw_curve_indices.update(old_sel_ci)
+
         self.set_curve_pens(redraw_curve_indices)
         self.selection_changed_confirm()
 
@@ -1051,6 +1071,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             index = self.sampled_indices_inverse[index]
         self.highlight(index, emit)
 
+    def _set_selection_pen_width(self):
+        n_selected = np.count_nonzero(self.selection_group[self.sampled_indices])
+        use_thick = n_selected <= MAX_THICK_SELECTED
+        for v in itertools.chain(self.pen_selected.values(), [self._default_pen_selected]):
+            v.setWidth(2 if use_thick else 1)
+
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
         insubset = self.subset_indices[idcdata]
@@ -1066,10 +1092,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         elif self.color_individual:
             value = idc % len(self._color_individual_cycle)
         self.curves_cont.objs[idc].setPen(thispen[value])
-        self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
+        # to always draw selected above subset, multiply with 2
+        self.curves_cont.objs[idc].setZValue(int(insubset) + 2*int(inselected))
 
     def set_curve_pens(self, curves=None):
         if self.viewtype == INDIVIDUAL and self.curves:
+            self._set_selection_pen_width()
             curves = range(len(self.curves[0][1])) if curves is None else curves
             for i in curves:
                 self.set_curve_pen(i)
@@ -1111,22 +1139,34 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         random.Random(self.sample_seed).shuffle(self.sampled_indices)  # for sequential classes#
         self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
         ys = self.data.X[self.sampled_indices][:, self.data_xsind]
+        ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
         self.new_sampling.emit(len(self.sampled_indices))
         self.curves.append((x, ys))
-        for y in ys:
-            self.add_curve(x, y)
 
-    def add_curve(self, x, y, pen=None):
+        # add curves efficiently
+        for y in ys:
+            self.add_curve(x, y, ignore_bounds=True)
+
+        if x.size and ys.size:
+            bounding_rect = QGraphicsRectItem(QRectF(QPointF(np.nanmin(x), np.nanmin(ys)),
+                                                     QPointF(np.nanmax(x), np.nanmax(ys))))
+            bounding_rect.setPen(QPen(Qt.NoPen))  # prevents border of 1
+            self.curves_cont.add_bounds(bounding_rect)
+
+        self.curves_plotted.append((x, ys))
+
+    def add_curve(self, x, y, pen=None, ignore_bounds=False):
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
-        self.curves_cont.add_curve(c)
+        self.curves_cont.add_curve(c, ignore_bounds=ignore_bounds)
         # for rescale to work correctly
-        self.curves_plotted.append((x, np.array([y])))
+        if not ignore_bounds:
+            self.curves_plotted.append((x, np.array([y])))
 
     def add_fill_curve(self, x, ylow, yhigh, pen):
         phigh = pg.PlotCurveItem(x, yhigh, pen=pen)
         plow = pg.PlotCurveItem(x, ylow, pen=pen)
         color = pen.color()
-        color.setAlphaF(0.2)
+        color.setAlphaF(color.alphaF() * 0.3)
         cc = pg.mkBrush(color)
         pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
         pfill.setZValue(10)
@@ -1143,12 +1183,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         return color_var
 
     @staticmethod
-    def _generate_pens(color, color_unselected=None):
+    def _generate_pens(color, color_unselected=None, color_selected=None):
         pen_subset = pg.mkPen(color=color, width=1)
-        pen_selected = pg.mkPen(color=color, width=2, style=Qt.DotLine)
+        if color_selected is None:
+            color_selected = color.darker(135)
+            color_selected.setAlphaF(1.0)  # only gains in a sparse space
+        pen_selected = pg.mkPen(color=color_selected, width=2, style=Qt.DashLine)
         if color_unselected is None:
-            color_unselected = color.lighter(150)
-            color_unselected.setAlphaF(0.5)
+            color_unselected = color.lighter(160)
         pen_normal = pg.mkPen(color=color_unselected, width=1)
         return pen_normal, pen_selected, pen_subset
 

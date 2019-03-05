@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from AnyQt.QtCore import QRectF, QPoint, Qt
 from AnyQt.QtTest import QTest
@@ -10,7 +10,7 @@ from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
 
 from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
-    PlotCurvesItem, NoSuchCurve
+    PlotCurvesItem, NoSuchCurve, MAX_THICK_SELECTED
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.line_geometry import intersect_curves, \
     distance_line_segment
@@ -27,6 +27,7 @@ class TestOWSpectra(WidgetTest):
     def setUpClass(cls):
         super().setUpClass()
         cls.iris = Table("iris")
+        cls.titanic = Table("titanic")
         cls.collagen = Table("collagen")
         cls.normal_data = [cls.iris, cls.collagen]
         # dataset with a single attribute
@@ -63,9 +64,11 @@ class TestOWSpectra(WidgetTest):
         pc.add_curve(pg.PlotCurveItem(x=[-1, 2], y=[0.1, 0.2]))
         np.testing.assert_equal(pc.boundingRect(), QRectF(-1, 0.1, 3, 0.1))
 
-    def test_is_last_instance(self):
-        self.send_signal("Data", self.unknown_last_instance)
-        self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.curveplot.sampled_indices].X[-1])))
+    def test_is_last_instance_force_sampling_and_permutation(self):
+        mi = "orangecontrib.spectroscopy.widgets.owspectra.MAX_INSTANCES_DRAWN"
+        with patch(mi, 100):
+            self.send_signal("Data", self.unknown_last_instance)
+            self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.curveplot.sampled_indices].X[-1])))
 
     def do_mousemove(self):
         mr = self.widget.curveplot.MOUSE_RADIUS
@@ -177,11 +180,12 @@ class TestOWSpectra(WidgetTest):
         self.assertFalse(self.widget.Warning.no_x.is_shown())
 
     def test_information(self):
-        self.send_signal("Data", self.iris[:100])
+        assert len(self.titanic) > MAX_INSTANCES_DRAWN
+        self.send_signal("Data", self.titanic[:MAX_INSTANCES_DRAWN])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
-        self.send_signal("Data", self.iris)
+        self.send_signal("Data", self.titanic)
         self.assertTrue(self.widget.Information.showing_sample.is_shown())
-        self.send_signal("Data", self.iris[:100])
+        self.send_signal("Data", self.titanic[:MAX_INSTANCES_DRAWN])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
 
     def test_information_average_mode(self):
@@ -193,21 +197,14 @@ class TestOWSpectra(WidgetTest):
 
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
-        x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data.X
-        self.assertEqual(len(ys), len(self.collagen))
-        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
+        x, _ = self.widget.curveplot.curves[0]
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
         np.testing.assert_equal(x, fs)
 
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
-        x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data.X
-        self.assertEqual(len(ys), len(self.iris))
-        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
-        np.testing.assert_equal(x,
-                                range(len(self.iris.domain.attributes)))
+        x, _ = self.widget.curveplot.curves[0]
+        np.testing.assert_equal(x, range(len(self.iris.domain.attributes)))
 
     def test_show_average(self):
         self.send_signal("Data", self.iris)
@@ -259,21 +256,24 @@ class TestOWSpectra(WidgetTest):
         self.assertTrue(self.widget.curveplot.show_grid)
 
     def test_subset(self):
-        self.send_signal("Data", self.collagen)
+        data = self.titanic
+        assert len(data) > MAX_INSTANCES_DRAWN
+
+        self.send_signal("Data", data)
         sinds = self.widget.curveplot.sampled_indices
         self.assertEqual(len(sinds), MAX_INSTANCES_DRAWN)
 
         # the whole subset is drawn
-        add_subset = self.collagen[:MAX_INSTANCES_DRAWN]
+        add_subset = data[:MAX_INSTANCES_DRAWN]
         self.send_signal("Data subset", add_subset)
         sinds = self.widget.curveplot.sampled_indices
-        self.assertTrue(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+        self.assertTrue(set(add_subset.ids) <= set(data[sinds].ids))
 
         # the whole subset can not be drawn anymore
-        add_subset = self.collagen[:MAX_INSTANCES_DRAWN+1]
+        add_subset = data[:MAX_INSTANCES_DRAWN+1]
         self.send_signal("Data subset", add_subset)
         sinds = self.widget.curveplot.sampled_indices
-        self.assertFalse(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+        self.assertFalse(set(add_subset.ids) <= set(data[sinds].ids))
 
     def test_subset_connect_disconnect(self):
         self.send_signal("Data", self.collagen)
@@ -379,6 +379,46 @@ class TestOWSpectra(WidgetTest):
         out = self.get_output("Selection")
         np.testing.assert_equal(len(out), 3)
         np.testing.assert_equal([o for o in out], [data[i] for i in [2, 3, 4]])
+
+    def test_select_thick_lines(self):
+        data = self.collagen[:100]
+        assert MAX_INSTANCES_DRAWN >= len(data) > MAX_THICK_SELECTED
+        self.send_signal("Data", data)
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)), False)
+        self.assertEqual(2, self.widget.curveplot.pen_selected[None].width())
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED + 1)), False)
+        self.assertEqual(1, self.widget.curveplot.pen_selected[None].width())
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)), False)
+        self.assertEqual(2, self.widget.curveplot.pen_selected[None].width())
+
+    def test_select_thick_lines_threshold(self):
+        data = self.collagen[:100]
+        assert MAX_INSTANCES_DRAWN >= len(data) > MAX_THICK_SELECTED
+        threshold = MAX_THICK_SELECTED
+        self.send_signal("Data", data)
+        set_curve_pens = 'orangecontrib.spectroscopy.widgets.owspectra.CurvePlot.set_curve_pens'
+        with patch(set_curve_pens, Mock()) as m:
+
+            def clen():
+                return len(m.call_args[0][0])
+
+            self.widget.curveplot.make_selection(list(range(threshold - 1)))
+            self.assertEqual(threshold - 1, clen())
+            with hold_modifiers(self.widget, Qt.ControlModifier):
+                self.widget.curveplot.make_selection([threshold])
+            self.assertEqual(1, clen())
+            with hold_modifiers(self.widget, Qt.ControlModifier):
+                self.widget.curveplot.make_selection([threshold + 1])
+            self.assertEqual(threshold + 1, clen())  # redraw curves as thin
+            with hold_modifiers(self.widget, Qt.ControlModifier):
+                self.widget.curveplot.make_selection([threshold + 2])
+            self.assertEqual(1, clen())
+            with hold_modifiers(self.widget, Qt.AltModifier):
+                self.widget.curveplot.make_selection([threshold + 2])
+            self.assertEqual(1, clen())
+            with hold_modifiers(self.widget, Qt.AltModifier):
+                self.widget.curveplot.make_selection([threshold + 1])
+            self.assertEqual(threshold + 1, clen())  # redraw curves as thick
 
     def test_unknown_feature_color(self):
         data = Table("iris")
