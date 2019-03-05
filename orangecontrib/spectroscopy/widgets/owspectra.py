@@ -1070,7 +1070,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         elif self.color_individual:
             value = idc % len(self._color_individual_cycle)
         self.curves_cont.objs[idc].setPen(thispen[value])
-        self.curves_cont.objs[idc].setZValue(int(insubset) + int(inselected))
+        # to always draw selected above subset, multiply with 2
+        self.curves_cont.objs[idc].setZValue(int(insubset) + 2*int(inselected))
 
     def set_curve_pens(self, curves=None):
         if self.viewtype == INDIVIDUAL and self.curves:
