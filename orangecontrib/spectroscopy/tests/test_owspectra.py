@@ -27,6 +27,7 @@ class TestOWSpectra(WidgetTest):
     def setUpClass(cls):
         super().setUpClass()
         cls.iris = Table("iris")
+        cls.titanic = Table("titanic")
         cls.collagen = Table("collagen")
         cls.normal_data = [cls.iris, cls.collagen]
         # dataset with a single attribute
@@ -63,9 +64,11 @@ class TestOWSpectra(WidgetTest):
         pc.add_curve(pg.PlotCurveItem(x=[-1, 2], y=[0.1, 0.2]))
         np.testing.assert_equal(pc.boundingRect(), QRectF(-1, 0.1, 3, 0.1))
 
-    def test_is_last_instance(self):
-        self.send_signal("Data", self.unknown_last_instance)
-        self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.curveplot.sampled_indices].X[-1])))
+    def test_is_last_instance_force_sampling_and_permutation(self):
+        mi = "orangecontrib.spectroscopy.widgets.owspectra.MAX_INSTANCES_DRAWN"
+        with patch(mi, 100):
+            self.send_signal("Data", self.unknown_last_instance)
+            self.assertTrue(np.all(np.isnan(self.unknown_last_instance[self.widget.curveplot.sampled_indices].X[-1])))
 
     def do_mousemove(self):
         mr = self.widget.curveplot.MOUSE_RADIUS
@@ -177,11 +180,12 @@ class TestOWSpectra(WidgetTest):
         self.assertFalse(self.widget.Warning.no_x.is_shown())
 
     def test_information(self):
-        self.send_signal("Data", self.iris[:100])
+        assert len(self.titanic) > MAX_INSTANCES_DRAWN
+        self.send_signal("Data", self.titanic[:MAX_INSTANCES_DRAWN])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
-        self.send_signal("Data", self.iris)
+        self.send_signal("Data", self.titanic)
         self.assertTrue(self.widget.Information.showing_sample.is_shown())
-        self.send_signal("Data", self.iris[:100])
+        self.send_signal("Data", self.titanic[:MAX_INSTANCES_DRAWN])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
 
     def test_information_average_mode(self):
@@ -193,21 +197,14 @@ class TestOWSpectra(WidgetTest):
 
     def test_handle_floatname(self):
         self.send_signal("Data", self.collagen)
-        x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data.X
-        self.assertEqual(len(ys), len(self.collagen))
-        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
+        x, _ = self.widget.curveplot.curves[0]
         fs = sorted([float(f.name) for f in self.collagen.domain.attributes])
         np.testing.assert_equal(x, fs)
 
     def test_handle_nofloatname(self):
         self.send_signal("Data", self.iris)
-        x, cys = self.widget.curveplot.curves[0]
-        ys = self.widget.curveplot.data.X
-        self.assertEqual(len(ys), len(self.iris))
-        self.assertEqual(len(cys), MAX_INSTANCES_DRAWN)
-        np.testing.assert_equal(x,
-                                range(len(self.iris.domain.attributes)))
+        x, _ = self.widget.curveplot.curves[0]
+        np.testing.assert_equal(x, range(len(self.iris.domain.attributes)))
 
     def test_show_average(self):
         self.send_signal("Data", self.iris)
@@ -259,21 +256,24 @@ class TestOWSpectra(WidgetTest):
         self.assertTrue(self.widget.curveplot.show_grid)
 
     def test_subset(self):
-        self.send_signal("Data", self.collagen)
+        data = self.titanic
+        assert len(data) > MAX_INSTANCES_DRAWN
+
+        self.send_signal("Data", data)
         sinds = self.widget.curveplot.sampled_indices
         self.assertEqual(len(sinds), MAX_INSTANCES_DRAWN)
 
         # the whole subset is drawn
-        add_subset = self.collagen[:MAX_INSTANCES_DRAWN]
+        add_subset = data[:MAX_INSTANCES_DRAWN]
         self.send_signal("Data subset", add_subset)
         sinds = self.widget.curveplot.sampled_indices
-        self.assertTrue(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+        self.assertTrue(set(add_subset.ids) <= set(data[sinds].ids))
 
         # the whole subset can not be drawn anymore
-        add_subset = self.collagen[:MAX_INSTANCES_DRAWN+1]
+        add_subset = data[:MAX_INSTANCES_DRAWN+1]
         self.send_signal("Data subset", add_subset)
         sinds = self.widget.curveplot.sampled_indices
-        self.assertFalse(set(add_subset.ids) <= set(self.collagen[sinds].ids))
+        self.assertFalse(set(add_subset.ids) <= set(data[sinds].ids))
 
     def test_subset_connect_disconnect(self):
         self.send_signal("Data", self.collagen)

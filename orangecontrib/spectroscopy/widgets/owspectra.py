@@ -10,7 +10,7 @@ from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
-from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtCore import Qt, QRectF, QPointF
 from AnyQt.QtCore import pyqtSignal
 
 import numpy as np
@@ -62,7 +62,7 @@ SELECTNONE = 0
 SELECTONE = 1
 SELECTMANY = 2
 
-MAX_INSTANCES_DRAWN = 100
+MAX_INSTANCES_DRAWN = 1000
 MAX_THICK_SELECTED = 10
 NAN = float("nan")
 
@@ -1139,16 +1139,28 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         random.Random(self.sample_seed).shuffle(self.sampled_indices)  # for sequential classes#
         self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
         ys = self.data.X[self.sampled_indices][:, self.data_xsind]
+        ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
         self.new_sampling.emit(len(self.sampled_indices))
         self.curves.append((x, ys))
-        for y in ys:
-            self.add_curve(x, y)
 
-    def add_curve(self, x, y, pen=None):
+        # add curves efficiently
+        for y in ys:
+            self.add_curve(x, y, ignore_bounds=True)
+
+        if x.size and ys.size:
+            bounding_rect = QGraphicsRectItem(QRectF(QPointF(np.nanmin(x), np.nanmin(ys)),
+                                                     QPointF(np.nanmax(x), np.nanmax(ys))))
+            bounding_rect.setPen(QPen(Qt.NoPen))  # prevents border of 1
+            self.curves_cont.add_bounds(bounding_rect)
+
+        self.curves_plotted.append((x, ys))
+
+    def add_curve(self, x, y, pen=None, ignore_bounds=False):
         c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
-        self.curves_cont.add_curve(c)
+        self.curves_cont.add_curve(c, ignore_bounds=ignore_bounds)
         # for rescale to work correctly
-        self.curves_plotted.append((x, np.array([y])))
+        if not ignore_bounds:
+            self.curves_plotted.append((x, np.array([y])))
 
     def add_fill_curve(self, x, ylow, yhigh, pen):
         phigh = pg.PlotCurveItem(x, yhigh, pen=pen)
