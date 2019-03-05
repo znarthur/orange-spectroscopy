@@ -1131,7 +1131,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         phigh = pg.PlotCurveItem(x, yhigh, pen=pen)
         plow = pg.PlotCurveItem(x, ylow, pen=pen)
         color = pen.color()
-        color.setAlphaF(0.2)
+        color.setAlphaF(color.alphaF() * 0.3)
         cc = pg.mkBrush(color)
         pfill = pg.FillBetweenItem(plow, phigh, brush=cc)
         pfill.setZValue(10)
@@ -1152,8 +1152,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         pen_subset = pg.mkPen(color=color, width=1)
         pen_selected = pg.mkPen(color=color, width=2, style=Qt.DotLine)
         if color_unselected is None:
-            color_unselected = color.lighter(150)
-            color_unselected.setAlphaF(0.5)
+            color_unselected = color.lighter(160)
         pen_normal = pg.mkPen(color=color_unselected, width=1)
         return pen_normal, pen_selected, pen_subset
 
