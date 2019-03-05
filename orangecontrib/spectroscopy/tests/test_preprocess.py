@@ -41,6 +41,13 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
 ]
 
 
+def add_zeros(data):
+    """ Every 5th value is zero """
+    s = data.copy()
+    s[:, ::5] = 0
+    return s
+
+
 def make_edges_nan(data):
     s = data.copy()
     s[:, 0:3] = np.nan
@@ -76,7 +83,9 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
                 shuffle_attr(data_to_modify),
                 make_edges_nan(data_to_modify),
                 shuffle_attr(make_edges_nan(data_to_modify)),
-                make_middle_nan(data_to_modify)]
+                make_middle_nan(data_to_modify),
+                add_zeros(data_to_modify),
+                ]
     for d in modified:
         kwargs[data_arg_name] = d
         yield class_(*args, **kwargs)
@@ -337,6 +346,19 @@ class TestCommon(unittest.TestCase):
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=1)
             self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
+
+    def test_no_infs(self):
+        """ Preprocessors should not return (-)inf """
+        data = self.collagen.copy()
+        # add some zeros to the dataset
+        for i in range(min(len(data), len(data.domain.attributes))):
+            data.X[i, i] = 0
+        data.X[0, :] = 0
+        data.X[:, 0] = 0
+        for proc in PREPROCESSORS:
+            pdata = proc(data)
+            anyinfs = np.any(np.isinf(pdata.X))
+            self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
 
 
 class TestPCADenoising(unittest.TestCase):
