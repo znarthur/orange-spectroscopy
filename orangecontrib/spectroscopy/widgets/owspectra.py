@@ -545,8 +545,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.vb.sigRangeChanged.connect(self.resized)
         self.plot.vb.sigResized.connect(self.resized)
         self.pen_mouse = pg.mkPen(color=(0, 0, 255), width=2)
-        pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(0, 0, 0, 127),
-                                                                   QColor(200, 200, 200, 127))
+        pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(60, 60, 60, 200),
+                                                                   QColor(200, 200, 200, 127),
+                                                                   QColor(0, 0, 0, 255))
         self.pen_normal = defaultdict(lambda: pen_normal)
         self.pen_subset = defaultdict(lambda: pen_subset)
         self.pen_selected = defaultdict(lambda: pen_selected)
@@ -1148,9 +1149,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         return color_var
 
     @staticmethod
-    def _generate_pens(color, color_unselected=None):
+    def _generate_pens(color, color_unselected=None, color_selected=None):
         pen_subset = pg.mkPen(color=color, width=1)
-        pen_selected = pg.mkPen(color=color, width=2, style=Qt.DotLine)
+        if color_selected is None:
+            color_selected = color.darker(135)
+            color_selected.setAlphaF(1.0)  # only gains in a sparse space
+        pen_selected = pg.mkPen(color=color_selected, width=2, style=Qt.DotLine)
         if color_unselected is None:
             color_unselected = color.lighter(160)
         pen_normal = pg.mkPen(color=color_unselected, width=1)
