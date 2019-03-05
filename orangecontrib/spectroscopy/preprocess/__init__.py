@@ -16,7 +16,7 @@ from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmit
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
-    WrongReferenceException
+    WrongReferenceException, replace_infs
 
 
 class PCADenoisingFeature(SelectColumn):
@@ -296,11 +296,13 @@ class _NormalizeCommon(CommonDomain):
             norm_data = Integrate(methods=self.int_method,
                                   limits=[[self.lower, self.upper]])(data)
             data.X /= norm_data.X
+            replace_infs(data.X)
         elif self.method == Normalize.Attribute:
             if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
                 ndom = Orange.data.Domain([data.domain[self.attr]])
                 factors = data.transform(ndom)
                 data.X /= factors.X
+                replace_infs(data.X)
                 nd = data.domain[self.attr]
             else:  # invalid attribute for normalization
                 data.X *= float("nan")
@@ -333,7 +335,7 @@ class _NormalizeReferenceCommon(CommonDomainRef):
     def transformed(self, data):
         if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
             ref_X = self.interpolate_extend_to(self.ref, getx(data))
-            return data.X/ref_X
+            return replace_infs(data.X / ref_X)
         else:
             return data
 

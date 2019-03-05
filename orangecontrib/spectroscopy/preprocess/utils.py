@@ -215,3 +215,10 @@ def interp1d_wo_unknowns_scipy(x, ys, points, kind="linear"):
 def edge_baseline(x, y):
     i = np.array([0, -1])
     return interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
+
+
+def replace_infs(array):
+    """ Replaces inf and -inf with nan.
+    This should be used anywhere a divide-by-zero can happen (/, np.log10, etc)"""
+    array[np.isinf(array)] = np.nan
+    return array

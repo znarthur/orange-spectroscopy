@@ -6,7 +6,7 @@ from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainRef,\
-    WrongReferenceException
+    WrongReferenceException, replace_infs
 
 
 class SpecTypes(Enum):
@@ -37,7 +37,8 @@ class _AbsorbanceCommon(CommonDomainRef):
             # Calculate from transmittance data
             absd = np.log10(data.X)
             absd *= -1
-        return absd
+        # Replace infs from either np.true_divide or np.log10
+        return replace_infs(absd)
 
 
 class TransformOptionalReference(Preprocess):
@@ -93,7 +94,8 @@ class _TransmittanceCommon(CommonDomainRef):
             transd = data.X.copy()
             transd *= -1
             np.power(10, transd, transd)
-        return transd
+        # Replace infs from either np.true_divide or np.log10
+        return replace_infs(transd)
 
 
 class Transmittance(TransformOptionalReference):
