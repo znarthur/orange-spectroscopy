@@ -1,3 +1,4 @@
+import itertools
 import sys
 from collections import defaultdict
 import gc
@@ -62,6 +63,7 @@ SELECTONE = 1
 SELECTMANY = 2
 
 MAX_INSTANCES_DRAWN = 100
+MAX_THICK_SELECTED = 10
 NAN = float("nan")
 
 # distance to the first point in pixels that finishes the polygon
@@ -548,6 +550,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         pen_normal, pen_selected, pen_subset = self._generate_pens(QColor(60, 60, 60, 200),
                                                                    QColor(200, 200, 200, 127),
                                                                    QColor(0, 0, 0, 255))
+        self._default_pen_selected = pen_selected
         self.pen_normal = defaultdict(lambda: pen_normal)
         self.pen_subset = defaultdict(lambda: pen_subset)
         self.pen_selected = defaultdict(lambda: pen_selected)
@@ -924,6 +927,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
         redraw_curve_indices = set()
+
+        def current_selection():
+            return set(icurve for idata, icurve in invd.items() if self.selection_group[idata])
+
+        old_sel_ci = current_selection()
+
         if add_to_group:  # both keys - need to test it before add_group
             selnum = np.max(self.selection_group)
         elif add_group:
@@ -932,8 +941,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             selnum = 0
         else:
             # remove the current selection
-            redraw_curve_indices.update(
-                icurve for idata, icurve in invd.items() if self.selection_group[idata])
+            redraw_curve_indices.update(old_sel_ci)
             self.selection_group *= 0  # remove
             selnum = 1
         # add new
@@ -941,8 +949,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.selection_group[data_indices] = selnum
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if idata in data_indices_set)
-            # TODO this can redraw needless curves (removed and then added to the same group)
         self.make_selection_valid()
+
+        new_sel_ci = current_selection()
+
+        # redraw whole selection if it increased or decreased over the threshold
+        if len(old_sel_ci) <= MAX_THICK_SELECTED < len(new_sel_ci) or \
+           len(old_sel_ci) > MAX_THICK_SELECTED >= len(new_sel_ci):
+            redraw_curve_indices.update(old_sel_ci)
+
         self.set_curve_pens(redraw_curve_indices)
         self.selection_changed_confirm()
 
@@ -1056,6 +1071,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             index = self.sampled_indices_inverse[index]
         self.highlight(index, emit)
 
+    def _set_selection_pen_width(self):
+        n_selected = np.count_nonzero(self.selection_group[self.sampled_indices])
+        use_thick = n_selected <= MAX_THICK_SELECTED
+        for v in itertools.chain(self.pen_selected.values(), [self._default_pen_selected]):
+            v.setWidth(2 if use_thick else 1)
+
     def set_curve_pen(self, idc):
         idcdata = self.sampled_indices[idc]
         insubset = self.subset_indices[idcdata]
@@ -1076,6 +1097,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def set_curve_pens(self, curves=None):
         if self.viewtype == INDIVIDUAL and self.curves:
+            self._set_selection_pen_width()
             curves = range(len(self.curves[0][1])) if curves is None else curves
             for i in curves:
                 self.set_curve_pen(i)
@@ -1154,7 +1176,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         if color_selected is None:
             color_selected = color.darker(135)
             color_selected.setAlphaF(1.0)  # only gains in a sparse space
-        pen_selected = pg.mkPen(color=color_selected, width=2, style=Qt.DotLine)
+        pen_selected = pg.mkPen(color=color_selected, width=2, style=Qt.DashLine)
         if color_unselected is None:
             color_unselected = color.lighter(160)
         pen_normal = pg.mkPen(color=color_unselected, width=1)
