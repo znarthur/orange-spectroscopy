@@ -1045,6 +1045,8 @@ class SpectralPreprocess(OWWidget):
     # draw preview on top of current image
     preview_on_image = False
 
+    _max_preview_spectra = 10
+
     class Error(OWWidget.Error):
         applying = Msg("Preprocessing error. {}")
         preview = Msg("Preview error. {}")
@@ -1157,7 +1159,7 @@ class SpectralPreprocess(OWWidget):
             self.final_preview = gui.button(
                 box, self, "Final preview",self.flow_view.preview_changed,
                 toggleButton=True, value="final_preview_toggle", autoDefault=False)
-        gui.spin(box, self, "preview_curves", 1, 10, label="Show spectra",
+        gui.spin(box, self, "preview_curves", 1, self._max_preview_spectra, label="Show spectra",
                  callback=self._update_preview_number)
 
         self.output_box = gui.widgetBox(self.controlArea, "Output")
@@ -1478,6 +1480,10 @@ class OWPreprocess(SpectralPreprocessReference):
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS
+
+    _max_preview_spectra = 100
+
+    preview_curves = settings.Setting(25)
 
     # draw preview on top of current image
     preview_on_image = False
