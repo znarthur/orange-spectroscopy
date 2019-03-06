@@ -446,3 +446,14 @@ class TestOWSpectra(WidgetTest):
             curveplot.highlight(-1)
         with self.assertRaises(NoSuchCurve):
             curveplot.highlight(10)
+
+    def test_select_at_least_1(self):
+        self.widget.curveplot.select_at_least_1 = True
+        self.send_signal(OWSpectra.Inputs.data, self.iris[:3])
+        selected = self.get_output(OWSpectra.Outputs.selected_data)
+        self.assertEqual(1, len(selected))
+        self.assertEqual(self.iris[0], selected[0])
+        self.send_signal(OWSpectra.Inputs.data, self.iris[:2])
+        selected = self.get_output(OWSpectra.Outputs.selected_data)
+        self.assertEqual(1, len(selected))
+        self.assertEqual(self.iris[0], selected[0])
