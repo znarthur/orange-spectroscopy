@@ -1,6 +1,8 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS
+from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor
+from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS,\
+    IntegrateSimpleEditor
 from orangecontrib.spectroscopy.tests import spectral_preprocess
 
 
@@ -90,6 +92,16 @@ class TestOWIntegrate(WidgetTest):
         preprocessed = preprocessor(data)
         self.assertEqual(1, len(preprocessed.domain.attributes))
         self.assertEqual(0, len(out_data.domain.metas))
+
+    def test_simple_preview(self):
+        data = Orange.data.Table("iris.tab")
+        self.send_signal(OWIntegrate.Inputs.data, data)
+        self.widget.add_preprocessor(pack_editor(IntegrateSimpleEditor))
+        self.widget.show_preview()
+        self.assertEqual(0, len(self.widget.curveplot.markings))
+        self.widget.flow_view.set_preview_n(0)
+        self.widget.show_preview()
+        self.assertGreater(len(self.widget.curveplot.markings), 0)
 
 
 class TestIntegrateWarning(spectral_preprocess.TestWarning):
