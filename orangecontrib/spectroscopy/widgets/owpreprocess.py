@@ -1483,6 +1483,8 @@ class OWPreprocess(SpectralPreprocessReference):
 
     _max_preview_spectra = 100
 
+    preview_curves = settings.Setting(25)
+
     # draw preview on top of current image
     preview_on_image = False
 
