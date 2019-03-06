@@ -1,6 +1,6 @@
 import sys
 
-from AnyQt.QtWidgets import (QFormLayout, QSizePolicy, QApplication)
+from AnyQt.QtWidgets import QFormLayout, QSizePolicy
 
 import numpy as np
 
@@ -223,20 +223,23 @@ class OWIntegrate(SpectralPreprocess):
         super().show_preview(False)
         self.redraw_integral()
 
-    def buildpreproc(self):
+    def create_outputs(self):
+        data = self.data
+        preprocessor = self._build_preprocessor()
+        if data is not None and preprocessor is not None:
+            data = preprocessor(data)
+        return data, preprocessor
+
+    def _build_preprocessor(self):
         plist = []
         for i in range(self.preprocessormodel.rowCount()):
             item = self.preprocessormodel.item(i)
-            desc = item.data(DescriptionRole)
-            params = item.data(ParametersRole)
-
-            if not isinstance(params, dict):
-                params = {}
-
-            create = desc.viewclass.createinstance
-            plist.append(create(params))
-
-        return PreprocessorListMoveMetas(not self.output_metas, preprocessors=plist)
+            pp = self._create_preprocessor(item, None)
+            plist.append(pp)
+        if plist:
+            return PreprocessorListMoveMetas(not self.output_metas, preprocessors=plist)
+        else:
+            return None
 
 
 class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):
@@ -257,20 +260,6 @@ class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):
         return tdata
 
 
-def test_main(argv=sys.argv):
-    argv = list(argv)
-    app = QApplication(argv)
-
-    w = OWIntegrate()
-    w.set_data(Orange.data.Table("collagen.csv"))
-    w.handleNewSignals()
-    w.show()
-    w.raise_()
-    r = app.exec_()
-    w.set_data(None)
-    w.saveSettings()
-    w.onDeleteWidget()
-    return r
-
-if __name__ == "__main__":
-    sys.exit(test_main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWIntegrate).run(Orange.data.Table("collagen.csv"))
