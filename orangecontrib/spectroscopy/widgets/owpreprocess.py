@@ -1,5 +1,4 @@
 import random
-import sys
 from collections import Iterable
 
 import numpy as np
@@ -1375,35 +1374,18 @@ class SpectralPreprocess(OWWidget):
         create = desc.viewclass.createinstance
         return create(params)
 
+    def create_outputs(self):
+        raise NotImplementedError()
+
     def apply(self):
         self.show_preview()
-        self._reference_compat_warning()
-
         self.Error.applying.clear()
-
-        plist = []
-        data = self.data
-        reference = self.reference_data
-        n = self.preprocessormodel.rowCount()
-        for i in range(n):
-            item = self.preprocessormodel.item(i)
-            try:
-                pp = self._create_preprocessor(item, reference)
-                plist.append(pp)
-                if data is not None:
-                    data = pp(data)
-                if self.process_reference and reference is not None and i != n - 1:
-                    reference = pp(reference)
-            except PreprocessException as e:
-                self.Error.applying(e.message())
-                plist = []
-                data = None
-                break
-
-        # output None if there are no preprocessors
-        preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
+        try:
+            data, preprocessor = self.create_outputs()
+        except PreprocessException as e:
+            self.Error.applying(e.message())
+            data, preprocessor = None, None
         self.Outputs.preprocessor.send(preprocessor)
-
         self.Outputs.preprocessed_data.send(data)
 
     def commit(self):
@@ -1500,23 +1482,26 @@ class OWPreprocess(SpectralPreprocessReference):
     # draw preview on top of current image
     preview_on_image = False
 
+    def create_outputs(self):
+        self._reference_compat_warning()
+        plist = []
+        data = self.data
+        reference = self.reference_data
+        n = self.preprocessormodel.rowCount()
+        for i in range(n):
+            item = self.preprocessormodel.item(i)
+            pp = self._create_preprocessor(item, reference)
+            plist.append(pp)
+            if data is not None:
+                data = pp(data)
+            if self.process_reference and reference is not None and i != n - 1:
+                reference = pp(reference)
+        # output None if there are no preprocessors
+        preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
+        return data, preprocessor
 
-def test_main(argv=sys.argv):
-    argv = list(argv)
-    app = QApplication(argv)
-    w = OWPreprocess()
-    data = Orange.data.Table("collagen")
-    w.set_data(data)
-    w.set_reference(data[:2])
-    w.handleNewSignals()
-    w.show()
-    w.raise_()
-    r = app.exec_()
-    w.set_data(None)
-    w.saveSettings()
-    w.onDeleteWidget()
-    return r
 
-
-if __name__ == "__main__":
-    sys.exit(test_main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    data = Orange.data.Table("collagen.csv")
+    WidgetPreview(OWPreprocess).run(set_data=data, set_reference=data[:2])

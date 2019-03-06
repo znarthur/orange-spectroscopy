@@ -1,6 +1,7 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS
+from orangecontrib.spectroscopy.tests import spectral_preprocess
 
 
 class TestOWIntegrate(WidgetTest):
@@ -60,3 +61,36 @@ class TestOWIntegrate(WidgetTest):
         settings = self.widget.settingsHandler.pack_data(self.widget)
         self.widget = self.create_widget(OWIntegrate, stored_settings=settings)
         self.assertEqual([], self.widget.preview_n)
+
+    def test_output_as_metas(self):
+        data = Orange.data.Table("iris.tab")
+        self.widget.output_metas = True
+        self.send_signal(OWIntegrate.Inputs.data, data)
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        self.widget.apply()
+        out_data = self.get_output(OWIntegrate.Outputs.preprocessed_data)
+        self.assertEqual(len(data.domain.attributes), len(out_data.domain.attributes))
+        self.assertEqual(1, len(out_data.domain.metas))
+        preprocessor = self.get_output(OWIntegrate.Outputs.preprocessor)
+        preprocessed = preprocessor(data)
+        self.assertEqual(len(data.domain.attributes), len(preprocessed.domain.attributes))
+        self.assertEqual(1, len(out_data.domain.metas))
+
+    def test_output_as_non_metas(self):
+        self.widget.output_metas = False
+        data = Orange.data.Table("iris.tab")
+        self.send_signal(OWIntegrate.Inputs.data, data)
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        self.widget.apply()
+        out_data = self.get_output(OWIntegrate.Outputs.preprocessed_data)
+        self.assertEqual(1, len(out_data.domain.attributes))
+        self.assertEqual(0, len(out_data.domain.metas))
+        preprocessor = self.get_output(OWIntegrate.Outputs.preprocessor)
+        out_data = preprocessor(data)
+        preprocessed = preprocessor(data)
+        self.assertEqual(1, len(preprocessed.domain.attributes))
+        self.assertEqual(0, len(out_data.domain.metas))
+
+
+class TestIntegrateWarning(spectral_preprocess.TestWarning):
+    widget_cls = OWIntegrate
