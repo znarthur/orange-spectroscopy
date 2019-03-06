@@ -457,3 +457,13 @@ class TestOWSpectra(WidgetTest):
         selected = self.get_output(OWSpectra.Outputs.selected_data)
         self.assertEqual(1, len(selected))
         self.assertEqual(self.iris[0], selected[0])
+
+    def test_new_data_clear_graph(self):
+        curveplot = self.widget.curveplot
+        curveplot.set_data(self.iris[:3], auto_update=False)
+        curveplot.update_view()
+        self.assertEqual(3, len(curveplot.curves[0][1]))
+        curveplot.set_data(self.iris[:3], auto_update=False)
+        self.assertEqual([], curveplot.curves)
+        curveplot.update_view()
+        self.assertEqual(3, len(curveplot.curves[0][1]))

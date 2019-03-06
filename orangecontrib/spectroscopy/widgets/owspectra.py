@@ -1344,6 +1344,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
             self.data = data
 
+            # new data implies that the graph is outdated
+            self.clear_graph()
+
             self.restore_selection_settings()
 
             # get and sort input data
