@@ -949,7 +949,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.selection_group[data_indices] = selnum
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if idata in data_indices_set)
-        self.make_selection_valid()
+
+        fixes = self.make_selection_valid()
+        redraw_curve_indices.update(
+            icurve for idata, icurve in invd.items() if idata in fixes)
 
         new_sel_ci = current_selection()
 
@@ -962,11 +965,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.selection_changed_confirm()
 
     def make_selection_valid(self):
+        """ Make the selection valid and return the changed positions. """
         if self.select_at_least_1 and not len(np.flatnonzero(self.selection_group)) \
                 and len(self.data) > 0:  # no selection
             self.selection_group[0] = 1
-            if 0 in self.sampled_indices_inverse:  # refresh if shown
-                self.set_curve_pens([self.sampled_indices_inverse[0]])
+            return set([0])
+        return set()
 
     def selection_changed_confirm(self):
         # reset average view; individual was already handled in make_selection
@@ -1339,6 +1343,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 self.rescale_next = True
 
             self.data = data
+
+            # new data implies that the graph is outdated
+            self.clear_graph()
 
             self.restore_selection_settings()
 
