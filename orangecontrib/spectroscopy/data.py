@@ -768,12 +768,12 @@ class GSFReader(FileFormat):
             return data
 
 
-class NeaReader(FileFormat):
+class NeaReader(FileFormat, SpectralFileFormat):
 
     EXTENSIONS = (".nea", ".txt")
     DESCRIPTION = 'NeaSPEC'
 
-    def read(self):
+    def read_spectra(self):
 
         with open(self.filename, "rt") as f:
             next(f)  # skip header
@@ -823,7 +823,6 @@ class NeaReader(FileFormat):
 
             min_intp, max_intp = None, None
 
-
             for i, (row, col, run, chan) in enumerate(meta):
                 if (row, col) not in di:
                     di[(row, col)] = \
@@ -871,11 +870,10 @@ class NeaReader(FileFormat):
                      Orange.data.ContinuousVariable.make("column"),
                      Orange.data.StringVariable.make("channel")]
 
-            domain = Orange.data.Domain(
-                [Orange.data.ContinuousVariable.make("%f" % f) for f in X],
-                None, metas=metas)
-            final_metas = np.array(final_metas, dtype=object)
-            return Orange.data.Table(domain, final_data, metas=final_metas)
+            domain = Orange.data.Domain([], None, metas=metas)
+            meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
+                                         metas=np.asarray(final_metas, dtype=object))
+            return X, final_data, meta_data
 
 
 def build_spec_table(domvals, data, additional_table=None):
