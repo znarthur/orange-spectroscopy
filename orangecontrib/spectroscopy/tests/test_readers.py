@@ -9,8 +9,6 @@ from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 
-from orangecontrib.spectroscopy.tests.bigdata import spectra20nea
-
 try:
     import opusFC
 except ImportError:
@@ -194,13 +192,17 @@ class TestGSF(unittest.TestCase):
         self.assertEqual(data.X.shape, (20000, 1))
 
 
-@unittest.skip  # file not available as of 20180426
 class TestNea(unittest.TestCase):
 
     def test_open(self):
-        data = Orange.data.Table(spectra20nea())
+        data = Orange.data.Table("spectra20_small.nea")
         self.assertEqual(len(data), 12)
-        # FIXME check contents
+        self.assertEqual("channel", data.domain.metas[2].name)
+        np.testing.assert_almost_equal(getx(data), [0.000295, 0.00092])
+        self.assertEqual("O0A", data.metas[0][2])
+        np.testing.assert_almost_equal(data.X[0, 0], 10.2608052)  # O0A
+        self.assertEqual("O0P", data.metas[6][2])
+        np.testing.assert_almost_equal(data.X[6, 0], 0)  # O0P
 
 
 class TestSpa(unittest.TestCase):
