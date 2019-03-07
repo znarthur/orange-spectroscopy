@@ -36,18 +36,17 @@ class SpectralFileFormat:
         return build_spec_table(*self.read_spectra())
 
 
-class AsciiColReader(FileFormat):
+class AsciiColReader(FileFormat, SpectralFileFormat):
     """ Reader for files with multiple columns of numbers. The first column
     contains the wavelengths, the others contain the spectra. """
     EXTENSIONS = ('.dat', '.dpt', '.xy',)
     DESCRIPTION = 'Spectra ASCII'
 
-    def read(self):
+    def read_spectra(self):
         tbl = np.loadtxt(self.filename, ndmin=2)
-        domvals = tbl.T[0]  # first column is attribute name
-        domain = Orange.data.Domain([ContinuousVariable.make("%f" % f) for f in domvals], None)
+        wavenumbers = tbl.T[0]  # first column is attribute name
         datavals = tbl.T[1:]
-        return Orange.data.Table(domain, datavals)
+        return wavenumbers, datavals, None
 
     @staticmethod
     def write_file(filename, data):
