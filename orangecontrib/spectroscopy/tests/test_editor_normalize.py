@@ -24,14 +24,14 @@ class TestNormalizeEditor(WidgetTest):
         self.assertIs(p.method, Normalize.Vector)
 
     def test_normalize_by_reference(self):
-        ref = SMALL_COLLAGEN[:1]
-        self.send_signal(OWPreprocess.Inputs.reference, ref)
+        reference = SMALL_COLLAGEN[:1]
+        self.send_signal(OWPreprocess.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
         self.widget.apply()
         out = self.get_output(OWPreprocess.Outputs.preprocessor)
         p = out.preprocessors[0]
         self.assertIsInstance(p, NormalizeReference)
-        self.assertIs(p.reference, ref)
+        self.assertIs(p.reference, reference)
 
     def test_normalize_by_reference_no_reference(self):
         self.editor._group.buttons()[3].click()
@@ -42,8 +42,8 @@ class TestNormalizeEditor(WidgetTest):
         self.assertIsNone(out)
 
     def test_normalize_by_reference_wrong_reference(self):
-        ref = SMALL_COLLAGEN[:2]
-        self.send_signal(OWPreprocess.Inputs.reference, ref)
+        reference = SMALL_COLLAGEN[:2]
+        self.send_signal(OWPreprocess.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
         self.widget.apply()
         self.assertTrue(self.widget.Error.applying.is_shown())

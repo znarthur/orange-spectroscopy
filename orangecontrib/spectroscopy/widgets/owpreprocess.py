@@ -637,10 +637,10 @@ class SpectralTransformEditor(BaseEditorOrange):
             return lambda data: data[:0]  # return an empty data table
         if reference:
             reference = reference[:1]
-        return transform(ref=reference)
+        return transform(reference=reference)
 
-    def set_reference_data(self, ref):
-        self.reference = ref
+    def set_reference_data(self, reference):
+        self.reference = reference
         self.update_reference_info()
 
     def update_reference_info(self):
@@ -817,8 +817,8 @@ class EMSCEditor(BaseEditorOrange):
         else:
             return EMSC(reference=reference, weights=weights, order=order, scaling=scaling, output_model=output_model)
 
-    def set_reference_data(self, ref):
-        self.reference = ref
+    def set_reference_data(self, reference):
+        self.reference = reference
         self.update_reference_info()
 
     def update_reference_info(self):
@@ -1463,8 +1463,8 @@ class SpectralPreprocessReference(SpectralPreprocess):
         reference = Input("Reference", Orange.data.Table)
 
     @Inputs.reference
-    def set_reference(self, ref):
-        self.reference_data = ref
+    def set_reference(self, reference):
+        self.reference_data = reference
 
 
 class OWPreprocess(SpectralPreprocessReference):

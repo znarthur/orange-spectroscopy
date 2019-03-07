@@ -59,9 +59,9 @@ class CommonDomain:
 
 class CommonDomainRef(CommonDomain):
     """CommonDomain which also ensures reference domain transformation"""
-    def __init__(self, ref, domain):
+    def __init__(self, reference, domain):
         super().__init__(domain)
-        self.ref = ref
+        self.reference = reference
 
     def interpolate_extend_to(self, interpolate, wavenumbers):
         """

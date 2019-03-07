@@ -93,7 +93,7 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
 
 for p in [Absorbance, Transmittance]:
     # single reference
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "reference", SMALL_COLLAGEN[0:1]))
 
 # EMSC with different kinds of reference
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
@@ -291,8 +291,8 @@ class TestNormalizeReference(unittest.TestCase):
 
     def test_reference(self):
         data = Orange.data.Table([[2, 1, 3], [4, 2, 6]])
-        ref = data[:1]
-        p = NormalizeReference(reference=ref)(data)
+        reference = data[:1]
+        p = NormalizeReference(reference=reference)(data)
         np.testing.assert_almost_equal(p, [[1, 1, 1], [2, 2, 2]])
 
     def test_reference_exceptions(self):

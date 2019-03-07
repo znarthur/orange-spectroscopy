@@ -334,7 +334,7 @@ class _NormalizeReferenceCommon(CommonDomainRef):
 
     def transformed(self, data):
         if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
-            ref_X = self.interpolate_extend_to(self.ref, getx(data))
+            ref_X = self.interpolate_extend_to(self.reference, getx(data))
             return replace_infs(data.X / ref_X)
         else:
             return data
