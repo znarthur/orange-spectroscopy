@@ -91,7 +91,7 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
         p = class_(*args, **kwargs)
         # 5 is add_zeros
         if i == 5:
-            p.skip_unknown_no_propagate = True
+            p.skip_add_zeros = True
         yield p
 
 
@@ -347,7 +347,7 @@ class TestCommon(unittest.TestCase):
         for i in range(min(len(data), len(data.domain.attributes))):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
-            if hasattr(proc, "skip_unknown_no_propagate"):
+            if hasattr(proc, "skip_add_zeros"):
                 continue
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=1)
