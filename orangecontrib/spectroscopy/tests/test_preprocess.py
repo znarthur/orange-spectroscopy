@@ -86,9 +86,13 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
                 make_middle_nan(data_to_modify),
                 add_zeros(data_to_modify),
                 ]
-    for d in modified:
+    for i, d in enumerate(modified):
         kwargs[data_arg_name] = d
-        yield class_(*args, **kwargs)
+        p = class_(*args, **kwargs)
+        # 5 is add_zeros
+        if i == 5:
+            p.skip_unknown_no_propagate = True
+        yield p
 
 
 for p in [Absorbance, Transmittance]:
@@ -343,6 +347,8 @@ class TestCommon(unittest.TestCase):
         for i in range(min(len(data), len(data.domain.attributes))):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
+            if hasattr(proc, "skip_unknown_no_propagate"):
+                continue
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=1)
             self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
