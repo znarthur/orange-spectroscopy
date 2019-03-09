@@ -41,6 +41,13 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
 ]
 
 
+def add_zeros(data):
+    """ Every 5th value is zero """
+    s = data.copy()
+    s[:, ::5] = 0
+    return s
+
+
 def make_edges_nan(data):
     s = data.copy()
     s[:, 0:3] = np.nan
@@ -76,15 +83,21 @@ def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, *
                 shuffle_attr(data_to_modify),
                 make_edges_nan(data_to_modify),
                 shuffle_attr(make_edges_nan(data_to_modify)),
-                make_middle_nan(data_to_modify)]
-    for d in modified:
+                make_middle_nan(data_to_modify),
+                add_zeros(data_to_modify),
+                ]
+    for i, d in enumerate(modified):
         kwargs[data_arg_name] = d
-        yield class_(*args, **kwargs)
+        p = class_(*args, **kwargs)
+        # 5 is add_zeros
+        if i == 5:
+            p.skip_add_zeros = True
+        yield p
 
 
 for p in [Absorbance, Transmittance]:
     # single reference
-    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "ref", SMALL_COLLAGEN[0:1]))
+    PREPROCESSORS_INDEPENDENT_SAMPLES += list(add_edge_case_data_parameter(p, "reference", SMALL_COLLAGEN[0:1]))
 
 # EMSC with different kinds of reference
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
@@ -282,8 +295,8 @@ class TestNormalizeReference(unittest.TestCase):
 
     def test_reference(self):
         data = Orange.data.Table([[2, 1, 3], [4, 2, 6]])
-        ref = data[:1]
-        p = NormalizeReference(reference=ref)(data)
+        reference = data[:1]
+        p = NormalizeReference(reference=reference)(data)
         np.testing.assert_almost_equal(p, [[1, 1, 1], [2, 2, 2]])
 
     def test_reference_exceptions(self):
@@ -341,9 +354,24 @@ class TestCommon(unittest.TestCase):
         for i in range(min(len(data), len(data.domain.attributes))):
             data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
+            if hasattr(proc, "skip_add_zeros"):
+                continue
             pdata = proc(data)
             sumnans = np.sum(np.isnan(pdata.X), axis=1)
             self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
+
+    def test_no_infs(self):
+        """ Preprocessors should not return (-)inf """
+        data = self.collagen.copy()
+        # add some zeros to the dataset
+        for i in range(min(len(data), len(data.domain.attributes))):
+            data.X[i, i] = 0
+        data.X[0, :] = 0
+        data.X[:, 0] = 0
+        for proc in PREPROCESSORS:
+            pdata = proc(data)
+            anyinfs = np.any(np.isinf(pdata.X))
+            self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
 
 
 class TestPCADenoising(unittest.TestCase):

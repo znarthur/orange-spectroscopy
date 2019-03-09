@@ -134,6 +134,8 @@ class TestConversion(unittest.TestCase):
         learner = LogisticRegressionLearner(preprocessors=[_RemoveNaNRows()])
 
         for proc in PREPROCESSORS:
+            if hasattr(proc, "skip_add_zeros"):
+                continue
             # LR that can not handle unknown values
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)

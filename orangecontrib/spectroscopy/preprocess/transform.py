@@ -6,7 +6,7 @@ from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainRef,\
-    WrongReferenceException
+    WrongReferenceException, replace_infs
 
 
 class SpecTypes(Enum):
@@ -25,9 +25,9 @@ class AbsorbanceFeature(SelectColumn):
 class _AbsorbanceCommon(CommonDomainRef):
 
     def transformed(self, data):
-        if self.ref is not None:
+        if self.reference is not None:
             # Calculate from single-channel data
-            ref_X = self.interpolate_extend_to(self.ref, getx(data))
+            ref_X = self.interpolate_extend_to(self.reference, getx(data))
             if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
                 absd = ref_X / data.X
                 np.log10(absd, absd)
@@ -37,18 +37,19 @@ class _AbsorbanceCommon(CommonDomainRef):
             # Calculate from transmittance data
             absd = np.log10(data.X)
             absd *= -1
-        return absd
+        # Replace infs from either np.true_divide or np.log10
+        return replace_infs(absd)
 
 
 class TransformOptionalReference(Preprocess):
 
-    def __init__(self, ref=None):
-        if ref is not None and len(ref) != 1:
+    def __init__(self, reference=None):
+        if reference is not None and len(reference) != 1:
             raise WrongReferenceException("Reference data should have length 1")
-        self.ref = ref
+        self.reference = reference
 
     def __call__(self, data):
-        common = self._cl_common(self.ref, data.domain)
+        common = self._cl_common(self.reference, data.domain)
         newattrs = [Orange.data.ContinuousVariable(
             name=var.name, compute_value=self._cl_feature(i, common))
             for i, var in enumerate(data.domain.attributes)]
@@ -61,11 +62,11 @@ class Absorbance(TransformOptionalReference):
     """
     Convert data to absorbance.
 
-    Set ref to calculate from single-channel spectra, otherwise convert from transmittance.
+    Set reference to calculate from single-channel spectra, otherwise convert from transmittance.
 
     Parameters
     ----------
-    ref : reference single-channel (Orange.data.Table)
+    reference : reference single-channel (Orange.data.Table)
     """
 
     _cl_common = _AbsorbanceCommon
@@ -81,10 +82,10 @@ class TransmittanceFeature(SelectColumn):
 class _TransmittanceCommon(CommonDomainRef):
 
     def transformed(self, data):
-        if self.ref is not None:
+        if self.reference is not None:
             # Calculate from single-channel data
             if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
-                ref_X = self.interpolate_extend_to(self.ref, getx(data))
+                ref_X = self.interpolate_extend_to(self.reference, getx(data))
                 transd = data.X / ref_X
             else:
                 transd = data
@@ -93,18 +94,19 @@ class _TransmittanceCommon(CommonDomainRef):
             transd = data.X.copy()
             transd *= -1
             np.power(10, transd, transd)
-        return transd
+        # Replace infs from either np.true_divide or np.log10
+        return replace_infs(transd)
 
 
 class Transmittance(TransformOptionalReference):
     """
     Convert data to transmittance.
 
-    Set ref to calculate from single-channel spectra, otherwise convert from absorbance.
+    Set reference to calculate from single-channel spectra, otherwise convert from absorbance.
 
     Parameters
     ----------
-    ref : reference single-channel (Orange.data.Table)
+    reference : reference single-channel (Orange.data.Table)
     """
 
     from_types = (SpecTypes.ABSORBANCE, SpecTypes.SINGLECHANNEL)
