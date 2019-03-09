@@ -169,7 +169,7 @@ class _RubberbandBaselineCommon(CommonDomainOrder):
             source = source[~np.isnan(source).any(axis=1)]
             try:
                 v = ConvexHull(source).vertices
-            except QhullError:
+            except (QhullError, ValueError):
                 # FIXME notify user
                 baseline = np.zeros_like(row)
             else:

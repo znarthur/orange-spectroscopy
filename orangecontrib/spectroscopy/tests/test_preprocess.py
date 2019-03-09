@@ -314,6 +314,13 @@ class TestCommon(unittest.TestCase):
         for proc in PREPROCESSORS:
             _ = proc(data)
 
+    def test_all_nans(self):
+        """ Preprocessors should not crash there are all-nan samples. """
+        data = self.collagen.copy()
+        data.X[0, :] = np.nan
+        for proc in PREPROCESSORS:
+            _ = proc(data)
+
     def test_unordered_features(self):
         data = self.collagen
         data_reversed = reverse_attr(data)
