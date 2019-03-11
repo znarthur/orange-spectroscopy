@@ -511,7 +511,8 @@ class SPCReader(FileFormat):
         try:
             import spc
         except ImportError:
-            raise RuntimeError("To load spc files install spc python module (https://github.com/rohanisaac/spc)")
+            raise RuntimeError("To load spc files install spc python module "
+                               "(https://github.com/rohanisaac/spc)")
 
         spc_file = spc.File(self.filename)
         if spc_file.talabs:
@@ -800,7 +801,6 @@ class GSFReader(FileFormat):
 
     def read(self):
         with open(self.filename, "rb") as f:
-            #print(f.readline())
             if not (f.readline() == b'Gwyddion Simple Field 1.0\n'):
                 raise ValueError('Not a correct file')
 
