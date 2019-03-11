@@ -66,6 +66,7 @@ class SelectColumnReader(FileFormat, SpectralFileFormat):
     def sheets(self):
 
         with open(self.filename, 'r') as dataf:
+            l = ""
             for l in dataf:
                 if not l.startswith('#'):
                     break
