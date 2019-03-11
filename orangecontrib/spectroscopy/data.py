@@ -313,6 +313,9 @@ class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
         with h5.File(self.filename, "r") as dataf:
             cube_h5 = dataf["data/cube_{:0>5d}".format(cube_nb)]
 
+            # directly read into float64 so that Orange.data.Table does not
+            # convert to float64 afterwards (if we would not read into float64,
+            # the memory use would be 50% greater)
             cube_np = np.empty(cube_h5.shape, dtype=np.float64)
             cube_h5.read_direct(cube_np)
 
