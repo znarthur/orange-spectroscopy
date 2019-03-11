@@ -5,7 +5,7 @@ import numpy as np
 import Orange
 from Orange.data.io import FileFormat
 from Orange.tests import named_file
-from orangecontrib.spectroscopy.data import getx, build_spec_table
+from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 
@@ -18,6 +18,15 @@ try:
     import spc
 except ImportError:
     spc = None
+
+
+def initialize_reader(reader, fn):
+    """
+    Returns an initialized reader with the file that can be relative
+    to Orange's default data set directories.
+    """
+    absolute_filename = FileFormat.locate(fn, Orange.data.table.dataset_dirs)
+    return reader(absolute_filename)
 
 
 class TestReaders(unittest.TestCase):
@@ -160,9 +169,9 @@ class TestAgilentReader(unittest.TestCase):
 
     def test_mosaic_ifg_read(self):
         # This reader will only be selected manually due to shared .dmt extension
-        absolute_filename = FileFormat.locate("agilent/5_mosaic_agg1024.dmt",
-                                              Orange.data.table.dataset_dirs)
-        d = agilentMosaicIFGReader(absolute_filename).read()
+        reader = initialize_reader(agilentMosaicIFGReader,
+                                   "agilent/5_mosaic_agg1024.dmt")
+        d = reader.read()
         self.assertEqual(len(d), 32)
         self.assertEqual(len(d.domain.attributes), 311)
         # Pixel sizes are 5.5 * 32 = 176.0 (binning to reduce test data)
@@ -322,3 +331,19 @@ class TestDataUtil(unittest.TestCase):
         X = np.ones([4, 3], dtype=np.float64)
         data = build_spec_table(xs, X)
         self.assertTrue(np.may_share_memory(data.X, X))
+
+
+class TestSelectColumn(unittest.TestCase):
+
+    def test_select_column(self):
+        # explicit reader selection because of shared extension
+        reader = initialize_reader(SelectColumnReader, "rock.txt")
+
+        # column 1 are the energies
+        self.assertEqual(reader.sheets, list(map(str, range(2, 10))))
+
+        reader.sheet = "3"
+        d = reader.read()
+        np.testing.assert_equal(d.X,
+                                [[0.91213142, 0.89539732, 0.87925428, 0.86225812]])
+        np.testing.assert_equal(getx(d), [6870, 6880, 6890, 6900])

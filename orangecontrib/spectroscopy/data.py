@@ -56,6 +56,44 @@ class AsciiColReader(FileFormat, SpectralFileFormat):
         np.savetxt(filename, table, delimiter="\t", fmt="%g")
 
 
+class SelectColumnReader(FileFormat, SpectralFileFormat):
+    """ Reader for files with multiple columns of numbers. The first column
+    contains the wavelengths, the others contain the spectra. """
+    EXTENSIONS = ('.txt',)
+    DESCRIPTION = 'XAS ascii spectrum from ROCK'
+
+    @property
+    def sheets(self):
+
+        with open(self.filename, 'r') as dataf:
+            l = ""
+            for l in dataf:
+                if not l.startswith('#'):
+                    break
+            col_nbrs = range(2, min(len(l.split()) + 1, 11))
+
+        return list(map(str, col_nbrs))
+
+    def read_spectra(self):
+
+        if self.sheet:
+            col_nb = int(self.sheet)
+        else:
+            col_nb = int(self.sheets[0])
+
+        spectrum = np.loadtxt(self.filename, comments='#',
+                              usecols=(0, col_nb - 1),
+                              unpack=True)
+        return spectrum[0], np.atleast_2d(spectrum[1]), None
+
+    @staticmethod
+    def write_file(filename, data):
+        xs = getx(data)
+        xs = xs.reshape((-1, 1))
+        table = np.hstack((xs, data.X.T))
+        np.savetxt(filename, table, delimiter="\t", fmt="%g")
+
+
 class AsciiMapReader(FileFormat):
     """ Reader ascii map files.
 
