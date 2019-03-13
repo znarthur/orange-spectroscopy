@@ -205,6 +205,9 @@ class IRFFT():
         else:
             self.zpd = find_zpd(ifg, self.peak_search)
 
+        # Subtract DC value from interferogram
+        ifg = ifg - ifg.mean()
+
         # Calculate phase on interferogram of specified size 2*L
         L = self.phase_ifg_size(ifg.shape[0])
         if L == 0: # Use full ifg for phase
