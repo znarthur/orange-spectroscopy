@@ -56,7 +56,7 @@ class OWFFT(OWWidget):
     sweeps = settings.Setting(0)
     peak_search = settings.Setting(irfft.PeakSearch.MAXIMUM)
     apod_func = settings.Setting(1)
-    zff = settings.Setting(1)
+    zff = settings.Setting(1)  # an exponent for zero-filling factor, IRFFT() needs 2**zff
     phase_corr = settings.Setting(0)
     phase_res_limit = settings.Setting(True)
     phase_resolution = settings.Setting(32)
@@ -327,7 +327,7 @@ class OWFFT(OWWidget):
 
         fft_single = irfft.IRFFT(dx=self.dx,
                                  apod_func=self.apod_func,
-                                 zff=self.zff,
+                                 zff=2**self.zff,
                                  phase_res=self.phase_resolution if self.phase_res_limit else None,
                                  phase_corr=self.phase_corr,
                                  peak_search=self.peak_search,
