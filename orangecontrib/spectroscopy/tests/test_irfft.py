@@ -1,7 +1,7 @@
 import unittest
 
-import Orange
 import numpy as np
+import Orange
 
 from orangecontrib.spectroscopy.data import getx
 
@@ -10,6 +10,7 @@ from orangecontrib.spectroscopy.irfft import (IRFFT, zero_fill, PhaseCorrection,
                                              )
 
 dx = 1.0 / 15797.337544 / 2.0
+
 
 class TestIRFFT(unittest.TestCase):
 
@@ -56,15 +57,14 @@ class TestIRFFT(unittest.TestCase):
 
     def test_agilent_fft_sc(self):
         ifg = self.ifg_seq_ref.X[0]
-        dat = self.sc_dat_ref.X[0]
+        # dat = self.sc_dat_ref.X[0]  # TODO scaling diffrences fail
         dx_ag = (1 / 1.57980039e+04 / 2) * 4
         fft = IRFFT(dx=dx_ag,
                     apod_func=ApodFunc.BLACKMAN_HARRIS_4,
                     zff=1,
                     phase_res=None,
                     phase_corr=PhaseCorrection.MERTZ,
-                    peak_search=PeakSearch.MINIMUM,
-                    )
+                    peak_search=PeakSearch.MINIMUM)
         fft(ifg)
         self.assertEqual(fft.zpd, 69)
         dat_x = getx(self.sc_dat_ref)
@@ -84,8 +84,7 @@ class TestIRFFT(unittest.TestCase):
                     zff=1,
                     phase_res=None,
                     phase_corr=PhaseCorrection.MERTZ,
-                    peak_search=PeakSearch.MINIMUM,
-                    )
+                    peak_search=PeakSearch.MINIMUM)
         fft(ifg_ref)
         rsc = fft.spectrum
         fft(ifg_sam)
