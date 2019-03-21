@@ -19,7 +19,7 @@ from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 
 from AnyQt.QtCore import (
-    Qt, QEvent, QSize, QMimeData, QTimer, QBasicTimer
+    Qt, QEvent, QSize, QMimeData, QTimer
 )
 from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
@@ -983,16 +983,17 @@ class TimeoutLabel(QLabel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.timer = QBasicTimer()
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self._timeout)
         self.hide()
 
     def setText(self, t):
         super().setText(t)
         self.show()
-        self.timer.start(2000, self)
+        self.timer.start(2000)
 
-    def timerEvent(self, event):
-        self.timer.stop()
+    def _timeout(self):
         self.hide()
 
 
@@ -1125,8 +1126,8 @@ class SpectralPreprocess(OWWidget):
             o = OverlayWidget(self)
             o.setAttribute(Qt.WA_TransparentForMouseEvents)
             o.setWidget(widget)
-            o.setLayout(QVBoxLayout())
-            l = TimeoutLabel("", wordWrap=True)
+            o.setLayout(QVBoxLayout(o))
+            l = TimeoutLabel("", parent=o, wordWrap=True)
             l.setAlignment(Qt.AlignCenter)
             font = QFont()
             font.setPointSize(20)
