@@ -2,6 +2,7 @@
 recursive-include orangecontrib *.ows icons/* datasets/* *.txt
 recursive-include orangecontrib/spectroscopy/datasets matlab/*
 recursive-include orangecontrib/spectroscopy/datasets agilent/*
+recursive-include orangecontrib/spectroscopy/datasets Hermes_HDF5/*
 
 global-exclude __pycache__
 
