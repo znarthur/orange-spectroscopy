@@ -2,6 +2,7 @@ import os
 from functools import reduce
 from itertools import chain, repeat
 from collections import Counter
+from typing import List
 from warnings import catch_warnings
 
 import numpy as np
@@ -13,11 +14,12 @@ from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDia
 from Orange.data import Domain, Table, ContinuousVariable, StringVariable
 from Orange.data.io import FileFormat, class_from_qualified_name
 from Orange.widgets import widget, gui
-from Orange.widgets.settings import Setting
+from Orange.widgets.settings import Setting, ContextSetting, PerfectDomainContextHandler,\
+    SettingProvider
 from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, RecentPath,\
     open_filename_dialog
-import Orange.widgets.data.owfile
+from Orange.widgets.utils.signals import Output
 
 from orangecontrib.spectroscopy.data import SpectralFileFormat
 
@@ -111,7 +113,7 @@ def concatenate_data(tables, filenames, label):
     return data
 
 
-class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
+class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
     name = "Multifile"
     id = "orangecontrib.spectroscopy.widgets.files"
     icon = "icons/multifile.svg"
@@ -121,11 +123,28 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
     replaces = ["orangecontrib.infrared.widgets.owfiles.OWFiles",
                 "orangecontrib.infrared.widgets.owmultifile.OWMultifile"]
 
+    class Outputs:
+        data = Output("Data", Table,
+                      doc="Concatenated input files.")
+
+    want_main_area = False
+
     file_idx = []
+
+    settingsHandler = PerfectDomainContextHandler(
+        match_values=PerfectDomainContextHandler.MATCH_VALUES_ALL
+    )
+
+    recent_paths: List[RecentPath]
+    variables: list
 
     sheet = Setting(None, schema_only=True)
     label = Setting("", schema_only=True)
     recent_paths = Setting([], schema_only=True)
+    xls_sheet = ContextSetting("", schema_only=True)
+    variables = ContextSetting([], schema_only=True)
+
+    domain_editor = SettingProvider(DomainEditor)
 
     def __init__(self):
         widget.OWWidget.__init__(self)
@@ -201,9 +220,9 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
 
         box = gui.hBox(self.controlArea)
         gui.rubber(box)
-        box.layout().addWidget(self.report_button)
-        self.report_button.setFixedWidth(170)
 
+        gui.button(
+            box, self, "Reset", callback=self.reset_domain_edit)
         self.apply_button = gui.button(
             box, self, "Apply", callback=self.apply_domain_edit)
         self.apply_button.setEnabled(False)
@@ -341,6 +360,68 @@ class OWMultifile(Orange.widgets.data.owfile.OWFile, RecentPathsWidgetMixin):
             self.domain_editor.set_domain(None)
 
         self.apply_domain_edit()  # sends data
+
+    def storeSpecificSettings(self):
+        self.current_context.modified_variables = self.variables[:]
+
+    def retrieveSpecificSettings(self):
+        if hasattr(self.current_context, "modified_variables"):
+            self.variables[:] = self.current_context.modified_variables
+
+    def apply_domain_edit(self):
+        if self.data is None:
+            table = None
+        else:
+            domain, cols = self.domain_editor.get_domain(self.data.domain, self.data)
+            if not (domain.variables or domain.metas):
+                table = None
+            else:
+                X, y, m = cols
+                table = Table.from_numpy(domain, X, y, m, self.data.W)
+                table.name = self.data.name
+                table.ids = np.array(self.data.ids)
+                table.attributes = getattr(self.data, 'attributes', {})
+
+        self.Outputs.data.send(table)
+        self.apply_button.setEnabled(False)
+
+    def reset_domain_edit(self):
+        self.domain_editor.reset_domain()
+        self.apply_domain_edit()
+
+    def send_report(self):
+        def get_format_name(format):
+            try:
+                return format.DESCRIPTION
+            except AttributeError:
+                return format.__class__.__name__
+
+        if self.data is None:
+            self.report_paragraph("File", "No file.")
+            return
+
+        files = []
+
+        for rp in self.recent_paths:
+            format = _get_reader(rp)
+            files.append([rp.abspath, get_format_name(format)])
+
+        self.report_table("Files", table=files)
+
+        self.report_data("Data", self.data)
+
+    def workflowEnvChanged(self, key, value, oldvalue):
+        """
+        Function called when environment changes (e.g. while saving the scheme)
+        It make sure that all environment connected values are modified
+        (e.g. relative file paths are changed)
+        """
+        self.update_file_list(key, value, oldvalue)
+
+    def update_file_list(self, key, value, oldvalue):
+        if key == "basedir":
+            self._relocate_recent_files()
+            self.set_file_list()
 
 
 def _get_reader(rp):

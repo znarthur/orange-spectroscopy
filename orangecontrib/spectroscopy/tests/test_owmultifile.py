@@ -1,7 +1,12 @@
+import os
+import shutil
+import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import numpy as np
+
+from AnyQt.QtCore import Qt
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import FileFormat, dataset_dirs, Table
@@ -113,10 +118,63 @@ class TestOWMultifile(WidgetTest):
         self.load_files("iris", reader=TabReader)
         settings = self.widget.settingsHandler.pack_data(self.widget)
         self.widget = self.create_widget(OWMultifile, stored_settings=settings)
-        self.assertEqual(self.widget.recent_paths[0].relpath, "iris.tab")
+        self.assertEqual(self.widget.recent_paths[0].basename, "iris.tab")
         self.assertEqual(self.widget.recent_paths[0].file_format, None)
-        self.assertEqual(self.widget.recent_paths[1].relpath, "iris.tab")
+        self.assertEqual(self.widget.recent_paths[1].basename, "iris.tab")
         self.assertEqual(self.widget.recent_paths[1].file_format, "Orange.data.io.TabReader")
+
+    def test_files_relocated_on_saved_workflow(self):
+        tempdir = tempfile.mkdtemp()
+        try:
+            oiris = FileFormat.locate("iris.tab", dataset_dirs)
+            ciris = os.path.join(tempdir, "iris.tab")
+            shutil.copy(oiris, ciris)
+            with patch("Orange.widgets.widget.OWWidget.workflowEnv",
+                       Mock(return_value={"basedir": tempdir})):
+                self.load_files(ciris)
+                self.assertEqual(self.widget.recent_paths[0].relpath, "iris.tab")
+        finally:
+            shutil.rmtree(tempdir)
+
+    def test_files_relocated_after_workflow_save(self):
+        tempdir = tempfile.mkdtemp()
+        try:
+            oiris = FileFormat.locate("iris.tab", dataset_dirs)
+            ciris = os.path.join(tempdir, "iris.tab")
+            shutil.copy(oiris, ciris)
+            self.load_files(ciris)
+            self.assertEqual(self.widget.recent_paths[0].relpath, None)
+            with patch("Orange.widgets.widget.OWWidget.workflowEnv",
+                       Mock(return_value={"basedir": tempdir})):
+                self.widget.workflowEnvChanged("basedir", tempdir, None)  # run to propagate changes
+                self.assertEqual(self.widget.recent_paths[0].relpath, "iris.tab")
+        finally:
+            shutil.rmtree(tempdir)
+
+    def test_saving_domain_edit(self):
+        self.load_files("iris")
+        model = self.widget.domain_editor.model()
+        model.setData(model.createIndex(0, 2), "skip", Qt.EditRole)
+        self.widget.apply_button.click()
+        data = self.get_output(self.widget.Outputs.data)
+        self.assertEqual(3, len(data.domain.attributes))
+        # saving settings
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        # reloading
+        self.widget = self.create_widget(OWMultifile, stored_settings=settings)
+        data = self.get_output(self.widget.Outputs.data)
+        self.assertEqual(3, len(data.domain.attributes))
+
+    def test_reset_domain_edit(self):
+        self.load_files("iris")
+        model = self.widget.domain_editor.model()
+        model.setData(model.createIndex(0, 2), "skip", Qt.EditRole)
+        self.widget.apply_button.click()
+        data = self.get_output(self.widget.Outputs.data)
+        self.assertEqual(3, len(data.domain.attributes))
+        self.widget.reset_domain_edit()
+        data = self.get_output(self.widget.Outputs.data)
+        self.assertEqual(4, len(data.domain.attributes))
 
     def test_special_spectral_reading(self):
 
@@ -150,3 +208,10 @@ class TestOWMultifile(WidgetTest):
             self.assertEqual(CountTabReader.read_count, 1)
             # clear cache so the new classes are thrown out
             FileFormat._ext_to_attr_if_attr2.cache_clear()
+
+    def test_report_on_empty(self):
+        self.widget.send_report()
+
+    def test_report_files(self):
+        self.load_files("iris", "iris")
+        self.widget.send_report()
