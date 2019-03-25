@@ -64,10 +64,10 @@ class CoverageCommand(Command):
     def run(self):
         """Check coverage on current workdir"""
         sys.exit(subprocess.call(r'''
-        coverage run --source=orangecontrib.spectroscopy -m unittest
+        coverage run -m unittest
         echo; echo
-        coverage report --omit="*/tests/*"  --omit="*/utils/skimage/*"
-        coverage html --omit="*/tests/*" --omit="*/utils/skimage/*" &&
+        coverage report
+        coverage html &&
             { echo; echo "See also: file://$(pwd)/htmlcov/index.html"; echo; }
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
