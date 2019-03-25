@@ -11,7 +11,7 @@ matrix:
       env: ORANGE="3.11.0"
 
     - python: '3.6'
-      env: ORANGE="release"
+      env: ORANGE="release"  UPLOAD_COVERAGE=true
 
     - python: '3.6'
       env: ORANGE="master"
@@ -24,7 +24,7 @@ cache:
 
 install:
     # Update pip to be able to install wheel dependencies
-    - pip install -U pip wheel
+    - pip install -U pip wheel codecov
     # 20180124 force PyQt 5.9.2 due to segfaults on new 5.10
     - pip install sip pyqt5==5.9.2
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
