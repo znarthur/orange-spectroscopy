@@ -10,6 +10,7 @@ from AnyQt.QtCore import Qt
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import FileFormat, dataset_dirs, Table
+from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import format_filter
 from Orange.data.io import TabReader
 
@@ -165,6 +166,8 @@ class TestOWMultifile(WidgetTest):
         data = self.get_output(self.widget.Outputs.data)
         self.assertEqual(3, len(data.domain.attributes))
 
+    @unittest.skipIf(not hasattr(DomainEditor, "reset_domain"),
+                     "Orange pre-3.21 does not support reset domain edit")
     def test_reset_domain_edit(self):
         self.load_files("iris")
         model = self.widget.domain_editor.model()

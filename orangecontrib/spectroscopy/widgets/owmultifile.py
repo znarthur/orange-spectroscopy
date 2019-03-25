@@ -221,8 +221,9 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
         box = gui.hBox(self.controlArea)
         gui.rubber(box)
 
-        gui.button(
-            box, self, "Reset", callback=self.reset_domain_edit)
+        if hasattr(DomainEditor, "reset_domain"):  # Orange>=3.21
+            gui.button(
+                box, self, "Reset", callback=self.reset_domain_edit)
         self.apply_button = gui.button(
             box, self, "Apply", callback=self.apply_domain_edit)
         self.apply_button.setEnabled(False)
