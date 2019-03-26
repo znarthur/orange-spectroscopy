@@ -232,3 +232,14 @@ class TestOWMultifile(WidgetTest):
         self.widget = self.create_widget(OWMultifile, stored_settings=settings)
         assert not os.path.exists(ciris)
         self.assertEqual(1, len(self.widget.recent_paths))
+        self.assertTrue(self.widget.Error.file_not_found.is_shown())
+        self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+
+    def test_reader_error(self):
+        self.load_files("iris")
+        self.assertIsNotNone(self.get_output(OWMultifile.Outputs.data))
+        with patch("orangecontrib.spectroscopy.widgets.owmultifile._get_reader",
+                   side_effect=Exception()):
+            self.widget.load_data()
+            self.assertTrue(self.widget.Error.missing_reader.is_shown())
+            self.assertIsNone(self.get_output(OWMultifile.Outputs.data))

@@ -161,6 +161,10 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     xls_sheet = ContextSetting("", schema_only=True)
     variables = ContextSetting([], schema_only=True)
 
+    class Error(widget.OWWidget.Error):
+        file_not_found = widget.Msg("File(s) not found.")
+        missing_reader = widget.Msg("Missing reader(s).")
+
     domain_editor = SettingProvider(DomainEditor)
 
     def __init__(self):
@@ -331,13 +335,30 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     def load_data(self):
         self.closeContext()
 
+        self.Error.file_not_found.clear()
+        self.Error.missing_reader.clear()
+
         data_list = []
         fnok_list = []
+
+        errors_no_file = []
+        errors_no_reader = []
 
         empty_domain = Domain(attributes=[])
         for rp in self.recent_paths:
             fn = rp.abspath
-            reader = _get_reader(rp)
+
+            if not os.path.exists(fn):
+                errors_no_file.append(fn)
+                continue
+
+            try:
+                reader = _get_reader(rp)
+                assert reader is not None
+            except Exception:  # pylint: disable=broad-except
+                errors_no_reader.append(fn)
+                continue
+
             errors = []
             with catch_warnings(record=True) as warnings:
                 try:
@@ -356,6 +377,14 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
                     errors.append(str(ex))
                     #FIXME show error in the list of data
                 self.warning(warnings[-1].message.args[0] if warnings else '')
+
+        if errors_no_file:
+            self.Error.file_not_found()
+            data_list = None
+
+        if errors_no_reader:
+            self.Error.missing_reader()
+            data_list = None
 
         if data_list:
             data = concatenate_data(data_list, fnok_list, self.label)
