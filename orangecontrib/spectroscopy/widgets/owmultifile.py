@@ -3,7 +3,6 @@ from functools import reduce
 from itertools import chain, repeat
 from collections import Counter
 from typing import List
-from warnings import catch_warnings
 
 import numpy as np
 
@@ -164,6 +163,7 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     class Error(widget.OWWidget.Error):
         file_not_found = widget.Msg("File(s) not found.")
         missing_reader = widget.Msg("Missing reader(s).")
+        read_error = widget.Msg("Read error(s).")
 
     domain_editor = SettingProvider(DomainEditor)
 
@@ -338,10 +338,12 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
 
         self.Error.file_not_found.clear()
         self.Error.missing_reader.clear()
+        self.Error.read_error.clear()
 
         data_list = []
         fnok_list = []
 
+        errors = []
         errors_no_file = []
         errors_no_reader = []
 
@@ -370,24 +372,22 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
                 errors_no_reader.append(fn)
                 continue
 
-            errors = []
-            with catch_warnings(record=True) as warnings:
-                try:
-                    if self.sheet in reader.sheets:
-                        reader.select_sheet(self.sheet)
-                    if isinstance(reader, SpectralFileFormat):
-                        xs, vals, additional = reader.read_spectra()
-                        if additional is None:
-                            additional = Table.from_domain(empty_domain, n_rows=len(vals))
-                        data_list.append((xs, vals, additional))
-                    else:
-                        data_list.append(reader.read())
-                    fnok_list.append(fn)
-                except Exception as ex:
-                    errors.append("An error occurred:")
-                    errors.append(str(ex))
-                    #FIXME show error in the list of data
-                self.warning(warnings[-1].message.args[0] if warnings else '')
+            try:
+                if self.sheet in reader.sheets:
+                    reader.select_sheet(self.sheet)
+                if isinstance(reader, SpectralFileFormat):
+                    xs, vals, additional = reader.read_spectra()
+                    if additional is None:
+                        additional = Table.from_domain(empty_domain, n_rows=len(vals))
+                    data_list.append((xs, vals, additional))
+                else:
+                    data_list.append(reader.read())
+                fnok_list.append(fn)
+            except Exception as ex:  # pylint: disable=broad-except
+                error = "Read error:\n" + str(ex)
+                errors.append(error)
+                li.setForeground(Qt.red)
+                li.setToolTip(error)
 
         if errors_no_file:
             self.Error.file_not_found()
@@ -395,6 +395,10 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
 
         if errors_no_reader:
             self.Error.missing_reader()
+            data_list = None
+
+        if errors:
+            self.Error.read_error()
             data_list = None
 
         if data_list:

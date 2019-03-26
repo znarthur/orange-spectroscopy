@@ -237,7 +237,7 @@ class TestOWMultifile(WidgetTest):
         self.assertEqual("File not found.", self.widget.lb.item(0).toolTip())
         self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
 
-    def test_reader_error(self):
+    def test_reader_not_found_error(self):
         self.load_files("iris")
         self.assertIsNotNone(self.get_output(OWMultifile.Outputs.data))
         with patch("orangecontrib.spectroscopy.widgets.owmultifile._get_reader",
@@ -246,4 +246,15 @@ class TestOWMultifile(WidgetTest):
             self.assertTrue(self.widget.Error.missing_reader.is_shown())
             self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
             self.assertEqual("Reader not found.", self.widget.lb.item(0).toolTip())
+            self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
+
+    def test_unknown_reader_error(self):
+        self.load_files("iris")
+        self.assertIsNotNone(self.get_output(OWMultifile.Outputs.data))
+        with patch("Orange.data.io.TabReader.read",
+                   side_effect=Exception("test")):
+            self.widget.load_data()
+            self.assertTrue(self.widget.Error.read_error.is_shown())
+            self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+            self.assertEqual("Read error:\ntest", self.widget.lb.item(0).toolTip())
             self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
