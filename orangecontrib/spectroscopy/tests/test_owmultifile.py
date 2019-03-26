@@ -234,6 +234,8 @@ class TestOWMultifile(WidgetTest):
         self.assertEqual(1, len(self.widget.recent_paths))
         self.assertTrue(self.widget.Error.file_not_found.is_shown())
         self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+        self.assertEqual("File not found.", self.widget.lb.item(0).toolTip())
+        self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
 
     def test_reader_error(self):
         self.load_files("iris")
@@ -243,3 +245,5 @@ class TestOWMultifile(WidgetTest):
             self.widget.load_data()
             self.assertTrue(self.widget.Error.missing_reader.is_shown())
             self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+            self.assertEqual("Reader not found.", self.widget.lb.item(0).toolTip())
+            self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())

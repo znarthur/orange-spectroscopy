@@ -177,6 +177,7 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
 
         self.lb = gui.listBox(self.controlArea, self, "file_idx",
                               selectionMode=QListWidget.MultiSelection)
+        self.default_foreground = None
 
         layout = QGridLayout()
         gui.widgetBox(self.controlArea, margin=0, orientation=layout)
@@ -345,10 +346,18 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
         errors_no_reader = []
 
         empty_domain = Domain(attributes=[])
-        for rp in self.recent_paths:
+        for i, rp in enumerate(self.recent_paths):
             fn = rp.abspath
 
+            li = self.lb.item(i)
+            li.setToolTip("")
+            if self.default_foreground is None:
+                self.default_foreground = li.foreground()
+            li.setForeground(self.default_foreground)
+
             if not os.path.exists(fn):
+                li.setForeground(Qt.red)
+                li.setToolTip("File not found.")
                 errors_no_file.append(fn)
                 continue
 
@@ -356,6 +365,8 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
                 reader = _get_reader(rp)
                 assert reader is not None
             except Exception:  # pylint: disable=broad-except
+                li.setForeground(Qt.red)
+                li.setToolTip("Reader not found.")
                 errors_no_reader.append(fn)
                 continue
 
