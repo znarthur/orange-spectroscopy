@@ -218,3 +218,17 @@ class TestOWMultifile(WidgetTest):
     def test_report_files(self):
         self.load_files("iris", "iris")
         self.widget.send_report()
+
+    def test_missing_files_do_not_disappear(self):
+        tempdir = tempfile.mkdtemp()
+        try:
+            oiris = FileFormat.locate("iris.tab", dataset_dirs)
+            ciris = os.path.join(tempdir, "iris.tab")
+            shutil.copy(oiris, ciris)
+            self.load_files(ciris)
+            settings = self.widget.settingsHandler.pack_data(self.widget)
+        finally:
+            shutil.rmtree(tempdir)
+        self.widget = self.create_widget(OWMultifile, stored_settings=settings)
+        assert not os.path.exists(ciris)
+        self.assertEqual(1, len(self.widget.recent_paths))

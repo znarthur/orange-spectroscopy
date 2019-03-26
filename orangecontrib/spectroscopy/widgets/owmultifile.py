@@ -9,7 +9,7 @@ import numpy as np
 
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDialog,\
-    QApplication, QStyle, QListWidget
+    QStyle, QListWidget
 
 from Orange.data import Domain, Table, ContinuousVariable, StringVariable
 from Orange.data.io import FileFormat, class_from_qualified_name
@@ -113,7 +113,24 @@ def concatenate_data(tables, filenames, label):
     return data
 
 
-class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
+class RelocatablePathsWidgetMixin(RecentPathsWidgetMixin):
+    """
+    Do not rearrangee the file list as the RecentPathsWidgetMixin does.
+    """
+
+    def add_path(self, filename, reader):
+        """Add (or move) a file name to the top of recent paths"""
+        self._check_init()
+        recent = RecentPath.create(filename, self._search_paths())
+        if reader is not None:
+            recent.file_format = reader.qualified_name()
+        self.recent_paths.append(recent)
+
+    def select_file(self, n):
+        return NotImplementedError
+
+
+class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     name = "Multifile"
     id = "orangecontrib.spectroscopy.widgets.files"
     icon = "icons/multifile.svg"
@@ -148,7 +165,7 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
 
     def __init__(self):
         widget.OWWidget.__init__(self)
-        RecentPathsWidgetMixin.__init__(self)
+        RelocatablePathsWidgetMixin.__init__(self)
         self.domain = None
         self.data = None
         self.loaded_file = ""
@@ -216,8 +233,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
         for rp in self.recent_paths:
             self.lb.addItem(rp.abspath)
 
-        # TODO unresolved paths just disappear! Modify _relocate_recent_files
-
         box = gui.hBox(self.controlArea)
         gui.rubber(box)
 
@@ -236,16 +251,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
 
     def set_label(self):
         self.load_data()
-
-    def add_path(self, filename, reader=None):
-        recent = RecentPath.create(filename, self._search_paths())
-        if reader is not None:
-            recent.file_format = reader.qualified_name()
-        self.recent_paths.append(recent)
-
-    def set_file_list(self):
-        # need to define it for RecentPathsWidgetMixin
-        pass
 
     def _select_active_sheet(self):
         if self.sheet:
@@ -422,7 +427,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
     def update_file_list(self, key, value, oldvalue):
         if key == "basedir":
             self._relocate_recent_files()
-            self.set_file_list()
 
 
 def _get_reader(rp):
@@ -433,10 +437,7 @@ def _get_reader(rp):
         return FileFormat.get_reader(rp.abspath)
 
 
-if __name__ == "__main__":
-    import sys
-    a = QApplication(sys.argv)
-    ow = OWMultifile()
-    ow.show()
-    a.exec_()
-    ow.saveSettings()
+if __name__ == "__main__":  # pragma: no cover
+    # pylint: disable=ungrouped-imports
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWMultifile).run(Table("collagen.csv"))
