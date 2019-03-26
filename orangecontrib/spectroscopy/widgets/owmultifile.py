@@ -343,9 +343,9 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
         data_list = []
         fnok_list = []
 
-        errors = []
-        errors_no_file = []
-        errors_no_reader = []
+        def show_error(li, msg):
+            li.setForeground(Qt.red)
+            li.setToolTip(msg)
 
         empty_domain = Domain(attributes=[])
         for i, rp in enumerate(self.recent_paths):
@@ -358,18 +358,16 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
             li.setForeground(self.default_foreground)
 
             if not os.path.exists(fn):
-                li.setForeground(Qt.red)
-                li.setToolTip("File not found.")
-                errors_no_file.append(fn)
+                show_error(li, "File not found.")
+                self.Error.file_not_found()
                 continue
 
             try:
                 reader = _get_reader(rp)
                 assert reader is not None
             except Exception:  # pylint: disable=broad-except
-                li.setForeground(Qt.red)
-                li.setToolTip("Reader not found.")
-                errors_no_reader.append(fn)
+                show_error(li, "Reader not found.")
+                self.Error.missing_reader()
                 continue
 
             try:
@@ -384,30 +382,19 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
                     data_list.append(reader.read())
                 fnok_list.append(fn)
             except Exception as ex:  # pylint: disable=broad-except
-                error = "Read error:\n" + str(ex)
-                errors.append(error)
-                li.setForeground(Qt.red)
-                li.setToolTip(error)
+                show_error(li, "Read error:\n" + str(ex))
+                self.Error.read_error()
 
-        if errors_no_file:
-            self.Error.file_not_found()
-            data_list = None
-
-        if errors_no_reader:
-            self.Error.missing_reader()
-            data_list = None
-
-        if errors:
-            self.Error.read_error()
-            data_list = None
-
-        if data_list:
+        if not data_list \
+                or self.Error.file_not_found.is_shown() \
+                or self.Error.missing_reader.is_shown() \
+                or self.Error.read_error.is_shown():
+            self.data = None
+            self.domain_editor.set_domain(None)
+        else:
             data = concatenate_data(data_list, fnok_list, self.label)
             self.data = data
             self.openContext(data.domain)
-        else:
-            self.data = None
-            self.domain_editor.set_domain(None)
 
         self.apply_domain_edit()  # sends data
 
