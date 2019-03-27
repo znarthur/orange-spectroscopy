@@ -3,13 +3,12 @@ from functools import reduce
 from itertools import chain, repeat
 from collections import Counter
 from typing import List
-from warnings import catch_warnings
 
 import numpy as np
 
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QSizePolicy as Policy, QGridLayout, QLabel, QFileDialog,\
-    QApplication, QStyle, QListWidget
+    QStyle, QListWidget
 
 from Orange.data import Domain, Table, ContinuousVariable, StringVariable
 from Orange.data.io import FileFormat, class_from_qualified_name
@@ -113,7 +112,24 @@ def concatenate_data(tables, filenames, label):
     return data
 
 
-class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
+class RelocatablePathsWidgetMixin(RecentPathsWidgetMixin):
+    """
+    Do not rearrangee the file list as the RecentPathsWidgetMixin does.
+    """
+
+    def add_path(self, filename, reader):
+        """Add (or move) a file name to the top of recent paths"""
+        self._check_init()
+        recent = RecentPath.create(filename, self._search_paths())
+        if reader is not None:
+            recent.file_format = reader.qualified_name()
+        self.recent_paths.append(recent)
+
+    def select_file(self, n):
+        return NotImplementedError
+
+
+class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     name = "Multifile"
     id = "orangecontrib.spectroscopy.widgets.files"
     icon = "icons/multifile.svg"
@@ -144,11 +160,16 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
     xls_sheet = ContextSetting("", schema_only=True)
     variables = ContextSetting([], schema_only=True)
 
+    class Error(widget.OWWidget.Error):
+        file_not_found = widget.Msg("File(s) not found.")
+        missing_reader = widget.Msg("Missing reader(s).")
+        read_error = widget.Msg("Read error(s).")
+
     domain_editor = SettingProvider(DomainEditor)
 
     def __init__(self):
         widget.OWWidget.__init__(self)
-        RecentPathsWidgetMixin.__init__(self)
+        RelocatablePathsWidgetMixin.__init__(self)
         self.domain = None
         self.data = None
         self.loaded_file = ""
@@ -156,6 +177,7 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
 
         self.lb = gui.listBox(self.controlArea, self, "file_idx",
                               selectionMode=QListWidget.MultiSelection)
+        self.default_foreground = None
 
         layout = QGridLayout()
         gui.widgetBox(self.controlArea, margin=0, orientation=layout)
@@ -216,8 +238,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
         for rp in self.recent_paths:
             self.lb.addItem(rp.abspath)
 
-        # TODO unresolved paths just disappear! Modify _relocate_recent_files
-
         box = gui.hBox(self.controlArea)
         gui.rubber(box)
 
@@ -236,16 +256,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
 
     def set_label(self):
         self.load_data()
-
-    def add_path(self, filename, reader=None):
-        recent = RecentPath.create(filename, self._search_paths())
-        if reader is not None:
-            recent.file_format = reader.qualified_name()
-        self.recent_paths.append(recent)
-
-    def set_file_list(self):
-        # need to define it for RecentPathsWidgetMixin
-        pass
 
     def _select_active_sheet(self):
         if self.sheet:
@@ -326,39 +336,65 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
     def load_data(self):
         self.closeContext()
 
+        self.Error.file_not_found.clear()
+        self.Error.missing_reader.clear()
+        self.Error.read_error.clear()
+
         data_list = []
         fnok_list = []
 
-        empty_domain = Domain(attributes=[])
-        for rp in self.recent_paths:
-            fn = rp.abspath
-            reader = _get_reader(rp)
-            errors = []
-            with catch_warnings(record=True) as warnings:
-                try:
-                    if self.sheet in reader.sheets:
-                        reader.select_sheet(self.sheet)
-                    if isinstance(reader, SpectralFileFormat):
-                        xs, vals, additional = reader.read_spectra()
-                        if additional is None:
-                            additional = Table.from_domain(empty_domain, n_rows=len(vals))
-                        data_list.append((xs, vals, additional))
-                    else:
-                        data_list.append(reader.read())
-                    fnok_list.append(fn)
-                except Exception as ex:
-                    errors.append("An error occurred:")
-                    errors.append(str(ex))
-                    #FIXME show error in the list of data
-                self.warning(warnings[-1].message.args[0] if warnings else '')
+        def show_error(li, msg):
+            li.setForeground(Qt.red)
+            li.setToolTip(msg)
 
-        if data_list:
+        empty_domain = Domain(attributes=[])
+        for i, rp in enumerate(self.recent_paths):
+            fn = rp.abspath
+
+            li = self.lb.item(i)
+            li.setToolTip("")
+            if self.default_foreground is None:
+                self.default_foreground = li.foreground()
+            li.setForeground(self.default_foreground)
+
+            if not os.path.exists(fn):
+                show_error(li, "File not found.")
+                self.Error.file_not_found()
+                continue
+
+            try:
+                reader = _get_reader(rp)
+                assert reader is not None
+            except Exception:  # pylint: disable=broad-except
+                show_error(li, "Reader not found.")
+                self.Error.missing_reader()
+                continue
+
+            try:
+                if self.sheet in reader.sheets:
+                    reader.select_sheet(self.sheet)
+                if isinstance(reader, SpectralFileFormat):
+                    xs, vals, additional = reader.read_spectra()
+                    if additional is None:
+                        additional = Table.from_domain(empty_domain, n_rows=len(vals))
+                    data_list.append((xs, vals, additional))
+                else:
+                    data_list.append(reader.read())
+                fnok_list.append(fn)
+            except Exception as ex:  # pylint: disable=broad-except
+                show_error(li, "Read error:\n" + str(ex))
+                self.Error.read_error()
+
+        if not data_list \
+                or self.Error.file_not_found.is_shown() \
+                or self.Error.missing_reader.is_shown() \
+                or self.Error.read_error.is_shown():
+            self.data = None
+            self.domain_editor.set_domain(None)
+        else:
             data = concatenate_data(data_list, fnok_list, self.label)
             self.data = data
             self.openContext(data.domain)
-        else:
-            self.data = None
-            self.domain_editor.set_domain(None)
 
         self.apply_domain_edit()  # sends data
 
@@ -422,7 +458,6 @@ class OWMultifile(widget.OWWidget, RecentPathsWidgetMixin):
     def update_file_list(self, key, value, oldvalue):
         if key == "basedir":
             self._relocate_recent_files()
-            self.set_file_list()
 
 
 def _get_reader(rp):
@@ -433,10 +468,7 @@ def _get_reader(rp):
         return FileFormat.get_reader(rp.abspath)
 
 
-if __name__ == "__main__":
-    import sys
-    a = QApplication(sys.argv)
-    ow = OWMultifile()
-    ow.show()
-    a.exec_()
-    ow.saveSettings()
+if __name__ == "__main__":  # pragma: no cover
+    # pylint: disable=ungrouped-imports
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWMultifile).run(Table("collagen.csv"))

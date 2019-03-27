@@ -218,3 +218,43 @@ class TestOWMultifile(WidgetTest):
     def test_report_files(self):
         self.load_files("iris", "iris")
         self.widget.send_report()
+
+    def test_missing_files_do_not_disappear(self):
+        tempdir = tempfile.mkdtemp()
+        try:
+            oiris = FileFormat.locate("iris.tab", dataset_dirs)
+            ciris = os.path.join(tempdir, "iris.tab")
+            shutil.copy(oiris, ciris)
+            self.load_files(ciris)
+            settings = self.widget.settingsHandler.pack_data(self.widget)
+        finally:
+            shutil.rmtree(tempdir)
+        self.widget = self.create_widget(OWMultifile, stored_settings=settings)
+        assert not os.path.exists(ciris)
+        self.assertEqual(1, len(self.widget.recent_paths))
+        self.assertTrue(self.widget.Error.file_not_found.is_shown())
+        self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+        self.assertEqual("File not found.", self.widget.lb.item(0).toolTip())
+        self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
+
+    def test_reader_not_found_error(self):
+        self.load_files("iris")
+        self.assertIsNotNone(self.get_output(OWMultifile.Outputs.data))
+        with patch("orangecontrib.spectroscopy.widgets.owmultifile._get_reader",
+                   side_effect=Exception()):
+            self.widget.load_data()
+            self.assertTrue(self.widget.Error.missing_reader.is_shown())
+            self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+            self.assertEqual("Reader not found.", self.widget.lb.item(0).toolTip())
+            self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
+
+    def test_unknown_reader_error(self):
+        self.load_files("iris")
+        self.assertIsNotNone(self.get_output(OWMultifile.Outputs.data))
+        with patch("Orange.data.io.TabReader.read",
+                   side_effect=Exception("test")):
+            self.widget.load_data()
+            self.assertTrue(self.widget.Error.read_error.is_shown())
+            self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
+            self.assertEqual("Read error:\ntest", self.widget.lb.item(0).toolTip())
+            self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
