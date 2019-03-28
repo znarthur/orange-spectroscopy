@@ -157,7 +157,6 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     sheet = Setting(None, schema_only=True)
     label = Setting("", schema_only=True)
     recent_paths = Setting([], schema_only=True)
-    xls_sheet = ContextSetting("", schema_only=True)
     variables = ContextSetting([], schema_only=True)
 
     class Error(widget.OWWidget.Error):
@@ -205,9 +204,9 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
         layout.addWidget(reload_button, 0, 7)
 
         self.sheet_box = gui.hBox(None, addToLayout=False, margin=0)
-        self.sheet_combo = gui.comboBox(None, self, "xls_sheet",
-                                        callback=self.select_sheet,
-                                        sendSelectedValue=True)
+        self.sheet_index = 0
+        self.sheet_combo = gui.comboBox(None, self, "sheet_index",
+                                        callback=self.select_sheet)
         self.sheet_combo.setSizePolicy(
             Policy.MinimumExpanding, Policy.Fixed)
         self.sheet_label = QLabel()
@@ -471,4 +470,4 @@ def _get_reader(rp):
 if __name__ == "__main__":  # pragma: no cover
     # pylint: disable=ungrouped-imports
     from Orange.widgets.utils.widgetpreview import WidgetPreview
-    WidgetPreview(OWMultifile).run(Table("collagen.csv"))
+    WidgetPreview(OWMultifile).run()
