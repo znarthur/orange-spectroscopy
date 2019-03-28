@@ -17,11 +17,6 @@ from Orange.data.io import TabReader
 from orangecontrib.spectroscopy.data import SPAReader
 from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 
-try:
-    import opusFC
-except ImportError:
-    opusFC = None
-
 
 class TestOWFilesAuxiliary(unittest.TestCase):
 
@@ -107,12 +102,6 @@ class TestOWMultifile(WidgetTest):
         self.widget.remove_item()
         out = self.get_output("Data")
         self.assertIsNone(out)
-
-    @unittest.skipIf(opusFC is None, "opusFC module not installed")
-    def test_sheet_file(self):
-        self.load_files("peach_juice.0")
-        self.widget.sheet_combo.setCurrentIndex(1)
-        self.widget.select_sheet()
 
     def test_saving_setting(self):
         self.load_files("iris")
@@ -258,3 +247,17 @@ class TestOWMultifile(WidgetTest):
             self.assertIsNone(self.get_output(OWMultifile.Outputs.data))
             self.assertEqual("Read error:\ntest", self.widget.lb.item(0).toolTip())
             self.assertEqual(Qt.red, self.widget.lb.item(0).foreground())
+
+    def test_sheet_setting(self):
+        self.load_files("rock.txt")
+        self.widget.sheet_combo.setCurrentIndex(2)
+        self.widget.select_sheet()
+        self.assertEqual(self.widget.sheet, "3")
+        out = self.get_output(OWMultifile.Outputs.data)
+        self.assertAlmostEqual(0.91213142, out.X[0][0])
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWMultifile, stored_settings=settings)
+        self.assertEqual(self.widget.sheet, "3")
+        self.assertEqual(2, self.widget.sheet_combo.currentIndex())
+        out = self.get_output(OWMultifile.Outputs.data)
+        self.assertAlmostEqual(0.91213142, out.X[0][0])
