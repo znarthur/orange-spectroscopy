@@ -28,6 +28,8 @@ install:
     # 20180124 force PyQt 5.9.2 due to segfaults on new 5.10
     - pip install sip pyqt5==5.9.2
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
+    # opusFC is not installed by default - install for tests
+    - pip install opusFC
     - pip install -e .
 
 script:
