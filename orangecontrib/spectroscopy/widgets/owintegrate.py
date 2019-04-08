@@ -10,7 +10,7 @@ from Orange.widgets.data.owpreprocess import (
     PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked
 )
 from Orange.widgets import gui, settings
-from Orange.widgets.widget import Output
+from Orange.widgets.widget import Output, Msg
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Integrate
@@ -20,18 +20,22 @@ from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owpreprocess import (
     SpectralPreprocess
 )
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, SetXDoubleSpinBox
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
+    SetXDoubleSpinBox
 
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 
 
-class IntegrateOneEditor(BaseEditor):
+class IntegrateOneEditor(BaseEditorOrange):
+
+    class Warning(BaseEditorOrange.Warning):
+        out_of_range = Msg("Limit out of range.")
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
         layout = QFormLayout()
-        self.setLayout(layout)
+        self.controlArea.setLayout(layout)
 
         minf, maxf = -sys.float_info.max, sys.float_info.max
 
@@ -97,6 +101,21 @@ class IntegrateOneEditor(BaseEditor):
         for ind, (name, _) in enumerate(cls.integrator.parameters()):
             values.append(params.get(name, 0.))
         return Integrate(methods=cls.integrator, limits=[values], metas=True)
+
+    def execute_instance(self, instance, data):
+        self.Warning.out_of_range.clear()
+        if data:
+            xs = getx(data)
+            if len(xs):
+                minx = np.min(xs)
+                maxx = np.max(xs)
+                # we use single integrals per Integrate: len(instance.limits) == 1
+                limits = instance.limits[0]
+                for v in limits:
+                    if v < minx or v > maxx:
+                        self.parent_widget.Warning.preprocessor()
+                        self.Warning.out_of_range()
+        return instance(data)
 
 
 class IntegrateSimpleEditor(IntegrateOneEditor):

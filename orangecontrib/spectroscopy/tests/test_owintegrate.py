@@ -103,6 +103,18 @@ class TestOWIntegrate(WidgetTest):
         self.widget.show_preview()
         self.assertGreater(len(self.widget.curveplot.markings), 0)
 
+    def test_out_of_range(self):
+        data = Orange.data.Table("iris.tab")
+        self.send_signal(OWIntegrate.Inputs.data, data)
+        self.widget.add_preprocessor(pack_editor(IntegrateSimpleEditor))
+        editor = self.widget.flow_view.widgets()[0]
+        editor.set_value("Low limit", 0)
+        editor.edited.emit()
+        self.assertFalse(editor.Warning.out_of_range.is_shown())
+        editor.set_value("Low limit", -1)
+        editor.edited.emit()
+        self.assertTrue(editor.Warning.out_of_range.is_shown())
+
 
 class TestIntegrateWarning(spectral_preprocess.TestWarning):
     widget_cls = OWIntegrate
