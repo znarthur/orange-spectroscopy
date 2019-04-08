@@ -1,10 +1,8 @@
-import sys
-import gc
 import collections
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
-    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter, \
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QWidgetAction, QSplitter, \
     QToolTip
 from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemModel, \
     QStandardItem, QLinearGradient, QPixmap, QIcon
@@ -927,27 +925,6 @@ class OWHyper(OWWidget):
         self.imageplot.save_graph()
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-    argv = list(argv)
-    app = QApplication(argv)
-    w = OWHyper()
-    w.show()
-    from orangecontrib.spectroscopy.tests.bigdata import dust
-    #data = Orange.data.Table("whitelight.gsf")
-    data = Orange.data.Table(dust())
-    #data = Orange.data.Table("iris.tab")
-    w.set_data(data)
-    w.handleNewSignals()
-    rval = app.exec_()
-    w.set_data(None)
-    w.handleNewSignals()
-    w.deleteLater()
-    del w
-    app.processEvents()
-    gc.collect()
-    return rval
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWHyper).run(Orange.data.Table("iris.tab"))
