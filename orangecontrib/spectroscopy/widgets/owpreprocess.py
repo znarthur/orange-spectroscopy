@@ -260,9 +260,6 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     def setParameters(self, params):
         self.sd = params.get("sd", self.DEFAULT_SD)
 
-    def execute_instance(self, instance, data):
-        return instance(data)
-
     @classmethod
     def createinstance(cls, params):
         params = dict(params)
