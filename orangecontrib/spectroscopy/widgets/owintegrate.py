@@ -136,6 +136,7 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
             x = getx(data)
             if len(x):
                 self.set_value("Closest to", min(x))
+                self.edited.emit()
 
 
 class IntegratePeakXEditor(IntegrateSimpleEditor):
