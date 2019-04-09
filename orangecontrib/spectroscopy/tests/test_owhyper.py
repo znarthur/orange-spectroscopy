@@ -113,7 +113,6 @@ class TestOWHyper(WidgetTest):
         self.send_signal("Data", self.iris1)
         self.assertIsNone(self.widget.imageplot.attr_x)
         self.send_signal("Data", self.iris)
-        print(self.widget.imageplot.attr_x)
         self.assertIsNotNone(self.widget.imageplot.attr_x)
 
     def test_no_samples(self):
