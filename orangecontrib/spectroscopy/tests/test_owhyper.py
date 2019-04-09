@@ -1,8 +1,8 @@
 import os
 import unittest
-import numpy as np
-
 from unittest.mock import patch
+
+import numpy as np
 
 from AnyQt.QtCore import QPointF, Qt
 import Orange
@@ -30,7 +30,7 @@ class TestReadCoordinates(unittest.TestCase):
         np.testing.assert_equal(np.linspace(*v), [1.001, 2.0015, 3.002])
 
     def test_index(self):
-        a = np.array([1,2,3])
+        a = np.array([1, 2, 3])
         v = values_to_linspace(a)
         iv = index_values(a, v)
         np.testing.assert_equal(iv, [0, 1, 2])
@@ -45,7 +45,7 @@ class TestReadCoordinates(unittest.TestCase):
 
     def test_location(self):
         lsc = values_to_linspace(np.array([1, 1, 1]))  # a constant
-        lv = location_values([0,1,2], lsc)
+        lv = location_values([0, 1, 2], lsc)
         np.testing.assert_equal(lv, [-1, 0, 1])
 
 
@@ -92,8 +92,8 @@ class TestOWHyper(WidgetTest):
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         # dataset without any attributes, but XY
-        whitelight0 = Orange.data.Table(Orange.data.Domain([], None,
-            metas=cls.whitelight.domain.metas), cls.whitelight)
+        whitelight0 = Orange.data.Table(
+            Orange.data.Domain([], None, metas=cls.whitelight.domain.metas), cls.whitelight)
         cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0]
 
     def setUp(self):
@@ -232,7 +232,7 @@ class TestOWHyper(WidgetTest):
             np.testing.assert_equal(len(p.call_args[0][0]), 3)  # just 3 colors for 3 values
             self.widget.attr_value = "petal width"
             self.widget.imageplot.update_color_schema()
-            np.testing.assert_equal(len(p.call_args[0][0]), 256)  # a full scale for a continuous variable
+            np.testing.assert_equal(len(p.call_args[0][0]), 256)  # 256 for a continuous variable
 
     def test_single_update_view(self):
         with patch("orangecontrib.spectroscopy.widgets.owhyper.ImagePlot.update_view") as p:
