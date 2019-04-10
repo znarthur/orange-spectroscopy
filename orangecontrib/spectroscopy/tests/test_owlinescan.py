@@ -74,6 +74,14 @@ class TestOWLineScan(WidgetTest):
     def test_select_click(self):
         self.send_signal("Data", self.whitelight)
         self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        # work by indices
+        out = self.get_output("Selection")
+        np.testing.assert_equal(out.metas[:, 0], 1)
+        np.testing.assert_equal(out.metas[:, 1], 0)
+        # select a feature
+        self.widget.imageplot.attr_x = "x"
+        self.widget.imageplot.update_attr()
+        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
         np.testing.assert_equal(out.metas[:, 1], np.arange(100))

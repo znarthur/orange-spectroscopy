@@ -92,7 +92,8 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         box = gui.vBox(self)
         box.setFocusPolicy(Qt.TabFocus)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
-                                    valid_types=DomainModel.PRIMITIVE)
+                                    valid_types=DomainModel.PRIMITIVE,
+                                    placeholder="Position (index)")
         self.cb_attr_x = gui.comboBox(
             box, self, "attr_x", label="Axis x:", callback=self.update_attr,
             model=self.xy_model, **common_options)
@@ -162,14 +163,16 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         self.wavenumbers = None
         self.data_xs = None
         self.data_imagepixels = None
-        if self.data and self.attr_x and len(self.data.domain.attributes):
-            xat = self.data.domain[self.attr_x]
-
-            ndom = Domain([xat])
-            datam = Table(ndom, self.data)
-            coorx = datam.X[:, 0]
+        if self.data and len(self.data.domain.attributes):
+            if self.attr_x is not None:
+                xat = self.data.domain[self.attr_x]
+                ndom = Domain([xat])
+                datam = Table(ndom, self.data)
+                coorx = datam.X[:, 0]
+            else:
+                coorx = np.arange(len(self.data))
             self.lsx = lsx = values_to_linspace(coorx)
-            self.data_xs = datam.X
+            self.data_xs = coorx
 
             self.wavenumbers = wavenumbers = getx(self.data)
             self.lsy = lsy = values_to_linspace(wavenumbers)
@@ -227,7 +230,7 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         if self.data and self.lsx and self.lsy:
             x, y = pos.x(), pos.y()
             x_distance = np.abs(self.data_xs - x)
-            sel = (x_distance[:, 0] < _shift(self.lsx))
+            sel = (x_distance < _shift(self.lsx))
             wavenumber_distance = np.abs(self.wavenumbers - y)
             wavenumber_ind = np.argmin(wavenumber_distance)
             return sel, wavenumber_ind
