@@ -1,3 +1,4 @@
+import os
 import unittest
 import numpy as np
 
@@ -11,7 +12,7 @@ from orangecontrib.spectroscopy.widgets.owhyper import values_to_linspace, \
     index_values, OWHyper, location_values, ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.spectroscopy.preprocess import Interpolate
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon, is_left
-from orangecontrib.spectroscopy.tests.util import hold_modifiers
+from orangecontrib.spectroscopy.tests.util import hold_modifiers, set_png_graph_save
 
 NAN = float("nan")
 
@@ -250,3 +251,9 @@ class TestOWHyper(WidgetTest):
         self.send_signal("Data", None)
         self.widget.controls.value_type.buttons[1].click()
         self.widget.imageplot.update_color_schema()
+
+    def test_save_graph(self):
+        self.send_signal("Data", self.iris)
+        with set_png_graph_save() as fname:
+            self.widget.save_graph()
+            self.assertGreater(os.path.getsize(fname), 1000)

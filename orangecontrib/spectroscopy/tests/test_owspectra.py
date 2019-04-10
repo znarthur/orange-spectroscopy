@@ -1,3 +1,4 @@
+import os
 from unittest.mock import Mock, patch
 
 from AnyQt.QtCore import QRectF, QPoint, Qt
@@ -14,7 +15,7 @@ from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra, MAX_INSTANCE
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.line_geometry import intersect_curves, \
     distance_line_segment
-from orangecontrib.spectroscopy.tests.util import hold_modifiers
+from orangecontrib.spectroscopy.tests.util import hold_modifiers, set_png_graph_save
 from orangecontrib.spectroscopy.preprocess import Interpolate
 
 
@@ -467,3 +468,9 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual([], curveplot.curves)
         curveplot.update_view()
         self.assertEqual(3, len(curveplot.curves[0][1]))
+
+    def test_save_graph(self):
+        self.send_signal("Data", self.iris)
+        with set_png_graph_save() as fname:
+            self.widget.save_graph()
+            self.assertGreater(os.path.getsize(fname), 10000)

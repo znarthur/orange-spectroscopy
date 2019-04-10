@@ -19,7 +19,6 @@ import pyqtgraph as pg
 import colorcet
 
 import Orange.data
-from Orange.data import FileFormat
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -539,7 +538,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
             else self.attr_x
 
     def save_graph(self):
-        saveplot.save_plot(self.plotview, FileFormat.img_writers)
+        saveplot.save_plot(self.plotview, self.parent.graph_writers)
 
     def set_data(self, data):
         if data:
@@ -925,7 +924,6 @@ class OWHyper(OWWidget):
         self.disable_integral_range = False
 
     def save_graph(self):
-        # directly call save_graph so it hides axes
         self.imageplot.save_graph()
 
 
