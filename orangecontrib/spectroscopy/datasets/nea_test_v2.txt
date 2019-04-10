@@ -1,0 +1,36 @@
+# www.neaspec.com
+# Scan:	 	Fourier Scan
+# Project:	 	Emilson Viana_Nov_2018
+# Description:	 	SnO2_177mA_linescan
+# Date:	 	11/29/2018 13:15:59
+# Reference:	 	11/29/2018 12:39:53 Au_ref_184mA
+# Scanner Center Position (X, Y):	[µm]	48.73	42.00	 
+# Rotation:	[°]	+82	 	 
+# Scan Area (X, Y, Z):	[µm]	1.200	0.000	0.000
+# Pixel Area (X, Y, Z):	[px]	41	1	1024
+# Interferometer Center/Distance:	[µm]	700.000	1,399.168	 
+# Averaging:	 	3	 	 
+# Integration time:	[ms]	20	 	 
+# Laser Source:	 	
+# Target Wavelength:	[µm]		 	 
+# Demodulation Mode:	 	Fourier
+# Tip Frequency:	[Hz]	250,336.585	 	 
+# Tip Amplitude:	[mV]	32.000	 	 
+# Tapping Amplitude:	[nm]	73.374	 	 
+# Modulation Frequency:	[Hz]	0.000	 	 
+# Modulation Amplitude:	[mV]	0.000	 	 
+# Modulation Offset:	[mV]	0.000	 	 
+# Setpoint:	[%]	60.47	 	 
+# Regulator (P, I, D):	 	2.046908	2.525115	1.000000
+# Tip Potential:	[mV]	0.000	 	 
+# M1A Scaling:	[nm/V]	2.990	 	 
+# Version:	 	1.8.4786.0
+Row	Column	Omega	Wavenumber	O0A	O0P	O1A
+0	0	0	15	92	21	12
+0	0	1	89	90	232	100
+0	1	0	15	32	92	11
+0	1	1	89	11	102	211
+1	0	0	15	38	19	27
+1	0	1	89	29	10	57
+1	1	0	15	283	23	99
+1	1	1	89	1	2	3
