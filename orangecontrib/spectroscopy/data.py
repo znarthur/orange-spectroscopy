@@ -957,10 +957,10 @@ class NeaReader(FileFormat, SpectralFileFormat):
 
     def read_v2(self):
 
-        # Find line in which data begins ########################### Max header lines = 100 #######################
+        # Find line in which data begins
         count = 0
         with open(self.filename, "r") as f:
-            for _ in range(100):
+            while f:
                 line = f.readline()
                 count = count + 1
                 if line[0] != '#':
@@ -968,7 +968,7 @@ class NeaReader(FileFormat, SpectralFileFormat):
 
             file = np.loadtxt(f)  # Slower part
 
-        # Find the Wavenumber column ##############################################################
+        # Find the Wavenumber column
         line = line.strip().split('\t')
 
         for i, e in enumerate(line):
@@ -976,20 +976,17 @@ class NeaReader(FileFormat, SpectralFileFormat):
                 index = i
                 break
 
-        # Channel need to have exactly 3 letters #######################################################################
+        # Channel need to have exactly 3 letters
         Channel = line[index + 1:]
         Channel = np.array(Channel)
-        print(Channel)
-        print(Channel.size)
-        # Extract other data ####################################################################################
+        # Extract other data #
         Max_row = int(file[:, 0].max() + 1)
         Max_col = int(file[:, 1].max() + 1)
         Max_omega = int(file[:, 2].max() + 1)
         N_rows = Max_row * Max_col * Channel.size
         N_cols = Max_omega
 
-        # Transform Actual Data #####################################################################
-
+        # Transform Actual Data
         M = np.full((int(N_rows), int(N_cols)), np.nan, dtype='float')
 
         for j in range(int(Max_row * Max_col)):
@@ -1007,7 +1004,7 @@ class NeaReader(FileFormat, SpectralFileFormat):
         Ch_n = int(Channel.size)
 
         for i in range(0, N_rows, Ch_n):
-            if (beta == Max_row):
+            if beta == Max_row:
                 beta = 0
                 alpha = alpha + 1
             Meta_data[i:i + Ch_n, 2] = Channel
@@ -1032,7 +1029,7 @@ class NeaReader(FileFormat, SpectralFileFormat):
                 version = 2
         if version == 1:
             return self.read_v1()
-        elif version == 2:
+        else:
             return self.read_v2()
 
 
