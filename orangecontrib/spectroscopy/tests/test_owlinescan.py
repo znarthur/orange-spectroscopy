@@ -1,8 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import numpy as np
 
 from AnyQt.QtCore import QPointF
+from AnyQt.QtWidgets import QToolTip
 
 import Orange
 from Orange.widgets.tests.base import WidgetTest
@@ -90,3 +91,33 @@ class TestOWLineScan(WidgetTest):
         with patch("orangecontrib.spectroscopy.widgets.owlinescan.LineScanPlot.update_view") as p:
             self.send_signal("Data", self.iris)
             self.assertEqual(p.call_count, 1)
+
+    def test_tooltip(self):
+        data = self.iris
+        self.send_signal(self.widget.Inputs.data, data)
+
+        event = MagicMock()
+        with patch.object(self.widget.imageplot.plot.vb, "mapSceneToView"), \
+                patch.object(QToolTip, "showText") as show_text:
+
+            sel = np.zeros(len(data), dtype="bool")
+
+            sel[3] = 1  # a single instance
+            with patch.object(self.widget.imageplot, "_points_at_pos",
+                              return_value=(sel, 2)):
+                self.assertTrue(self.widget.imageplot.help_event(event))
+                (_, text), _ = show_text.call_args
+                self.assertIn("iris = {}".format(data[3, "iris"]), text)
+                self.assertIn("value = {}".format(data[3, 2]), text)
+                self.assertEqual(1, text.count("iris ="))
+
+            sel[51] = 1  # add a data point
+            with patch.object(self.widget.imageplot, "_points_at_pos",
+                              return_value=(sel, 2)):
+                self.assertTrue(self.widget.imageplot.help_event(event))
+                (_, text), _ = show_text.call_args
+                self.assertIn("iris = {}".format(data[3, "iris"]), text)
+                self.assertIn("iris = {}".format(data[51, "iris"]), text)
+                self.assertIn("value = {}".format(data[3, 2]), text)
+                self.assertIn("value = {}".format(data[51, 2]), text)
+                self.assertEqual(2, text.count("iris ="))
