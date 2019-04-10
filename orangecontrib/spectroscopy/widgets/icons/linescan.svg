@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg">
+
+ <g>
+  <title>background</title>
+  <rect fill="none" id="canvas_background" height="402" width="582" y="-1" x="-1"/>
+ </g>
+ <g>
+  <title>Layer 1</title>
+  <g id="zXDtGm_1_"/>
+  <path id="svg_8" d="m10.347,16.938999" stroke-miterlimit="10" stroke-width="1.7" stroke="#B2B2B2" fill="none"/>
+  <rect stroke="null" id="svg_11" height="8" width="8" y="20" x="32" stroke-width="null" fill="#9b9b9b"/>
+  <rect stroke="null" id="svg_13" height="8" width="8" y="12" x="32" stroke-width="null" fill="#b2b2b2"/>
+  <rect stroke="null" id="svg_14" height="8" width="8" y="28" x="32" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_15" height="8" width="8" y="4" x="32" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_16" height="8" width="8" y="36" x="32" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_18" height="8" width="8" y="20" x="24" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_19" height="8" width="8" y="12" x="24" stroke-width="null" fill="#62605f"/>
+  <rect stroke="null" id="svg_20" height="8" width="8" y="28" x="24" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_21" height="8" width="8" y="4" x="24" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_22" height="8" width="8" y="36" x="24" stroke-width="null" fill="#9b9b9b"/>
+  <rect stroke="null" id="svg_24" height="8" width="8" y="20" x="16" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_25" height="8" width="8" y="12" x="16" stroke-width="null" fill="#62605f"/>
+  <rect stroke="null" id="svg_26" height="8" width="8" y="28" x="16" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_27" height="8" width="8" y="4" x="16" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_28" height="8" width="8" y="36" x="16" stroke-width="null" fill="#9b9b9b"/>
+  <rect stroke="null" id="svg_30" height="8" width="8" y="20" x="8" stroke-width="null" fill="#9b9b9b"/>
+  <rect stroke="null" id="svg_31" height="8" width="8" y="12" x="8" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_32" height="8" width="8" y="28" x="8" stroke-width="null" fill="#848484"/>
+  <rect stroke="null" id="svg_33" height="8" width="8" y="4" x="8" stroke-width="null" fill="#B2B2B2"/>
+  <rect stroke="null" id="svg_34" height="8" width="8" y="36" x="8" stroke-width="null" fill="#B2B2B2"/>
+ </g>
+</svg>
