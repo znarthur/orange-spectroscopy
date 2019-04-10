@@ -19,7 +19,6 @@ from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 
 import Orange.data
-from Orange.data import FileFormat
 from Orange.data import DiscreteVariable, Variable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
@@ -864,7 +863,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     def save_graph(self):
         try:
             self.viewhelpers_hide()
-            saveplot.save_plot(self.plotview, FileFormat.img_writers)
+            saveplot.save_plot(self.plotview, self.parent.graph_writers)
         finally:
             self.viewhelpers_show()
 
