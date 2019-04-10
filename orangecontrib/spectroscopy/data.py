@@ -853,7 +853,7 @@ class NeaReader(FileFormat, SpectralFileFormat):
     EXTENSIONS = (".nea", ".txt")
     DESCRIPTION = 'NeaSPEC'
 
-    def read_spectra(self):
+    def read_v1(self):
 
         with open(self.filename, "rt") as f:
             next(f)  # skip header
@@ -954,6 +954,86 @@ class NeaReader(FileFormat, SpectralFileFormat):
             meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
                                          metas=np.asarray(final_metas, dtype=object))
             return X, final_data, meta_data
+
+    def read_v2(self):
+
+        # Find line in which data begins ########################### Max header lines = 100 #######################
+        count = 0
+        with open(self.filename, "r") as f:
+            for _ in range(100):
+                line = f.readline()
+                count = count + 1
+                if line[0] != '#':
+                    break
+
+            file = np.loadtxt(f)  # Slower part
+
+        # Find the Wavenumber column ##############################################################
+        line = line.strip().split('\t')
+
+        for i, e in enumerate(line):
+            if e == 'Wavenumber':
+                index = i
+                break
+
+        # Channel need to have exactly 3 letters #######################################################################
+        Channel = line[index + 1:]
+        Channel = np.array(Channel)
+        print(Channel)
+        print(Channel.size)
+        # Extract other data ####################################################################################
+        Max_row = int(file[:, 0].max() + 1)
+        Max_col = int(file[:, 1].max() + 1)
+        Max_omega = int(file[:, 2].max() + 1)
+        N_rows = Max_row * Max_col * Channel.size
+        N_cols = Max_omega
+
+        # Transform Actual Data #####################################################################
+
+        M = np.full((int(N_rows), int(N_cols)), np.nan, dtype='float')
+
+        for j in range(int(Max_row * Max_col)):
+            row_value = file[j * (Max_omega):(j + 1) * (Max_omega), 0]
+            assert np.all(row_value == row_value[0])
+            col_value = file[j * (Max_omega):(j + 1) * (Max_omega), 1]
+            assert np.all(col_value == col_value[0])
+            for k in range(Channel.size):
+                M[k + Channel.size * j, :] = file[j * (Max_omega):(j + 1) * (Max_omega), k + 4]
+
+        Meta_data = np.zeros((int(N_rows), 3), dtype='object')
+
+        alpha = 0
+        beta = 0
+        Ch_n = int(Channel.size)
+
+        for i in range(0, N_rows, Ch_n):
+            if (beta == Max_row):
+                beta = 0
+                alpha = alpha + 1
+            Meta_data[i:i + Ch_n, 2] = Channel
+            Meta_data[i:i + Ch_n, 1] = alpha
+            Meta_data[i:i + Ch_n, 0] = beta
+            beta = beta + 1
+
+        waveN = file[0:int(Max_omega), 3]
+        metas = [Orange.data.ContinuousVariable.make("row"),
+                 Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.StringVariable.make("channel")]
+
+        domain = Orange.data.Domain([], None, metas=metas)
+        meta_data = Table.from_numpy(domain, X=np.zeros((len(M), 0)),
+                                     metas=Meta_data)
+        return waveN, M, meta_data
+
+    def read_spectra(self):
+        version = 1
+        with open(self.filename, "rt") as f:
+            if f.read(2) == '# ':
+                version = 2
+        if version == 1:
+            return self.read_v1()
+        elif version == 2:
+            return self.read_v2()
 
 
 def build_spec_table(domvals, data, additional_table=None):

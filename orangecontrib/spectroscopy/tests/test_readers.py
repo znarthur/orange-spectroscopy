@@ -3,9 +3,10 @@ from unittest.mock import patch
 
 import numpy as np
 import Orange
+from Orange.data import dataset_dirs
 from Orange.data.io import FileFormat
 from Orange.tests import named_file
-from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader
+from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader, NeaReader
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 
@@ -203,7 +204,7 @@ class TestGSF(unittest.TestCase):
 
 class TestNea(unittest.TestCase):
 
-    def test_open(self):
+    def test_open_v1(self):
         data = Orange.data.Table("spectra20_small.nea")
         self.assertEqual(len(data), 12)
         self.assertEqual("channel", data.domain.metas[2].name)
@@ -212,6 +213,18 @@ class TestNea(unittest.TestCase):
         np.testing.assert_almost_equal(data.X[0, 0], 10.2608052)  # O0A
         self.assertEqual("O0P", data.metas[6][2])
         np.testing.assert_almost_equal(data.X[6, 0], 0)  # O0P
+
+    def test_open_v2(self):
+        fn = "nea_test_v2.txt"
+        absolute_filename = FileFormat.locate(fn, dataset_dirs)
+        data = NeaReader(absolute_filename).read()
+        self.assertEqual(len(data), 12)
+        self.assertEqual("channel", data.domain.metas[2].name)
+        np.testing.assert_almost_equal(getx(data), [15., 89.])
+        self.assertEqual("O0A", data.metas[0][2])
+        np.testing.assert_almost_equal(data.X[0, 0], 92.0)
+        self.assertEqual("O0A", data.metas[6][2])
+        np.testing.assert_almost_equal(data.X[6, 0], 38.0)
 
 
 class TestSpa(unittest.TestCase):
