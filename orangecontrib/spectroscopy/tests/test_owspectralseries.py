@@ -8,13 +8,13 @@ from AnyQt.QtWidgets import QToolTip
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
-from orangecontrib.spectroscopy.widgets.owlinescan import OWLineScan
+from orangecontrib.spectroscopy.widgets.owspectralseries import OWSpectralSeries
 from orangecontrib.spectroscopy.preprocess import Interpolate
 
 NAN = float("nan")
 
 
-class TestOWLineScan(WidgetTest):
+class TestOWSpectralSeries(WidgetTest):
 
     @classmethod
     def setUpClass(cls):
@@ -37,7 +37,7 @@ class TestOWLineScan(WidgetTest):
         cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0]
 
     def setUp(self):
-        self.widget = self.create_widget(OWLineScan)
+        self.widget = self.create_widget(OWSpectralSeries)
 
     def try_big_selection(self):
         all_select = None if self.widget.data is None else [1]*len(self.widget.data)
@@ -88,7 +88,8 @@ class TestOWLineScan(WidgetTest):
         np.testing.assert_equal(out.metas[:, 1], np.arange(100))
 
     def test_single_update_view(self):
-        with patch("orangecontrib.spectroscopy.widgets.owlinescan.LineScanPlot.update_view") as p:
+        uw = "orangecontrib.spectroscopy.widgets.owspectralseries.LineScanPlot.update_view"
+        with patch(uw) as p:
             self.send_signal("Data", self.iris)
             self.assertEqual(p.call_count, 1)
 

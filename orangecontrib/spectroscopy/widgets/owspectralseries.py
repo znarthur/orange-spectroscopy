@@ -241,8 +241,8 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         self.make_selection(sel, add)
 
 
-class OWLineScan(OWWidget):
-    name = "Line Scan"
+class OWSpectralSeries(OWWidget):
+    name = "Spectral Series"
 
     class Inputs:
         data = Input("Data", Table, default=True)
@@ -254,7 +254,7 @@ class OWLineScan(OWWidget):
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
 
-    icon = "icons/linescan.svg"
+    icon = "icons/spectralseries.svg"
     priority = 100
 
     settings_version = 1
@@ -315,4 +315,4 @@ class OWLineScan(OWWidget):
 
 if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
-    WidgetPreview(OWLineScan).run(Table("collagen"))
+    WidgetPreview(OWSpectralSeries).run(Table("collagen"))
