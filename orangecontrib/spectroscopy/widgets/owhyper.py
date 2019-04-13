@@ -1,10 +1,8 @@
-import sys
-import gc
 import collections
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
-    QGridLayout, QFormLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QSplitter, \
+    QGridLayout, QFormLayout, QAction, QVBoxLayout, QWidgetAction, QSplitter, \
     QToolTip
 from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemModel, \
     QStandardItem, QLinearGradient, QPixmap, QIcon
@@ -105,7 +103,7 @@ def values_to_linspace(vals):
     are kept as limits."""
     vals = vals[~np.isnan(vals)]
     if len(vals):
-        vals = np.unique(vals)
+        vals = np.unique(vals)  # returns sorted array
         if len(vals) == 1:
             return vals[0], vals[0], 1
         minabsdiff = (vals[-1] - vals[0])/(len(vals)*100)
@@ -271,134 +269,24 @@ def color_palette_model(palettes, iconsize=QSize(64, 16)):
     return model
 
 
-class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
-
-    attr_x = ContextSetting(None)
-    attr_y = ContextSetting(None)
-    gamma = Setting(0)
+class ImageColorSettingMixin:
     threshold_low = Setting(0.0, schema_only=True)
     threshold_high = Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
     palette_index = Setting(0)
-    selection_changed = Signal()
 
-    def __init__(self, parent):
-        QWidget.__init__(self)
-        OWComponent.__init__(self, parent)
-        SelectionGroupMixin.__init__(self)
-
-        self.parent = parent
-
-        self.selection_type = SELECTMANY
-        self.saving_enabled = True
-        self.selection_enabled = True
-        self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
-        self.highlighted = None
-        self.data_points = None
-        self.data_values = None
-        self.data_imagepixels = None
-
-        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
-        self.plot = self.plotview.getPlotItem()
-
-        self.plot.scene().installEventFilter(
-            HelpEventDelegate(self.help_event, self))
-
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().addWidget(self.plotview)
-
-        self.img = ImageItemNan()
-        self.img.setOpts(axisOrder='row-major')
-        self.plot.addItem(self.img)
-        self.plot.vb.setAspectLocked()
-        self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
-
-        layout = QGridLayout()
-        self.plotview.setLayout(layout)
-        self.button = QPushButton("Menu", self.plotview)
-        self.button.setAutoDefault(False)
-
-        layout.setRowStretch(1, 1)
-        layout.setColumnStretch(1, 1)
-        layout.addWidget(self.button, 0, 0)
-        view_menu = MenuFocus(self)
-        self.button.setMenu(view_menu)
-
-        # prepare interface according to the new context
-        self.parent.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
-
-        actions = []
-
-        zoom_in = QAction(
-            "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
-        )
-        zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
-        zoom_in.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-        actions.append(zoom_in)
-        zoom_fit = QAction(
-            "Zoom to fit", self,
-            triggered=lambda x: (self.plot.vb.autoRange(), self.plot.vb.set_mode_panning())
-        )
-        zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
-        zoom_fit.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-        actions.append(zoom_fit)
-        select_square = QAction(
-            "Select (square)", self, triggered=self.plot.vb.set_mode_select_square,
-        )
-        select_square.setShortcuts([Qt.Key_S])
-        select_square.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-        actions.append(select_square)
-
-
-        select_polygon = QAction(
-            "Select (polygon)", self, triggered=self.plot.vb.set_mode_select_polygon,
-        )
-        select_polygon.setShortcuts([Qt.Key_P])
-        select_polygon.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-        actions.append(select_polygon)
-
-        if self.saving_enabled:
-            save_graph = QAction(
-                "Save graph", self, triggered=self.save_graph,
-            )
-            save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_I)])
-            actions.append(save_graph)
-
-        view_menu.addActions(actions)
-        self.addActions(actions)
-
-        common_options = dict(
-            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
-            valueType=str)
-
-        choose_xy = QWidgetAction(self)
+    def color_settings_box(self):
         box = gui.vBox(self)
-        box.setFocusPolicy(Qt.TabFocus)
-        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
-                                    valid_types=DomainModel.PRIMITIVE)
-        self.cb_attr_x = gui.comboBox(
-            box, self, "attr_x", label="Axis x:", callback=self.update_attr,
-            model=self.xy_model, **common_options)
-        self.cb_attr_y = gui.comboBox(
-            box, self, "attr_y", label="Axis y:", callback=self.update_attr,
-            model=self.xy_model, **common_options)
-        box.setFocusProxy(self.cb_attr_x)
-
         self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
                                      labelWidth=50, orientation=Qt.Horizontal)
         self.color_cb.setIconSize(QSize(64, 16))
         palettes = _color_palettes
-
         self.palette_index = min(self.palette_index, len(palettes) - 1)
-
         model = color_palette_model(palettes, self.color_cb.iconSize())
         model.setParent(self)
         self.color_cb.setModel(model)
         self.color_cb.activated.connect(self.update_color_schema)
-
         self.color_cb.setCurrentIndex(self.palette_index)
 
         form = QFormLayout(
@@ -430,50 +318,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
-
         box.layout().addLayout(form)
 
-        choose_xy.setDefaultWidget(box)
-        view_menu.addAction(choose_xy)
-
-        self.markings_integral = []
-
-        self.lsx = None  # info about the X axis
-        self.lsy = None  # info about the Y axis
-
-        self.data = None
-        self.data_ids = {}
-
-    def init_interface_data(self, data):
-        same_domain = (self.data and data and
-                       data.domain == self.data.domain)
-        if not same_domain:
-            self.init_attr_values(data)
-
-    def help_event(self, ev):
-        pos = self.plot.vb.mapSceneToView(ev.scenePos())
-        sel = self._points_at_pos(pos)
-        prepared = []
-        if sel is not None:
-            data, vals, points = self.data[sel], self.data_values[sel], self.data_points[sel]
-            for d, v, p in zip(data, vals, points):
-                basic = "({}, {}): {}".format(p[0], p[1], v)
-                variables = [v for v in self.data.domain.metas + self.data.domain.class_vars
-                             if v not in [self.attr_x, self.attr_y]]
-                features = ['{} = {}'.format(attr.name, d[attr]) for attr in variables]
-                prepared.append("\n".join([basic] + features))
-        text = "\n\n".join(prepared)
-        if text:
-            text = ('<span style="white-space:pre">{}</span>'
-                    .format(escape(text)))
-            QToolTip.showText(ev.screenPos(), text, widget=self.plotview)
-            return True
-        else:
-            return False
-
-    def reset_thresholds(self):
-        self.threshold_low = 0.
-        self.threshold_high = 1.
+        return box
 
     def update_levels(self):
         if not self.data:
@@ -526,6 +373,176 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin):
         _, colors = max(data.items())
         cols = color_palette_table(colors)
         self.img.setLookupTable(cols)
+
+    def reset_thresholds(self):
+        self.threshold_low = 0.
+        self.threshold_high = 1.
+
+
+class ImageZoomMixin:
+
+    def add_zoom_actions(self, menu):
+        zoom_in = QAction(
+            "Zoom in", self, triggered=self.plot.vb.set_mode_zooming
+        )
+        zoom_in.setShortcuts([Qt.Key_Z, QKeySequence(QKeySequence.ZoomIn)])
+        zoom_in.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.addAction(zoom_in)
+        if menu:
+            menu.addAction(zoom_in)
+        zoom_fit = QAction(
+            "Zoom to fit", self,
+            triggered=lambda x: (self.plot.vb.autoRange(), self.plot.vb.set_mode_panning())
+        )
+        zoom_fit.setShortcuts([Qt.Key_Backspace, QKeySequence(Qt.ControlModifier | Qt.Key_0)])
+        zoom_fit.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.addAction(zoom_fit)
+        if menu:
+            menu.addAction(zoom_fit)
+
+
+class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
+                ImageColorSettingMixin, ImageZoomMixin):
+
+    attr_x = ContextSetting(None)
+    attr_y = ContextSetting(None)
+    gamma = Setting(0)
+
+    selection_changed = Signal()
+
+    def __init__(self, parent):
+        QWidget.__init__(self)
+        OWComponent.__init__(self, parent)
+        SelectionGroupMixin.__init__(self)
+        ImageColorSettingMixin.__init__(self)
+        ImageZoomMixin.__init__(self)
+
+        self.parent = parent
+
+        self.selection_type = SELECTMANY
+        self.saving_enabled = True
+        self.selection_enabled = True
+        self.viewtype = INDIVIDUAL  # required bt InteractiveViewBox
+        self.highlighted = None
+        self.data_points = None
+        self.data_values = None
+        self.data_imagepixels = None
+
+        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
+        self.plot = self.plotview.getPlotItem()
+
+        self.plot.scene().installEventFilter(
+            HelpEventDelegate(self.help_event, self))
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.plotview)
+
+        self.img = ImageItemNan()
+        self.img.setOpts(axisOrder='row-major')
+        self.plot.addItem(self.img)
+        self.plot.vb.setAspectLocked()
+        self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
+
+        layout = QGridLayout()
+        self.plotview.setLayout(layout)
+        self.button = QPushButton("Menu", self.plotview)
+        self.button.setAutoDefault(False)
+
+        layout.setRowStretch(1, 1)
+        layout.setColumnStretch(1, 1)
+        layout.addWidget(self.button, 0, 0)
+        view_menu = MenuFocus(self)
+        self.button.setMenu(view_menu)
+
+        # prepare interface according to the new context
+        self.parent.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
+
+        actions = []
+
+        self.add_zoom_actions(view_menu)
+
+        select_square = QAction(
+            "Select (square)", self, triggered=self.plot.vb.set_mode_select_square,
+        )
+        select_square.setShortcuts([Qt.Key_S])
+        select_square.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        actions.append(select_square)
+
+        select_polygon = QAction(
+            "Select (polygon)", self, triggered=self.plot.vb.set_mode_select_polygon,
+        )
+        select_polygon.setShortcuts([Qt.Key_P])
+        select_polygon.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        actions.append(select_polygon)
+
+        if self.saving_enabled:
+            save_graph = QAction(
+                "Save graph", self, triggered=self.save_graph,
+            )
+            save_graph.setShortcuts([QKeySequence(Qt.ControlModifier | Qt.Key_I)])
+            actions.append(save_graph)
+
+        view_menu.addActions(actions)
+        self.addActions(actions)
+
+        common_options = dict(
+            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
+            valueType=str)
+
+        choose_xy = QWidgetAction(self)
+        box = gui.vBox(self)
+        box.setFocusPolicy(Qt.TabFocus)
+        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+                                    valid_types=DomainModel.PRIMITIVE)
+        self.cb_attr_x = gui.comboBox(
+            box, self, "attr_x", label="Axis x:", callback=self.update_attr,
+            model=self.xy_model, **common_options)
+        self.cb_attr_y = gui.comboBox(
+            box, self, "attr_y", label="Axis y:", callback=self.update_attr,
+            model=self.xy_model, **common_options)
+        box.setFocusProxy(self.cb_attr_x)
+
+        box.layout().addWidget(self.color_settings_box())
+
+        choose_xy.setDefaultWidget(box)
+        view_menu.addAction(choose_xy)
+
+        self.markings_integral = []
+
+        self.lsx = None  # info about the X axis
+        self.lsy = None  # info about the Y axis
+
+        self.data = None
+        self.data_ids = {}
+
+    def init_interface_data(self, data):
+        same_domain = (self.data and data and
+                       data.domain == self.data.domain)
+        if not same_domain:
+            self.init_attr_values(data)
+
+    def help_event(self, ev):
+        pos = self.plot.vb.mapSceneToView(ev.scenePos())
+        sel = self._points_at_pos(pos)
+        prepared = []
+        if sel is not None:
+            data, vals, points = self.data[sel], self.data_values[sel], self.data_points[sel]
+            for d, v, p in zip(data, vals, points):
+                basic = "({}, {}): {}".format(p[0], p[1], v)
+                variables = [v for v in self.data.domain.metas + self.data.domain.class_vars
+                             if v not in [self.attr_x, self.attr_y]]
+                features = ['{} = {}'.format(attr.name, d[attr]) for attr in variables]
+                prepared.append("\n".join([basic] + features))
+        text = "\n\n".join(prepared)
+        if text:
+            text = ('<span style="white-space:pre">{}</span>'
+                    .format(escape(text)))
+            QToolTip.showText(ev.screenPos(), text, widget=self.plotview)
+            return True
+        else:
+            return False
 
     def update_attr(self):
         self.update_view()
@@ -927,27 +944,6 @@ class OWHyper(OWWidget):
         self.imageplot.save_graph()
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-    argv = list(argv)
-    app = QApplication(argv)
-    w = OWHyper()
-    w.show()
-    from orangecontrib.spectroscopy.tests.bigdata import dust
-    #data = Orange.data.Table("whitelight.gsf")
-    data = Orange.data.Table(dust())
-    #data = Orange.data.Table("iris.tab")
-    w.set_data(data)
-    w.handleNewSignals()
-    rval = app.exec_()
-    w.set_data(None)
-    w.handleNewSignals()
-    w.deleteLater()
-    del w
-    app.processEvents()
-    gc.collect()
-    return rval
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWHyper).run(Orange.data.Table("iris.tab"))
