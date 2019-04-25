@@ -13,11 +13,10 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
-from orangecontrib.spectroscopy.widgets.owhyper import index_values, values_to_linspace
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
-from orangecontrib.spectroscopy.utils import ⁠\
-    NanInsideHypercube, InvalidAxisException, ⁠get_hypercube
+from orangecontrib.spectroscopy.utils import index_values, values_to_linspace, \
+    NanInsideHypercube, InvalidAxisException, get_hypercube
 
 
 # the following line imports the copied code so that

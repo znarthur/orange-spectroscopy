@@ -8,11 +8,13 @@ from AnyQt.QtCore import QPointF, Qt
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
-from orangecontrib.spectroscopy.widgets.owhyper import values_to_linspace, \
-    index_values, OWHyper, location_values, ANNOTATED_DATA_SIGNAL_NAME
+from orangecontrib.spectroscopy.widgets.owhyper import \
+    OWHyper, ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.spectroscopy.preprocess import Interpolate
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon, is_left
 from orangecontrib.spectroscopy.tests.util import hold_modifiers, set_png_graph_save
+from orangecontrib.spectroscopy.utils import values_to_linspace, \
+    index_values, location_values
 
 NAN = float("nan")
 
