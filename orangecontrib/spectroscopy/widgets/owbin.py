@@ -1,3 +1,5 @@
+import numpy as np
+
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QLabel
 
@@ -7,6 +9,8 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
+from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisException
+from orangecontrib.spectroscopy.utils.binning import bin_hypercube
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
 class OWBin(OWWidget):
@@ -24,7 +28,7 @@ class OWBin(OWWidget):
         data = Input("Hyperspectral Data", Table, default=True)
 
     class Outputs:
-        bin_data = Output("Binned Data", Table, default=True)
+        bindata = Output("Binned Data", Table, default=True)
 
     class Error(OWWidget.Error):
         nan_in_image = Msg("Unknown values within images: {} unknowns")
@@ -115,7 +119,24 @@ class OWBin(OWWidget):
         self.commit()
 
     def commit(self):
-        pass
+        bin_data = None
+
+        self.Error.nan_in_image.clear()
+        self.Error.invalid_axis.clear()
+
+        if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
+            try:
+                bin_data = bin_hypercube(self.data, self.attr_x, self.attr_y,
+                                                  bin_sqrt=self.bin_sqrt)
+            except NanInsideHypercube as e:
+                self.Error.nan_in_image(e.args[0])
+            except InvalidAxisException as e:
+                self.Error.invalid_axis(e.args[0])
+            except ValueError:
+                # TODO this should be better with warning, etc
+                self.bin_sqrt = 1
+
+        self.Outputs.bindata.send(bin_data)
 
 
 if __name__ == "__main__":  # pragma: no cover
