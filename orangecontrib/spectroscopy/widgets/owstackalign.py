@@ -7,7 +7,7 @@ from scipy.ndimage.interpolation import shift
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QLabel
 
-from Orange.data import Table, Domain, ContinuousVariable
+from Orange.data import Table, ContinuousVariable
 from Orange.widgets.settings import DomainContextHandler, ContextSetting
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
@@ -15,8 +15,8 @@ from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
-from orangecontrib.spectroscopy.utils import index_values, values_to_linspace, \
-    NanInsideHypercube, InvalidAxisException, get_hypercube
+from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisException, \
+    get_hypercube
 
 
 # the following line imports the copied code so that
@@ -102,7 +102,7 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False, ref_fram
                                                          np.linspace(*lsy)[slicey]))
 
 
-class OWStackAlign(OWWidget):
+class   OWStackAlign(OWWidget):
     # Widget's name as displayed in the canvas
     name = "Align Stack"
 
