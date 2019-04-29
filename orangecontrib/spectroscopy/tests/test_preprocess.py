@@ -4,13 +4,14 @@ import unittest
 import numpy as np
 
 import Orange
+from Orange.preprocess.preprocess import PreprocessorList
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
-    WrongReferenceException, NormalizeReference
+    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
@@ -39,6 +40,22 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     CurveShift(1),
 ]
+
+xas_norm_collagen = XASnormalization(edge=1630,
+                                     preedge_dict={'from': 1000, 'to': 1300, 'deg': 1},
+                                     postedge_dict={'from': 1650, 'to': 1700, 'deg': 1})
+extract_exafs = ExtractEXAFS(edge=1630, extra_from=1630, extra_to=1800,
+                             poly_deg=1, kweight=0, m=0)
+
+
+class ExtractEXAFSUsage(PreprocessorList):
+    """ExtractEXAFS needs previous XAS normalization"""
+    def __init__(self):
+        super().__init__(preprocessors=[xas_norm_collagen,
+                                        extract_exafs])
+
+
+PREPROCESSORS_INDEPENDENT_SAMPLES += [xas_norm_collagen, ExtractEXAFSUsage()]
 
 
 def add_zeros(data):
@@ -328,11 +345,14 @@ class TestCommon(unittest.TestCase):
             _ = proc(data)
 
     def test_all_nans(self):
-        """ Preprocessors should not crash there are all-nan samples. """
+        """ Preprocessors should not crash when there are all-nan samples. """
         data = self.collagen.copy()
         data.X[0, :] = np.nan
         for proc in PREPROCESSORS:
-            _ = proc(data)
+            try:
+                _ = proc(data)
+            except PreprocessException:
+                continue  # allow explicit preprocessor exception
 
     def test_unordered_features(self):
         data = self.collagen
@@ -369,7 +389,10 @@ class TestCommon(unittest.TestCase):
         data.X[0, :] = 0
         data.X[:, 0] = 0
         for proc in PREPROCESSORS:
-            pdata = proc(data)
+            try:
+                pdata = proc(data)
+            except PreprocessException:
+                continue  # allow explicit preprocessor exception
             anyinfs = np.any(np.isinf(pdata.X))
             self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
 

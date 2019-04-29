@@ -1,12 +1,17 @@
-import Orange
-import Orange.data
 import numpy as np
-from Orange.preprocess.preprocess import Preprocess
+
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.qhull import ConvexHull, QhullError
 from scipy.signal import savgol_filter
 from sklearn.preprocessing import normalize as sknormalize
+
+from extranormal3 import normal_xas, extra_exafs
+
+import Orange
+import Orange.data
+from Orange.data import ContinuousVariable
+from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx
 
@@ -16,7 +21,7 @@ from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmit
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
-    WrongReferenceException, replace_infs
+    WrongReferenceException, replace_infs, transform_to_sorted_features, PreprocessException
 
 
 class PCADenoisingFeature(SelectColumn):
@@ -56,7 +61,7 @@ class PCADenoising(Preprocess):
                     for i, at in enumerate(data.domain.attributes)]
         else:
             # FIXME we should have a warning here
-            nats = [ at.copy() for at in data.domain.attributes ]  # unknown values
+            nats = [at.copy() for at in data.domain.attributes]  # unknown values
 
         domain = Orange.data.Domain(nats, data.domain.class_vars,
                                     data.domain.metas)
@@ -143,8 +148,8 @@ class SavitzkyGolayFiltering(Preprocess):
     def __call__(self, data):
         common = _SavitzkyGolayCommon(self.window, self.polyorder,
                                       self.deriv, data.domain)
-        atts = [ a.copy(compute_value=SavitzkyGolayFeature(i, common))
-                        for i,a in enumerate(data.domain.attributes) ]
+        atts = [a.copy(compute_value=SavitzkyGolayFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)
@@ -464,6 +469,183 @@ class InterpolateToDomain(Preprocess):
         data = data.transform(domain)
         data.X = X
         return data
+
+
+######################################### XAS normalization ##########
+class XASnormalizationFeature(SelectColumn):
+    pass
+
+
+class _XASnormalizationCommon(CommonDomainOrderUnknowns):
+
+    def __init__(self, edge, preedge_dict, postedge_dict, domain):
+        super().__init__(domain)
+        self.edge = edge
+        self.preedge_params = preedge_dict
+        self.postedge_params = postedge_dict
+
+    def transformed(self, X, energies):
+        if X.shape[0] == 0:
+            return np.zeros((0, X.shape[1]+1))
+
+        try:
+            spectra, jump_vals = normal_xas.normalize_all(
+                energies, X, self.edge, self.preedge_params, self.postedge_params)
+            jump_vals = jump_vals.reshape(-1, 1)
+        except Exception:
+            # TODO handle meaningful exceptions with PreprocessException
+            spectra = X
+            jump_vals = np.zeros((len(X), 1))
+
+        return np.hstack((spectra, jump_vals))
+
+
+class XASnormalization(Preprocess):
+    """
+    XAS Athena like normalization with flattenning
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, edge=None, preedge_dict=None, postedge_dict=None):
+        self.edge = edge
+        self.preedge_params = preedge_dict
+        self.postedge_params = postedge_dict
+
+    def __call__(self, data):
+        common = _XASnormalizationCommon(self.edge, self.preedge_params,
+                                         self.postedge_params, data.domain)
+        newattrs = [ContinuousVariable(name=var.name,
+                                       compute_value=XASnormalizationFeature(i, common))
+                    for i, var in enumerate(data.domain.attributes)]
+        newmetas = data.domain.metas + (ContinuousVariable(
+            name='edge_jump', compute_value=XASnormalizationFeature(len(newattrs), common)),)
+
+        domain = Orange.data.Domain(
+                    newattrs, data.domain.class_vars, newmetas)
+
+        return data.from_table(domain, data)
+
+
+######################################### EXAFS extraction #####
+class NoEdgejumpProvidedException(PreprocessException):
+    pass
+
+
+class ExtractEXAFSFeature(SelectColumn):
+    pass
+
+
+class EdgeJumpException(PreprocessException):
+    pass
+
+
+class _ExtractEXAFSCommon(CommonDomain):
+    # not CommonDomainOrderUnknowns because E -> K
+    # and because transformed needs Edge jumps
+
+    def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, k_interp, domain):
+        super().__init__(domain)
+        self.edge = edge
+        self.extra_from = extra_from
+        self.extra_to = extra_to
+        self.poly_deg = poly_deg
+        self.kweight = kweight
+        self.m = m
+        self.k_interp = k_interp
+
+    def __call__(self, data):
+        data = self.transform_domain(data)
+
+        if "edge_jump" in data.domain:
+            edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
+            I_jumps = edges.X[:, 0]
+        else:
+            raise NoEdgejumpProvidedException(
+                'Invalid meta data: Intensity jump at edge is missing')
+
+        # order X by wavenumbers:
+        # xs non ordered energies
+        # xsind - indecies corresponding to the ordered energies
+        # mon = True
+        # X spectra as corresponding to the ordered energies
+        xs, xsind, mon, X = transform_to_sorted_features(data)
+
+        # for the missing data
+        X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
+        # TODO notify the user if some unknown values were interpolated
+
+        # do the transformation
+        X = self.transformed(X, xs[xsind], I_jumps)
+
+        # k scores are always ordered, so do not restore order
+        return X
+
+    def transformed(self, X, energies, I_jumps):
+        try:
+            Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
+                                                        self.edge, I_jumps,
+                                                        self.extra_from, self.extra_to,
+                                                        self.poly_deg, self.kweight, self.m)
+        except Exception as e:
+            # extra_exafs should be fixed to return a specific exception
+            if "jump at edge" in e.args[0]:
+                raise EdgeJumpException("Problem with edge jump.")
+            else:
+                raise
+
+        # this function always needs to return the expected input size - even
+        # if the test data was empty - force the output size
+        correct_shape = (X.shape[0], len(self.k_interp))
+        if Km_Chi.shape != correct_shape:
+            return np.full(correct_shape, np.nan)
+
+        return Km_Chi
+
+
+class ExtractEXAFS(Preprocess):
+    """
+    EXAFS extraction with polynomial background
+
+    Parameters
+    ----------
+    ref : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, edge=None, extra_from=None, extra_to=None,
+                 poly_deg=None, kweight=None, m=None):
+        self.edge = edge
+        self.extra_from = extra_from
+        self.extra_to = extra_to
+        self.poly_deg = poly_deg
+        self.kweight = kweight
+        self.m = m
+
+    def __call__(self, data):
+
+        if data.X.shape[1] > 0:
+            # --- compute K
+            energies = np.sort(getx(data))  # input data can be in any order
+            start_idx, end_idx = extra_exafs.get_idx_bounds(energies, self.edge,
+                                                            self.extra_from, self.extra_to)
+            k_interp, k_points = extra_exafs.get_K_points(energies, self.edge,
+                                                          start_idx, end_idx)
+            # ----------
+
+            common = _ExtractEXAFSCommon(self.edge, self.extra_from, self.extra_to,
+                                         self.poly_deg, self.kweight, self.m, k_interp,
+                                         data.domain)
+
+            newattrs = [ContinuousVariable(name=str(var),
+                                           compute_value=ExtractEXAFSFeature(i, common))
+                        for i, var in enumerate(k_interp)]
+        else:
+            newattrs = []
+
+        domain = Orange.data.Domain(newattrs, data.domain.class_vars, data.domain.metas)
+        return data.transform(domain)
 
 
 class CurveShiftFeature(SelectColumn):

@@ -88,8 +88,13 @@ class CommonDomainOrder(CommonDomain):
         # do the transformation
         X = self.transformed(X, xs[xsind])
 
-        # restore order, leave additional columns as they are
-        return np.hstack((transform_back_to_features(xsind, mon, X[:, :xc]), X[:, xc:]))
+        # restore order
+        return self._restore_order(X, mon, xsind, xc)
+
+    def _restore_order(self, X, mon, xsind, xc):
+        # restore order and leave additional columns as they are
+        restored = transform_back_to_features(xsind, mon, X[:, :xc])
+        return np.hstack((restored, X[:, xc:]))
 
     def transformed(self, X, wavenumbers):
         raise NotImplemented
@@ -120,8 +125,8 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
                 nans = np.hstack((nans, np.zeros((X.shape[0], addc), dtype=np.bool)))
             X[nans] = np.nan
 
-        # restore order, leave additional columns as they are
-        return np.hstack((transform_back_to_features(xsind, mon, X[:, :xc]), X[:, xc:]))
+        # restore order
+        return self._restore_order(X, mon, xsind, xc)
 
 
 def nan_extend_edges_and_interpolate(xs, X):
