@@ -61,7 +61,7 @@ class PCADenoising(Preprocess):
                     for i, at in enumerate(data.domain.attributes)]
         else:
             # FIXME we should have a warning here
-            nats = [ at.copy() for at in data.domain.attributes ]  # unknown values
+            nats = [at.copy() for at in data.domain.attributes]  # unknown values
 
         domain = Orange.data.Domain(nats, data.domain.class_vars,
                                     data.domain.metas)
@@ -148,8 +148,8 @@ class SavitzkyGolayFiltering(Preprocess):
     def __call__(self, data):
         common = _SavitzkyGolayCommon(self.window, self.polyorder,
                                       self.deriv, data.domain)
-        atts = [ a.copy(compute_value=SavitzkyGolayFeature(i, common))
-                        for i,a in enumerate(data.domain.attributes) ]
+        atts = [a.copy(compute_value=SavitzkyGolayFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)

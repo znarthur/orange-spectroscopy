@@ -1224,25 +1224,25 @@ PREPROCESSORS = [
     PreprocessAction(
         "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Gaussian smoothing",
         Description("Gaussian smoothing",
-        icon_path("Discretize.svg")),
+                    icon_path("Discretize.svg")),
         GaussianSmoothingEditor
     ),
     PreprocessAction(
         "Savitzky-Golay Filter", "orangecontrib.spectroscopy.savitzkygolay", "Smoothing",
         Description("Savitzky-Golay Filter",
-        icon_path("Discretize.svg")),
+                    icon_path("Discretize.svg")),
         SavitzkyGolayFilteringEditor
     ),
     PreprocessAction(
         "Baseline Correction", "orangecontrib.infrared.baseline", "Baseline Correction",
         Description("Baseline Correction",
-        icon_path("Discretize.svg")),
+                    icon_path("Discretize.svg")),
         BaselineEditor
     ),
     PreprocessAction(
         "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
         Description("Normalize Spectra",
-        icon_path("Normalize.svg")),
+                    icon_path("Normalize.svg")),
         NormalizeEditor
     ),
     PreprocessAction(
