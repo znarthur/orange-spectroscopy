@@ -10,7 +10,7 @@ class TestXASnormalization(unittest.TestCase):
 
     def test_flat(self):
         domain = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
-                                    for w in [6800., 6940., 7060., 7400., 7800., 8000.]])
+                                     for w in [6800., 6940., 7060., 7400., 7800., 8000.]])
         data = Orange.data.Table(domain, [[0.2, 0.2, 0.8, 0.8, 0.8, 0.8]])
 
         f = XASnormalization(edge=7000.,
@@ -33,17 +33,17 @@ class TestExtractEXAFS(unittest.TestCase):
 
         data = Orange.data.Table(domain, spectra)
 
-        test_edge=7000.
-        test_extra_from=7002.
-        test_extra_to=7500.
-        test_poly_deg=7
+        test_edge = 7000.
+        test_extra_from = 7002.
+        test_extra_to = 7500.
+        test_poly_deg = 7
         test_kweight = 2
         test_m = 2
 
         with self.assertRaises(NoEdgejumpProvidedException):
             extra = ExtractEXAFS(edge=test_edge, extra_from=test_extra_from, extra_to=test_extra_to,
                                  poly_deg=test_poly_deg, kweight=test_kweight, m=test_m)
-            exafs = extra(data)
+            _ = extra(data)
 
     def test_file(self):
         data = Table("exafs-test.tab")

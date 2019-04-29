@@ -1,9 +1,11 @@
 import random
 from collections import Iterable
+from decimal import Decimal
+
+from extranormal3 import curved_tools
 
 import numpy as np
 import pyqtgraph as pg
-from decimal import Decimal
 
 import Orange.data
 from Orange import preprocess
@@ -26,7 +28,7 @@ from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QLayout, QMessageBox
+    QToolButton, QSplitter, QLayout
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -51,8 +53,6 @@ from orangecontrib.spectroscopy.widgets.preprocessors.integrate import Integrate
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
-
-from extranormal3 import curved_tools
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -660,20 +660,12 @@ class SpectralTransformEditor(BaseEditorOrange):
 
 
 def init_bounds_hform(prepro_widget,
-                      from_val, to_val, from_lim, to_lim,
+                      from_lim, to_lim,
                       title='',
                       from_line=None, to_line=None,
                       from_val_name=None, to_val_name=None):
-    from_val = 0.
-    to_val = 0.
 
     bounds_form = QGridLayout()
-
-    '''
-    dummylabel = QLabel()
-    dummylabel.setText('')
-    bounds_form.addWidget(dummylabel, 0, 0)
-    '''
 
     title_font = QFont()
     title_font.setBold(True)
@@ -683,11 +675,6 @@ def init_bounds_hform(prepro_widget,
     if title != '':
         titlabel.setText(title)
         bounds_form.addWidget(titlabel, 1, 0)
-    '''
-    bounds_form.addWidget(" ", QLabel())
-    if title != '':
-        bounds_form.addRow(title, QLabel())
-    '''
 
     left_bound = QFormLayout()
     left_bound.setFieldGrowthPolicy(0)
@@ -704,8 +691,8 @@ def init_bounds_hform(prepro_widget,
     to_lim.focusIn.connect(prepro_widget.activateOptions)
     prepro_widget.focusIn = prepro_widget.activateOptions
 
-    if (from_line != None and to_line != None and
-            from_val_name != None and to_val_name != None):
+    if from_line is not None and to_line is not None and \
+            from_val_name is not None and to_val_name is not None:
         connect_line(from_line, prepro_widget, from_val_name)
         from_line.sigMoveFinished.connect(prepro_widget.edited)
 
@@ -715,23 +702,12 @@ def init_bounds_hform(prepro_widget,
     return bounds_form
 
 
-
 class XASnormalizationEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        #OWComponent.__init__(self, parent)
-
-        self.warning_msg = QMessageBox()
-        self.warning_msg.setWindowTitle("WARNING")
-        self.warning_msg.setIcon(QMessageBox.Warning)
-        self.warning_msg.setStandardButtons(QMessageBox.Ok)
-
 
         self.controlArea.setLayout(QGridLayout())
-        #self.layout().setVerticalSpacing(self.layout().verticalSpacing()+2)
-        #self.layout().setAlignment(AlignCenter)
-        #spacer = QSpacerItem(10, 10)
         curr_row = 0
 
         self.edge = 0.
@@ -741,37 +717,32 @@ class XASnormalizationEditor(BaseEditorOrange):
         edge_form.addRow("Edge", edge_edit)
         dummylabel = QLabel()
         dummylabel.setText('   ')
-        edge_form.addWidget(dummylabel) # adding vertical space
+        edge_form.addWidget(dummylabel)  # adding vertical space
         self.controlArea.layout().addLayout(edge_form, curr_row, 0, 1, 1)
         curr_row += 1
 
-        '''
-        self.layout().addWidget(dummylabel, 1, 0)
-        curr_row += 1
-        '''
-
         # ---------------------------- pre-edge form ------------
         self.preedge_from = self.preedge_to = 0.
-        self._pre_from_lim = lineEditFloatRange(self, self, "preedge_from", callback=self.edited.emit)
-        self._pre_to_lim = lineEditFloatRange(self, self, "preedge_to", callback=self.edited.emit)
+        self._pre_from_lim = lineEditFloatRange(self, self, "preedge_from",
+                                                callback=self.edited.emit)
+        self._pre_to_lim = lineEditFloatRange(self, self, "preedge_to",
+                                              callback=self.edited.emit)
         self.pre_from_line = MovableVline(label="Pre-edge start")
         self.pre_to_line = MovableVline(label="Pre-edge end")
 
         preedge_form = init_bounds_hform(self,
-                                         self.preedge_from, self.preedge_to,
                                          self._pre_from_lim, self._pre_to_lim,
                                          "Pre-edge fit:",
                                          self.pre_from_line, self.pre_to_line,
                                          "preedge_from", "preedge_to")
-        #self.layout().addItem(spacer, curr_row, 0)
-        #curr_row += 1
         self.controlArea.layout().addLayout(preedge_form, curr_row, 0, 1, 2)
         curr_row += 1
 
         self.preedge_deg = 1.
         preedgedeg_form = QFormLayout()
         preedgedeg_form.setFieldGrowthPolicy(0)
-        preedgedeg_edit = lineEditFloatRange(self, self, "preedge_deg", callback=self.edited.emit)
+        preedgedeg_edit = lineEditFloatRange(self, self, "preedge_deg",
+                                             callback=self.edited.emit)
         preedgedeg_form.addRow("poly degree", preedgedeg_edit)
         dummylabel2 = QLabel()
         dummylabel2.setText('   ')
@@ -779,18 +750,16 @@ class XASnormalizationEditor(BaseEditorOrange):
         self.controlArea.layout().addLayout(preedgedeg_form, curr_row, 0, 1, 1)
         curr_row += 1
 
-
         # ---------------------------- post-edge form ------------
-
         self.postedge_from = self.postedge_to = 0.
-        self._post_from_lim = lineEditFloatRange(self, self, "postedge_from", callback=self.edited.emit)
-        self._post_to_lim = lineEditFloatRange(self, self, "postedge_to", callback=self.edited.emit)
+        self._post_from_lim = lineEditFloatRange(self, self, "postedge_from",
+                                                 callback=self.edited.emit)
+        self._post_to_lim = lineEditFloatRange(self, self, "postedge_to",
+                                               callback=self.edited.emit)
         self.post_from_line = MovableVline(label="Post-edge start")
         self.post_to_line = MovableVline(label="Post-edge end:")
 
-        #postedge_form = self.init_bounds_hform(self.postedge_from, self.postedge_to,
         postedge_form = init_bounds_hform(self,
-                                          self.postedge_from, self.postedge_to,
                                           self._post_from_lim, self._post_to_lim,
                                           "Post-edge fit:",
                                           self.post_from_line, self.post_to_line,
@@ -801,21 +770,13 @@ class XASnormalizationEditor(BaseEditorOrange):
         self.postedge_deg = 2.
         postedgedeg_form = QFormLayout()
         postedgedeg_form.setFieldGrowthPolicy(0)
-        postedgedeg_edit = lineEditFloatRange(self, self, "postedge_deg", callback=self.edited.emit)
+        postedgedeg_edit = lineEditFloatRange(self, self, "postedge_deg",
+                                              callback=self.edited.emit)
         postedgedeg_form.addRow("poly degree", postedgedeg_edit)
         self.controlArea.layout().addLayout(postedgedeg_form, curr_row, 0, 1, 1)
         curr_row += 1
 
         self.user_changed = False
-
-
-    '''
-    def _reset_normal_params(params_dict):
-        self.params_dict['start'] = None
-        self.params_dict['end'] = None
-        self.params_dict['fit_degree'] = None
-        self.params_dict['fit_func'] = None
-    '''
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -823,10 +784,9 @@ class XASnormalizationEditor(BaseEditorOrange):
             line.report = self.parent_widget.curveplot
             self.parent_widget.curveplot.add_marking(line)
 
-
     def setParameters(self, params):
 
-        if params: #parameters were manually set somewhere else
+        if params:  # parameters were manually set somewhere else
             self.user_changed = True
 
         self.edge = params.get("edge", 0.)
@@ -838,14 +798,6 @@ class XASnormalizationEditor(BaseEditorOrange):
         self.postedge_from = params.get("postedge_from", 0.)
         self.postedge_to = params.get("postedge_to", 0.)
         self.postedge_deg = params.get("postedge_deg", 2)
-
-    '''
-    def set_edge(self, edge):
-        if self.edge != edge:
-            self.edge = edge
-            self.edge_spin.setValue(edge)
-            self.changed.emit()
-    '''
 
     def set_preview_data(self, data):
         if data is None:
@@ -862,7 +814,7 @@ class XASnormalizationEditor(BaseEditorOrange):
             if not self.user_changed:
                 if data:
                     y = data.X[0]
-                    maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x,y])))
+                    maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x, y])))
                     self.edge = x[maxderiv_idx]
                 else:
                     self.edge = (max(x) - min(x)) / 2
@@ -870,12 +822,8 @@ class XASnormalizationEditor(BaseEditorOrange):
 
                 self.preedge_to = self.edge - 50
                 self.postedge_from = self.edge + 50
-                #self.preedge_to = min(x)+(max(x)-min(x))/3
-                #self.postedge_from = self.preedge_to+10
 
                 self.postedge_to = max(x)
-
-                # check at least the vals go in a right order
 
                 self.edited.emit()
 
@@ -895,24 +843,6 @@ class XASnormalizationEditor(BaseEditorOrange):
         postedge['to'] = float(params.get("postedge_to", 0.))
         postedge['deg'] = int(params.get("postedge_deg", 2))
 
-        warning_popup = QMessageBox(params.get("warning_msg", None))
-        '''
-        # 1 - It shows up for a sec
-        warning_popup.setText('Coucou')
-        warning_popup.show()
-        # How to make it stay ??
-        '''
-        '''
-        # Is it possible to do as follows
-        try:
-            xasn = XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
-        except Exception as exmatter:
-            warning_popup.setText(str(exmatter))
-            warning_popup.show()
-            raise Exception(str(exmatter))
-
-        return xasn
-        '''
         return XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
 
 
@@ -922,7 +852,6 @@ class E2K(ValueTransform):
         self.xas_prepro_widget = xas_prepro_widget
 
     def transform(self, v):
-        #print(type(v), type(self.xas_prepro_widget.edge))
         res = np.sqrt(0.2625 * (float(v)-float(self.xas_prepro_widget.edge)))
         return Decimal(float_to_str_decimals(res, 2))
 
@@ -935,7 +864,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        #OWComponent.__init__(self, parent)
 
         title_font = QFont()
         title_font.setBold(True)
@@ -957,13 +885,14 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         curr_row += 1
 
         self.extra_from = self.extra_to = 0.
-        self._extrafrom_lim = lineEditFloatRange(self, self, "extra_from", callback=self.edited.emit)
-        self._extrato_lim = lineEditFloatRange(self, self, "extra_to", callback=self.edited.emit)
+        self._extrafrom_lim = lineEditFloatRange(self, self, "extra_from",
+                                                 callback=self.edited.emit)
+        self._extrato_lim = lineEditFloatRange(self, self, "extra_to",
+                                               callback=self.edited.emit)
         self.extrafrom_line = MovableVline(label="Extraction start")
         self.extrato_line = MovableVline(label="Extraction end")
 
         extrabounds_form = init_bounds_hform(self,
-                                             self.extra_from, self.extra_to,
                                              self._extrafrom_lim, self._extrato_lim,
                                              "Energy bounds:",
                                              self.extrafrom_line, self.extrato_line,
@@ -972,10 +901,11 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         curr_row += 1
 
         self.extra_fromK = self.extra_toK = 0.
-        self._extrafromK_lim = lineEditFloatRange(self, self, "extra_fromK", callback=self.edited.emit)
-        self._extratoK_lim = lineEditFloatRange(self, self, "extra_toK", callback=self.edited.emit)
+        self._extrafromK_lim = lineEditFloatRange(self, self, "extra_fromK",
+                                                  callback=self.edited.emit)
+        self._extratoK_lim = lineEditFloatRange(self, self, "extra_toK",
+                                                callback=self.edited.emit)
         Kbounds_form = init_bounds_hform(self,
-                                         self.extra_fromK, self.extra_toK,
                                          self._extrafromK_lim, self._extratoK_lim,
                                          "K bounds:")
         self.controlArea.layout().addLayout(Kbounds_form, curr_row, 0, 1, 2)
@@ -989,7 +919,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         polydeg_form = QFormLayout()
         polydeg_form.setFieldGrowthPolicy(0)
         polydeg_edit = lineEditFloatRange(self, self, "poly_deg", callback=self.edited.emit)
-        #polydeg_edit.setMinimumWidth(10)
         titlabel.setText("Polynomial degree:")
         polydeg_form.addRow(titlabel, polydeg_edit)
         dummylabel2 = QLabel()
@@ -1002,7 +931,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         kweight_form = QFormLayout()
         kweight_form.setFieldGrowthPolicy(0)
         kweight_edit = lineEditFloatRange(self, self, "kweight", callback=self.edited.emit)
-        #kweight_edit.setMinimumWidth(5)
         kweight_form.addRow("Kweight (fit)", kweight_edit)
         self.controlArea.layout().addLayout(kweight_form, curr_row, 0, 1, 1)
         curr_row += 1
@@ -1024,10 +952,9 @@ class ExtractEXAFSEditor(BaseEditorOrange):
             line.report = self.parent_widget.curveplot
             self.parent_widget.curveplot.add_marking(line)
 
-
     def setParameters(self, params):
 
-        if params: #parameters were manually set somewhere else
+        if params:  # parameters were manually set somewhere else
             self.user_changed = True
 
         self.edge = params.get("edge", 0.)
@@ -1038,7 +965,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
         self.poly_deg = params.get("poly_deg", 0)
         self.kweight = params.get("kweight", 0)
         self.m = params.get("m", 0)
-
 
     def set_preview_data(self, data):
         if data is None:
@@ -1053,7 +979,7 @@ class ExtractEXAFSEditor(BaseEditorOrange):
             if not self.user_changed:
                 if data:
                     y = data.X[0]
-                    maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x,y])))
+                    maxderiv_idx = np.argmax(curved_tools.derivative_vals(np.array([x, y])))
                     self.edge = x[maxderiv_idx]
                 else:
                     self.edge = (max(x) - min(x)) / 2
@@ -1064,7 +990,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
                 # check at least the vals go in a right order
 
                 self.edited.emit()
-
 
     @staticmethod
     def createinstance(params):
