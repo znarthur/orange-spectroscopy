@@ -1210,18 +1210,6 @@ class EMSCEditor(BaseEditorOrange):
 
 PREPROCESSORS = [
     PreprocessAction(
-        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
-        Description("XAS normalization",
-                    icon_path("Discretize.svg")),
-        XASnormalizationEditor
-    ),
-    PreprocessAction(
-        "EXAFS extraction", "orangecontrib.infrared.extractexafs", "EXAFS extraction",
-        Description("Polynomial EXAFS extraction",
-                    icon_path("Discretize.svg")),
-        ExtractEXAFSEditor
-    ),
-    PreprocessAction(
         "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
         Description("Cut (keep)",
                     icon_path("Discretize.svg")),
@@ -1288,6 +1276,18 @@ PREPROCESSORS = [
         Description("EMSC",
                     icon_path("Discretize.svg")),
         EMSCEditor
+    ),
+    PreprocessAction(
+        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
+        Description("XAS normalization",
+                    icon_path("Discretize.svg")),
+        XASnormalizationEditor
+    ),
+    PreprocessAction(
+        "EXAFS extraction", "orangecontrib.infrared.extractexafs", "EXAFS extraction",
+        Description("Polynomial EXAFS extraction",
+                    icon_path("Discretize.svg")),
+        ExtractEXAFSEditor
     ),
     ]
 
