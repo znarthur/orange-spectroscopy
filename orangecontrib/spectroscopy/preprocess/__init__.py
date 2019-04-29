@@ -16,7 +16,7 @@ from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmit
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
     CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
     interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
-    WrongReferenceException, replace_infs, transform_to_sorted_features
+    WrongReferenceException, replace_infs, transform_to_sorted_features, PreprocessException
 
 from extranormal3 import normal_xas, extra_exafs
 
@@ -531,11 +531,19 @@ class XASnormalization(Preprocess):
 
         return data.from_table(domain, data)
 
+
 ######################################### EXAFS extraction #####
+class NoEdgejumpProvidedException(PreprocessException):
+    pass
+
+
 class ExtractEXAFSFeature(SelectColumn):
     pass
 
+
 class _ExtractEXAFSCommon(CommonDomain):
+    # not CommonDomainOrderUnknowns because E -> K
+    # and because transformed needs Edge jumps
 
     def __init__(self, edge, extra_from, extra_to, poly_deg, kweight, m, k_interp, domain):
         super().__init__(domain)
@@ -554,13 +562,18 @@ class _ExtractEXAFSCommon(CommonDomain):
             edges = data.transform(Orange.data.Domain([data.domain["edge_jump"]]))
             I_jumps = edges.X[:, 0]
         else:
-            # TODO need to display the error to the user
             print('Invalid meta data. Intensity jump at edge is missing for EXAFS extraction')
-            I_jumps = np.full(len(data), np.nan)
+            raise NoEdgejumpProvidedException('Invalid meta data: Intensity jump at edge is missing')
+            # I_jumps = np.full(len(data), np.nan)
 
-        # order X by wavenumbers
+        # order X by wavenumbers:
+        # xs non ordered energies
+        # xsind - indecies corresponding to the ordered energies
+        # mon = True
+        # X spectra as corresponding to the ordered energies
         xs, xsind, mon, X = transform_to_sorted_features(data)
 
+        # for the missing data
         X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
         # TODO notify the user if some unknown values were interpolated
 
@@ -594,8 +607,7 @@ class ExtractEXAFS(Preprocess):
     ref : reference single-channel (Orange.data.Table)
     """
 
-    def __init__(self, edge=None, extra_from=None, extra_to=None, poly_deg=None,
-                 kweight=None, m=None):
+    def __init__(self, edge=None, extra_from=None, extra_to=None, poly_deg=None, kweight=None, m=None):
         self.edge = edge
         self.extra_from = extra_from
         self.extra_to = extra_to
@@ -604,6 +616,7 @@ class ExtractEXAFS(Preprocess):
         self.m = m
 
     def __call__(self, data):
+
         if data.X.shape[1] > 0:
             # --- compute K
             energies = np.sort(getx(data))  # input data can be in any order

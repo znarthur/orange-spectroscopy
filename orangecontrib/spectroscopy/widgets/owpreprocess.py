@@ -52,7 +52,7 @@ from orangecontrib.spectroscopy.widgets.preprocessors.normalize import Normalize
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 
-from extranormal3 import curved_tools, extra_exafs
+from extranormal3 import curved_tools
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -659,7 +659,6 @@ class SpectralTransformEditor(BaseEditorOrange):
             self.reference_curve.show()
 
 
-
 def init_bounds_hform(prepro_widget,
                       from_val, to_val, from_lim, to_lim,
                       title='',
@@ -917,18 +916,6 @@ class XASnormalizationEditor(BaseEditorOrange):
         return XASnormalization(edge=edge, preedge_dict=preedge, postedge_dict=postedge)
 
 
-    def execute_instance(self, instance, data):
-        try:
-            return instance(data)
-        except normal_xas.InvalidInput as ii:
-            self.warning_msg.setText(str(ii))
-            self.warning_msg.show()
-            print(ii)
-            d = data.copy()
-            d.X[:,:] = np.nan
-            return d
-
-
 class E2K(ValueTransform):
 
     def __init__(self, xas_prepro_widget):
@@ -1094,14 +1081,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
         return ExtractEXAFS(edge=edge, extra_from=extra_from, extra_to=extra_to,
                             poly_deg=poly_deg, kweight=kweight, m=m)
-
-    '''
-    def execute_instance(self, instance, data):
-        try:
-            return instance(data)
-        except extra_exafs.NoJunpsEx as e:
-            print(e)
-    '''
 
 
 def layout_widgets(layout):
