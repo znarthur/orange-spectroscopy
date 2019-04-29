@@ -20,7 +20,8 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.spectroscopy.data import getx
 
-from orangecontrib.spectroscopy.widgets.owhyper import values_to_linspace, index_values, _shift, \
+from orangecontrib.spectroscopy.utils import values_to_linspace, index_values
+from orangecontrib.spectroscopy.widgets.owhyper import _shift, \
     ImageColorSettingMixin, ImageZoomMixin, ImageItemNan
 from orangecontrib.spectroscopy.widgets.owspectra import SelectionGroupMixin, HelpEventDelegate, \
     selection_modifiers, \
