@@ -11,7 +11,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
-    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS
+    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
@@ -345,11 +345,14 @@ class TestCommon(unittest.TestCase):
             _ = proc(data)
 
     def test_all_nans(self):
-        """ Preprocessors should not crash there are all-nan samples. """
+        """ Preprocessors should not crash when there are all-nan samples. """
         data = self.collagen.copy()
         data.X[0, :] = np.nan
         for proc in PREPROCESSORS:
-            _ = proc(data)
+            try:
+                _ = proc(data)
+            except PreprocessException:
+                continue  # allow explicit preprocessor exception
 
     def test_unordered_features(self):
         data = self.collagen
@@ -386,7 +389,10 @@ class TestCommon(unittest.TestCase):
         data.X[0, :] = 0
         data.X[:, 0] = 0
         for proc in PREPROCESSORS:
-            pdata = proc(data)
+            try:
+                pdata = proc(data)
+            except PreprocessException:
+                continue  # allow explicit preprocessor exception
             anyinfs = np.any(np.isinf(pdata.X))
             self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
 

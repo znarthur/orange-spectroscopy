@@ -541,6 +541,10 @@ class ExtractEXAFSFeature(SelectColumn):
     pass
 
 
+class EdgeJumpException(PreprocessException):
+    pass
+
+
 class _ExtractEXAFSCommon(CommonDomain):
     # not CommonDomainOrderUnknowns because E -> K
     # and because transformed needs Edge jumps
@@ -584,10 +588,17 @@ class _ExtractEXAFSCommon(CommonDomain):
         return X
 
     def transformed(self, X, energies, I_jumps):
-        Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
-                                                    self.edge, I_jumps,
-                                                    self.extra_from, self.extra_to,
-                                                    self.poly_deg, self.kweight, self.m)
+        try:
+            Km_Chi, Chi, bkgr = extra_exafs.extract_all(energies, X,
+                                                        self.edge, I_jumps,
+                                                        self.extra_from, self.extra_to,
+                                                        self.poly_deg, self.kweight, self.m)
+        except Exception as e:
+            # extra_exafs should be fixed to return a specific exception
+            if "jump at edge" in e.args[0]:
+                raise EdgeJumpException("Problem with edge jump.")
+            else:
+                raise
 
         # this function always needs to return the expected input size - even
         # if the test data was empty - force the output size
