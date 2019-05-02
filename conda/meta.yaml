@@ -31,6 +31,7 @@ requirements:
     - pyqtgraph >=0.10.0
     - colorcet
     - h5py
+    - extranormal3 >=0.0.3
 
 test:
   imports:
