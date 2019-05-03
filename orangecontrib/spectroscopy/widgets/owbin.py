@@ -10,7 +10,7 @@ from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisException
-from orangecontrib.spectroscopy.utils.binning import bin_hypercube
+from orangecontrib.spectroscopy.utils.binning import bin_hypercube, InvalidBlockShape
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
 class OWBin(OWWidget):
@@ -33,6 +33,7 @@ class OWBin(OWWidget):
     class Error(OWWidget.Error):
         nan_in_image = Msg("Unknown values within images: {} unknowns")
         invalid_axis = Msg("Invalid axis: {}")
+        invalid_block = Msg("Bin block size not compatible with dataset: {}")
 
     autocommit = settings.Setting(True)
 
@@ -116,6 +117,7 @@ class OWBin(OWWidget):
             self.data = None
         self.Error.nan_in_image.clear()
         self.Error.invalid_axis.clear()
+        self.Error.invalid_block.clear()
         self.commit()
 
     def commit(self):
@@ -123,6 +125,7 @@ class OWBin(OWWidget):
 
         self.Error.nan_in_image.clear()
         self.Error.invalid_axis.clear()
+        self.Error.invalid_block.clear()
 
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
@@ -132,9 +135,8 @@ class OWBin(OWWidget):
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
-            except ValueError:
-                # TODO this should be better with warning, etc
-                self.bin_sqrt = 1
+            except InvalidBlockShape as e:
+                self.Error.invalid_block(e.args[0])
 
         self.Outputs.bindata.send(bin_data)
 

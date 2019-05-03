@@ -6,6 +6,11 @@ from orangecontrib.spectroscopy.utils import index_values, values_to_linspace, \
     get_hypercube, NanInsideHypercube, InvalidAxisException
 from orangecontrib.spectroscopy.utils.skimage.shape import view_as_blocks
 
+
+class InvalidBlockShape(Exception):
+    pass
+
+
 def get_coords(data, xat, yat):
     ndom = Domain([xat, yat])
     datam = Table(ndom, data)
@@ -34,7 +39,10 @@ def get_coords(data, xat, yat):
         return coords
 
 def bin_mean(data, bin_sqrt, n_attrs):
-    view = view_as_blocks(data, block_shape=(bin_sqrt, bin_sqrt, n_attrs))
+    try:
+        view = view_as_blocks(data, block_shape=(bin_sqrt, bin_sqrt, n_attrs))
+    except ValueError as e:
+        raise InvalidBlockShape(str(e))
     flatten_view = view.reshape(view.shape[0], view.shape[1], -1, n_attrs)
     mean_view = np.mean(flatten_view, axis=2)
     return mean_view
