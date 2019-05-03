@@ -48,12 +48,14 @@ class OWBin(OWWidget):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
-    bin_sqrt = settings.Setting(1)
+    bin_shape = settings.Setting((1, 1))
 
     def __init__(self):
         super().__init__()
 
         self.data = None
+
+        self._init_bins()
 
         box = gui.widgetBox(self.controlArea, "Axes")
 
@@ -75,9 +77,12 @@ class OWBin(OWWidget):
 
         gui.separator(box)
         hbox = gui.hBox(box)
-        self.le1 = lineEditIntRange(box, self, "bin_sqrt", bottom=1, default=1,
+        self.le0 = lineEditIntRange(box, self, "bin_0", bottom=1, default=1,
+                                    callback=self._bin_changed)
+        self.le1 = lineEditIntRange(box, self, "bin_1", bottom=1, default=1,
                                     callback=self._bin_changed)
         hbox.layout().addWidget(QLabel("Bin size:", self))
+        hbox.layout().addWidget(self.le0)
         hbox.layout().addWidget(self.le1)
 
         gui.rubber(self.controlArea)
@@ -88,9 +93,18 @@ class OWBin(OWWidget):
     def _sanitize_bin_value(self):
         pass #TODO make sure bin value is compatible with dataset
 
+    def _update_bins(self):
+        for i, bin in enumerate(self.bin_shape):
+            bin = getattr(self, f"bin_{i}")
+
     def _bin_changed(self):
+        self._update_bins()
         self._sanitize_bin_value()
         self.commit()
+
+    def _init_bins(self):
+        for i, bin in enumerate(self.bin_shape):
+            setattr(self, f"bin_{i}", bin)
 
     def _init_attr_values(self, data):
         domain = data.domain if data is not None else None
@@ -130,12 +144,14 @@ class OWBin(OWWidget):
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
 
+        bin_sqrt = self.bin_shape[0]
+
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             if np.any(np.isnan(self.data.X)):
                 self.Warning.nan_in_image(np.sum(np.isnan(self.data.X)))
             try:
                 bin_data = bin_hypercube(self.data, self.attr_x, self.attr_y,
-                                         bin_sqrt=self.bin_sqrt)
+                                         bin_sqrt=bin_sqrt)
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
             except InvalidBlockShape as e:
