@@ -577,8 +577,17 @@ class _ExtractEXAFSCommon(CommonDomain):
         X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
         # TODO notify the user if some unknown values were interpolated
 
+        # Replace remaining NaNs (where whole rows were NaN) with
+        # with some values so that the function does not crash.
+        # Results are going to be discarded later.
+        nan_rows = np.isnan(X).all(axis=1)
+        X[nan_rows] = 1.
+
         # do the transformation
         X = self.transformed(X, xs[xsind], I_jumps)
+
+        # discard nan rows
+        X[nan_rows] = np.nan
 
         # k scores are always ordered, so do not restore order
         return X
