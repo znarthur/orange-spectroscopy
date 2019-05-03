@@ -114,6 +114,11 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
         # interpolates unknowns
         X, nans = nan_extend_edges_and_interpolate(xs[xsind], X)
 
+        # Replace remaining NaNs (where whole rows were NaN) with
+        # with some values so that the function does not crash.
+        # Results are going to be discarded later.
+        X[np.isnan(X)] = 1.
+
         # do the transformation
         X = self.transformed(X, xs[xsind])
 
