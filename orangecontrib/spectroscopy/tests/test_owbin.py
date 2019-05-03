@@ -35,7 +35,6 @@ class TestOWBin(WidgetTest):
     def test_invalid_bin(self):
         self.send_signal(OWBin.Inputs.data, self.mosaic)
         self.widget.bin_sqrt = 3
-        self.widget._bin_changed()  # get warnings activated
         self.widget.commit()
         self.assertTrue(self.widget.Error.invalid_block.is_shown())
         self.assertIsNone(self.get_output(OWBin.Outputs.bindata))

@@ -1,11 +1,10 @@
-import numpy as np
-
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QLabel
 
-from Orange.data import Table, Domain, ContinuousVariable
+from Orange.data import Table, ContinuousVariable
 from Orange.widgets.settings import DomainContextHandler, ContextSetting
 from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.utils.widgetpreview import WidgetPreview
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
@@ -130,7 +129,7 @@ class OWBin(OWWidget):
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             try:
                 bin_data = bin_hypercube(self.data, self.attr_x, self.attr_y,
-                                                  bin_sqrt=self.bin_sqrt)
+                                         bin_sqrt=self.bin_sqrt)
             except NanInsideHypercube as e:
                 self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
@@ -142,5 +141,4 @@ class OWBin(OWWidget):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from Orange.widgets.utils.widgetpreview import WidgetPreview
     WidgetPreview(OWBin).run(Table("agilent/5_mosaic_agg1024.dmt"))

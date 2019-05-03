@@ -19,7 +19,6 @@ def get_coords(data, xat, yat):
 
     lsx = values_to_linspace(coorx)
     lsy = values_to_linspace(coory)
-    # lsz = data.X.shape[1]
 
     if lsx is None:
         raise InvalidAxisException("x")
@@ -35,8 +34,8 @@ def get_coords(data, xat, yat):
 
     if np.any(np.isnan(coords)):
         raise NanInsideHypercube(np.sum(np.isnan(coords)))
-    else:
-        return coords
+
+    return coords
 
 def bin_mean(data, bin_sqrt, n_attrs):
     try:
@@ -48,9 +47,8 @@ def bin_mean(data, bin_sqrt, n_attrs):
     return mean_view
 
 def bin_hypercube(in_data, xat, yat, bin_sqrt):
-    hypercube, lsx, lsy = get_hypercube(in_data, xat, yat)
+    hypercube, _, _ = get_hypercube(in_data, xat, yat)
     n_attrs = len(in_data.domain.attributes)
-    assert n_attrs == hypercube.shape[2]      # maybe -1?
     mean_view = bin_mean(hypercube, bin_sqrt, n_attrs)
 
     coords = get_coords(in_data, xat, yat)
