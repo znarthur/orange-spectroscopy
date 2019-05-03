@@ -25,7 +25,7 @@ class OWBin(OWWidget):
 
     # Define inputs and outputs
     class Inputs:
-        data = Input("Hyperspectral Data", Table, default=True)
+        data = Input("Data", Table, default=True)
 
     class Outputs:
         bindata = Output("Binned Data", Table, default=True)
