@@ -46,3 +46,11 @@ class TestOWBin(WidgetTest):
         self.assertTrue(self.widget.Error.invalid_axis.is_shown())
         self.send_signal(OWBin.Inputs.data, None)
         self.assertFalse(self.widget.Error.invalid_axis.is_shown())
+
+    def test_nan_in_image(self):
+        data = self.mosaic.copy()
+        data.X[1, 2] = np.nan
+        self.send_signal(OWBin.Inputs.data, data)
+        self.assertTrue(self.widget.Warning.nan_in_image.is_shown())
+        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        self.assertFalse(self.widget.Warning.nan_in_image.is_shown())
