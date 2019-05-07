@@ -11,8 +11,8 @@ class InvalidBlockShape(Exception):
     pass
 
 
-def get_coords(data, xat, yat):
-    ndom = Domain([xat, yat])
+def get_coords(data, bin_attrs):
+    ndom = Domain(bin_attrs)
     datam = Table(ndom, data)
     coorx = datam.X[:, 0]
     coory = datam.X[:, 1]
@@ -34,22 +34,23 @@ def get_coords(data, xat, yat):
 
     return coords
 
-def bin_mean(data, bin_sqrt, n_attrs):
+def bin_mean(data, bin_shape, n_attrs):
     try:
-        view = view_as_blocks(data, block_shape=(bin_sqrt, bin_sqrt, n_attrs))
+        view = view_as_blocks(data, block_shape=bin_shape + (n_attrs,))
     except ValueError as e:
         raise InvalidBlockShape(str(e))
     flatten_view = view.reshape(view.shape[0], view.shape[1], -1, n_attrs)
     mean_view = np.nanmean(flatten_view, axis=2)
     return mean_view
 
-def bin_hypercube(in_data, xat, yat, bin_sqrt):
+def bin_hypercube(in_data, bin_attrs, bin_shape):
+    xat, yat = bin_attrs
     hypercube, _, _ = get_hypercube(in_data, xat, yat)
     n_attrs = len(in_data.domain.attributes)
-    mean_view = bin_mean(hypercube, bin_sqrt, n_attrs)
+    mean_view = bin_mean(hypercube, bin_shape, n_attrs)
 
-    coords = get_coords(in_data, xat, yat)
-    mean_coords = bin_mean(coords, bin_sqrt, 2)
+    coords = get_coords(in_data, bin_attrs)
+    mean_coords = bin_mean(coords, bin_shape, len(bin_attrs))
 
     table_view = mean_view.reshape(-1, n_attrs)
     table_view_coords = mean_coords.reshape(-1, 2)

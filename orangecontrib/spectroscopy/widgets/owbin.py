@@ -144,14 +144,12 @@ class OWBin(OWWidget):
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
 
-        bin_sqrt = self.bin_shape[0]
-
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             if np.any(np.isnan(self.data.X)):
                 self.Warning.nan_in_image(np.sum(np.isnan(self.data.X)))
             try:
-                bin_data = bin_hypercube(self.data, self.attr_x, self.attr_y,
-                                         bin_sqrt=bin_sqrt)
+                bin_data = bin_hypercube(self.data, [self.attr_x, self.attr_y],
+                                         self.bin_shape)
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
             except InvalidBlockShape as e:

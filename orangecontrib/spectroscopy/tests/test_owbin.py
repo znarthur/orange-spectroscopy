@@ -20,8 +20,8 @@ class TestOWBin(WidgetTest):
 
     def test_bin(self):
         self.send_signal(OWBin.Inputs.data, self.mosaic)
-        self.widget.bin_sqrt = 2
-        self.widget.commit()
+        self.widget.bin_shape = (2, 2)
+        self.widget._bin_changed()
         m = self.get_output(OWBin.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / 2**2)
         x_coords = self.mosaic[:, "map_x"].metas[0:4, 0]
@@ -34,8 +34,8 @@ class TestOWBin(WidgetTest):
 
     def test_invalid_bin(self):
         self.send_signal(OWBin.Inputs.data, self.mosaic)
-        self.widget.bin_sqrt = 3
-        self.widget.commit()
+        self.widget.bin_shape = (3, 3)
+        self.widget._bin_changed()
         self.assertTrue(self.widget.Error.invalid_block.is_shown())
         self.assertIsNone(self.get_output(OWBin.Outputs.bindata))
 
