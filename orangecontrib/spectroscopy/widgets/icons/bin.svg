@@ -1,0 +1,31 @@
+<svg width="48" height="48" xmlns="http://www.w3.org/2000/svg">
+
+ <g>
+  <title>Layer 1</title>
+  <g />
+  <rect id="pixel_1"  height="6"    width="6" y="9" x="9"  stroke-width="0" fill="#000000"/>
+  <rect id="pixel_2" height="6"    width="6" y="9" x="17" stroke-width="0" fill="#666666"/>
+  <rect id="pixel_3"  height="6"    width="6" y="9" x="25" stroke-width="0" fill="#999999"/>
+  <rect id="pixel_4"  height="6"    width="6" y="9" x="33" stroke-width="0" fill="#666666"/>
+
+  <rect id="pixel_5"  height="6"    width="6" y="17" x="9"  stroke-width="0" fill="#999999"/>
+  <rect id="pixel_6" height="6"    width="6" y="17" x="17" stroke-width="0" fill="#000000"/>
+  <rect id="pixel_7"  height="6"    width="6" y="17" x="25" stroke-width="0" fill="#666666"/>
+  <rect id="pixel_8"  height="6"    width="6" y="17" x="33" stroke-width="0" fill="#000000"/>
+
+  <rect id="pixel_9" height="6"    width="6" y="25" x="9"  stroke-width="0" fill="#000000"/>
+  <rect id="pixel_10" height="6"    width="6" y="25" x="17" stroke-width="0" fill="#666666"/>
+  <rect id="pixel_11" height="6"    width="6" y="25" x="25" stroke-width="0" fill="#999999"/>
+  <rect id="pixel_12" height="6"    width="6" y="25" x="33" stroke-width="0" fill="#666666"/>
+
+  <rect id="pixel_13"  height="6"    width="6" y="33" x="9"  stroke-width="0" fill="#999999"/>
+  <rect id="pixel_14" height="6"    width="6" y="33" x="17" stroke-width="0" fill="#000000"/>
+  <rect id="pixel_15" height="6"    width="6" y="33" x="25" stroke-width="0" fill="#666666"/>
+  <rect id="pixel_16" height="6"    width="6" y="33" x="33" stroke-width="0" fill="#000000"/>
+
+  <rect id="bin_1"    height="15" width="15" y="8.5" x="8.5" stroke-width="0.5" stroke="#FF0000" fill="none"/>
+  <rect id="bin_2"    height="15" width="15" y="8.5" x="24.5" stroke-width="0.5" stroke="#FF0000" fill="none"/>
+  <rect id="bin_3"    height="15" width="15" y="24.5" x="8.5" stroke-width="0.5" stroke="#FF0000" fill="none"/>
+  <rect id="bin_4"    height="15" width="15" y="24.5" x="24.5" stroke-dasharray="2,1" stroke-width="0.5" stroke="#FF0000" fill="none"/>
+ </g>
+</svg>
