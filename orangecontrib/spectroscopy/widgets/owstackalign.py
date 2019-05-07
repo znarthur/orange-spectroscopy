@@ -77,6 +77,8 @@ def alignstack(raw, shiftfn, ref_frame_num=0, filterfn=lambda x: x):
 
 def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False, ref_frame_num=0):
     hypercube, lsx, lsy = get_hypercube(data, xat, yat)
+    if np.any(np.isnan(hypercube)):
+        raise NanInsideHypercube(np.sum(np.isnan(hypercube)))
 
     calculate_shift = RegisterTranslation(upsample_factor=upsample_factor)
     filterfn = sobel if use_sobel else lambda x: x
