@@ -94,8 +94,10 @@ class OWBin(OWWidget):
         pass #TODO make sure bin value is compatible with dataset
 
     def _update_bins(self):
-        for i, bin in enumerate(self.bin_shape):
-            bin = getattr(self, f"bin_{i}")
+        new_shape = []
+        for i, _ in enumerate(self.bin_shape):
+            new_shape.append(getattr(self, f"bin_{i}"))
+        self.bin_shape = tuple(new_shape)
 
     def _bin_changed(self):
         self._update_bins()
