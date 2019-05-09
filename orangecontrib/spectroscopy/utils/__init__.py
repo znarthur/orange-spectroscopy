@@ -94,7 +94,4 @@ def get_hypercube(data, xat, yat):
     yindex = index_values(coory, lsy)
     hypercube[yindex, xindex] = data.X
 
-    if np.any(np.isnan(hypercube)):
-        raise NanInsideHypercube(np.sum(np.isnan(hypercube)))
-
     return hypercube, lsx, lsy

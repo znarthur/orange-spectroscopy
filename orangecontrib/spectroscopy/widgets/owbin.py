@@ -1,3 +1,5 @@
+import numpy as np
+
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QLabel
 
@@ -14,7 +16,7 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
 class OWBin(OWWidget):
     # Widget's name as displayed in the canvas
-    name = "Bin Data"
+    name = "Bin"
 
     # Short widget description
     description = (
@@ -30,9 +32,11 @@ class OWBin(OWWidget):
         bindata = Output("Binned Data", Table, default=True)
 
     class Error(OWWidget.Error):
-        nan_in_image = Msg("Unknown values within images: {} unknowns")
         invalid_axis = Msg("Invalid axis: {}")
         invalid_block = Msg("Bin block size not compatible with dataset: {}")
+
+    class Warning(OWWidget.Warning):
+        nan_in_image = Msg("Unknown values within images: {} unknowns")
 
     autocommit = settings.Setting(True)
 
@@ -114,7 +118,7 @@ class OWBin(OWWidget):
             self._sanitize_bin_value()
         else:
             self.data = None
-        self.Error.nan_in_image.clear()
+        self.Warning.nan_in_image.clear()
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
         self.commit()
@@ -122,16 +126,16 @@ class OWBin(OWWidget):
     def commit(self):
         bin_data = None
 
-        self.Error.nan_in_image.clear()
+        self.Warning.nan_in_image.clear()
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
 
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
+            if np.any(np.isnan(self.data.X)):
+                self.Warning.nan_in_image(np.sum(np.isnan(self.data.X)))
             try:
                 bin_data = bin_hypercube(self.data, self.attr_x, self.attr_y,
                                          bin_sqrt=self.bin_sqrt)
-            except NanInsideHypercube as e:
-                self.Error.nan_in_image(e.args[0])
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
             except InvalidBlockShape as e:

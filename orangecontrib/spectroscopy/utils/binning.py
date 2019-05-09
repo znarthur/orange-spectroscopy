@@ -32,9 +32,6 @@ def get_coords(data, xat, yat):
     yindex = index_values(coory, lsy)
     coords[yindex, xindex] = datam.X
 
-    if np.any(np.isnan(coords)):
-        raise NanInsideHypercube(np.sum(np.isnan(coords)))
-
     return coords
 
 def bin_mean(data, bin_sqrt, n_attrs):
@@ -43,7 +40,7 @@ def bin_mean(data, bin_sqrt, n_attrs):
     except ValueError as e:
         raise InvalidBlockShape(str(e))
     flatten_view = view.reshape(view.shape[0], view.shape[1], -1, n_attrs)
-    mean_view = np.mean(flatten_view, axis=2)
+    mean_view = np.nanmean(flatten_view, axis=2)
     return mean_view
 
 def bin_hypercube(in_data, xat, yat, bin_sqrt):
