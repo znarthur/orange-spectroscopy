@@ -42,7 +42,7 @@ class TestOWBin(WidgetTest):
 
     def test_nonsquare_bin(self):
         self.widget.bin_shape = (4, 2)
-        self.widget._init_bins
+        self.widget._init_bins()
         self.send_signal(OWBin.Inputs.data, self.mosaic)
         m = self.get_output(OWBin.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / (2 * 4))
