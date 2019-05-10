@@ -3,39 +3,40 @@ import array
 
 import numpy as np
 
-from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection
+import Orange.data
+
+from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table, getx
+from orangecontrib.spectroscopy.utils import get_hypercube, index_values
 
 
-class TestSelectionPacking(unittest.TestCase):
+class TestHyperspec(unittest.TestCase):
 
-    def test_pack(self):
-        # None
-        self.assertEqual(pack_selection(None), None)
-        # empty
-        sel = np.zeros(10, dtype=np.uint8)
-        self.assertEqual(pack_selection(sel), None)
-        # with a few elements
-        sel[[2, 4]] = [1, 3]
-        r = pack_selection(sel)
-        self.assertEqual(r, [(2, 1), (4, 3)])
-        # bigger arrays
-        sel = np.zeros(2000, dtype=np.uint8)
-        sel[500:1000] = 1
-        sel[1000:1500] = 2
-        r = pack_selection(sel)
-        self.assertTrue(isinstance(r, array.array))
-        self.assertTrue((np.array(r[500:1000]) == 1).all())
-        self.assertTrue((np.array(r[1000:1500]) == 2).all())
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.mosaic = Orange.data.Table("agilent/5_mosaic_agg1024.dmt")
 
-    def test_unpack(self):
-        # None
-        self.assertTrue(isinstance(unpack_selection(None), np.ndarray))
-        np.testing.assert_equal(unpack_selection(None), [])
-        # list of tuples
-        r = unpack_selection([(2, 1), (4, 3)])
-        np.testing.assert_equal(r, [0, 0, 1, 0, 3])
-        # arrays
-        ia = [0, 0, 1, 2]
-        r = unpack_selection(array.array('B', ia))
-        self.assertTrue(isinstance(r, np.ndarray))
-        np.testing.assert_equal(r, ia)
+    def test_hypercube_roundtrip(self):
+        d = self.mosaic
+        xat = [v for v in d.domain.metas if v.name == "map_x"][0]
+        yat = [v for v in d.domain.metas if v.name == "map_y"][0]
+        hypercube, lsx, lsy = get_hypercube(d, xat, yat)
+
+        features = getx(d)
+        ndom = Orange.data.Domain([xat, yat])
+        datam = Orange.data.Table(ndom, d)
+        coorx = datam.X[:, 0]
+        coory = datam.X[:, 1]
+        coords = np.ones((lsx[2], lsy[2], 2))
+        coords[index_values(coorx, lsx), index_values(coory, lsy)] = datam.X
+        x_locs = coords[:, 0, 0]
+        y_locs = coords[0, :, 1]
+
+        features, spectra, data = _spectra_from_image(hypercube, features,
+            x_locs, y_locs)
+        nd = build_spec_table(features, spectra, data)
+
+        np.testing.assert_equal(d.X, nd.X)
+        np.testing.assert_equal(d.Y, nd.Y)
+        np.testing.assert_equal(d.metas, nd.metas)
+        self.assertEqual(d.domain, nd.domain)
