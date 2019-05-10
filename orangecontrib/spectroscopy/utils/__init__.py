@@ -64,6 +64,7 @@ class InvalidAxisException(Exception):
 def get_hypercube(data, xat, yat):
     """
     Reshape table array into a hypercube array according to x and y attributes.
+    The hypercube is organized [ rows, columns, wavelengths ].
 
     Args:
         data (Table): Hyperspectral data Table

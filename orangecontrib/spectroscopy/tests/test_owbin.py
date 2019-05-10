@@ -40,6 +40,28 @@ class TestOWBin(WidgetTest):
         m = self.get_output(OWBin.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / 2**2)
 
+    def test_nonsquare_bin(self):
+        self.widget.bin_shape = (2, 4)
+        self.widget._init_bins
+        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        m = self.get_output(OWBin.Outputs.bindata)
+        np.testing.assert_equal(len(m.X), len(self.mosaic.X) / (2 * 4))
+        x_coords = self.mosaic[:, "map_x"].metas[0:4, 0]
+        x_coords_binned = np.array([x_coords[0:2].mean(), x_coords[2:4].mean()])
+        np.testing.assert_equal(m[:, "map_x"].metas[0:2, 0], x_coords_binned)
+        y_coords = self.mosaic[:, "map_y"].metas[::4, 0]
+        y_coords_binned = np.array([y_coords[0:4].mean(), y_coords[4:8].mean()])
+        np.testing.assert_equal(m[:, "map_y"].metas[::2, 0], y_coords_binned)
+
+    def test_no_bin(self):
+        self.widget.bin_shape = (1, 1)
+        self.widget._init_bins()
+        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        m = self.get_output(OWBin.Outputs.bindata)
+        np.testing.assert_equal(self.mosaic.X, m.X)
+        # TODO this should be true
+        np.testing.assert_equal(self.mosaic, m)
+
     def test_invalid_bin(self):
         self.widget.bin_shape = (3, 3)
         self.widget._init_bins()
