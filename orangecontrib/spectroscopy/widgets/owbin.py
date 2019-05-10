@@ -11,7 +11,7 @@ from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
 from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisException
-from orangecontrib.spectroscopy.utils.binning import bin_hypercube, InvalidBlockShape
+from orangecontrib.spectroscopy.utils.binning import bin_hyperspectra, InvalidBlockShape
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
 class OWBin(OWWidget):
@@ -146,12 +146,17 @@ class OWBin(OWWidget):
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
 
+        attrs = [self.attr_x, self.attr_y]
+        # Special-case 2-axis arrays since these are probably images and should
+        # stay in (y, x) ordering
+        if len(attrs) == 2:
+            attrs = attrs[::-1]
+
         if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
             if np.any(np.isnan(self.data.X)):
                 self.Warning.nan_in_image(np.sum(np.isnan(self.data.X)))
             try:
-                bin_data = bin_hypercube(self.data, [self.attr_x, self.attr_y],
-                                         self.bin_shape)
+                bin_data = bin_hyperspectra(self.data, attrs, self.bin_shape)
             except InvalidAxisException as e:
                 self.Error.invalid_axis(e.args[0])
             except InvalidBlockShape as e:
