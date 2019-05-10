@@ -17,11 +17,14 @@ from orangecontrib.spectroscopy.data import getx
 
 from orangecontrib.spectroscopy.preprocess.integrate import Integrate
 from orangecontrib.spectroscopy.preprocess.emsc import EMSC
-from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance, CommonDomainRef
-from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, CommonDomainOrder, \
-    CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, remove_whole_nan_ys, interp1d_with_unknowns_numpy, \
-    interp1d_with_unknowns_scipy, interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
-    WrongReferenceException, replace_infs, transform_to_sorted_features, PreprocessException
+from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance, \
+    CommonDomainRef
+from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain,\
+    CommonDomainOrder, CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, \
+    remove_whole_nan_ys, interp1d_with_unknowns_numpy, interp1d_with_unknowns_scipy, \
+    interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
+    WrongReferenceException, replace_infs, transform_to_sorted_features, PreprocessException, \
+    linear_baseline
 
 
 class PCADenoisingFeature(SelectColumn):
@@ -226,17 +229,18 @@ class LinearBaselineFeature(SelectColumn):
 
 class _LinearBaselineCommon(CommonDomainOrderUnknowns):
 
-    def __init__(self, peak_dir, sub, domain):
+    def __init__(self, peak_dir, sub, zero_points, domain):
         super().__init__(domain)
         self.peak_dir = peak_dir
         self.sub = sub
+        self.zero_points = zero_points
 
     def transformed(self, y, x):
-        if self.sub == 0:
-            newd = y - edge_baseline(x, y)
+        if self.zero_points:
+            baseline = linear_baseline(x, y, self.zero_points)
         else:
-            newd = edge_baseline(x, y)
-        return newd
+            baseline = edge_baseline(x, y)
+        return y - baseline if self.sub == 0 else baseline
 
 
 class LinearBaseline(Preprocess):
@@ -244,17 +248,18 @@ class LinearBaseline(Preprocess):
     PeakPositive, PeakNegative = 0, 1
     Subtract, View = 0, 1
 
-    def __init__(self, peak_dir=PeakPositive, sub=Subtract):
+    def __init__(self, peak_dir=PeakPositive, sub=Subtract, zero_points=None):
         """
         :param peak_dir: PeakPositive or PeakNegative
         :param sub: Subtract (baseline is subtracted) or View
         """
         self.peak_dir = peak_dir
         self.sub = sub
+        self.zero_points = zero_points
 
     def __call__(self, data):
-        common = _LinearBaselineCommon(self.peak_dir, self.sub,
-                                           data.domain)
+        common = _LinearBaselineCommon(self.peak_dir, self.sub, self.zero_points,
+                                       data.domain)
         atts = [a.copy(compute_value=LinearBaselineFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,

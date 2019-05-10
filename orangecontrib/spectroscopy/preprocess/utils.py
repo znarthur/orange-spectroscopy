@@ -224,8 +224,12 @@ def interp1d_wo_unknowns_scipy(x, ys, points, kind="linear"):
 
 def edge_baseline(x, y):
     """Baseline from edges. Assumes data without NaNs"""
-    i = np.array([0, -1])
-    return interp1d(x[i], y[:, i], axis=1)(x) if len(x) else 0
+    return linear_baseline(x, y, zero_points=[x[0], x[-1]]) if len(x) else 0
+
+
+def linear_baseline(x, y, zero_points=None):
+    values_zero_points = interp1d(x, y, axis=1, fill_value="extrapolate")(zero_points)
+    return interp1d(zero_points, values_zero_points, axis=1, fill_value="extrapolate")(x)
 
 
 def replace_infs(array):
