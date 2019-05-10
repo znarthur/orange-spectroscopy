@@ -58,6 +58,12 @@ class OWBin(OWWidget):
 
         self._init_bins()
 
+        box = gui.widgetBox(self.controlArea, "Parameters")
+
+        gui.checkBox(box, self, "square_bin",
+                     label="Use square bin shape",
+                     callback=self._bin_changed)
+
         box = gui.widgetBox(self.controlArea, "Axes")
 
         common_options = dict(
@@ -65,30 +71,29 @@ class OWBin(OWWidget):
             valueType=str)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
                                     valid_types=ContinuousVariable)
-        self.cb_attr_x = gui.comboBox(
-            box, self, "attr_x", label="Axis x:", callback=self._update_attr,
-            model=self.xy_model, **common_options)
-        self.cb_attr_y = gui.comboBox(
-            box, self, "attr_y", label="Axis y:", callback=self._update_attr,
-            model=self.xy_model, **common_options)
-
-        self.contextAboutToBeOpened.connect(self._init_interface_data)
-
-        box = gui.widgetBox(self.controlArea, "Parameters")
-
-        gui.checkBox(box, self, "square_bin",
-                     label="Use square bin shape",
-                     callback=self._bin_changed)
-        gui.separator(box)
 
         hbox = gui.hBox(box)
-        self.le0 = lineEditIntRange(box, self, "bin_0", bottom=1, default=1,
+        self.cb_attr_x = gui.comboBox(
+            hbox, self, "attr_x", label="Axis x:", callback=self._update_attr,
+            model=self.xy_model, **common_options)
+        self.le0 = lineEditIntRange(hbox, self, "bin_0", bottom=1, default=1,
                                     callback=self._bin_changed)
-        self.le1 = lineEditIntRange(box, self, "bin_1", bottom=1, default=1,
-                                    callback=self._bin_changed)
-        hbox.layout().addWidget(QLabel("Bin size:", self))
+        self.le0.setFixedWidth(40)
+        gui.separator(hbox, width=40)
+        gui.widgetLabel(hbox, label="Bin size:", labelWidth=50)
         hbox.layout().addWidget(self.le0)
+        hbox = gui.hBox(box)
+        self.cb_attr_y = gui.comboBox(
+            hbox, self, "attr_y", label="Axis y:", callback=self._update_attr,
+            model=self.xy_model, **common_options)
+        self.le1 = lineEditIntRange(hbox, self, "bin_1", bottom=1, default=1,
+                                    callback=self._bin_changed)
+        self.le1.setFixedWidth(40)
+        gui.separator(hbox, width=40)
+        gui.widgetLabel(hbox, label="Bin size:", labelWidth=50)
         hbox.layout().addWidget(self.le1)
+
+        self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         gui.rubber(self.controlArea)
 
