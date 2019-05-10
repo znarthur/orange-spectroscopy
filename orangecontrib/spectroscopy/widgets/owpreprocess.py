@@ -442,54 +442,48 @@ class SavitzkyGolayFilteringEditor(BaseEditorOrange):
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
 
 
-class BaselineEditor(BaseEditor):
+class BaselineEditor(BaseEditorOrange):
     """
     Baseline subtraction.
     """
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
-        self.setLayout(QVBoxLayout())
+        self.controlArea.setLayout(QVBoxLayout())
 
         form = QFormLayout()
 
-        self.baselinecb = QComboBox()
-        self.baselinecb.addItems(["Linear", "Rubber band"])
+        self.baseline_type = 0
+        self.peak_dir = 0
+        self.sub = 0
 
-        self.peakcb = QComboBox()
-        self.peakcb.addItems(["Positive", "Negative"])
-
-        self.subcb = QComboBox()
-        self.subcb.addItems(["Subtract", "Calculate"])
+        self.baselinecb = gui.comboBox(None, self, "baseline_type",
+                                       items=["Linear", "Rubber band"],
+                                       callback=self.edited.emit)
+        self.peakcb = gui.comboBox(None, self, "peak_dir",
+                                   items=["Positive", "Negative"],
+                                   callback=self.edited.emit)
+        self.subcb = gui.comboBox(None, self, "sub",
+                                  items=["Subtract", "Calculate"],
+                                  callback=self.edited.emit)
 
         form.addRow("Baseline Type", self.baselinecb)
         form.addRow("Peak Direction", self.peakcb)
         form.addRow("Background Action", self.subcb)
 
-        self.layout().addLayout(form)
+        self._adapt_ui()
 
-        self.baselinecb.currentIndexChanged.connect(self.changed)
-        self.baselinecb.activated.connect(self.edited)
-        self.peakcb.currentIndexChanged.connect(self.changed)
-        self.peakcb.activated.connect(self.edited)
-        self.subcb.currentIndexChanged.connect(self.changed)
-        self.subcb.activated.connect(self.edited)
+        self.controlArea.layout().addLayout(form)
 
     def setParameters(self, params):
-        baseline_type = params.get("baseline_type", 0)
-        peak_dir = params.get("peak_dir", 0)
-        sub = params.get("sub", 0)
-        self.baselinecb.setCurrentIndex(baseline_type)
-        self.peakcb.setCurrentIndex(peak_dir)
-        self.subcb.setCurrentIndex(sub)
+        self.baseline_type = params.get("baseline_type", 0)
+        self.peak_dir = params.get("peak_dir", 0)
+        self.sub = params.get("sub", 0)
+        self._adapt_ui()
 
+    def _adapt_ui(self):
         # peak direction is only relevant for rubberband
-        self.peakcb.setEnabled(baseline_type == 1)
-
-    def parameters(self):
-        return {"baseline_type": self.baselinecb.currentIndex(),
-                "peak_dir": self.peakcb.currentIndex(),
-                "sub": self.subcb.currentIndex()}
+        self.peakcb.setEnabled(self.baseline_type == 1)
 
     @staticmethod
     def createinstance(params):
@@ -501,8 +495,8 @@ class BaselineEditor(BaseEditor):
             return LinearBaseline(peak_dir=peak_dir, sub=sub)
         elif baseline_type == 1:
             return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
-        elif baseline_type == 2: #other type of baseline - need to be implemented
-            return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
+        else:
+            raise Exception("unknown baseline type")
 
 
 class CurveShiftEditor(BaseEditorOrange):
