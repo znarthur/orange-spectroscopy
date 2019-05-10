@@ -224,7 +224,7 @@ class LinearBaselineFeature(SelectColumn):
     pass
 
 
-class _LinearBaselineCommon(CommonDomainOrder):
+class _LinearBaselineCommon(CommonDomainOrderUnknowns):
 
     def __init__(self, peak_dir, sub, domain):
         super().__init__(domain)
@@ -232,9 +232,6 @@ class _LinearBaselineCommon(CommonDomainOrder):
         self.sub = sub
 
     def transformed(self, y, x):
-        if np.any(np.isnan(y)):
-            y, _ = nan_extend_edges_and_interpolate(x, y)
-
         if self.sub == 0:
             newd = y - edge_baseline(x, y)
         else:
