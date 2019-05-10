@@ -61,6 +61,21 @@ class InvalidAxisException(Exception):
     pass
 
 
+def axes_to_ndim_linspace(datam, attrs):
+    ls = []
+    indices = []
+
+    for i, axis in enumerate(attrs):
+        coor = datam.X[:, i]
+        lsa = values_to_linspace(coor)
+        if lsa is None:
+            raise InvalidAxisException(axis.name)
+        ls.append(lsa)
+        indices.append(index_values(coor, lsa))
+
+    return ls, indices
+
+
 def get_ndim_hyperspec(data, attrs):
     """
     Reshape table array into a n-dimensional hyperspectral array with respect to
@@ -79,16 +94,7 @@ def get_ndim_hyperspec(data, attrs):
     ndom = Domain(attrs)
     datam = Table(ndom, data)
 
-    ls = []
-    indices = []
-
-    for i, axis in enumerate(attrs):
-        coor = datam.X[:, i]
-        lsa = values_to_linspace(coor)
-        if lsa is None:
-            raise InvalidAxisException(axis.name)
-        ls.append(lsa)
-        indices.append(index_values(coor, lsa))
+    ls, indices = axes_to_ndim_linspace(datam, attrs)
 
     # set data
     new_shape = tuple([lsa[2] for lsa in ls]) + (data.X.shape[1],)
