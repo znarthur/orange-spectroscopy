@@ -49,6 +49,7 @@ class OWBin(OWWidget):
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
     bin_shape = settings.Setting((1, 1))
+    square_bin = settings.Setting(True)
 
     def __init__(self):
         super().__init__()
@@ -75,7 +76,11 @@ class OWBin(OWWidget):
 
         box = gui.widgetBox(self.controlArea, "Parameters")
 
+        gui.checkBox(box, self, "square_bin",
+                     label="Use square bin shape",
+                     callback=self._bin_changed)
         gui.separator(box)
+
         hbox = gui.hBox(box)
         self.le0 = lineEditIntRange(box, self, "bin_0", bottom=1, default=1,
                                     callback=self._bin_changed)
@@ -94,6 +99,10 @@ class OWBin(OWWidget):
         pass #TODO make sure bin value is compatible with dataset
 
     def _update_bins(self):
+        if self.square_bin:
+            self.bin_shape = tuple([self.bin_0] * len(self.bin_shape))
+            self._init_bins()
+            return
         new_shape = []
         for i, _ in enumerate(self.bin_shape):
             new_shape.append(getattr(self, f"bin_{i}"))
