@@ -3,7 +3,8 @@ from orangecontrib.spectroscopy.preprocess import LinearBaseline
 
 from orangecontrib.spectroscopy.tests.test_owpreprocess import pack_editor
 from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, BaselineEditor
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
+from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
 
 
 class TestBaselineEditor(WidgetTest):
