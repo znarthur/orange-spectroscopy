@@ -6,7 +6,8 @@ import numpy as np
 import Orange.data
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table, getx
-from orangecontrib.spectroscopy.utils import get_hypercube, index_values
+from orangecontrib.spectroscopy.utils import get_hypercube, index_values, \
+    InvalidAxisException
 
 
 class TestHyperspec(unittest.TestCase):
@@ -40,3 +41,7 @@ class TestHyperspec(unittest.TestCase):
         np.testing.assert_equal(d.Y, nd.Y)
         np.testing.assert_equal(d.metas, nd.metas)
         self.assertEqual(d.domain, nd.domain)
+
+    def test_none_attr(self):
+        with self.assertRaises(InvalidAxisException):
+            get_hypercube(self.mosaic, None, None)

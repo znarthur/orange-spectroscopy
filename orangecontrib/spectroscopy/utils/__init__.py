@@ -91,7 +91,10 @@ def get_ndim_hyperspec(data, attrs):
     Returns:
         (hyperspec, [ls]): Hypercube numpy array and list linspace tuples
     """
-    ndom = Domain(attrs)
+    try:
+        ndom = Domain(attrs)
+    except TypeError:
+        raise InvalidAxisException("Axis cannot be None")
     datam = Table(ndom, data)
 
     ls, indices = axes_to_ndim_linspace(datam, attrs)
