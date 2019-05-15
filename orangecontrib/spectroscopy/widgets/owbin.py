@@ -14,6 +14,8 @@ from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisExce
 from orangecontrib.spectroscopy.utils.binning import bin_hyperspectra, InvalidBlockShape
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 
+MAX_DIMENSIONS = 5
+
 class OWBin(OWWidget):
     # Widget's name as displayed in the canvas
     name = "Bin"
@@ -46,8 +48,7 @@ class OWBin(OWWidget):
 
     settingsHandler = DomainContextHandler()
 
-    attr_x = ContextSetting(None)
-    attr_y = ContextSetting(None)
+    attrs = ContextSetting([None, None])
     bin_shape = settings.Setting((1, 1))
     square_bin = settings.Setting(True)
 
@@ -56,7 +57,13 @@ class OWBin(OWWidget):
 
         self.data = None
 
+        for i in range(MAX_DIMENSIONS):
+            setattr(self, f"bin_{i}", 1)
+            setattr(self, f"attr_{i}", None)
+
         self._init_bins()
+        self._init_ndim()
+        self._init_attrs()
 
         box = gui.widgetBox(self.controlArea, "Parameters")
 
@@ -64,36 +71,39 @@ class OWBin(OWWidget):
                      label="Use square bin shape",
                      callback=self._bin_changed)
 
-        box = gui.widgetBox(self.controlArea, "Axes")
+        gui.separator(box)
+
+        gui.spin(box, self, "ndim", minv=1, maxv=MAX_DIMENSIONS,
+                 label="Number of axes to bin:",
+                 callback=self._dim_changed)
+
+        self.axes_box = gui.widgetBox(self.controlArea, "Axes")
+
+        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+                                    valid_types=ContinuousVariable)
+
+        self.contextAboutToBeOpened.connect(self._init_interface_data)
 
         common_options = dict(
             labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
             valueType=str)
-        self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
-                                    valid_types=ContinuousVariable)
+        for i in range(MAX_DIMENSIONS):
+            hbox = gui.hBox(self.axes_box)
+            gui.comboBox(
+                hbox, self, f"attr_{i}", label=f"Axis {i}:",
+                callback=self._attr_changed,
+                model=self.xy_model, **common_options)
+            le = lineEditIntRange(hbox, self, f"bin_{i}", bottom=1, default=1,
+                                  callback=self._bin_changed)
+            le.setFixedWidth(40)
+            gui.separator(hbox, width=40)
+            gui.widgetLabel(hbox, label="Bin size:", labelWidth=50)
+            hbox.layout().addWidget(le)
 
-        hbox = gui.hBox(box)
-        self.cb_attr_x = gui.comboBox(
-            hbox, self, "attr_x", label="Axis x:", callback=self._update_attr,
-            model=self.xy_model, **common_options)
-        self.le0 = lineEditIntRange(hbox, self, "bin_0", bottom=1, default=1,
-                                    callback=self._bin_changed)
-        self.le0.setFixedWidth(40)
-        gui.separator(hbox, width=40)
-        gui.widgetLabel(hbox, label="Bin size:", labelWidth=50)
-        hbox.layout().addWidget(self.le0)
-        hbox = gui.hBox(box)
-        self.cb_attr_y = gui.comboBox(
-            hbox, self, "attr_y", label="Axis y:", callback=self._update_attr,
-            model=self.xy_model, **common_options)
-        self.le1 = lineEditIntRange(hbox, self, "bin_1", bottom=1, default=1,
-                                    callback=self._bin_changed)
-        self.le1.setFixedWidth(40)
-        gui.separator(hbox, width=40)
-        gui.widgetLabel(hbox, label="Bin size:", labelWidth=50)
-        hbox.layout().addWidget(self.le1)
+        self._update_cb_attr()
 
-        self.contextAboutToBeOpened.connect(self._init_interface_data)
+        box = gui.widgetBox(self.controlArea, "Info")
+        gui.label(box, self, "Block shape:  %(bin_shape)s")
 
         gui.rubber(self.controlArea)
 
@@ -113,21 +123,50 @@ class OWBin(OWWidget):
             new_shape.append(getattr(self, f"bin_{i}"))
         self.bin_shape = tuple(new_shape)
 
+    def _attr_changed(self):
+        self._update_attrs()
+        self.commit()
+
     def _bin_changed(self):
         self._update_bins()
         self._sanitize_bin_value()
+        self.commit()
+
+    def _dim_changed(self):
+        while len(self.bin_shape) != self.ndim:
+            if len(self.bin_shape) < self.ndim:
+                self.bin_shape += (1,)
+                self.attrs.append(None)
+            elif len(self.bin_shape) > self.ndim:
+                self.bin_shape = self.bin_shape[:-1]
+                self.attrs = self.attrs[:-1]
+        self._update_bins()
+        self._update_attrs()
+        self._update_cb_attr()
         self.commit()
 
     def _init_bins(self):
         for i, bin in enumerate(self.bin_shape):
             setattr(self, f"bin_{i}", bin)
 
+    def _init_ndim(self):
+        self.ndim = len(self.bin_shape)
+
+    def _init_attrs(self):
+        for i, attr in enumerate(self.attrs):
+            setattr(self, f"attr_{i}", attr)
+
     def _init_attr_values(self, data):
         domain = data.domain if data is not None else None
         self.xy_model.set_domain(domain)
-        self.attr_x = self.xy_model[0] if self.xy_model else None
-        self.attr_y = self.xy_model[1] if len(self.xy_model) >= 2 \
-            else self.attr_x
+        attrs = []
+        for i in range(self.ndim):
+            try:
+                attr = self.xy_model[i] if self.xy_model else None
+            except IndexError:
+                attr = None
+            attrs.append(attr)
+        self.attrs = attrs
 
     def _init_interface_data(self, args):
         data = args[0]
@@ -135,9 +174,21 @@ class OWBin(OWWidget):
                        data.domain == self.data.domain)
         if not same_domain:
             self._init_attr_values(data)
+        self._init_attrs()
 
-    def _update_attr(self):
-        self.commit()
+    def _update_attrs(self):
+        new_attrs = []
+        for i, _ in enumerate(self.attrs):
+            new_attrs.append(getattr(self, f"attr_{i}"))
+        self.attrs = new_attrs
+
+    def _update_cb_attr(self):
+        for i in range(MAX_DIMENSIONS):
+            w = self.axes_box.layout().itemAt(i).widget()
+            if i < self.ndim:
+                w.show()
+            else:
+                w.hide()
 
     @Inputs.data
     def set_data(self, dataset):
@@ -160,13 +211,13 @@ class OWBin(OWWidget):
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
 
-        attrs = [self.attr_x, self.attr_y]
+        attrs = self.attrs
         # Special-case 2-axis arrays since these are probably images and should
         # stay in (y, x) ordering
         if len(attrs) == 2:
             attrs = attrs[::-1]
 
-        if self.data and len(self.data.domain.attributes) and self.attr_x and self.attr_y:
+        if self.data and len(self.data.domain.attributes) and len(attrs):
             if np.any(np.isnan(self.data.X)):
                 self.Warning.nan_in_image(np.sum(np.isnan(self.data.X)))
             try:
