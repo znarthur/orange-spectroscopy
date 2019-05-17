@@ -28,7 +28,7 @@ from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QLayout
+    QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -52,7 +52,8 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineE
 from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange, \
+    layout_widgets, PreviewMinMaxMixin
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
@@ -946,19 +947,10 @@ class ExtractEXAFSEditor(BaseEditorOrange):
                             poly_deg=poly_deg, kweight=kweight, m=m)
 
 
-def layout_widgets(layout):
-    if not isinstance(layout, QLayout):
-        layout = layout.layout()
-    for i in range(layout.count()):
-        yield layout.itemAt(i).widget()
-
-
-class EMSCEditor(BaseEditorOrange):
+class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
     ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
-    MINLIM_DEFAULT = 0.
-    MAXLIM_DEFAULT = 1.
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1124,13 +1116,6 @@ class EMSCEditor(BaseEditorOrange):
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
-
-    def preview_min_max(self):
-        if self.preview_data is not None:
-            x = getx(self.preview_data)
-            if len(x):
-                return min(x), max(x)
-        return self.MINLIM_DEFAULT, self.MAXLIM_DEFAULT
 
     def set_preview_data(self, data):
         self.preview_data = data

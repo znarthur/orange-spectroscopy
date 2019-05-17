@@ -4,20 +4,16 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QVBoxLayout, QFormLayout, QPushButton, QApplication, QStyle
 
 from Orange.widgets import gui
-from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBaseline
 from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
-from orangecontrib.spectroscopy.widgets.owpreprocess import layout_widgets
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
+    PreviewMinMaxMixin, layout_widgets
 
 
-class BaselineEditor(BaseEditorOrange):
+class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
     """
     Baseline subtraction.
     """
-
-    MINLIM_DEFAULT = 0.
-    MAXLIM_DEFAULT = 1.
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -162,13 +158,6 @@ class BaselineEditor(BaseEditorOrange):
             return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
         else:
             raise Exception("unknown baseline type")
-
-    def preview_min_max(self):
-        if self.preview_data is not None:
-            x = getx(self.preview_data)
-            if len(x):
-                return min(x), max(x)
-        return self.MINLIM_DEFAULT, self.MAXLIM_DEFAULT
 
     def set_preview_data(self, data):
         self.preview_data = data

@@ -1,11 +1,12 @@
 from AnyQt.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal as Signal
-from PyQt5.QtWidgets import QVBoxLayout, QSizePolicy, QDoubleSpinBox
+from PyQt5.QtWidgets import QVBoxLayout, QSizePolicy, QDoubleSpinBox, QLayout
 
 from Orange.widgets.data.utils.preprocess import BaseEditor
 from Orange.widgets.gui import OWComponent
 from Orange.widgets.utils.messages import WidgetMessagesMixin
 from Orange.widgets.widget import Msg
+from orangecontrib.spectroscopy.data import getx
 
 
 class BaseEditor(BaseEditor):
@@ -77,3 +78,25 @@ class SetXDoubleSpinBox(QDoubleSpinBox):
     def focusInEvent(self, *e):
         self.focusIn()
         return super().focusInEvent(*e)
+
+
+class PreviewMinMaxMixin:
+    """ Classes extending the mixin need to set preview_data
+    """
+
+    MINLIM_DEFAULT = 0.
+    MAXLIM_DEFAULT = 1.
+
+    def preview_min_max(self):
+        if self.preview_data is not None:
+            x = getx(self.preview_data)
+            if len(x):
+                return min(x), max(x)
+        return self.MINLIM_DEFAULT, self.MAXLIM_DEFAULT
+
+
+def layout_widgets(layout):
+    if not isinstance(layout, QLayout):
+        layout = layout.layout()
+    for i in range(layout.count()):
+        yield layout.itemAt(i).widget()
