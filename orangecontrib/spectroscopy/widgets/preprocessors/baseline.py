@@ -140,9 +140,10 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
 
     def parameters(self):
         parameters = super().parameters()
-        parameters["zero_points"] = []
+        zero_points = []
         for pair in self._range_widgets():
-            parameters["zero_points"].append(float(pair[0].position))
+            zero_points.append(float(pair[0].position))
+        parameters["zero_points"] = zero_points if zero_points else None
         return parameters
 
     @staticmethod
@@ -150,7 +151,7 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
         baseline_type = params.get("baseline_type", 0)
         peak_dir = params.get("peak_dir", 0)
         sub = params.get("sub", 0)
-        zero_points = params.get("zero_points", [])
+        zero_points = params.get("zero_points", None)
 
         if baseline_type == 0:
             return LinearBaseline(peak_dir=peak_dir, sub=sub, zero_points=zero_points)
