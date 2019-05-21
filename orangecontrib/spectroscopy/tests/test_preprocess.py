@@ -247,6 +247,26 @@ class TestLinearBaseline(unittest.TestCase):
         i = LinearBaseline(peak_dir=LinearBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, [[0, -3, -2, 0]])
 
+    def test_edgepoints(self):
+        data = Orange.data.Table([[1, 5, 1]])
+        i = LinearBaseline(zero_points=[0, 2])(data)
+        np.testing.assert_equal(i.X, [[0, 4, 0]])
+
+    def test_edgepoints_extrapolate(self):
+        data = Orange.data.Table([[1, 5, 1]])
+        i = LinearBaseline(zero_points=[0, 1])(data)
+        np.testing.assert_equal(i.X, [[0, 0, -8]])
+
+    def test_3points(self):
+        data = Orange.data.Table([[1, 5, 1, 5]])
+        i = LinearBaseline(zero_points=[0, 1, 3])(data)
+        np.testing.assert_equal(i.X, [[0, 0, -4, 0]])
+
+    def test_edgepoints_out_of_data(self):
+        data = Orange.data.Table([[1, 5, 1]])
+        i = LinearBaseline(zero_points=[0, 2.000000001])(data)
+        np.testing.assert_almost_equal(i.X, [[0, 4, 0]])
+
 
 class TestNormalize(unittest.TestCase):
 

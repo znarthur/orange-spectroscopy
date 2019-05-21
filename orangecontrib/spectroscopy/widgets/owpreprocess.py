@@ -28,7 +28,7 @@ from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
     QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
-    QToolButton, QSplitter, QLayout
+    QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
@@ -41,7 +41,7 @@ from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess import (
     PCADenoising, GaussianSmoothing, Cut, SavitzkyGolayFiltering,
     Absorbance, Transmittance, XASnormalization, ExtractEXAFS,
-    EMSC, CurveShift, LinearBaseline, RubberbandBaseline
+    EMSC, CurveShift
 )
 from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
 from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
@@ -49,9 +49,11 @@ from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, XPosLineEdit, \
     MovableVline, connect_line, floatornone, round_virtual_pixels
+from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange, \
+    layout_widgets, PreviewMinMaxMixin
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
@@ -440,69 +442,6 @@ class SavitzkyGolayFilteringEditor(BaseEditorOrange):
         polyorder = params.get("polyorder", cls.DEFAULT_POLYORDER)
         deriv = params.get("deriv", cls.DEFAULT_DERIV)
         return SavitzkyGolayFiltering(window=window, polyorder=polyorder, deriv=deriv)
-
-
-class BaselineEditor(BaseEditor):
-    """
-    Baseline subtraction.
-    """
-
-    def __init__(self, parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
-        self.setLayout(QVBoxLayout())
-
-        form = QFormLayout()
-
-        self.baselinecb = QComboBox()
-        self.baselinecb.addItems(["Linear", "Rubber band"])
-
-        self.peakcb = QComboBox()
-        self.peakcb.addItems(["Positive", "Negative"])
-
-        self.subcb = QComboBox()
-        self.subcb.addItems(["Subtract", "Calculate"])
-
-        form.addRow("Baseline Type", self.baselinecb)
-        form.addRow("Peak Direction", self.peakcb)
-        form.addRow("Background Action", self.subcb)
-
-        self.layout().addLayout(form)
-
-        self.baselinecb.currentIndexChanged.connect(self.changed)
-        self.baselinecb.activated.connect(self.edited)
-        self.peakcb.currentIndexChanged.connect(self.changed)
-        self.peakcb.activated.connect(self.edited)
-        self.subcb.currentIndexChanged.connect(self.changed)
-        self.subcb.activated.connect(self.edited)
-
-    def setParameters(self, params):
-        baseline_type = params.get("baseline_type", 0)
-        peak_dir = params.get("peak_dir", 0)
-        sub = params.get("sub", 0)
-        self.baselinecb.setCurrentIndex(baseline_type)
-        self.peakcb.setCurrentIndex(peak_dir)
-        self.subcb.setCurrentIndex(sub)
-
-        # peak direction is only relevant for rubberband
-        self.peakcb.setEnabled(baseline_type == 1)
-
-    def parameters(self):
-        return {"baseline_type": self.baselinecb.currentIndex(),
-                "peak_dir": self.peakcb.currentIndex(),
-                "sub": self.subcb.currentIndex()}
-
-    @staticmethod
-    def createinstance(params):
-        baseline_type = params.get("baseline_type", 0)
-        peak_dir = params.get("peak_dir", 0)
-        sub = params.get("sub", 0)
-
-        if baseline_type == 0:
-            return LinearBaseline(peak_dir=peak_dir, sub=sub)
-        elif baseline_type == 1:
-            return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
-        elif baseline_type == 2: #other type of baseline - need to be implemented
-            return RubberbandBaseline(peak_dir=peak_dir, sub=sub)
 
 
 class CurveShiftEditor(BaseEditorOrange):
@@ -1008,19 +947,10 @@ class ExtractEXAFSEditor(BaseEditorOrange):
                             poly_deg=poly_deg, kweight=kweight, m=m)
 
 
-def layout_widgets(layout):
-    if not isinstance(layout, QLayout):
-        layout = layout.layout()
-    for i in range(layout.count()):
-        yield layout.itemAt(i).widget()
-
-
-class EMSCEditor(BaseEditorOrange):
+class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
     ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
-    MINLIM_DEFAULT = 0.
-    MAXLIM_DEFAULT = 1.
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1186,13 +1116,6 @@ class EMSCEditor(BaseEditorOrange):
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
-
-    def preview_min_max(self):
-        if self.preview_data is not None:
-            x = getx(self.preview_data)
-            if len(x):
-                return min(x), max(x)
-        return self.MINLIM_DEFAULT, self.MAXLIM_DEFAULT
 
     def set_preview_data(self, data):
         self.preview_data = data
