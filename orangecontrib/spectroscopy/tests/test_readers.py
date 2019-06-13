@@ -76,6 +76,18 @@ class TestHermesHDF5Reader(unittest.TestCase):
         self.assertEqual(d[1]["map_y"], 11.1)
 
 
+class TestOmnicMapReader(unittest.TestCase):
+
+    def test_read(self):
+        d = Orange.data.Table("small_Omnic.map")
+        self.assertAlmostEqual(d[1, 0], 4.01309, places=5)
+        self.assertAlmostEqual(d[0, 0], 3.98295, places=5)
+        self.assertEqual(min(getx(d)), 1604.51001)
+        self.assertEqual(max(getx(d)), 1805.074097)
+        self.assertEqual(d[0]["map_x"], 0)
+        self.assertEqual(d[1]["map_y"], 0)
+
+
 class TestAsciiMapReader(unittest.TestCase):
 
     def test_read(self):
