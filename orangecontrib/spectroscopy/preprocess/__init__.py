@@ -83,7 +83,10 @@ class _GaussianCommon(CommonDomainOrderUnknowns):
         self.sd = sd
 
     def transformed(self, X, wavenumbers):
-        return gaussian_filter1d(X, sigma=self.sd, mode="nearest")
+        if self.sd > 0:
+            return gaussian_filter1d(X, sigma=self.sd, mode="nearest")
+        else:
+            return X
 
 
 class GaussianSmoothing(Preprocess):

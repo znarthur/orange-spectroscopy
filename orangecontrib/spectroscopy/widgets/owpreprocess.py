@@ -250,6 +250,7 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     """
 
     DEFAULT_SD = 10.
+    MINIMUM_SD = 10e-10
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -270,7 +271,10 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     def createinstance(cls, params):
         params = dict(params)
         sd = params.get("sd", cls.DEFAULT_SD)
-        return GaussianSmoothing(sd=float(sd))
+        sd = float(sd)
+        if sd < cls.MINIMUM_SD:
+            sd = 0.0
+        return GaussianSmoothing(sd=sd)
 
 
 class CutEditor(BaseEditorOrange):
