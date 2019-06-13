@@ -212,10 +212,6 @@ class OWBin(OWWidget):
         self.Error.invalid_block.clear()
 
         attrs = self.attrs
-        # Special-case 2-axis arrays since these are probably images and should
-        # stay in (y, x) ordering
-        if len(attrs) == 2:
-            attrs = attrs[::-1]
 
         if self.data and len(self.data.domain.attributes) and len(attrs):
             if np.any(np.isnan(self.data.X)):
