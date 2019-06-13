@@ -1,20 +1,18 @@
-from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.preprocess import Normalize, NormalizeReference
 
-from orangecontrib.spectroscopy.tests.test_owpreprocess import pack_editor
+from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 
 
-class TestNormalizeEditor(WidgetTest):
+class TestNormalizeEditor(PreprocessorEditorTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
+        self.editor = self.add_editor(NormalizeEditor, self.widget)
         data = SMALL_COLLAGEN
         self.send_signal(OWPreprocess.Inputs.data, data)
-        self.widget.add_preprocessor(pack_editor(NormalizeEditor))
-        self.editor = self.widget.flow_view.widgets()[0]  # type: NormalizeEditor
 
     def test_no_interaction(self):
         self.widget.apply()

@@ -346,3 +346,13 @@ class TestPreprocessWarning(spectral_preprocess.TestWarning):
         self.editor.edited.emit()
         self.widget.show_preview()
         self.assertIsNotNone(self.widget.curveplot_after.data)
+
+
+class PreprocessorEditorTest(WidgetTest):
+
+    def add_editor(self, cls, widget):
+        # type: (Type[T], object) -> T
+        widget.add_preprocessor(pack_editor(cls))
+        editor = widget.flow_view.widgets()[-1]
+        self.process_events()
+        return editor
