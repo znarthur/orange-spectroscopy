@@ -1,15 +1,14 @@
-from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import LinearBaseline
 
-from orangecontrib.spectroscopy.tests.test_owpreprocess import pack_editor
+from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
 from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import layout_widgets
 
 
-class TestBaselineEditor(WidgetTest):
+class TestBaselineEditor(PreprocessorEditorTest):
 
     def get_preprocessor(self):
         out = self.get_output(OWPreprocess.Outputs.preprocessor)
@@ -17,10 +16,9 @@ class TestBaselineEditor(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
+        self.editor = self.add_editor(BaselineEditor, self.widget)
         self.data = SMALL_COLLAGEN
         self.send_signal(OWPreprocess.Inputs.data, self.data)
-        self.widget.add_preprocessor(pack_editor(BaselineEditor))
-        self.editor = self.widget.flow_view.widgets()[0]  # type: BaselineEditor
 
     def test_no_interaction(self):
         self.widget.apply()
