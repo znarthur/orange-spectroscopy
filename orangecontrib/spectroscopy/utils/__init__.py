@@ -61,9 +61,57 @@ class InvalidAxisException(Exception):
     pass
 
 
+def axes_to_ndim_linspace(datam, attrs):
+    ls = []
+    indices = []
+
+    for i, axis in enumerate(attrs):
+        coor = datam.X[:, i]
+        lsa = values_to_linspace(coor)
+        if lsa is None:
+            raise InvalidAxisException(axis.name)
+        ls.append(lsa)
+        indices.append(index_values(coor, lsa))
+
+    return ls, indices
+
+
+def get_ndim_hyperspec(data, attrs):
+    """
+    Reshape table array into a n-dimensional hyperspectral array with respect to
+    provided (n-1) ContinuousVariable attributes.
+
+    The hypercube is organized [ attr0, attr1, ..., wavelengths ].
+    Linspace tuple indexes correspond to original attr index.
+
+    Args:
+        data (Table): Hyperspectral data Table
+        attrs (List): Attributes to build array dimensions along
+
+    Returns:
+        (hyperspec, [ls]): Hypercube numpy array and list linspace tuples
+    """
+    try:
+        ndom = Domain(attrs)
+    except TypeError:
+        raise InvalidAxisException("Axis cannot be None")
+    datam = Table(ndom, data)
+
+    ls, indices = axes_to_ndim_linspace(datam, attrs)
+
+    # set data
+    new_shape = tuple([lsa[2] for lsa in ls]) + (data.X.shape[1],)
+    hyperspec = np.ones(new_shape) * np.nan
+
+    hyperspec[indices] = data.X
+
+    return hyperspec, ls
+
+
 def get_hypercube(data, xat, yat):
     """
     Reshape table array into a hypercube array according to x and y attributes.
+    The hypercube is organized [ rows, columns, wavelengths ].
 
     Args:
         data (Table): Hyperspectral data Table
@@ -73,25 +121,6 @@ def get_hypercube(data, xat, yat):
     Returns:
         (hypercube, lsx, lsy): Hypercube numpy array and linspace tuples
     """
-    ndom = Domain([xat, yat])
-    datam = Table(ndom, data)
-    coorx = datam.X[:, 0]
-    coory = datam.X[:, 1]
-
-    lsx = values_to_linspace(coorx)
-    lsy = values_to_linspace(coory)
-    lsz = data.X.shape[1]
-
-    if lsx is None:
-        raise InvalidAxisException("x")
-    if lsy is None:
-        raise InvalidAxisException("y")
-
-    # set data
-    hypercube = np.ones((lsy[2], lsx[2], lsz)) * np.nan
-
-    xindex = index_values(coorx, lsx)
-    yindex = index_values(coory, lsy)
-    hypercube[yindex, xindex] = data.X
-
+    attrs = [yat, xat]
+    hypercube, (lsy, lsx) = get_ndim_hyperspec(data, attrs)
     return hypercube, lsx, lsy
