@@ -14,7 +14,7 @@ from orangecontrib.spectroscopy.preprocess import Interpolate
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon, is_left
 from orangecontrib.spectroscopy.tests.util import hold_modifiers, set_png_graph_save
 from orangecontrib.spectroscopy.utils import values_to_linspace, \
-    index_values, location_values
+    index_values, location_values, index_values_nan
 
 NAN = float("nan")
 
@@ -24,7 +24,7 @@ class TestReadCoordinates(unittest.TestCase):
     def test_linspace(self):
         v = values_to_linspace(np.array([1, 2, 3]))
         np.testing.assert_equal(np.linspace(*v), [1, 2, 3])
-        v = values_to_linspace(np.array([1, 2, 3, float("nan")]))
+        v = values_to_linspace(np.array([1, 2, 3, np.nan]))
         np.testing.assert_equal(np.linspace(*v), [1, 2, 3])
         v = values_to_linspace(np.array([1]))
         np.testing.assert_equal(np.linspace(*v), [1])
@@ -44,6 +44,13 @@ class TestReadCoordinates(unittest.TestCase):
         v = values_to_linspace(a)
         iv = index_values(a, v)
         np.testing.assert_equal(iv, [0, 1, 2, 5, 4])
+
+    def test_index_nan(self):
+        a = np.array([1, 2, 3, np.nan])
+        v = values_to_linspace(a)
+        iv, nans = index_values_nan(a, v)
+        np.testing.assert_equal(iv[:-1], [0, 1, 2])
+        np.testing.assert_equal(nans, [0, 0, 0, 1])
 
     def test_location(self):
         lsc = values_to_linspace(np.array([1, 1, 1]))  # a constant
@@ -258,3 +265,9 @@ class TestOWHyper(WidgetTest):
         with set_png_graph_save() as fname:
             self.widget.save_graph()
             self.assertGreater(os.path.getsize(fname), 1000)
+
+    def test_unknown_values_axes(self):
+        data = Orange.data.Table("iris")
+        data.Y[0] = np.nan
+        self.send_signal("Data", data)
+        self.assertTrue(self.widget.Information.not_shown.is_shown())

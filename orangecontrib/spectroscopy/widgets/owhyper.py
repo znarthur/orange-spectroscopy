@@ -26,7 +26,7 @@ from Orange.widgets.utils import saveplot
 from Orange.data import DiscreteVariable, ContinuousVariable
 
 from orangecontrib.spectroscopy.preprocess import Integrate
-from orangecontrib.spectroscopy.utils import values_to_linspace, index_values
+from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan
 
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
@@ -392,6 +392,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_points = None
         self.data_values = None
         self.data_imagepixels = None
+        self.data_valid_positions = None
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
         self.plot = self.plotview.getPlotItem()
@@ -535,6 +536,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
 
     def update_view(self):
+        self.parent.Error.image_too_big.clear()
+        self.parent.Information.not_shown.clear()
         self.img.clear()
         self.img.setSelection(None)
         self.lsx = None
@@ -542,6 +545,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_points = None
         self.data_values = None
         self.data_imagepixels = None
+        self.data_valid_positions = None
         if self.data and self.attr_x and self.attr_y:
             xat = self.data.domain[self.attr_x]
             yat = self.data.domain[self.attr_y]
@@ -556,8 +560,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
                 self.parent.Error.image_too_big(lsx[-1], lsy[-1])
                 return
-            else:
-                self.parent.Error.image_too_big.clear()
 
             di = {}
             if self.parent.value_type == 0:  # integrals
@@ -582,12 +584,15 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
                 d = Orange.data.Table(ndom, self.data).X[:, 0]
             self.refresh_markings(di)
 
-            # set data
-            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+            xindex, xnan = index_values_nan(coorx, lsx)
+            yindex, ynan = index_values_nan(coory, lsy)
+            self.data_valid_positions = valid = np.logical_not(np.logical_or(xnan, ynan))
+            invalid_positions = len(d) - np.sum(valid)
+            if invalid_positions:
+                self.parent.Information.not_shown(invalid_positions)
 
-            xindex = index_values(coorx, lsx)
-            yindex = index_values(coory, lsy)
-            imdata[yindex, xindex] = d
+            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+            imdata[yindex[valid], xindex[valid]] = d[valid]
             self.data_values = d
             self.data_imagepixels = np.vstack((yindex, xindex)).T
 
@@ -609,7 +614,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
     def refresh_img_selection(self):
         selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
-        selected_px[self.data_imagepixels[:, 0], self.data_imagepixels[:, 1]] = self.selection_group
+        selected_px[self.data_imagepixels[self.data_valid_positions, 0],
+                    self.data_imagepixels[self.data_valid_positions, 1]] = \
+            self.selection_group[self.data_valid_positions]
         self.img.setSelection(selected_px)
 
     def make_selection(self, selected, add):
@@ -705,8 +712,11 @@ class OWHyper(OWWidget):
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
 
-    class Error(OWWidget.Warning):
+    class Error(OWWidget.Error):
         image_too_big = Msg("Image for chosen features is too big ({} x {}).")
+
+    class Information(OWWidget.Information):
+        not_shown = Msg("Undefined positions: {} data point(s) are not shown.")
 
     @classmethod
     def migrate_settings(cls, settings_, version):

@@ -50,8 +50,14 @@ def location_values(vals, linspace):
 
 def index_values(vals, linspace):
     """ Remap values into index of array defined by linspace. """
-    return np.round(location_values(vals, linspace)).astype(int)
+    return index_values_nan(vals, linspace)[0]
 
+
+def index_values_nan(vals, linspace):
+    """ Remap values into index of array defined by linspace.
+    Returns two arrays: first contains the indices, the second invalid values."""
+    positions = location_values(vals, linspace)
+    return np.round(positions).astype(int), np.isnan(positions)
 
 class NanInsideHypercube(Exception):
     pass
