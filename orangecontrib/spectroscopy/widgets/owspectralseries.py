@@ -22,7 +22,7 @@ from orangecontrib.spectroscopy.data import getx
 
 from orangecontrib.spectroscopy.utils import values_to_linspace, index_values
 from orangecontrib.spectroscopy.widgets.owhyper import _shift, \
-    ImageColorSettingMixin, ImageZoomMixin, ImageItemNan
+    ImageColorSettingMixin, ImageZoomMixin, ImageItemNan, ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import SelectionGroupMixin, HelpEventDelegate, \
     selection_modifiers, \
     SELECTMANY, INDIVIDUAL, InteractiveViewBox, MenuFocus
@@ -53,8 +53,14 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_points = None
         self.data_imagepixels = None
 
-        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
-        self.plot = self.plotview.getPlotItem()
+        self.plotview = pg.GraphicsLayoutWidget()
+        self.plotview.show()
+
+        self.plot = pg.PlotItem(background="w", viewBox=InteractiveViewBox(self))
+        self.plotview.addItem(self.plot)
+
+        self.legend = ImageColorLegend()
+        self.plotview.addItem(self.legend)
 
         self.plot.scene().installEventFilter(
             HelpEventDelegate(self.help_event, self))
@@ -159,6 +165,7 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
     def update_view(self):
         self.img.clear()
         self.img.setSelection(None)
+        self.legend.set_colors(None)
         self.lsx = None
         self.lsy = None
         self.wavenumbers = None
@@ -188,7 +195,6 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
             self.data_imagepixels = xindex
 
             self.img.setImage(imdata, autoLevels=False)
-            self.img.setLevels([0, 1])
             self.update_levels()
             self.update_color_schema()
 

@@ -3,7 +3,7 @@ from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QWidgetAction, QSplitter, \
-    QToolTip
+    QToolTip, QGraphicsRectItem
 from AnyQt.QtGui import QColor, QKeySequence, QPainter, QBrush, QStandardItemModel, \
     QStandardItem, QLinearGradient, QPixmap, QIcon
 
@@ -14,6 +14,7 @@ from AnyQt.QtCore import pyqtSignal as Signal
 
 import numpy as np
 import pyqtgraph as pg
+from pyqtgraph import GraphicsWidget
 import colorcet
 
 import Orange.data
@@ -239,6 +240,7 @@ class ImageColorSettingMixin:
     threshold_high = Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
+    show_legend = Setting(True)
     palette_index = Setting(0)
 
     def color_settings_box(self):
@@ -253,6 +255,9 @@ class ImageColorSettingMixin:
         self.color_cb.setModel(model)
         self.color_cb.activated.connect(self.update_color_schema)
         self.color_cb.setCurrentIndex(self.palette_index)
+
+        gui.checkBox(box, self, "show_legend", label="Show legend",
+                     callback=self.update_legend_visible)
 
         form = QFormLayout(
             formAlignment=Qt.AlignLeft,
@@ -285,7 +290,12 @@ class ImageColorSettingMixin:
         form.addRow("High:", highslider)
         box.layout().addLayout(form)
 
+        self.update_legend_visible()
+
         return box
+
+    def update_legend_visible(self):
+        self.legend.setVisible(self.show_legend)
 
     def update_levels(self):
         if not self.data:
@@ -321,6 +331,7 @@ class ImageColorSettingMixin:
         lh_threshold = ll + (lh - ll) * self.threshold_high
 
         self.img.setLevels([ll_threshold, lh_threshold])
+        self.legend.set_range(ll_threshold, lh_threshold)
 
     def update_color_schema(self):
         if not self.data:
@@ -338,6 +349,7 @@ class ImageColorSettingMixin:
         _, colors = max(data.items())
         cols = color_palette_table(colors)
         self.img.setLookupTable(cols)
+        self.legend.set_colors(cols)
 
     def reset_thresholds(self):
         self.threshold_low = 0.
@@ -364,6 +376,55 @@ class ImageZoomMixin:
         self.addAction(zoom_fit)
         if menu:
             menu.addAction(zoom_fit)
+
+
+class ImageColorLegend(GraphicsWidget):
+
+    def __init__(self):
+        GraphicsWidget.__init__(self)
+        self.width = 15
+        self.length = 100
+        self.colors = None
+        self.gradient = QLinearGradient()
+        self.setMaximumHeight(2**16)
+        self.rect = QGraphicsRectItem(QRectF(-self.width, 0, self.width, 100))
+        self.rect.setParentItem(self)
+        self.axis = pg.AxisItem('right', parent=self)
+        self._initialized = True
+        self.adapt_to_size()
+
+    def resizeEvent(self, ev):
+        if self._initialized:
+            self.adapt_to_size()
+
+    def adapt_to_size(self):
+        self.length = self.height()
+        self.resetTransform()
+        self.rect.setRect(-self.width, 0, self.width, self.length)
+        self.axis.setHeight(self.length)
+        self.gradient.setStart(QPointF(0, self.length))
+        self.gradient.setFinalStop(QPointF(0, 0))
+        self.update_rect()
+
+    def set_colors(self, colors):
+        # a Nx3 array containing colors
+        self.colors = colors
+        if self.colors is not None:
+            positions = np.linspace(0, 1, len(self.colors))
+            stops = []
+            for p, c in zip(positions, self.colors):
+                stops.append((p, QColor(*c)))
+            self.gradient.setStops(stops)
+        self.update_rect()
+
+    def set_range(self, low, high):
+        self.axis.setRange(low, high)
+
+    def update_rect(self):
+        if self.colors is None:
+            self.rect.setBrush(QBrush(Qt.white))
+        else:
+            self.rect.setBrush(QBrush(self.gradient))
 
 
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
@@ -393,8 +454,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_values = None
         self.data_imagepixels = None
 
-        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBox(self))
-        self.plot = self.plotview.getPlotItem()
+        self.plotview = pg.GraphicsLayoutWidget()
+        self.plotview.show()
+
+        self.plot = pg.PlotItem(background="w", viewBox=InteractiveViewBox(self))
+        self.plotview.addItem(self.plot)
+
+        self.legend = ImageColorLegend()
+        self.plotview.addItem(self.legend)
 
         self.plot.scene().installEventFilter(
             HelpEventDelegate(self.help_event, self))
@@ -537,6 +604,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
     def update_view(self):
         self.img.clear()
         self.img.setSelection(None)
+        self.legend.set_colors(None)
         self.lsx = None
         self.lsy = None
         self.data_points = None
@@ -592,7 +660,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             self.data_imagepixels = np.vstack((yindex, xindex)).T
 
             self.img.setImage(imdata, autoLevels=False)
-            self.img.setLevels([0, 1])
             self.update_levels()
             self.update_color_schema()
 
