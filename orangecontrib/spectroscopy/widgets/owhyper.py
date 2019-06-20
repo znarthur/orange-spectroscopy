@@ -382,27 +382,34 @@ class ImageColorLegend(GraphicsWidget):
 
     def __init__(self):
         GraphicsWidget.__init__(self)
-        self.width = 15
-        self.length = 100
+        self.width_bar = 15
         self.colors = None
         self.gradient = QLinearGradient()
         self.setMaximumHeight(2**16)
-        self.rect = QGraphicsRectItem(QRectF(-self.width, 0, self.width, 100))
-        self.rect.setParentItem(self)
+        self.setMinimumWidth(self.width_bar)
+        self.setMaximumWidth(self.width_bar)
+        self.rect = QGraphicsRectItem(QRectF(0, 0, self.width_bar, 100), self)
         self.axis = pg.AxisItem('right', parent=self)
-        self._initialized = True
+        self.axis.setX(self.width_bar)
+        self.axis.geometryChanged.connect(self._update_width)
         self.adapt_to_size()
+        self._initialized = True
+
+    def _update_width(self):
+        aw = self.axis.minimumWidth()
+        self.setMinimumWidth(self.width_bar + aw)
+        self.setMaximumWidth(self.width_bar + aw)
 
     def resizeEvent(self, ev):
-        if self._initialized:
+        if hasattr(self, "_initialized"):
             self.adapt_to_size()
 
     def adapt_to_size(self):
-        self.length = self.height()
+        h = self.height()
         self.resetTransform()
-        self.rect.setRect(-self.width, 0, self.width, self.length)
-        self.axis.setHeight(self.length)
-        self.gradient.setStart(QPointF(0, self.length))
+        self.rect.setRect(0, 0, self.width_bar, h)
+        self.axis.setHeight(h)
+        self.gradient.setStart(QPointF(0, h))
         self.gradient.setFinalStop(QPointF(0, 0))
         self.update_rect()
 
