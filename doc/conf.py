@@ -289,3 +289,8 @@ texinfo_documents = [
 
 def setup(app):
     app.add_stylesheet('style.css')
+ 
+# prevent smart quotes which introduce strange characters,
+# which are not valid utf-8
+# sphinx htmlhelp outputs cp1252 instead of utf-8 on my (Marko's) computer
+smartquotes = False
