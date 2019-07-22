@@ -52,13 +52,17 @@ class _PCAReconstructCommon(CommonDomain):
 
 class PCADenoising(Preprocess):
 
-    def __init__(self, components=None):
+    def __init__(self, components=None, random_state=0, svd_solver="randomized"):
         self.components = components
+        self.random_state = random_state
+        self.svd_solver = svd_solver
 
     def __call__(self, data):
         if data and len(data.domain.attributes):
             maxpca = min(len(data.domain.attributes), len(data))
-            pca = Orange.projection.PCA(n_components=min(maxpca, self.components))(data)
+            pca = Orange.projection.PCA(n_components=min(maxpca, self.components),
+                                        random_state=self.random_state,
+                                        svd_solver=self.svd_solver)(data)
             commonfn = _PCAReconstructCommon(pca)
             nats = [at.copy(compute_value=PCADenoisingFeature(i, commonfn))
                     for i, at in enumerate(data.domain.attributes)]
