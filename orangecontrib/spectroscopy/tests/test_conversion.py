@@ -49,7 +49,7 @@ class TestConversion(unittest.TestCase):
 
     def test_predict_same_domain(self):
         train, test = separate_learn_test(self.collagen)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertGreater(auc, 0.9) # easy dataset
 
     def test_predict_samename_domain(self):
@@ -60,15 +60,15 @@ class TestConversion(unittest.TestCase):
             with self.assertRaises(DomainTransformationError):
                 LogisticRegressionLearner()(train)(test)
         except ImportError:  # until Orange 3.19
-            aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            aucdestroyed = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
             self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_samename_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        aucorig = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         test = destroy_atts_conversion(test)
         train = Interpolate(points=getx(train))(train) # make train capable of interpolation
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertEqual(aucorig, auc)
 
     def test_predict_different_domain(self):
@@ -84,17 +84,17 @@ class TestConversion(unittest.TestCase):
 
     def test_predict_different_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        aucorig = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         test = Interpolate(points=getx(test) - 1.)(test) # other test domain
         train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
-        aucshift = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        aucshift = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertAlmostEqual(aucorig, aucshift, delta=0.01)  # shift can decrease AUC slightly
         test = Cut(1000, 1700)(test)
-        auccut1 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auccut1 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         test = Cut(1100, 1600)(test)
-        auccut2 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auccut2 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         test = Cut(1200, 1500)(test)
-        auccut3 = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auccut3 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         # the more we cut the lower precision we get
         self.assertTrue(aucorig > auccut1 > auccut2 > auccut3)
 
@@ -114,15 +114,15 @@ class TestConversion(unittest.TestCase):
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
         train, test = separate_learn_test(data)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertGreater(auc, 0.85)
 
     def test_predict_savgol_another_interpolate(self):
         train, test = separate_learn_test(self.collagen)
         train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
-        auc = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         train = Interpolate(points=getx(train))(train)
-        aucai = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+        aucai = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertAlmostEqual(auc, aucai, delta=0.02)
 
     def test_slightly_different_domain(self):
@@ -139,7 +139,7 @@ class TestConversion(unittest.TestCase):
             # LR that can not handle unknown values
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)
-            aucorig = AUC(TestOnTestData(train1, test, [learner]))
+            aucorig = AUC(TestOnTestData()(train1, test, [learner]))
             test = destroy_atts_conversion(test)
             test = odd_attr(test)
             # a subset of points for training so that all test sets points
@@ -149,11 +149,11 @@ class TestConversion(unittest.TestCase):
             # explicit domain conversion test to catch exceptions that would
             # otherwise be silently handled in TestOnTestData
             _ = Orange.data.Table(train.domain, test)
-            aucnow = AUC(TestOnTestData(train, test, [learner]))
+            aucnow = AUC(TestOnTestData()(train, test, [learner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.02, msg="Preprocessor " + str(proc))
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             _ = Orange.data.Table(train.domain, test)  # explicit call again
-            aucnow = AUC(TestOnTestData(train, test, [learner]))
+            aucnow = AUC(TestOnTestData()(train, test, [learner]))
             # the difference should be slight
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05, msg="Preprocessor " + str(proc))
 
