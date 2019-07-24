@@ -449,7 +449,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         SelectionGroupMixin.__init__(self)
         ImageColorSettingMixin.__init__(self)
         ImageZoomMixin.__init__(self)
-
         self.parent = parent
 
         self.selection_type = SELECTMANY
@@ -463,8 +462,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_valid_positions = None
 
         self.plotview = pg.GraphicsLayoutWidget()
-        self.plotview.show()
-
         self.plot = pg.PlotItem(background="w", viewBox=InteractiveViewBox(self))
         self.plotview.addItem(self.plot)
 
