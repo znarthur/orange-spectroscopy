@@ -6,7 +6,6 @@ from AnyQt.QtCore import Qt
 
 import Orange
 from Orange.tests import named_file
-from Orange.widgets.io import PngFormat
 
 
 @contextmanager
@@ -31,6 +30,6 @@ def smaller_data(data, nth_instance, nth_feature):
 @contextmanager
 def set_png_graph_save():
     with named_file("", suffix=".png") as fname:
-        with patch("Orange.widgets.utils.filedialogs.open_filename_dialog_save",
-                   lambda *x: (fname, PngFormat, None)):
+        with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
+                   lambda *x: (fname, 'Portable Network Graphics (*.png)')):
             yield fname
