@@ -109,9 +109,8 @@ class TestOWHyper(WidgetTest):
         self.widget = self.create_widget(OWHyper)
 
     def try_big_selection(self):
-        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100), False)
-        self.widget.imageplot.make_selection(None, False)
-        self.widget.imageplot.make_selection(None, True)
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100))
+        self.widget.imageplot.make_selection(None)
 
     def test_strange(self):
         for data in self.strange_data:
@@ -154,51 +153,51 @@ class TestOWHyper(WidgetTest):
         self.assertIsNone(out, None)
 
         # select all
-        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(1000, 1000), False)
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(1000, 1000))
         out = self.get_output("Selection")
         self.assertEqual(len(self.whitelight), len(out))
 
         # test if mixing increasing and decreasing works
-        self.widget.imageplot.select_square(QPointF(1000, -100), QPointF(-100, 1000), False)
+        self.widget.imageplot.select_square(QPointF(1000, -100), QPointF(-100, 1000))
         out = self.get_output("Selection")
         self.assertEqual(len(self.whitelight), len(out))
 
         # deselect
-        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(-100, -100), False)
+        self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(-100, -100))
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
 
         # select specific points
-        self.widget.imageplot.select_square(QPointF(9.4, 9.4), QPointF(11.6, 10.6), False)
+        self.widget.imageplot.select_square(QPointF(9.4, 9.4), QPointF(11.6, 10.6))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[10, 10], [11, 10]])
 
     def test_select_polygon_as_rectangle(self):
         # rectangle and a polygon need to give the same results
         self.send_signal("Data", self.whitelight)
-        self.widget.imageplot.select_square(QPointF(5, 5), QPointF(15, 10), False)
+        self.widget.imageplot.select_square(QPointF(5, 5), QPointF(15, 10))
         out = self.get_output("Selection")
         self.widget.imageplot.select_polygon([QPointF(5, 5), QPointF(15, 5), QPointF(15, 10),
-                                              QPointF(5, 10), QPointF(5, 5)], False)
+                                              QPointF(5, 10), QPointF(5, 5)])
         outpoly = self.get_output("Selection")
         self.assertEqual(list(out), list(outpoly))
 
     def test_select_click(self):
         self.send_signal("Data", self.whitelight)
-        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        self.widget.imageplot.select_by_click(QPointF(1, 2))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[1, 2]])
 
     def test_select_click_multiple_groups(self):
         data = self.whitelight
         self.send_signal("Data", data)
-        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        self.widget.imageplot.select_by_click(QPointF(1, 2))
         with hold_modifiers(self.widget, Qt.ControlModifier):
-            self.widget.imageplot.select_by_click(QPointF(2, 2), False)
+            self.widget.imageplot.select_by_click(QPointF(2, 2))
         with hold_modifiers(self.widget, Qt.ShiftModifier):
-            self.widget.imageplot.select_by_click(QPointF(3, 2), False)
+            self.widget.imageplot.select_by_click(QPointF(3, 2))
         with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
-            self.widget.imageplot.select_by_click(QPointF(4, 2), False)
+            self.widget.imageplot.select_by_click(QPointF(4, 2))
         out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
         self.assertEqual(len(out), 20000)  # have a data table at the output
         newvars = out.domain.variables + out.domain.metas
@@ -212,13 +211,13 @@ class TestOWHyper(WidgetTest):
 
         # remove one element
         with hold_modifiers(self.widget, Qt.AltModifier):
-            self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+            self.widget.imageplot.select_by_click(QPointF(1, 2))
         out = self.get_output("Selection")
         np.testing.assert_equal(len(out), 3)
 
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)
-        self.widget.curveplot.make_selection([0], False)
+        self.widget.curveplot.make_selection([0])
 
     def test_settings_curves(self):
         self.send_signal("Data", self.iris)

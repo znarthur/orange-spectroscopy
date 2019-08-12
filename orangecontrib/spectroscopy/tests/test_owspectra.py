@@ -341,7 +341,7 @@ class TestOWSpectra(WidgetTest):
         self.widget.curveplot.MOUSE_RADIUS = 1000
         self.widget.curveplot.mouse_moved_closest(
             (self.widget.curveplot.plot.sceneBoundingRect().center(),))
-        self.widget.curveplot.select_by_click(None, add=False)
+        self.widget.curveplot.select_by_click(None)
         out = self.get_output("Selection")
         self.assertEqual(len(out), 1)
         # resending the exact same data should not change the selection
@@ -356,13 +356,13 @@ class TestOWSpectra(WidgetTest):
     def test_select_click_multiple_groups(self):
         data = self.collagen[:100]
         self.send_signal("Data", data)
-        self.widget.curveplot.make_selection([1], False)
+        self.widget.curveplot.make_selection([1])
         with hold_modifiers(self.widget, Qt.ControlModifier):
-            self.widget.curveplot.make_selection([2], False)
+            self.widget.curveplot.make_selection([2])
         with hold_modifiers(self.widget, Qt.ShiftModifier):
-            self.widget.curveplot.make_selection([3], False)
+            self.widget.curveplot.make_selection([3])
         with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
-            self.widget.curveplot.make_selection([4], False)
+            self.widget.curveplot.make_selection([4])
         out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
         self.assertEqual(len(out), 100)  # have a data table at the output
         newvars = out.domain.variables + out.domain.metas
@@ -376,7 +376,7 @@ class TestOWSpectra(WidgetTest):
 
         # remove one element
         with hold_modifiers(self.widget, Qt.AltModifier):
-            self.widget.curveplot.make_selection([1], False)
+            self.widget.curveplot.make_selection([1])
         out = self.get_output("Selection")
         np.testing.assert_equal(len(out), 3)
         np.testing.assert_equal([o for o in out], [data[i] for i in [2, 3, 4]])
@@ -385,11 +385,11 @@ class TestOWSpectra(WidgetTest):
         data = self.collagen[:100]
         assert MAX_INSTANCES_DRAWN >= len(data) > MAX_THICK_SELECTED
         self.send_signal("Data", data)
-        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)), False)
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)))
         self.assertEqual(2, self.widget.curveplot.pen_selected[None].width())
-        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED + 1)), False)
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED + 1)))
         self.assertEqual(1, self.widget.curveplot.pen_selected[None].width())
-        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)), False)
+        self.widget.curveplot.make_selection(list(range(MAX_THICK_SELECTED)))
         self.assertEqual(2, self.widget.curveplot.pen_selected[None].width())
 
     def test_select_thick_lines_threshold(self):
