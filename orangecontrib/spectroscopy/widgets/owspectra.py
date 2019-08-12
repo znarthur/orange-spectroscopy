@@ -284,6 +284,15 @@ class InteractiveViewBox(ViewBox):
         elif self.action == PANNING:
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
+        elif self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
+                and ev.button() == Qt.LeftButton and self.graph.selection_type:
+            add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
+            pos = self.childGroup.mapFromParent(ev.pos())
+            if self.current_selection is None:
+                self.current_selection = [pos]
+            elif ev.isFinish():
+                self._add_selection_point(pos, add)
+            ev.accept()
         else:
             ev.ignore()
 
@@ -380,16 +389,19 @@ class InteractiveViewBox(ViewBox):
             if self.current_selection is None:
                 self.current_selection = [pos]
             else:
-                startp = self.current_selection[0]
-                if self.action == SELECT:
-                    self.graph.select_line(startp, pos, add)
-                    self.set_mode_panning()
-                elif self.action == SELECT_SQUARE:
-                    self.graph.select_square(startp, pos, add)
-                    self.set_mode_panning()
-                elif self.action == SELECT_POLYGON:
-                    self.polygon_point_click(pos, add)
+                self._add_selection_point(pos, add)
             ev.accept()
+
+    def _add_selection_point(self, pos, add):
+        startp = self.current_selection[0]
+        if self.action == SELECT:
+            self.graph.select_line(startp, pos, add)
+            self.set_mode_panning()
+        elif self.action == SELECT_SQUARE:
+            self.graph.select_square(startp, pos, add)
+            self.set_mode_panning()
+        elif self.action == SELECT_POLYGON:
+            self.polygon_point_click(pos, add)
 
     def polygon_point_click(self, p, add):
         first = self.current_selection[0]
