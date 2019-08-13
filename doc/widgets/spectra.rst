@@ -61,7 +61,7 @@ The **Spectra** widget is used to visualize spectral data. X axis normally shows
 
 We have used *Color by* option to display the type of each spectrum. Or you can also press 'C' and the plot will show colors.
 
-Now, let's say I am interested in those spectra, that are quite separated from the rest at wavenumber around 1027. I will press 'S', click once where I want my selection to start and once where I want it to end. This will select the spectra under the line I have dragged.
+Now, let's say I am interested in those spectra, that are quite separated from the rest at wavenumber around 1027. I will press 'S' and drag a line. This will select the spectra under the line I have dragged.
 
 I can observe the selection in another **Spectra** widget or use it for further analysis.
 
