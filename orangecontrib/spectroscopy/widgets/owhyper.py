@@ -690,7 +690,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             self.selection_group[self.data_valid_positions]
         self.img.setSelection(selected_px)
 
-    def make_selection(self, selected, add):
+    def make_selection(self, selected):
         """Add selected indices to the selection."""
         add_to_group, add_group, remove = selection_modifiers()
         if self.data and self.lsx and self.lsy:
@@ -709,15 +709,15 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.prepare_settings_for_saving()
         self.selection_changed.emit()
 
-    def select_square(self, p1, p2, add):
+    def select_square(self, p1, p2):
         """ Select elements within a square drawn by the user.
         A selection needs to contain whole pixels """
         x1, y1 = p1.x(), p1.y()
         x2, y2 = p2.x(), p2.y()
         polygon = [QPointF(x1, y1), QPointF(x2, y1), QPointF(x2, y2), QPointF(x1, y2), QPointF(x1, y1)]
-        self.select_polygon(polygon, add)
+        self.select_polygon(polygon)
 
-    def select_polygon(self, polygon, add):
+    def select_polygon(self, polygon):
         """ Select by a polygon which has to contain whole pixels. """
         if self.data and self.lsx and self.lsy:
             polygon = [(p.x(), p.y()) for p in polygon]
@@ -731,7 +731,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             inp = in_polygon(points_edges[0], polygon)
             for p in points_edges[1:]:
                 inp *= in_polygon(p, polygon)
-            self.make_selection(inp, add)
+            self.make_selection(inp)
 
     def _points_at_pos(self, pos):
         if self.data and self.lsx and self.lsy:
@@ -740,9 +740,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             sel = (distance[:, 0] < _shift(self.lsx)) * (distance[:, 1] < _shift(self.lsy))
             return sel
 
-    def select_by_click(self, pos, add):
+    def select_by_click(self, pos):
         sel = self._points_at_pos(pos)
-        self.make_selection(sel, add)
+        self.make_selection(sel)
 
 
 class CurvePlotHyper(CurvePlot):

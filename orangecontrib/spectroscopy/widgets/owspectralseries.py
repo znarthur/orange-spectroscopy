@@ -214,7 +214,7 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         selected_px[:, self.data_imagepixels] = self.selection_group
         self.img.setSelection(selected_px)
 
-    def make_selection(self, selected, add):
+    def make_selection(self, selected):
         """Add selected indices to the selection."""
         add_to_group, add_group, remove = selection_modifiers()
         if self.data and self.lsx and self.lsy:
@@ -243,9 +243,9 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
             return sel, wavenumber_ind
         return None, None
 
-    def select_by_click(self, pos, add):
+    def select_by_click(self, pos):
         sel, _ = self._points_at_pos(pos)
-        self.make_selection(sel, add)
+        self.make_selection(sel)
 
 
 class OWSpectralSeries(OWWidget):

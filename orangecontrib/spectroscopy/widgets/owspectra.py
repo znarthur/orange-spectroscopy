@@ -284,6 +284,14 @@ class InteractiveViewBox(ViewBox):
         elif self.action == PANNING:
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
+        elif self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
+                and ev.button() == Qt.LeftButton and self.graph.selection_type:
+            pos = self.childGroup.mapFromParent(ev.pos())
+            if self.current_selection is None:
+                self.current_selection = [pos]
+            elif ev.isFinish():
+                self._add_selection_point(pos)
+            ev.accept()
         else:
             ev.ignore()
 
@@ -355,11 +363,10 @@ class InteractiveViewBox(ViewBox):
         elif ev.button() == Qt.RightButton:
             ev.accept()
             self.autoRange()
-        add = ev.modifiers() & Qt.ControlModifier and self.graph.selection_type == SELECTMANY
         if self.action != ZOOMING and self.action not in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type:
             pos = self.childGroup.mapFromParent(ev.pos())
-            self.graph.select_by_click(pos, add)
+            self.graph.select_by_click(pos)
             ev.accept()
         if self.action == ZOOMING and ev.button() == Qt.LeftButton:
             if self.zoomstartpoint is None:
@@ -380,22 +387,25 @@ class InteractiveViewBox(ViewBox):
             if self.current_selection is None:
                 self.current_selection = [pos]
             else:
-                startp = self.current_selection[0]
-                if self.action == SELECT:
-                    self.graph.select_line(startp, pos, add)
-                    self.set_mode_panning()
-                elif self.action == SELECT_SQUARE:
-                    self.graph.select_square(startp, pos, add)
-                    self.set_mode_panning()
-                elif self.action == SELECT_POLYGON:
-                    self.polygon_point_click(pos, add)
+                self._add_selection_point(pos)
             ev.accept()
 
-    def polygon_point_click(self, p, add):
+    def _add_selection_point(self, pos):
+        startp = self.current_selection[0]
+        if self.action == SELECT:
+            self.graph.select_line(startp, pos)
+            self.set_mode_panning()
+        elif self.action == SELECT_SQUARE:
+            self.graph.select_square(startp, pos)
+            self.set_mode_panning()
+        elif self.action == SELECT_POLYGON:
+            self.polygon_point_click(pos)
+
+    def polygon_point_click(self, p):
         first = self.current_selection[0]
         if self._distance_pixels(first, p) < SELECT_POLYGON_TOLERANCE:
             self.current_selection.append(first)
-            self.graph.select_polygon(self.current_selection, add)
+            self.graph.select_polygon(self.current_selection)
             self.set_mode_panning()
         else:
             self.current_selection.append(p)
@@ -921,7 +931,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.range_e_y1.setPlaceholderText(strdec(vr.top(), yd))
         self.range_e_y2.setPlaceholderText(strdec(vr.bottom(), yd))
 
-    def make_selection(self, data_indices, add=False):
+    def make_selection(self, data_indices):
         add_to_group, add_group, remove = selection_modifiers()
         invd = self.sampled_indices_inverse
         data_indices_set = set(data_indices if data_indices is not None else set())
@@ -1373,20 +1383,20 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         if auto_update:
             self.update_view()
 
-    def select_by_click(self, pos, add):
+    def select_by_click(self, _):
         clicked_curve = self.highlighted
         if clicked_curve is not None:
             if self.viewtype == INDIVIDUAL:
-                self.make_selection([self.sampled_indices[clicked_curve]], add)
+                self.make_selection([self.sampled_indices[clicked_curve]])
             elif self.viewtype == AVERAGE:
                 sel = np.where(self.multiple_curves_info[clicked_curve][2])[0]
-                self.make_selection(sel, add)
+                self.make_selection(sel)
         else:
-            self.make_selection(None, add)
+            self.make_selection(None)
 
-    def select_line(self, startp, endp, add):
+    def select_line(self, startp, endp):
         intersected = self.intersect_curves((startp.x(), startp.y()), (endp.x(), endp.y()))
-        self.make_selection(intersected if len(intersected) else None, add)
+        self.make_selection(intersected if len(intersected) else None)
 
     def intersect_curves(self, q1, q2):
         x, ys = self.data_x, self.data.X
