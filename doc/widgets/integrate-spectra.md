@@ -3,20 +3,18 @@ Integrate Spectra
 
 Integrate spectra in various ways.
 
-Inputs
-    Data
-        input dataset
+**Inputs**
 
-Outputs
-    Integrated Data
-        data with integrals appended
-    Preprocessor
-    	preprocessing method
+- Data: input dataset
 
+**Outputs**
+
+- Integrated Data: data with integrals appended
+- Preprocessor: preprocessing method
 
 The **Integrate Spectra** widget allows you to add integrals to your data by selecting regions of interest and integrating them with several methods.
 
-.. figure:: images/Integrate-Spectra-stamped.png
+![](images/Integrate-Spectra-stamped.png)
 
 1. Add integral:
    - Integral from 0:
@@ -27,7 +25,7 @@ The **Integrate Spectra** widget allows you to add integrals to your data by sel
    - X-value of maximum from 0:
    - X-value of maximum from baseline
 2. Toggle preview.
-3. Preview plot with its editor menu like in the :doc:`Spectra <spectra>` widget.
+3. Preview plot with its editor menu like in the [Spectra](spectra.md) widget.
 4. Show a subsample of the spectra (implemented for performance).
 5. Output integrals as meta attributes. Otherwise only integrals will be output. Commit to send the changes to the output.
 
@@ -42,5 +40,4 @@ To observe the integrated area, we need to press the triangular play button next
 
 Finally, we can observe the additional column with the integral values of the area in a **Data Table**.
 
-.. figure:: images/Integrate-Spectra-Example.png
-
+![](images/Integrate-Spectra-Example.png)
