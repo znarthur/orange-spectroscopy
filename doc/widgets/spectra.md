@@ -3,26 +3,25 @@ Spectra
 
 Visually explore series of spectra with no spatial information.
 
-Inputs
-    Data
-        input dataset
-    Data Subset
-        subset of the data
+**Inputs**
 
-Outputs
-    Selection
-        selected spectra
+- Data: input dataset
+- Data Subset:subset of the data
+
+**Outputs**
+
+- Selection: selected spectra
 
 
 The **Spectra** widget allows visual exploration of multiple spectra.
 To output some spectra, select them by clicking.
 For multiple selection, hold the modifier key (Ctrl or Cmd) or use
-line selection (see the :ref:`menu<PlotOptions>`). Selected spectra
+line selection (see the [plot options menu](#PlotOptions)). Selected spectra
 will appear dashed.
 
-.. figure:: images/Spectra-stamped.png
+![](images/Spectra-stamped.png)
 
-1. Open the :ref:`plot options<PlotOptions>` menu
+1. Open the [plot options menu](#PlotOptions)
 2. A spectrum
 3. The X and Y position of the cursor
 4. The legend (appears only is spectra are colored)
@@ -35,7 +34,7 @@ will appear dashed.
 - Scroll: zoom X axis
 - Scroll + modifier: zoom Y axis
 
-.. _PlotOptions:
+<a name="PlotOptions"></a>
 
 **Plot options**
 
@@ -65,6 +64,4 @@ Now, let's say I am interested in those spectra, that are quite separated from t
 
 I can observe the selection in another **Spectra** widget or use it for further analysis.
 
-.. figure:: images/Spectra-Example1.png
-
-
+![](images/Spectra-Example1.png)
