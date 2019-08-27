@@ -3,17 +3,13 @@ Multifile
 
 Read data from input files and send a data table to the output.
 
-Inputs
-    None
-
 Outputs
-    Data
-    	a data table of all the loaded files
 
+- Data: a data table of all the loaded files
 
 The **Multifile** widget loads data from different sources and works like **Concatenate** widget for spectroscopy. The widget will output a union of attributes and features, with missing values for non-matching wavenumbers. To interpolate missing data, use the **Interpolate** widget.
 
-.. figure:: images/Multifile-stamped.png
+![](images/Multifile-stamped.png)
 
 1. Loaded files.
 2. Load local files.
@@ -31,5 +27,4 @@ Here is a simple example on how to use the **Multifile** widget. We have loaded 
 
 We can observe the concatenated data in the **Spectra** widget or in a **Data Table**.
 
-.. figure:: images/Multifile-Example.png
-
+![](images/Multifile-Example.png)
