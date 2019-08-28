@@ -41,8 +41,8 @@ class TestOWSpectralSeries(WidgetTest):
 
     def try_big_selection(self):
         all_select = None if self.widget.data is None else [1]*len(self.widget.data)
-        self.widget.imageplot.make_selection(all_select, True)
-        self.widget.imageplot.make_selection(None, True)
+        self.widget.imageplot.make_selection(all_select)
+        self.widget.imageplot.make_selection(None)
 
     def test_strange(self):
         for data in self.strange_data:
@@ -74,7 +74,7 @@ class TestOWSpectralSeries(WidgetTest):
 
     def test_select_click(self):
         self.send_signal("Data", self.whitelight)
-        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        self.widget.imageplot.select_by_click(QPointF(1, 2))
         # work by indices
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
@@ -82,7 +82,7 @@ class TestOWSpectralSeries(WidgetTest):
         # select a feature
         self.widget.imageplot.attr_x = "x"
         self.widget.imageplot.update_attr()
-        self.widget.imageplot.select_by_click(QPointF(1, 2), False)
+        self.widget.imageplot.select_by_click(QPointF(1, 2))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
         np.testing.assert_equal(out.metas[:, 1], np.arange(100))
