@@ -49,9 +49,10 @@ class TestInterpolate(unittest.TestCase):
         oldX = data.X
         #permute data
         p = rs.permutation(range(len(data.domain.attributes)))
-        for i, a in enumerate(data.domain.attributes):
-            a.name = str(p[i])
-        data.X = data.X[:, p]
+        nattr = [Orange.data.ContinuousVariable(str(p[i]))
+                 for i, a in enumerate(data.domain.attributes)]
+        data = Orange.data.Table.from_numpy(Orange.data.Domain(nattr),
+                                            X=data.X[:, p])
         interpolated = Interpolate(range(len(data.domain.attributes)))(data)
         np.testing.assert_allclose(interpolated.X, oldX)
         #also permute output
