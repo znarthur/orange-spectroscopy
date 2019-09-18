@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
-from Orange.widgets.utils.annotated_data import get_next_name
+#from Orange.widgets.utils.annotated_data import get_next_name
+
+try:  # get_unique_names was introduced in Orange 3.20
+    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
+except ImportError:
+    from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
@@ -223,13 +228,107 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
         ref_X = ref_X[0]
 
-        if self.weights:
-            # CHANGE THIS COMPLETELY
+        self.weights = True
 
-            # interpolate reference to the data
-            wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # set whichever weights are undefined (usually at edges) to zero
-            wei_X[np.isnan(wei_X)] = 0
+        if self.weights:
+
+            # ONLY TEMPORARILY UNTIL THE ALGORITHM IS VALIDATED
+
+            # import pandas as pd
+            # loc = ('../datasets/MieStandard.xlsx')
+            #
+            # MieStandard = pd.read_excel(loc, header=None)
+            #
+            # standardWeights = MieStandard.values[7,1:]
+            # standardWeights = standardWeights.astype(float).reshape(1,standardWeights.size)
+            # standardWeights = standardWeights[~np.isnan(standardWeights)]
+            # standardWeights = standardWeights.reshape(1,-1)
+
+            # Hard coding the default inflection points
+            inflPoints = [3700, 2550,1900, 0]  # Inflection points in decreasing order. To be specified by user.
+
+            # Hard coding the slope of the hyperbolic tangent
+            kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
+
+            # Hyperbolic tangent function
+            extHyp = 320  # Extension of hyperbolic tangent function, SHOULD DEPEND ON KAPPA
+            xHyp = np.linspace(-15, 14.9860, extHyp)
+            hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
+
+            # Calculate element of inflection points
+            p1 = np.argmin(np.abs(wavenumbers-inflPoints[2]))
+            p2 = np.argmin(np.abs(wavenumbers-inflPoints[1]))
+            p3 = np.argmin(np.abs(wavenumbers-inflPoints[0]))
+
+            # Initialize weights
+            # wei_X = np.ones((1, len(wavenumbers)))
+
+            # Patch 1 and 2
+            patch2 = -hypTan(xHyp, kappa[2]) + np.ones([1, extHyp])
+
+            startp1 = int(p1 - np.floor(extHyp/2))
+            if startp1 > 0:
+                patch1 = np.ones((1, int(p1-np.floor(extHyp/2))+1))
+            elif startp1 < 0:
+                patch2 = patch2[0,-startp1:-1]
+                patch1 = np.array([])
+                patch1 = patch1.reshape(1,-1)
+            else:
+                patch1 = np.array([])
+                patch1 = patch1.reshape(1,-1)
+
+            p1p2 = p2 - p1 - extHyp # IF THEY OVERLAP, WE NEED TO CUT THEM
+
+            if p1p2>0:
+                patch3 = np.zeros([1, p1p2])
+            else:
+                patch3 = np.array([])
+                patch3 = patch3.reshape(1,-1)
+
+            patch4 = hypTan(xHyp, kappa[1])
+            patch4 = patch4.reshape(1,-1)
+
+            p2p3 = p3 - p2 - extHyp
+
+            if p2p3>0:
+                patch5 = np.ones([1, p2p3])
+            else:
+                patch5 = np.array([])
+
+            patch6 = -hypTan(xHyp, kappa[0]) + np.ones([1, extHyp])
+
+            p3end = int(len(wavenumbers) - p3 - np.floor(extHyp/2)) - 1
+
+            if p3end>0:
+                patch7 = np.zeros([1, p3end])
+            elif p3end<0:
+                patch6 = patch6[0,0:p3end]
+                patch6 = patch6.reshape(1,-1)
+                patch7 = np.array([])
+                patch7 = patch7.reshape(1,-1)
+            else:
+                patch7 = np.array([])
+                patch7 = patch7.reshape(1,-1)
+
+            if inflPoints[3]:
+                p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
+
+                # patch1
+                # patch0
+                # patchS0
+            # patch7 = patch7.reshape(1,-1)
+            weightSpec = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
+
+            # plt.figure()
+            # plt.plot(wavenumbers, weightSpec[0,:])
+            # plt.plot(wavenumbers, standardWeights[0,:])
+            # plt.show()
+
+            # OLD, REMOVE WHEN REWRITING 
+            # # interpolate reference to the data
+            # wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
+            # # set whichever weights are undefined (usually at edges) to zero
+            # wei_X[np.isnan(wei_X)] = 0
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
@@ -265,11 +364,12 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         model_5spec_iter1 = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/MieModel_1it.csv',
                              delimiter=",")
         # TEST IF SPECTRA OUTPUT ARE THE SAME
-        #plt.figure()
-        #plt.plot(iter1_5spec[0,:])
-        #plt.plot(newspectra[0,:-11])
-        #plt.show()
-        #print(np.sum(np.abs(newspectra[:,:-11] - iter1_5spec))<1e-3)
+        plt.figure()
+        plt.plot(iter1_5spec[0,:])
+        plt.plot(newspectra[0,:-11])
+        plt.show()
+        print('The computed spectrum and the correctly computed spectrum are equal:')
+        print(np.sum(np.abs(newspectra[:,:-11] - iter1_5spec))<1e-3)
 
         # TEST IF THE MODEL SPECTRA ARE THE SAME
         #a = M[:,2]
@@ -312,18 +412,18 @@ class ME_EMSC(Preprocess):
         if self.output_model:
             i = len(data.domain.attributes)
             for o in range(1):
-                n = get_next_name(used_names, "EMSC parameter " + str(o))
+                n = get_unique_names(used_names, "EMSC parameter " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
                                                    compute_value=ME_EMSCModel(i, common)))
                 i += 1
             for o in range(n_badspec):
-                n = get_next_name(used_names, "EMSC parameter bad spec " + str(o))
+                n = get_unique_names(used_names, "EMSC parameter bad spec " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
                                                    compute_value=ME_EMSCModel(i, common)))
                 i += 1
-            n = get_next_name(used_names, "EMSC scaling parameter")
+            n = get_unique_names(used_names, "EMSC scaling parameter")
             model_metas.append(
                 Orange.data.ContinuousVariable(name=n,
                                                compute_value=ME_EMSCModel(i, common)))
