@@ -68,7 +68,8 @@ class PCADenoising(Preprocess):
                     for i, at in enumerate(data.domain.attributes)]
         else:
             # FIXME we should have a warning here
-            nats = [at.copy() for at in data.domain.attributes]  # unknown values
+            nats = [at.copy(compute_value=lambda d: np.full((len(d), 1), np.nan))
+                    for at in data.domain.attributes]
 
         domain = Orange.data.Domain(nats, data.domain.class_vars,
                                     data.domain.metas)

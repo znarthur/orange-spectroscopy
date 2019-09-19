@@ -5,6 +5,7 @@ import sklearn.model_selection as ms
 
 import Orange
 from Orange.classification import LogisticRegressionLearner
+from Orange.data import ContinuousVariable
 from Orange.evaluation.testing import TestOnTestData
 from Orange.evaluation.scoring import AUC
 
@@ -25,11 +26,11 @@ def separate_learn_test(data):
     return data[traini], data[testi]
 
 
-def destroy_atts_conversion(data):
-    natts = [a.copy() for a in data.domain.attributes]
+def slightly_change_wavenumbers(data, change):
+    natts = [ContinuousVariable(float(a.name) + change) for a in data.domain.attributes]
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                                  metas=data.domain.metas)
-    ndata = Orange.data.Table(ndomain, data)
+    ndata = data.transform(ndomain)
     ndata.X = data.X
     return ndata
 
@@ -51,25 +52,6 @@ class TestConversion(unittest.TestCase):
         train, test = separate_learn_test(self.collagen)
         auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
         self.assertGreater(auc, 0.9) # easy dataset
-
-    def test_predict_samename_domain(self):
-        train, test = separate_learn_test(self.collagen)
-        test = destroy_atts_conversion(test)
-        try:
-            from Orange.data.table import DomainTransformationError
-            with self.assertRaises(DomainTransformationError):
-                LogisticRegressionLearner()(train)(test)
-        except ImportError:  # until Orange 3.19
-            aucdestroyed = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
-            self.assertTrue(0.45 < aucdestroyed < 0.55)
-
-    def test_predict_samename_domain_interpolation(self):
-        train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
-        test = destroy_atts_conversion(test)
-        train = Interpolate(points=getx(train))(train) # make train capable of interpolation
-        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
-        self.assertEqual(aucorig, auc)
 
     def test_predict_different_domain(self):
         train, test = separate_learn_test(self.collagen)
@@ -140,7 +122,7 @@ class TestConversion(unittest.TestCase):
             train, test = separate_learn_test(self.collagen)
             train1 = proc(train)
             aucorig = AUC(TestOnTestData()(train1, test, [learner]))
-            test = destroy_atts_conversion(test)
+            test = slightly_change_wavenumbers(test, 0.00001)
             test = odd_attr(test)
             # a subset of points for training so that all test sets points
             # are within the train set points, which gives no unknowns
