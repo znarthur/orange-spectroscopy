@@ -82,14 +82,16 @@ class ME_EMSCModel(SelectColumn):
 
 class _ME_EMSC(CommonDomainOrderUnknowns):
 
-    def __init__(self, reference, weights, ncomp, domain):
+    def __init__(self, reference, weights=False, ncomp=False, explainedVariance=99.99, domain):
         super().__init__(domain)
         self.reference = reference
-        self.weights = weights
+        self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
         self.ncomp = ncomp
-        #self.badspectra = badspectra
-        #self.order = order
-        #self.scaling = scaling
+
+        if not self.ncomp:
+            self.explainedVariance = explainedVariance
+        else:
+            self.explainedVariance = False
 
     def transformed(self, X, wavenumbers):
         # wavenumber have to be input as sorted
@@ -167,8 +169,16 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return Qext_orthogonalized
 
         def compress_Mie_curves(Qext_orthogonalized):
-            svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
-            svd.fit(Qext_orthogonalized)
+            # svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
+
+            if self.ncomp:
+                svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42) # Self.ncomp needs to be specified
+                svd.fit(Qext_orthogonalized)
+            else:
+                svd = TruncatedSVD(n_components=20, n_iter=7, random_state=42)
+                svd.fit(Qext_orthogonalized)
+                explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
+                self.ncomp = np.argmax(explainedVariance>self.explainedVariance)
             badspectra = svd.components_[0:self.ncomp, :]
             return badspectra
 
@@ -324,7 +334,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             # plt.plot(wavenumbers, standardWeights[0,:])
             # plt.show()
 
-            # OLD, REMOVE WHEN REWRITING 
+            # OLD, REMOVE WHEN REWRITING
             # # interpolate reference to the data
             # wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
             # # set whichever weights are undefined (usually at edges) to zero
@@ -359,26 +369,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         newspectra, res = cal_emsc(M, X)
         # newspectra,res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
 
-        iter1_5spec = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/oneIter5spec.csv',
-                             delimiter=",")
-        model_5spec_iter1 = np.loadtxt('C:/Users/johansol/Documents/PhD2018/Soleil/ME_EMSC_notebooks/MieModel_1it.csv',
-                             delimiter=",")
-        # TEST IF SPECTRA OUTPUT ARE THE SAME
-        plt.figure()
-        plt.plot(iter1_5spec[0,:])
-        plt.plot(newspectra[0,:-11])
-        plt.show()
-        print('The computed spectrum and the correctly computed spectrum are equal:')
-        print(np.sum(np.abs(newspectra[:,:-11] - iter1_5spec))<1e-3)
-
-        # TEST IF THE MODEL SPECTRA ARE THE SAME
-        #a = M[:,2]
-        #b=model_5spec_iter1[:,3]
-        #plt.figure()
-        #plt.plot(a)
-        #plt.plot(-b)
-        #plt.show()
-        #print(np.sum(np.abs(a) - np.abs(b)) < 1e-3)
 
         return newspectra
 
