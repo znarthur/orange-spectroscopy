@@ -797,15 +797,15 @@ class SPAReader(FileFormat, SpectralFileFormat):
         return domvals, data, None
 
 
-class GSFReader(FileFormat):
+class GSFReader(FileFormat, SpectralFileFormat):
 
     EXTENSIONS = (".gsf",)
     DESCRIPTION = 'Gwyddion Simple Field'
 
-    def read(self):
+    def read_spectra(self):
         with open(self.filename, "rb") as f:
             if not (f.readline() == b'Gwyddion Simple Field 1.0\n'):
-                raise ValueError('Not a correct file')
+                raise ValueError('Not a correct GSF file, wrong header.')
 
             meta = {}
 
@@ -833,18 +833,12 @@ class GSFReader(FileFormat):
 
             X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
 
-            metas = [Orange.data.ContinuousVariable.make("x"),
-                     Orange.data.ContinuousVariable.make("y")]
-
             XRr = np.arange(XR)
-            YRr = np.arange(YR)
-            indices = np.transpose([np.tile(XRr, len(YRr)), np.repeat(YRr, len(XRr))])
+            YRr = np.arange(YR-1, -1, -1) # needed to have the same orientation as in Gwyddion
 
-            domain = Domain([ContinuousVariable.make("value")], None, metas=metas)
-            data = Orange.data.Table(domain,
-                                     X.reshape(meta["XRes"]*meta["YRes"], 1),
-                                     metas=np.array(indices, dtype="object"))
-            data.attributes = meta
+            X = X.reshape((meta["YRes"], meta["XRes"]) + (1,))
+            data = _spectra_from_image(X, [1], XRr, YRr)
+
             return data
 
 

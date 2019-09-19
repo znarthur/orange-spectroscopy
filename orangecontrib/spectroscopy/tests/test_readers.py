@@ -212,6 +212,10 @@ class TestGSF(unittest.TestCase):
     def test_open_2d(self):
         data = Orange.data.Table("whitelight.gsf")
         self.assertEqual(data.X.shape, (20000, 1))
+        # check some pixel vaules
+        self.assertAlmostEqual(data.X[235,0], 1.2788502, 7)
+        self.assertAlmostEqual(data.X[1235,0], 1.2770579, 7)
+        self.assertAlmostEqual(data.X[11235,0], 1.2476133, 7)
 
 
 class TestNea(unittest.TestCase):
