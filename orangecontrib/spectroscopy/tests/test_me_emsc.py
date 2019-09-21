@@ -26,7 +26,7 @@ Spectra = MieStandard.values[1,1:]
 Spectra = Spectra.astype(float).reshape(1,Spectra.size)
 Spectra = Spectra[~np.isnan(Spectra)]
 Spectra = Spectra.reshape(1,-1)
-Spectra = np.vstack([Spectra, Spectra, Spectra, Spectra, Spectra])
+Spectra = np.vstack([Spectra, Spectra])
 
 wnS = MieStandard.values[0,1:]
 wnS = wnS.astype(float).reshape(wnS.size,1)
@@ -90,7 +90,7 @@ class TestME_EMSC(unittest.TestCase):
                                          for w in wnS])
         spectra = Orange.data.Table(domain_spectra, Spectra)
 
-        f = ME_EMSC(reference=reference, ncomp=9, output_model=True)
+        f = ME_EMSC(reference=reference, ncomp=12, output_model=True)
         fdata = f(spectra)
         print(type(fdata))
 

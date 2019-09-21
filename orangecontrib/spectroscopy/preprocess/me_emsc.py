@@ -82,11 +82,16 @@ class ME_EMSCModel(SelectColumn):
 
 class _ME_EMSC(CommonDomainOrderUnknowns):
 
-    def __init__(self, reference, weights=False, ncomp=False, explainedVariance=99.99, domain):
+    def __init__(self, reference, weights, ncomp, domain):
         super().__init__(domain)
         self.reference = reference
         self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
         self.ncomp = ncomp
+        explainedVariance = 99.99 # How to put this in the argumnt of the function...?
+
+        self.maxNiter = 20
+        self.fixedNiter = False
+        self.positiveRef = True
 
         if not self.ncomp:
             self.explainedVariance = explainedVariance
@@ -182,10 +187,10 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             badspectra = svd.components_[0:self.ncomp, :]
             return badspectra
 
-        def make_emsc_model(badspectra):
+        def make_emsc_model(badspectra, referenceSpec):
             M = np.ones([len(wavenumbers), self.ncomp+2])
             M[:,1:self.ncomp+1] = np.array([spectrum for spectrum in badspectra.T])
-            M[:,self.ncomp+1] = ref_X
+            M[:,self.ncomp+1] = referenceSpec
             return M
 
         def cal_emsc(M, X):
@@ -211,34 +216,83 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             #first iteration is outside, this one makes the M_basic, alpha0 and gamma
 
             # scale with basic EMSC:
-
+            # print('ref shape: ', reference.shape)
+            # print('M shape: ', M_basic.shape)
             reference = cal_emsc_basic(M_basic, reference)
 
-            # calculate Qext-curves
+            # set negative parts to zero
             nonzeroReference = reference
             nonzeroReference[nonzeroReference < 0] = 0
+
+            if self.positiveRef:
+                reference = nonzeroReference
+
+            # calculate Qext-curves
             nprs, nkks = calculate_complex_n(nonzeroReference, wavenumbers)
 
             Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
             Qext = orthogonalize_Qext(Qext, reference)
             badspectra = compress_Mie_curves(Qext)
-            # build model
-            M = make_emsc_model(badspectra)
+
+            # build ME-EMSC model
+            M = make_emsc_model(badspectra, reference)
             # calculate parameters and corrected spectra
             newspectrum, res = cal_emsc(M, spectrum)
             return newspectrum, res
 
-        def iterate():
-            # new reference is the corrected spectrum
-            # iteration step
-            # check convergence, if converged give output
-            return 0
+        def iterate(spectra, correctedFirsIteration, wavenumbers, M_basic, alpha0, gamma):
+            # Consider to make the M_basic in the init since this one does not change.
+            newspectra = np.empty(correctedFirsIteration.shape)
+            numberOfIterations = np.empty(spectra.shape[0])
+            residuals = np.empty(spectra.shape)
+
+            for i in range(correctedFirsIteration.shape[0]):
+                corrSpec = correctedFirsIteration[i]
+                rawSpec = spectra[i,:]
+                rawSpec = rawSpec.reshape(1,-1)
+                RMSE = []
+                for iterationNumber in range(2, self.maxNiter+1):
+                    newSpec, res = iteration_step(rawSpec, corrSpec[:-self.ncomp-2], wavenumbers, M_basic, alpha0, gamma)
+                    corrSpec = newSpec[0,:]
+                    rmse = round(np.sqrt((1/len(res[0,:]))*np.sum(res**2)),4)
+                    RMSE.append(rmse)
+                    print('Spec no. ', i, 'iteration no. ', iterationNumber)
+                    print('RMSE = ', rmse)
+                    # Stop criterion
+                    if iterationNumber == self.maxNiter:
+                        newspectra[i,:] = corrSpec
+                        numberOfIterations[i] = iterationNumber
+                        residuals[i,:] = res
+                        print('Spec no. ', i, 'Warning - max niter too low!')
+                        break
+                    elif self.fixedNiter and iterationNumber < self.fixedNiter:
+                        print('Spec no. ', i, 'continuing')
+                        continue
+                    elif iterationNumber == self.maxNiter:
+                        newspectra[i,:] = corrSpec
+                        numberOfIterations[i] = iterationNumber
+                        residuals[i,:] = res
+                        print('Spec no. ', i, 'Reached fixed niter')
+                        break
+                    elif iterationNumber > 2 and self.fixedNiter == False:
+                        if (rmse == RMSE[-2] and rmse == RMSE[-3]) or rmse > RMSE[-2]:
+                            print('1', RMSE)
+                            print('2', rmse==RMSE[-1])
+                            print('3', rmse==RMSE[-2])
+                            print('4', rmse > RMSE[-1])
+                            newspectra[i,:] = corrSpec
+                            numberOfIterations[i] = iterationNumber
+                            residuals[i,:] = res
+                            print('Spec no. ', i, 'Stabilized RMSE - break')
+                            break
+
+            return newspectra, res, numberOfIterations
 
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
         ref_X = ref_X[0]
 
-        self.weights = True
+        self.weights = False
 
         if self.weights:
 
@@ -327,7 +381,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                 # patch0
                 # patchS0
             # patch7 = patch7.reshape(1,-1)
-            weightSpec = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
+            wei_X = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
 
             # plt.figure()
             # plt.plot(wavenumbers, weightSpec[0,:])
@@ -351,25 +405,73 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         resonant = True
 
-        if resonant:
+        if resonant:  # if this should be any point, we need to terminate after 1 iteartion for the non-resonant one
             nprs, nkks = calculate_complex_n(ref_X, wavenumbers)
         else:
             npr = np.zeros(len(wavenumbers))
             nprs = npr / (wavenumbers * 100)
             nkks = np.zeros(len(wavenumbers))
 
+        # For the first iteration, make basic EMSC model
         M_basic = make_basic_emsc_mod(ref_X)
 
         Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
         Qext = orthogonalize_Qext(Qext, ref_X)
         badspectra = compress_Mie_curves(Qext)
 
-        M = make_emsc_model(badspectra)
+        # Establish ME-EMSC model
+        M = make_emsc_model(badspectra, ref_X)
 
+        # Correctin all spectra at once for the first iteration
         newspectra, res = cal_emsc(M, X)
-        # newspectra,res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
 
+        if self.fixedNiter==1:
+            numberOfIterations = np.ones([1, newspectra.shape[0]])
+            # Need to give res and numberOfIterations as output
+            return newspectra
 
+        # Iterate
+        # newspectra, res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
+        newspectra, res2, numberOfIterations2 = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
+
+        plt.figure()
+        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2])
+        plt.title('After correction')
+        plt.show()
+
+        import pandas as pd
+        loc = ('../datasets/MieStandard.xlsx')
+
+        MieStandard1 = pd.read_excel(loc, header=None)
+        MieStandard2 = pd.read_excel(loc, header=None, sheet_name='Sheet2')
+
+        CorrSpec = MieStandard2.values[1,1:]
+        CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
+        CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
+        CorrSpec = CorrSpec.reshape(1,-1)
+
+        plt.figure()
+        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
+        plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
+        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
+        plt.plot(wavenumbers, wei_X[0,:], label='weights')
+        plt.legend()
+        plt.title('Comparison')
+        plt.show()
+
+        print((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001)
+
+        # nkksit1 = MieStandard1.values[5,1:]
+        # nkksit1 = nkksit1.astype(float).reshape(1,nkksit1.size)
+        # nkksit1 = nkksit1[~np.isnan(nkksit1)]
+        # nkksit1 = nkksit1.reshape(1,-1)
+        #
+        # npit1 = MieStandard1.values[6,1:]
+        # npit1 = npit1.astype(float).reshape(1,npit1.size)
+        # npit1 = npit1[~np.isnan(npit1)]
+        # npit1 = npit1.reshape(1,-1)
+
+        # Need to give res and numberOfIterations as output
         return newspectra
 
 
