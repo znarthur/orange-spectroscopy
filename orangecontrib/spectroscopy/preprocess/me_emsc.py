@@ -197,19 +197,21 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             newspectra = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
             residuals = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
             # Maybe this one should take only one spectrum at a time? We have to do it anyways like this
+
             for i, rawspectrum in enumerate(X):
                 m = np.linalg.lstsq(M, rawspectrum, rcond=-1)[0]
                 corrected = rawspectrum
-
                 for x in range(0, 1 + self.ncomp):
                     corrected = (corrected - (m[x] * M[:, x]))
                 corrected = corrected / m[1 + self.ncomp]
                 corrected[np.isinf(corrected)] = np.nan  # fix values caused by zero weights
                 corrected = np.hstack((corrected, m))  # append the model parameters
                 newspectra[i] = corrected
+
             params = corrected[-(self.ncomp+2):]
             params = params[np.newaxis, :]
             res = X - np.dot(params, M.T)
+
             return newspectra, res
 
         def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
@@ -276,10 +278,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                         break
                     elif iterationNumber > 2 and self.fixedNiter == False:
                         if (rmse == RMSE[-2] and rmse == RMSE[-3]) or rmse > RMSE[-2]:
-                            print('1', RMSE)
-                            print('2', rmse==RMSE[-1])
-                            print('3', rmse==RMSE[-2])
-                            print('4', rmse > RMSE[-1])
                             newspectra[i,:] = corrSpec
                             numberOfIterations[i] = iterationNumber
                             residuals[i,:] = res
@@ -291,6 +289,13 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
         ref_X = ref_X[0]
+
+        # Should be implemented:
+        # nonzeroReference = ref_X
+        # nonzeroReference[nonzeroReference < 0] = 0
+        #
+        # if self.positiveRef:
+        #     ref_X = nonzeroReference
 
         self.weights = False
 
@@ -403,6 +408,20 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         alpha0 = (4 * np.pi * a * (n0 - 1)) * 1e-6
         gamma = h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (n0 - 1) * a * 1e-6)
 
+        import pandas as pd
+        loc = ('../datasets/MieStandard.xlsx')
+
+        MieStandard1 = pd.read_excel(loc, header=None)
+        MieStandard2 = pd.read_excel(loc, header=None, sheet_name='Sheet2')
+        MieStandard5 = pd.read_excel(loc, header=None, sheet_name='Sheet5')
+
+        # Check that the reference is the same:
+        ref_X2 = MieStandard1.values[4,1:]
+        ref_X2 = ref_X2.astype(float).reshape(1,ref_X2.size)
+        ref_X2 = ref_X2[~np.isnan(ref_X2)]
+
+        # ref_X = ref_X2
+
         resonant = True
 
         if resonant:  # if this should be any point, we need to terminate after 1 iteartion for the non-resonant one
@@ -412,18 +431,98 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nprs = npr / (wavenumbers * 100)
             nkks = np.zeros(len(wavenumbers))
 
+        nkksM = MieStandard1.values[5,1:]
+        nkksM = nkksM.astype(float).reshape(1,nkksM.size)
+        nkksM = nkksM[~np.isnan(nkksM)]
+        # nkksM = nkksM.reshape(1,-1)
+
+        nprsM = MieStandard1.values[6,1:]
+        nprsM = nprsM.astype(float).reshape(1,nprsM.size)
+        nprsM = nprsM[~np.isnan(nprsM)]
+        # nprsM = nprsM.reshape(1,-1)
+
+        print('nkk is the same 1st iteration: ', all(abs(nkksM-nkks)<(np.max(nkks)-np.min(nkks))*0.0001))
+        print('np is the same 1st iteration: ', all(abs(nprsM-nprs)<0.00001))
+
+        plt.figure()
+        plt.title('nkks')
+        plt.plot(nkks, label='python')
+        plt.plot(nkksM, label='matlab')
+        plt.plot(nkks - nkksM, label='diff')
+        plt.legend()
+        plt.show()
+
+        plt.figure()
+        plt.title('ref x')
+        plt.plot(ref_X, label='python')
+        plt.plot(ref_X2, label='matlab')
+        plt.plot(ref_X - ref_X2, label='diff')
+        plt.legend()
+        plt.show()
+
+        #ref_X = ref_X2
+
         # For the first iteration, make basic EMSC model
         M_basic = make_basic_emsc_mod(ref_X)
 
+        QextMnotOrth = MieStandard1.values[12:,1:]
+        QextMnotOrth = QextMnotOrth.astype(float).reshape(1,QextMnotOrth.size)
+        QextMnotOrth = QextMnotOrth[~np.isnan(QextMnotOrth)]
+        QextMnotOrth = QextMnotOrth.reshape(100,1556)
+
+        # SOMETHING IS WRONG HERE. Qext is not the same for the first iteration. If we force
+        # Qext to be the same as for the standard, then the corrected spectrum will be the same.
         Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
+        # Qext = QextMnotOrth
+        print('Qext is the same before orthogonalization: ', all((Qext[0,3:] - QextMnotOrth[0,3:])<0.0001))
+
+
+        plt.figure()
+        plt.plot(Qext[0,3:], label='p')
+        plt.plot(QextMnotOrth[0,3:], label='m')
+        plt.plot(Qext[0,3:]-QextMnotOrth[0,3:], label='diff')
+        plt.show()
+
+        plt.figure()
+        plt.title('Refx')
+        plt.plot(ref_X, label='p')
+        plt.plot(ref_X2, label='m')
+        plt.plot(ref_X-ref_X2, label='diff')
+        plt.show()
+
+        print('Argmax refx diff', np.argmax(ref_X-ref_X2))
+        print('Max refx diff', np.max(ref_X-ref_X2))
+
         Qext = orthogonalize_Qext(Qext, ref_X)
+
+        QextM = MieStandard5.values[14:,0:]
+        QextM = QextM.astype(float).reshape(1,QextM.size)
+        QextM = QextM[~np.isnan(QextM)]
+        QextM = QextM.reshape(100,1556)
+
+
         badspectra = compress_Mie_curves(Qext)
 
         # Establish ME-EMSC model
         M = make_emsc_model(badspectra, ref_X)
 
-        # Correctin all spectra at once for the first iteration
+        # Correcting all spectra at once for the first iteration
         newspectra, res = cal_emsc(M, X)
+
+        CorrSpec1it = MieStandard1.values[11,1:]
+        CorrSpec1it = CorrSpec1it.astype(float).reshape(1,CorrSpec1it.size)
+        CorrSpec1it = CorrSpec1it[~np.isnan(CorrSpec1it)]
+        CorrSpec1it = CorrSpec1it.reshape(1,-1)
+
+        print('Corrected spectra the same for the 1st iteration: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec1it[0,:])<0.0001))
+
+        plt.figure()
+        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
+        plt.plot(wavenumbers, CorrSpec1it[0,:], label='Matlab')
+        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec1it[0,:], label='Diff')
+        plt.legend()
+        plt.title('Comparison - 1st iteration')
+        plt.show()
 
         if self.fixedNiter==1:
             numberOfIterations = np.ones([1, newspectra.shape[0]])
@@ -434,21 +533,12 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         # newspectra, res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
         newspectra, res2, numberOfIterations2 = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
 
-        plt.figure()
-        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2])
-        plt.title('After correction')
-        plt.show()
-
-        import pandas as pd
-        loc = ('../datasets/MieStandard.xlsx')
-
-        MieStandard1 = pd.read_excel(loc, header=None)
-        MieStandard2 = pd.read_excel(loc, header=None, sheet_name='Sheet2')
 
         CorrSpec = MieStandard2.values[1,1:]
         CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
         CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
         CorrSpec = CorrSpec.reshape(1,-1)
+
 
         plt.figure()
         plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
@@ -459,17 +549,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         plt.title('Comparison')
         plt.show()
 
-        print((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001)
-
-        # nkksit1 = MieStandard1.values[5,1:]
-        # nkksit1 = nkksit1.astype(float).reshape(1,nkksit1.size)
-        # nkksit1 = nkksit1[~np.isnan(nkksit1)]
-        # nkksit1 = nkksit1.reshape(1,-1)
-        #
-        # npit1 = MieStandard1.values[6,1:]
-        # npit1 = npit1.astype(float).reshape(1,npit1.size)
-        # npit1 = npit1[~np.isnan(npit1)]
-        # npit1 = npit1.reshape(1,-1)
+        print('Corrected spectra the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
 
         # Need to give res and numberOfIterations as output
         return newspectra
