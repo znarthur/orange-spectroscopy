@@ -54,7 +54,6 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = None
 
         self.plotview = pg.GraphicsLayoutWidget()
-        self.plotview.show()
 
         self.plot = pg.PlotItem(background="w", viewBox=InteractiveViewBox(self))
         self.plotview.addItem(self.plot)
