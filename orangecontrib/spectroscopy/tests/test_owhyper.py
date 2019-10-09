@@ -91,7 +91,7 @@ class TestOWHyper(WidgetTest):
         cls.iris = Orange.data.Table("iris")
         cls.whitelight = Orange.data.Table("whitelight.gsf")
         cls.whitelight_unknown = cls.whitelight.copy()
-        cls.whitelight_unknown[0]["value"] = NAN
+        cls.whitelight_unknown[0][0] = NAN
         # dataset with a single attribute
         cls.iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
@@ -206,7 +206,7 @@ class TestOWHyper(WidgetTest):
         unselected = group_at.to_val("Unselected")
         out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != unselected)]
         self.assertEqual(len(out), 4)
-        np.testing.assert_equal([o["x"].value for o in out], [1, 2, 3, 4])
+        np.testing.assert_equal([o["map_x"].value for o in out], [1, 2, 3, 4])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
 
         # remove one element

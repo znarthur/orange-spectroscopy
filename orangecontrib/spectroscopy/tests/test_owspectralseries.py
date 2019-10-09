@@ -22,7 +22,7 @@ class TestOWSpectralSeries(WidgetTest):
         cls.iris = Orange.data.Table("iris")
         cls.whitelight = Orange.data.Table("whitelight.gsf")
         cls.whitelight_unknown = cls.whitelight.copy()
-        cls.whitelight_unknown[0]["value"] = NAN
+        cls.whitelight_unknown[0][0] = NAN
         # dataset with a single attribute
         cls.iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
         # dataset without any attributes
@@ -78,14 +78,14 @@ class TestOWSpectralSeries(WidgetTest):
         # work by indices
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
-        np.testing.assert_equal(out.metas[:, 1], 0)
+        np.testing.assert_equal(out.metas[:, 1], 99)
         # select a feature
-        self.widget.imageplot.attr_x = "x"
+        self.widget.imageplot.attr_x = "map_x"
         self.widget.imageplot.update_attr()
         self.widget.imageplot.select_by_click(QPointF(1, 2))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
-        np.testing.assert_equal(out.metas[:, 1], np.arange(100))
+        np.testing.assert_equal(out.metas[:, 1], list(reversed(np.arange(100))))
 
     def test_single_update_view(self):
         uw = "orangecontrib.spectroscopy.widgets.owspectralseries.LineScanPlot.update_view"
