@@ -86,7 +86,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         super().__init__(domain)
         self.reference = reference
         self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
-        self.weights = False
+        self.weights = True
         self.ncomp = ncomp
         explainedVariance = 99.96 # How to put this in the argumnt of the function...?
 
@@ -270,6 +270,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                     RMSE.append(rmse)
                     print('Spec no. ', i, 'iteration no. ', iterationNumber)
                     print('RMSE = ', rmse)
+
                     # Stop criterion
                     if iterationNumber == self.maxNiter:
                         newspectra[i,:] = corrSpec
@@ -333,8 +334,8 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
 
             # Hyperbolic tangent function
-            extHyp = 320  # Extension of hyperbolic tangent function, SHOULD DEPEND ON KAPPA
-            xHyp = np.linspace(-15, 14.9860, extHyp)
+            #extHyp = 320  # Extension of hyperbolic tangent function, SHOULD DEPEND ON KAPPA
+            #xHyp = np.linspace(-15, 14.9860, extHyp)
             hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
 
             # Calculate element of inflection points
@@ -342,65 +343,94 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             p2 = np.argmin(np.abs(wavenumbers-inflPoints[1]))
             p3 = np.argmin(np.abs(wavenumbers-inflPoints[0]))
 
-            # Initialize weights
-            # wei_X = np.ones((1, len(wavenumbers)))
+            ####### New implementation ######
 
-            # Patch 1 and 2
-            patch2 = -hypTan(xHyp, kappa[2]) + np.ones([1, extHyp])
+            dx = 0.094
 
-            startp1 = int(p1 - np.floor(extHyp/2))
-            if startp1 > 0:
-                patch1 = np.ones((1, int(p1-np.floor(extHyp/2))+1))
-            elif startp1 < 0:
-                patch2 = patch2[0,-startp1:-1]
-                patch1 = np.array([])
-                patch1 = patch1.reshape(1,-1)
-            else:
-                patch1 = np.array([])
-                patch1 = patch1.reshape(1,-1)
+            x1 = np.linspace(-(p1-1)*dx, 0, p1)
+            x2 = np.linspace(dx, np.floor((p2-p1)/2)*dx, np.int(np.floor((p2-p1)/2)))
 
-            p1p2 = p2 - p1 - extHyp # IF THEY OVERLAP, WE NEED TO CUT THEM
+            # If we have one more inflection point this should be handled here
 
-            if p1p2>0:
-                patch3 = np.zeros([1, p1p2])
-            else:
-                patch3 = np.array([])
-                patch3 = patch3.reshape(1,-1)
+            xp1 = np.hstack([x1, x2])
 
-            patch4 = hypTan(xHyp, kappa[1])
-            patch4 = patch4.reshape(1,-1)
+            x3 = np.linspace(-(np.ceil((p2-p1)/2)-1)*dx, 0, np.int((np.ceil((p2-p1)/2))))
+            x4 = np.linspace(dx, np.floor((p3-p2)/2)*dx, np.int(np.floor((p3-p2)/2)))
 
-            p2p3 = p3 - p2 - extHyp
+            xp2 = np.hstack([x3, x4])
 
-            if p2p3>0:
-                patch5 = np.ones([1, p2p3])
-            else:
-                patch5 = np.array([])
+            x5 = np.linspace(-(np.ceil((p3-p2)/2)-1)*dx, 0, np.int((np.ceil((p3-p2)/2))))
+            x6 = np.linspace(dx, (len(wavenumbers)-p3)*dx, np.int(len(wavenumbers)-p3))
 
-            patch6 = -hypTan(xHyp, kappa[0]) + np.ones([1, extHyp])
+            xp3 = np.hstack([x5, x6])
 
-            p3end = int(len(wavenumbers) - p3 - np.floor(extHyp/2)) - 1
+            patch1 = 1 - hypTan(xp1, kappa[2])
+            patch2 = hypTan(xp2, kappa[1])
+            patch3 = 1 - hypTan(xp3, kappa[0])
 
-            if p3end>0:
-                patch7 = np.zeros([1, p3end])
-            elif p3end<0:
-                patch6 = patch6[0,0:p3end]
-                patch6 = patch6.reshape(1,-1)
-                patch7 = np.array([])
-                patch7 = patch7.reshape(1,-1)
-            else:
-                patch7 = np.array([])
-                patch7 = patch7.reshape(1,-1)
+            wei_X = np.hstack([patch1, patch2, patch3])
 
-            if inflPoints[3]:
-                p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
-
-                # patch1
-                # patch0
-                # patchS0
-            # patch7 = patch7.reshape(1,-1)
-            wei_X = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
-
+            wei_X = wei_X.reshape(1, -1)
+            # print('WEIGHT SHAPE', wei_X.shape)
+            # ##### End new implementation #####
+            #
+            # # Patch 1 and 2
+            # patch2 = -hypTan(xHyp, kappa[2]) + np.ones([1, extHyp])
+            #
+            # startp1 = int(p1 - np.floor(extHyp/2))
+            # if startp1 > 0:
+            #     patch1 = np.ones((1, int(p1-np.floor(extHyp/2))+1))
+            # elif startp1 < 0:
+            #     patch2 = patch2[0,-startp1:-1]
+            #     patch1 = np.array([])
+            #     patch1 = patch1.reshape(1,-1)
+            # else:
+            #     patch1 = np.array([])
+            #     patch1 = patch1.reshape(1,-1)
+            #
+            # p1p2 = p2 - p1 - extHyp # IF THEY OVERLAP, WE NEED TO CUT THEM
+            #
+            # if p1p2>0:
+            #     patch3 = np.zeros([1, p1p2])
+            # else:
+            #     patch3 = np.array([])
+            #     patch3 = patch3.reshape(1,-1)
+            #
+            # patch4 = hypTan(xHyp, kappa[1])
+            # patch4 = patch4.reshape(1,-1)
+            #
+            # p2p3 = p3 - p2 - extHyp
+            #
+            # if p2p3>0:
+            #     patch5 = np.ones([1, p2p3])
+            # else:
+            #     patch5 = np.array([])
+            #
+            # patch6 = -hypTan(xHyp, kappa[0]) + np.ones([1, extHyp])
+            #
+            # p3end = int(len(wavenumbers) - p3 - np.floor(extHyp/2)) - 1
+            #
+            # if p3end>0:
+            #     patch7 = np.zeros([1, p3end])
+            # elif p3end<0:
+            #     patch6 = patch6[0,0:p3end]
+            #     patch6 = patch6.reshape(1,-1)
+            #     patch7 = np.array([])
+            #     patch7 = patch7.reshape(1,-1)
+            # else:
+            #     patch7 = np.array([])
+            #     patch7 = patch7.reshape(1,-1)
+            #
+            # if inflPoints[3]:
+            #     p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
+            #
+            #     # patch1
+            #     # patch0
+            #     # patchS0
+            # # patch7 = patch7.reshape(1,-1)
+            # wei_X = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
+            #
+            # print(wei_X.shape)
             # plt.figure()
             # plt.plot(wavenumbers, weightSpec[0,:])
             # plt.plot(wavenumbers, standardWeights[0,:])
@@ -461,21 +491,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         if self.fixedNiter==1 or self.maxNiter==1:
             numberOfIterations = np.ones([1, newspectra.shape[0]])
             # Need to give res and numberOfIterations as output
-
-            CorrSpec = MieStandard2.values[0:,1:]
-            CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
-            CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
-            CorrSpec = CorrSpec.reshape(5,1556)
-
-            plt.figure()
-            plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
-            plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
-            plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
-            plt.plot(wavenumbers, wei_X[0,:], label='weights')
-            plt.legend()
-            plt.title('Comparison')
-            plt.show()
-
             return newspectra
 
         # Iterate
@@ -483,27 +498,27 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
 
 
-        CorrSpec = MieStandard2.values[0:,1:]
-        CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
-        CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
-        CorrSpec = CorrSpec.reshape(5,1556)
-
-        plt.figure()
-        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
-        plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
-        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
-        plt.plot(wavenumbers, wei_X[0,:], label='weights')
-        plt.legend()
-        plt.title('Comparison')
-        plt.show()
-
-        print('Corrected spectrum 1 is the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
-        print('Corrected spectrum 2 is the same: ', all((newspectra[1,:-self.ncomp-2]-CorrSpec[1,:])<0.0001))
-        print('Corrected spectrum 3 is the same: ', all((newspectra[2,:-self.ncomp-2]-CorrSpec[2,:])<0.0001))
-        print('Corrected spectrum 4 is the same: ', all((newspectra[3,:-self.ncomp-2]-CorrSpec[3,:])<0.0001))
-        print('Corrected spectrum 5 is the same: ', all((newspectra[4,:-self.ncomp-2]-CorrSpec[4,:])<0.0001))
-
-        print('Number of iterations: ', numberOfIterations)
+        # CorrSpec = MieStandard2.values[0:,1:]
+        # CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
+        # CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
+        # CorrSpec = CorrSpec.reshape(5,1556)
+        #
+        # plt.figure()
+        # plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
+        # plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
+        # plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
+        # plt.plot(wavenumbers, wei_X[0,:], label='weights')
+        # plt.legend()
+        # plt.title('Comparison')
+        # plt.show()
+        #
+        # print('Corrected spectrum 1 is the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
+        # print('Corrected spectrum 2 is the same: ', all((newspectra[1,:-self.ncomp-2]-CorrSpec[1,:])<0.0001))
+        # print('Corrected spectrum 3 is the same: ', all((newspectra[2,:-self.ncomp-2]-CorrSpec[2,:])<0.0001))
+        # print('Corrected spectrum 4 is the same: ', all((newspectra[3,:-self.ncomp-2]-CorrSpec[3,:])<0.0001))
+        # print('Corrected spectrum 5 is the same: ', all((newspectra[4,:-self.ncomp-2]-CorrSpec[4,:])<0.0001))
+        #
+        # print('Number of iterations: ', numberOfIterations)
 
         # Need to give res and numberOfIterations as output
         return newspectra
