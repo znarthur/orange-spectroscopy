@@ -20,6 +20,23 @@ from orangecontrib.spectroscopy.preprocess import Interpolate, \
 from orangecontrib.spectroscopy.data import getx
 
 
+# remove the following workaround when the minimum supported version of
+# Orange is 3.22.0
+
+TestOnTestDataO = TestOnTestData
+
+
+class TestOnTestData:
+
+    def __call__(self, *args, **kwargs):
+        try:
+            return TestOnTestDataO()(*args, **kwargs)
+        except TypeError:
+            return TestOnTestDataO(*args, **kwargs)
+
+# end of workaround
+
+
 def separate_learn_test(data):
     sf = ms.ShuffleSplit(n_splits=1, test_size=0.2, random_state=np.random.RandomState(0))
     (traini, testi), = sf.split(y=data.Y, X=data.X)
@@ -61,7 +78,7 @@ class TestConversion(unittest.TestCase):
             with self.assertRaises(DomainTransformationError):
                 LogisticRegressionLearner()(train)(test)
         except ImportError:  # until Orange 3.19
-            aucdestroyed = AUC(TestOnTestData(train, test, [LogisticRegressionLearner()]))
+            aucdestroyed = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
             self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_different_domain_interpolation(self):
