@@ -314,19 +314,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
 
         if self.weights:
-
-            # ONLY TEMPORARILY UNTIL THE ALGORITHM IS VALIDATED
-
-            # import pandas as pd
-            # loc = ('../datasets/MieStandard.xlsx')
-            #
-            # MieStandard = pd.read_excel(loc, header=None)
-            #
-            # standardWeights = MieStandard.values[7,1:]
-            # standardWeights = standardWeights.astype(float).reshape(1,standardWeights.size)
-            # standardWeights = standardWeights[~np.isnan(standardWeights)]
-            # standardWeights = standardWeights.reshape(1,-1)
-
             # Hard coding the default inflection points
             inflPoints = [3700, 2550,1900, 0]  # Inflection points in decreasing order. To be specified by user.
 
@@ -334,23 +321,18 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
 
             # Hyperbolic tangent function
-            #extHyp = 320  # Extension of hyperbolic tangent function, SHOULD DEPEND ON KAPPA
-            #xHyp = np.linspace(-15, 14.9860, extHyp)
             hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
 
-            # Calculate element of inflection points
+            # Calculate position of inflection points
             p1 = np.argmin(np.abs(wavenumbers-inflPoints[2]))
             p2 = np.argmin(np.abs(wavenumbers-inflPoints[1]))
             p3 = np.argmin(np.abs(wavenumbers-inflPoints[0]))
 
-            ####### New implementation ######
-
+            # Resolution on the x-axis used in the hyperbolic tangent function
             dx = 0.094
 
             x1 = np.linspace(-(p1-1)*dx, 0, p1)
             x2 = np.linspace(dx, np.floor((p2-p1)/2)*dx, np.int(np.floor((p2-p1)/2)))
-
-            # If we have one more inflection point this should be handled here
 
             xp1 = np.hstack([x1, x2])
 
@@ -370,77 +352,21 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
             wei_X = np.hstack([patch1, patch2, patch3])
 
-            wei_X = wei_X.reshape(1, -1)
-            # print('WEIGHT SHAPE', wei_X.shape)
-            # ##### End new implementation #####
-            #
-            # # Patch 1 and 2
-            # patch2 = -hypTan(xHyp, kappa[2]) + np.ones([1, extHyp])
-            #
-            # startp1 = int(p1 - np.floor(extHyp/2))
-            # if startp1 > 0:
-            #     patch1 = np.ones((1, int(p1-np.floor(extHyp/2))+1))
-            # elif startp1 < 0:
-            #     patch2 = patch2[0,-startp1:-1]
-            #     patch1 = np.array([])
-            #     patch1 = patch1.reshape(1,-1)
-            # else:
-            #     patch1 = np.array([])
-            #     patch1 = patch1.reshape(1,-1)
-            #
-            # p1p2 = p2 - p1 - extHyp # IF THEY OVERLAP, WE NEED TO CUT THEM
-            #
-            # if p1p2>0:
-            #     patch3 = np.zeros([1, p1p2])
-            # else:
-            #     patch3 = np.array([])
-            #     patch3 = patch3.reshape(1,-1)
-            #
-            # patch4 = hypTan(xHyp, kappa[1])
-            # patch4 = patch4.reshape(1,-1)
-            #
-            # p2p3 = p3 - p2 - extHyp
-            #
-            # if p2p3>0:
-            #     patch5 = np.ones([1, p2p3])
-            # else:
-            #     patch5 = np.array([])
-            #
-            # patch6 = -hypTan(xHyp, kappa[0]) + np.ones([1, extHyp])
-            #
-            # p3end = int(len(wavenumbers) - p3 - np.floor(extHyp/2)) - 1
-            #
-            # if p3end>0:
-            #     patch7 = np.zeros([1, p3end])
-            # elif p3end<0:
-            #     patch6 = patch6[0,0:p3end]
-            #     patch6 = patch6.reshape(1,-1)
-            #     patch7 = np.array([])
-            #     patch7 = patch7.reshape(1,-1)
-            # else:
-            #     patch7 = np.array([])
-            #     patch7 = patch7.reshape(1,-1)
-            #
-            # if inflPoints[3]:
-            #     p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
-            #
-            #     # patch1
-            #     # patch0
-            #     # patchS0
-            # # patch7 = patch7.reshape(1,-1)
-            # wei_X = np.concatenate([patch1, patch2, patch3, patch4, patch5, patch6, patch7],1)
-            #
-            # print(wei_X.shape)
-            # plt.figure()
-            # plt.plot(wavenumbers, weightSpec[0,:])
-            # plt.plot(wavenumbers, standardWeights[0,:])
-            # plt.show()
+            if inflPoints[3]:
+                p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
 
-            # OLD, REMOVE WHEN REWRITING
-            # # interpolate reference to the data
-            # wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # # set whichever weights are undefined (usually at edges) to zero
-            # wei_X[np.isnan(wei_X)] = 0
+                x1a = np.linspace(-(p0-1)*dx, 0, p0)
+                x2a = np.linspace(dx, np.floor((p1-p0)/2)*dx, np.int(np.floor((p1-p0)/2)))
+                x3a = np.linspace(-(np.ceil((p1-p0)/2)-1)*dx, 0, np.int((np.ceil((p1-p0)/2))))
+
+                xp0 = np.hstack([x1a, x2a])
+                xp1 = np.hstack([x3a, x2])
+
+                patch0 = hypTan(xp0, kappa[3])
+                patch1 = 1 - hypTan(xp1, kappa[2])
+                wei_X = np.hstack([patch0, patch1, patch2, patch3])
+
+            wei_X = wei_X.reshape(1, -1)
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
