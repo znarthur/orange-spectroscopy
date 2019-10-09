@@ -86,12 +86,17 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         super().__init__(domain)
         self.reference = reference
         self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
+        self.weights = False
         self.ncomp = ncomp
-        explainedVariance = 99.99 # How to put this in the argumnt of the function...?
+        explainedVariance = 99.96 # How to put this in the argumnt of the function...?
 
-        self.maxNiter = 20
+        self.maxNiter = 30
         self.fixedNiter = False
         self.positiveRef = True
+
+        self.n0 = np.linspace(1.1, 1.4, 10)
+        self.a = np.linspace(2, 7.1, 10)
+        self.h = 0.25
 
         if not self.ncomp:
             self.explainedVariance = explainedVariance
@@ -180,10 +185,13 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                 svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42) # Self.ncomp needs to be specified
                 svd.fit(Qext_orthogonalized)
             else:
-                svd = TruncatedSVD(n_components=20, n_iter=7, random_state=42)
+                svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
                 svd.fit(Qext_orthogonalized)
-                explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
-                self.ncomp = np.argmax(explainedVariance>self.explainedVariance)
+                # explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
+                lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
+                explainedVariance = 100*lda/np.sum(lda)
+                explainedVariance = np.cumsum(explainedVariance)
+                self.ncomp = np.argmax(explainedVariance>self.explainedVariance) + 1
             badspectra = svd.components_[0:self.ncomp, :]
             return badspectra
 
@@ -218,12 +226,14 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             #first iteration is outside, this one makes the M_basic, alpha0 and gamma
 
             # scale with basic EMSC:
-            # print('ref shape: ', reference.shape)
-            # print('M shape: ', M_basic.shape)
             reference = cal_emsc_basic(M_basic, reference)
 
+            # Apply weights
+            reference = reference*wei_X
+            reference = reference[0]
+
             # set negative parts to zero
-            nonzeroReference = reference
+            nonzeroReference = reference.copy()
             nonzeroReference[nonzeroReference < 0] = 0
 
             if self.positiveRef:
@@ -270,7 +280,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                     elif self.fixedNiter and iterationNumber < self.fixedNiter:
                         print('Spec no. ', i, 'continuing')
                         continue
-                    elif iterationNumber == self.maxNiter:
+                    elif iterationNumber == self.maxNiter or iterationNumber == self.fixedNiter:
                         newspectra[i,:] = corrSpec
                         numberOfIterations[i] = iterationNumber
                         residuals[i,:] = res
@@ -291,13 +301,16 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = ref_X[0]
 
         # Should be implemented:
+        # Apply weights
+        # ref_X = ref_X*wei_X
+        # ref_X = ref_X[0]
         # nonzeroReference = ref_X
         # nonzeroReference[nonzeroReference < 0] = 0
         #
         # if self.positiveRef:
         #     ref_X = nonzeroReference
 
-        self.weights = False
+
 
         if self.weights:
 
@@ -401,26 +414,26 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
-
-        n0 = np.linspace(1.1, 1.4, 10)
-        a = np.linspace(2, 7.1, 10)
-        h = 0.25
-        alpha0 = (4 * np.pi * a * (n0 - 1)) * 1e-6
-        gamma = h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (n0 - 1) * a * 1e-6)
+        alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
+        gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
         import pandas as pd
         loc = ('../datasets/MieStandard.xlsx')
 
         MieStandard1 = pd.read_excel(loc, header=None)
         MieStandard2 = pd.read_excel(loc, header=None, sheet_name='Sheet2')
-        MieStandard5 = pd.read_excel(loc, header=None, sheet_name='Sheet5')
+        MieStandard3 = pd.read_excel(loc, header=None, sheet_name='Sheet3')
+        MieStandard4 = pd.read_excel(loc, header=None, sheet_name='Sheet4')
+        # MieStandard5 = pd.read_excel(loc, header=None, sheet_name='Sheet5')
 
         # Check that the reference is the same:
         ref_X2 = MieStandard1.values[4,1:]
         ref_X2 = ref_X2.astype(float).reshape(1,ref_X2.size)
         ref_X2 = ref_X2[~np.isnan(ref_X2)]
 
-        # ref_X = ref_X2
+        # Need to set the reference equal to the interpolated spectrum from Matlab. This is to avoid that the small difference in the
+        # interpolation will be amplified in the Kramers-Kronig transform
+        ref_X = ref_X2
 
         resonant = True
 
@@ -431,76 +444,12 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nprs = npr / (wavenumbers * 100)
             nkks = np.zeros(len(wavenumbers))
 
-        nkksM = MieStandard1.values[5,1:]
-        nkksM = nkksM.astype(float).reshape(1,nkksM.size)
-        nkksM = nkksM[~np.isnan(nkksM)]
-        # nkksM = nkksM.reshape(1,-1)
-
-        nprsM = MieStandard1.values[6,1:]
-        nprsM = nprsM.astype(float).reshape(1,nprsM.size)
-        nprsM = nprsM[~np.isnan(nprsM)]
-        # nprsM = nprsM.reshape(1,-1)
-
-        print('nkk is the same 1st iteration: ', all(abs(nkksM-nkks)<(np.max(nkks)-np.min(nkks))*0.0001))
-        print('np is the same 1st iteration: ', all(abs(nprsM-nprs)<0.00001))
-
-        plt.figure()
-        plt.title('nkks')
-        plt.plot(nkks, label='python')
-        plt.plot(nkksM, label='matlab')
-        plt.plot(nkks - nkksM, label='diff')
-        plt.legend()
-        plt.show()
-
-        plt.figure()
-        plt.title('ref x')
-        plt.plot(ref_X, label='python')
-        plt.plot(ref_X2, label='matlab')
-        plt.plot(ref_X - ref_X2, label='diff')
-        plt.legend()
-        plt.show()
-
-        #ref_X = ref_X2
-
         # For the first iteration, make basic EMSC model
         M_basic = make_basic_emsc_mod(ref_X)
 
-        QextMnotOrth = MieStandard1.values[12:,1:]
-        QextMnotOrth = QextMnotOrth.astype(float).reshape(1,QextMnotOrth.size)
-        QextMnotOrth = QextMnotOrth[~np.isnan(QextMnotOrth)]
-        QextMnotOrth = QextMnotOrth.reshape(100,1556)
-
-        # SOMETHING IS WRONG HERE. Qext is not the same for the first iteration. If we force
-        # Qext to be the same as for the standard, then the corrected spectrum will be the same.
+        # Calculate scattering curves for ME-EMSC
         Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
-        # Qext = QextMnotOrth
-        print('Qext is the same before orthogonalization: ', all((Qext[0,3:] - QextMnotOrth[0,3:])<0.0001))
-
-
-        plt.figure()
-        plt.plot(Qext[0,3:], label='p')
-        plt.plot(QextMnotOrth[0,3:], label='m')
-        plt.plot(Qext[0,3:]-QextMnotOrth[0,3:], label='diff')
-        plt.show()
-
-        plt.figure()
-        plt.title('Refx')
-        plt.plot(ref_X, label='p')
-        plt.plot(ref_X2, label='m')
-        plt.plot(ref_X-ref_X2, label='diff')
-        plt.show()
-
-        print('Argmax refx diff', np.argmax(ref_X-ref_X2))
-        print('Max refx diff', np.max(ref_X-ref_X2))
-
         Qext = orthogonalize_Qext(Qext, ref_X)
-
-        QextM = MieStandard5.values[14:,0:]
-        QextM = QextM.astype(float).reshape(1,QextM.size)
-        QextM = QextM[~np.isnan(QextM)]
-        QextM = QextM.reshape(100,1556)
-
-
         badspectra = compress_Mie_curves(Qext)
 
         # Establish ME-EMSC model
@@ -509,36 +458,35 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         # Correcting all spectra at once for the first iteration
         newspectra, res = cal_emsc(M, X)
 
-        CorrSpec1it = MieStandard1.values[11,1:]
-        CorrSpec1it = CorrSpec1it.astype(float).reshape(1,CorrSpec1it.size)
-        CorrSpec1it = CorrSpec1it[~np.isnan(CorrSpec1it)]
-        CorrSpec1it = CorrSpec1it.reshape(1,-1)
-
-        print('Corrected spectra the same for the 1st iteration: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec1it[0,:])<0.0001))
-
-        plt.figure()
-        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
-        plt.plot(wavenumbers, CorrSpec1it[0,:], label='Matlab')
-        plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec1it[0,:], label='Diff')
-        plt.legend()
-        plt.title('Comparison - 1st iteration')
-        plt.show()
-
-        if self.fixedNiter==1:
+        if self.fixedNiter==1 or self.maxNiter==1:
             numberOfIterations = np.ones([1, newspectra.shape[0]])
             # Need to give res and numberOfIterations as output
+
+            CorrSpec = MieStandard2.values[0:,1:]
+            CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
+            CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
+            CorrSpec = CorrSpec.reshape(5,1556)
+
+            plt.figure()
+            plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
+            plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
+            plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
+            plt.plot(wavenumbers, wei_X[0,:], label='weights')
+            plt.legend()
+            plt.title('Comparison')
+            plt.show()
+
             return newspectra
 
         # Iterate
         # newspectra, res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
-        newspectra, res2, numberOfIterations2 = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
+        newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
 
 
-        CorrSpec = MieStandard2.values[1,1:]
+        CorrSpec = MieStandard2.values[0:,1:]
         CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
         CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
-        CorrSpec = CorrSpec.reshape(1,-1)
-
+        CorrSpec = CorrSpec.reshape(5,1556)
 
         plt.figure()
         plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
@@ -549,7 +497,13 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         plt.title('Comparison')
         plt.show()
 
-        print('Corrected spectra the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
+        print('Corrected spectrum 1 is the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
+        print('Corrected spectrum 2 is the same: ', all((newspectra[1,:-self.ncomp-2]-CorrSpec[1,:])<0.0001))
+        print('Corrected spectrum 3 is the same: ', all((newspectra[2,:-self.ncomp-2]-CorrSpec[2,:])<0.0001))
+        print('Corrected spectrum 4 is the same: ', all((newspectra[3,:-self.ncomp-2]-CorrSpec[3,:])<0.0001))
+        print('Corrected spectrum 5 is the same: ', all((newspectra[4,:-self.ncomp-2]-CorrSpec[4,:])<0.0001))
+
+        print('Number of iterations: ', numberOfIterations)
 
         # Need to give res and numberOfIterations as output
         return newspectra
