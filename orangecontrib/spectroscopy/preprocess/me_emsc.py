@@ -156,7 +156,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nkks = nkks_extended[200:-200]
             return nprs, nkks
 
-        def calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers):
+        def calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers):
             def mie_hulst_extinction(rho, tanbeta):
                 beta = np.arctan(tanbeta)
                 cosbeta = np.cos(beta)
@@ -179,8 +179,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return Qext_orthogonalized
 
         def compress_Mie_curves(Qext_orthogonalized):
-            # svd = TruncatedSVD(n_components=10, n_iter=7, random_state=42)
-
             if self.ncomp:
                 svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42) # Self.ncomp needs to be specified
                 svd.fit(Qext_orthogonalized)
@@ -203,9 +201,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         def cal_emsc(M, X):
             newspectra = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
-            residuals = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
-            # Maybe this one should take only one spectrum at a time? We have to do it anyways like this
-
             for i, rawspectrum in enumerate(X):
                 m = np.linalg.lstsq(M, rawspectrum, rcond=-1)[0]
                 corrected = rawspectrum
@@ -241,8 +236,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
             # calculate Qext-curves
             nprs, nkks = calculate_complex_n(nonzeroReference, wavenumbers)
-
-            Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
+            Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
             Qext = orthogonalize_Qext(Qext, reference)
             badspectra = compress_Mie_curves(Qext)
 
@@ -253,7 +247,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return newspectrum, res
 
         def iterate(spectra, correctedFirsIteration, wavenumbers, M_basic, alpha0, gamma):
-            # Consider to make the M_basic in the init since this one does not change.
             newspectra = np.empty(correctedFirsIteration.shape)
             numberOfIterations = np.empty(spectra.shape[0])
             residuals = np.empty(spectra.shape)
@@ -268,31 +261,25 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                     corrSpec = newSpec[0,:]
                     rmse = round(np.sqrt((1/len(res[0,:]))*np.sum(res**2)),4)
                     RMSE.append(rmse)
-                    print('Spec no. ', i, 'iteration no. ', iterationNumber)
-                    print('RMSE = ', rmse)
 
                     # Stop criterion
                     if iterationNumber == self.maxNiter:
                         newspectra[i,:] = corrSpec
                         numberOfIterations[i] = iterationNumber
                         residuals[i,:] = res
-                        print('Spec no. ', i, 'Warning - max niter too low!')
                         break
                     elif self.fixedNiter and iterationNumber < self.fixedNiter:
-                        print('Spec no. ', i, 'continuing')
                         continue
                     elif iterationNumber == self.maxNiter or iterationNumber == self.fixedNiter:
                         newspectra[i,:] = corrSpec
                         numberOfIterations[i] = iterationNumber
                         residuals[i,:] = res
-                        print('Spec no. ', i, 'Reached fixed niter')
                         break
                     elif iterationNumber > 2 and self.fixedNiter == False:
                         if (rmse == RMSE[-2] and rmse == RMSE[-3]) or rmse > RMSE[-2]:
                             newspectra[i,:] = corrSpec
                             numberOfIterations[i] = iterationNumber
                             residuals[i,:] = res
-                            print('Spec no. ', i, 'Stabilized RMSE - break')
                             break
 
             return newspectra, res, numberOfIterations
@@ -300,13 +287,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
         ref_X = ref_X[0]
-
-        # Should be implemented:
-        # Apply weights
-
-
-
-
 
         if self.weights:
             # Hard coding the default inflection points
@@ -377,25 +357,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         if self.positiveRef:
             ref_X = nonzeroReference
 
-        import pandas as pd
-        loc = ('../datasets/MieStandard.xlsx')
-
-        MieStandard1 = pd.read_excel(loc, header=None)
-        MieStandard2 = pd.read_excel(loc, header=None, sheet_name='Sheet2')
-        MieStandard3 = pd.read_excel(loc, header=None, sheet_name='Sheet3')
-        MieStandard4 = pd.read_excel(loc, header=None, sheet_name='Sheet4')
-        # MieStandard5 = pd.read_excel(loc, header=None, sheet_name='Sheet5')
-
-        # Check that the reference is the same:
-        ref_X2 = MieStandard1.values[4,1:]
-        ref_X2 = ref_X2.astype(float).reshape(1,ref_X2.size)
-        ref_X2 = ref_X2[~np.isnan(ref_X2)]
-
-        # Need to set the reference equal to the interpolated spectrum from Matlab. This is to avoid that the small difference in the
-        # interpolation will be amplified in the Kramers-Kronig transform
-        # ref_X = ref_X2
-
-        resonant = True
+        resonant = True  # Possibility for using the 2008 verison
 
         if resonant:  # if this should be any point, we need to terminate after 1 iteartion for the non-resonant one
             nprs, nkks = calculate_complex_n(ref_X, wavenumbers)
@@ -405,10 +367,10 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nkks = np.zeros(len(wavenumbers))
 
         # For the first iteration, make basic EMSC model
-        M_basic = make_basic_emsc_mod(ref_X)
+        M_basic = make_basic_emsc_mod(ref_X)  # Consider to make the M_basic in the init since this one does not change.
 
         # Calculate scattering curves for ME-EMSC
-        Qext = calculate_Qext_components(nprs, nkks, alpha0, gamma, wavenumbers)
+        Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
         Qext = orthogonalize_Qext(Qext, ref_X)
         badspectra = compress_Mie_curves(Qext)
 
@@ -424,33 +386,8 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return newspectra
 
         # Iterate
-        # newspectra, res = iteration_step(X, newspectra[0,:-11], wavenumbers, M_basic, alpha0, gamma)
         newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
 
-
-        # CorrSpec = MieStandard2.values[0:,1:]
-        # CorrSpec = CorrSpec.astype(float).reshape(1,CorrSpec.size)
-        # CorrSpec = CorrSpec[~np.isnan(CorrSpec)]
-        # CorrSpec = CorrSpec.reshape(5,1556)
-        #
-        # plt.figure()
-        # plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2], label='Python')
-        # plt.plot(wavenumbers, CorrSpec[0,:], label='Matlab')
-        # plt.plot(wavenumbers, newspectra[0,:-self.ncomp-2]-CorrSpec[0,:], label='Diff')
-        # plt.plot(wavenumbers, wei_X[0,:], label='weights')
-        # plt.legend()
-        # plt.title('Comparison')
-        # plt.show()
-        #
-        # print('Corrected spectrum 1 is the same: ', all((newspectra[0,:-self.ncomp-2]-CorrSpec[0,:])<0.0001))
-        # print('Corrected spectrum 2 is the same: ', all((newspectra[1,:-self.ncomp-2]-CorrSpec[1,:])<0.0001))
-        # print('Corrected spectrum 3 is the same: ', all((newspectra[2,:-self.ncomp-2]-CorrSpec[2,:])<0.0001))
-        # print('Corrected spectrum 4 is the same: ', all((newspectra[3,:-self.ncomp-2]-CorrSpec[3,:])<0.0001))
-        # print('Corrected spectrum 5 is the same: ', all((newspectra[4,:-self.ncomp-2]-CorrSpec[4,:])<0.0001))
-        #
-        # print('Number of iterations: ', numberOfIterations)
-
-        # Need to give res and numberOfIterations as output
         return newspectra
 
 
