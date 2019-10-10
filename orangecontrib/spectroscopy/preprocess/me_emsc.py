@@ -303,13 +303,8 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         # Should be implemented:
         # Apply weights
-        # ref_X = ref_X*wei_X
-        # ref_X = ref_X[0]
-        # nonzeroReference = ref_X
-        # nonzeroReference[nonzeroReference < 0] = 0
-        #
-        # if self.positiveRef:
-        #     ref_X = nonzeroReference
+
+
 
 
 
@@ -373,6 +368,15 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
         gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
+        ref_X = ref_X*wei_X
+        ref_X = ref_X[0]
+
+        nonzeroReference = ref_X
+        nonzeroReference[nonzeroReference < 0] = 0
+
+        if self.positiveRef:
+            ref_X = nonzeroReference
+
         import pandas as pd
         loc = ('../datasets/MieStandard.xlsx')
 
@@ -389,7 +393,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         # Need to set the reference equal to the interpolated spectrum from Matlab. This is to avoid that the small difference in the
         # interpolation will be amplified in the Kramers-Kronig transform
-        ref_X = ref_X2
+        # ref_X = ref_X2
 
         resonant = True
 
