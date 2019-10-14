@@ -105,7 +105,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
     def transformed(self, X, wavenumbers):
         # wavenumber have to be input as sorted
-        # about 85% of time in __call__ function is spent is lstsq
         # compute average spectrum from the reference
 
         def interpolate_to_data(other_xs, other_data):
@@ -180,7 +179,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         def compress_Mie_curves(Qext_orthogonalized):
             if self.ncomp:
-                svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42) # Self.ncomp needs to be specified
+                svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
                 svd.fit(Qext_orthogonalized)
             else:
                 svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
@@ -189,14 +188,14 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                 lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
                 explainedVariance = 100*lda/np.sum(lda)
                 explainedVariance = np.cumsum(explainedVariance)
-                self.ncomp = np.argmax(explainedVariance>self.explainedVariance) + 1
+                self.ncomp = np.argmax(explainedVariance > self.explainedVariance) + 1
             badspectra = svd.components_[0:self.ncomp, :]
             return badspectra
 
         def make_emsc_model(badspectra, referenceSpec):
             M = np.ones([len(wavenumbers), self.ncomp+2])
-            M[:,1:self.ncomp+1] = np.array([spectrum for spectrum in badspectra.T])
-            M[:,self.ncomp+1] = referenceSpec
+            M[:, 1:self.ncomp+1] = np.array([spectrum for spectrum in badspectra.T])
+            M[:, self.ncomp+1] = referenceSpec
             return M
 
         def cal_emsc(M, X):
@@ -290,7 +289,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         if self.weights:
             # Hard coding the default inflection points
-            inflPoints = [3700, 2550,1900, 0]  # Inflection points in decreasing order. To be specified by user.
+            inflPoints = [3700, 2550, 1900, 0]  # Inflection points in decreasing order. To be specified by user.
 
             # Hard coding the slope of the hyperbolic tangent
             kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
@@ -397,7 +396,7 @@ class MissingReferenceException(Exception):
 
 class ME_EMSC(Preprocess):
 
-    def __init__(self, reference=None, weights=None, ncomp=0, output_model=False, ranges=None):
+    def __init__(self, reference=None, weights=None, ncomp=False, output_model=False, ranges=None):
         # the first non-kwarg can not be a data table (Preprocess limitations)
         # ranges could be a list like this [[800, 1000], [1300, 1500]]
         if reference is None:
@@ -407,6 +406,22 @@ class ME_EMSC(Preprocess):
         self.ncomp = ncomp
         self.output_model = output_model
 
+        #self.n0 = np.linspace(1.1, 1.4, 10)
+        #self.a = np.linspace(2, 7.1, 10)
+        #self.h = 0.25
+
+        #alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
+        #gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
+
+        #if not self.ncomp:
+        #    self.explainedVariance = explainedVariance
+        #else:
+        #    self.explainedVariance = False
+
+        # Estimate ncomp
+
+        # Can This function access the functions in _ME_EMSC?
+
     def __call__(self, data):
         # creates function for transforming data
         common = _ME_EMSC(self.reference, self.weights, self.ncomp, data.domain)
@@ -415,6 +430,7 @@ class ME_EMSC(Preprocess):
                 for i, a in enumerate(data.domain.attributes)]
         model_metas = []
         n_badspec = self.ncomp
+        print('badspec', n_badspec)
         # Check if function knows about bad spectra
         used_names = set([var.name for var in data.domain.variables + data.domain.metas])
         if self.output_model:
@@ -426,6 +442,7 @@ class ME_EMSC(Preprocess):
                                                    compute_value=ME_EMSCModel(i, common)))
                 i += 1
             for o in range(n_badspec):
+                print('In loop, o:', o)
                 n = get_unique_names(used_names, "EMSC parameter bad spec " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,
