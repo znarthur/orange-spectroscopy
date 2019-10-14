@@ -47,8 +47,8 @@ wnM = wnM[~np.isnan(wnM)]
 wnM = wnM[1::4]
 wnM = wnM.T
 
-from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, MissingReferenceException,\
-    ranges_to_weight_table, interp1d_with_unknowns_numpy, getx
+from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, MissingReferenceException, \
+    ranges_to_weight_table, interp1d_with_unknowns_numpy, getx, weights_from_inflection_points
 
 
 class TestME_EMSC(unittest.TestCase):
@@ -62,8 +62,14 @@ class TestME_EMSC(unittest.TestCase):
                                          for w in wnS])
         spectra = Orange.data.Table(domain_spectra, Spectra)
 
-        f = ME_EMSC(reference=reference, ncomp=False, output_model=True)
+        inflPoints = [3700, 2550, 1900, 0]
+        kappa = [1, 1, 1, 0]
+
+        weights = weights_from_inflection_points(inflPoints, kappa,wnS)
+
+        f = ME_EMSC(reference=reference, ncomp=False, weights=weights, output_model=True)
         fdata = f(spectra)
+
 
         # f2 = ME_EMSC(reference=reference, ncomp=12, output_model=True)  # With weights
         # f2data = f2(spectra)

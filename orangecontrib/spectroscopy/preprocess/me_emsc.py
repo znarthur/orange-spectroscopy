@@ -15,7 +15,136 @@ except ImportError:
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, transform_to_sorted_features
+
+
+def calculate_complex_n(ref_X,wavenumbers):
+    """Calculates the scaled imaginary part and scaled fluctuating real part of the refractive index."""
+    npr = ref_X
+    nprs = npr / (wavenumbers * 100)
+
+    # Extend absorbance spectrum
+    dw = wavenumbers[1] - wavenumbers[0]
+    wavenumbers_extended = np.hstack(
+        (dw * np.linspace(1, 200, 200) + (wavenumbers[0] - dw * 201), wavenumbers,
+         dw * np.linspace(1, 200, 200) + (wavenumbers[-1])))
+    extension1 = npr[0] * np.ones(200)
+    extension2 = npr[-1] * np.ones(200)
+    npr_extended = np.hstack((extension1, npr, extension2))
+
+    # Calculate Hilbert transform
+    nkks_extended = (-hilbert(npr_extended / (wavenumbers_extended * 100)).imag)
+
+    # Cut extended spectrum
+    nkks = nkks_extended[200:-200]
+    return nprs, nkks
+
+
+def calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers):
+    def mie_hulst_extinction(rho, tanbeta):
+        beta = np.arctan(tanbeta)
+        cosbeta = np.cos(beta)
+        return (2 - 4 * np.e ** (-rho * tanbeta) * (cosbeta / rho) * np.sin(rho - beta) -
+                4 * np.e ** (-rho * tanbeta) * (cosbeta / rho) ** 2 * np.cos(rho - 2 * beta) +
+                4 * (cosbeta / rho) ** 2 * np.cos(2 * beta))
+
+    rho = np.array(
+        [alpha0val * (1 + gammaval * nkks) * (wavenumbers * 100) for alpha0val in alpha0 for gammaval in gamma])
+    tanbeta = [nprs / (1 / gammaval + nkks) for _ in alpha0 for gammaval in gamma]
+    Qext = np.array([mie_hulst_extinction(rhoval, tanbetaval) for rhoval, tanbetaval in zip(rho, tanbeta)])
+    return Qext
+
+
+def orthogonalize_Qext(Qext, reference):
+    m = np.dot(reference, reference)
+    norm = np.sqrt(m)
+    rnorm = reference/norm
+    s = np.dot(Qext, rnorm)
+    Qext_orthogonalized = Qext - s[:, np.newaxis]*rnorm[np.newaxis, :]
+    return Qext_orthogonalized
+
+def compress_Mie_curves(Qext_orthogonalized, numComp):
+    # if numComp:
+    #     svd = TruncatedSVD(n_components=numComp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
+    #     svd.fit(Qext_orthogonalized)
+    # else:
+    #     svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
+    #     svd.fit(Qext_orthogonalized)
+    #     # explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
+    #     lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
+    #     explainedVariance = 100*lda/np.sum(lda)
+    #     explainedVariance = np.cumsum(explainedVariance)
+    #     numComp = np.argmax(explainedVariance > explainedVar) + 1
+    svd = TruncatedSVD(n_components=numComp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
+    svd.fit(Qext_orthogonalized)
+    badspectra = svd.components_[0:numComp, :]
+    return badspectra
+
+def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
+    nprs, nkks = calculate_complex_n(reference, wavenumbers)
+    Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
+    Qext_orthogonalized = orthogonalize_Qext(Qext, reference)
+    svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
+    svd.fit(Qext_orthogonalized)
+    lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
+    explainedVariance = 100*lda/np.sum(lda)
+    explainedVariance = np.cumsum(explainedVariance)
+    numComp = np.argmax(explainedVariance > explainedVarLim) + 1
+    print('CAL NCOMP:', numComp)
+    return numComp
+
+
+def weights_from_inflection_points(points, kappa, wavenumbers):
+    # Hyperbolic tangent function
+    hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
+
+    # Calculate position of inflection points
+    p1 = np.argmin(np.abs(wavenumbers - points[2]))
+    p2 = np.argmin(np.abs(wavenumbers - points[1]))
+    p3 = np.argmin(np.abs(wavenumbers - points[0]))
+
+    # Resolution on the x-axis used in the hyperbolic tangent function
+    dx = 0.094
+
+    x1 = np.linspace(-(p1-1)*dx, 0, p1)
+    x2 = np.linspace(dx, np.floor((p2-p1)/2)*dx, np.int(np.floor((p2-p1)/2)))
+
+    xp1 = np.hstack([x1, x2])
+
+    x3 = np.linspace(-(np.ceil((p2-p1)/2)-1)*dx, 0, np.int((np.ceil((p2-p1)/2))))
+    x4 = np.linspace(dx, np.floor((p3-p2)/2)*dx, np.int(np.floor((p3-p2)/2)))
+
+    xp2 = np.hstack([x3, x4])
+
+    x5 = np.linspace(-(np.ceil((p3-p2)/2)-1)*dx, 0, np.int((np.ceil((p3-p2)/2))))
+    x6 = np.linspace(dx, (len(wavenumbers)-p3)*dx, np.int(len(wavenumbers)-p3))
+
+    xp3 = np.hstack([x5, x6])
+
+    patch1 = 1 - hypTan(xp1, kappa[2])
+    patch2 = hypTan(xp2, kappa[1])
+    patch3 = 1 - hypTan(xp3, kappa[0])
+
+    wei_X = np.hstack([patch1, patch2, patch3])
+
+    if points[3]:
+        p0 = np.argmin(np.abs(wavenumbers - points[3]))
+
+        x1a = np.linspace(-(p0-1)*dx, 0, p0)
+        x2a = np.linspace(dx, np.floor((p1-p0)/2)*dx, np.int(np.floor((p1-p0)/2)))
+        x3a = np.linspace(-(np.ceil((p1-p0)/2)-1)*dx, 0, np.int((np.ceil((p1-p0)/2))))
+
+        xp0 = np.hstack([x1a, x2a])
+        xp1 = np.hstack([x3a, x2])
+
+        patch0 = hypTan(xp0, kappa[3])
+        patch1 = 1 - hypTan(xp1, kappa[2])
+        wei_X = np.hstack([patch0, patch1, patch2, patch3])
+
+    wei_X = wei_X.reshape(1, -1)
+    dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in wavenumbers])
+    data = Orange.data.Table.from_numpy(dom, wei_X)
+    return data
 
 
 def ranges_to_weight_table(ranges):
@@ -82,26 +211,30 @@ class ME_EMSCModel(SelectColumn):
 
 class _ME_EMSC(CommonDomainOrderUnknowns):
 
-    def __init__(self, reference, weights, ncomp, domain):
+    def __init__(self, reference, weights, ncomp, alpha0, gamma, maxNiter, fixedNiter, positiveRef, domain):
         super().__init__(domain)
         self.reference = reference
         self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
-        self.weights = True
         self.ncomp = ncomp
-        explainedVariance = 99.96 # How to put this in the argumnt of the function...?
+        self.alpha0 = alpha0
+        self.gamma = gamma
+        self.maxNiter = maxNiter
+        self.fixedNiter = fixedNiter
+        self.positiveRef = positiveRef
 
-        self.maxNiter = 30
-        self.fixedNiter = False
-        self.positiveRef = True
 
-        self.n0 = np.linspace(1.1, 1.4, 10)
-        self.a = np.linspace(2, 7.1, 10)
-        self.h = 0.25
-
-        if not self.ncomp:
-            self.explainedVariance = explainedVariance
-        else:
-            self.explainedVariance = False
+        # self.maxNiter = 30
+        # self.fixedNiter = False
+        # self.positiveRef = True
+        #
+        # self.n0 = np.linspace(1.1, 1.4, 10)
+        # self.a = np.linspace(2, 7.1, 10)
+        # self.h = 0.25
+        #
+        # if not self.ncomp:
+        #     self.explainedVariance = explainedVariance
+        # else:
+        #     self.explainedVariance = False
 
     def transformed(self, X, wavenumbers):
         # wavenumber have to be input as sorted
@@ -133,64 +266,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             corrected = corrected / m[3]
             scaled_spectrum = corrected
             return scaled_spectrum
-
-        def calculate_complex_n(ref_X,wavenumbers):
-            """Calculates the scaled imaginary part and scaled fluctuating real part of the refractive index."""
-            npr = ref_X
-            nprs = npr / (wavenumbers * 100)
-
-            # Extend absorbance spectrum
-            dw = wavenumbers[1] - wavenumbers[0]
-            wavenumbers_extended = np.hstack(
-                (dw * np.linspace(1, 200, 200) + (wavenumbers[0] - dw * 201), wavenumbers,
-                 dw * np.linspace(1, 200, 200) + (wavenumbers[-1])))
-            extension1 = npr[0] * np.ones(200)
-            extension2 = npr[-1] * np.ones(200)
-            npr_extended = np.hstack((extension1, npr, extension2))
-
-            # Calculate Hilbert transform
-            nkks_extended = (-hilbert(npr_extended / (wavenumbers_extended * 100)).imag)
-
-            # Cut extended spectrum
-            nkks = nkks_extended[200:-200]
-            return nprs, nkks
-
-        def calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers):
-            def mie_hulst_extinction(rho, tanbeta):
-                beta = np.arctan(tanbeta)
-                cosbeta = np.cos(beta)
-                return (2 - 4 * np.e ** (-rho * tanbeta) * (cosbeta / rho) * np.sin(rho - beta) -
-                        4 * np.e ** (-rho * tanbeta) * (cosbeta / rho) ** 2 * np.cos(rho - 2 * beta) +
-                        4 * (cosbeta / rho) ** 2 * np.cos(2 * beta))
-
-            rho = np.array(
-                [alpha0val * (1 + gammaval * nkks) * (wavenumbers * 100) for alpha0val in alpha0 for gammaval in gamma])
-            tanbeta = [nprs / (1 / gammaval + nkks) for _ in alpha0 for gammaval in gamma]
-            Qext = np.array([mie_hulst_extinction(rhoval, tanbetaval) for rhoval, tanbetaval in zip(rho, tanbeta)])
-            return Qext
-
-        def orthogonalize_Qext(Qext, ref_X):
-            m = np.dot(ref_X,ref_X)
-            norm = np.sqrt(m)
-            rnorm = ref_X/norm
-            s = np.dot(Qext, rnorm)
-            Qext_orthogonalized = Qext - s[:, np.newaxis]*rnorm[np.newaxis, :]
-            return Qext_orthogonalized
-
-        def compress_Mie_curves(Qext_orthogonalized):
-            if self.ncomp:
-                svd = TruncatedSVD(n_components=self.ncomp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
-                svd.fit(Qext_orthogonalized)
-            else:
-                svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
-                svd.fit(Qext_orthogonalized)
-                # explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
-                lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
-                explainedVariance = 100*lda/np.sum(lda)
-                explainedVariance = np.cumsum(explainedVariance)
-                self.ncomp = np.argmax(explainedVariance > self.explainedVariance) + 1
-            badspectra = svd.components_[0:self.ncomp, :]
-            return badspectra
 
         def make_emsc_model(badspectra, referenceSpec):
             M = np.ones([len(wavenumbers), self.ncomp+2])
@@ -237,7 +312,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nprs, nkks = calculate_complex_n(nonzeroReference, wavenumbers)
             Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
             Qext = orthogonalize_Qext(Qext, reference)
-            badspectra = compress_Mie_curves(Qext)
+            badspectra = compress_Mie_curves(Qext, self.ncomp)
 
             # build ME-EMSC model
             M = make_emsc_model(badspectra, reference)
@@ -288,64 +363,25 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = ref_X[0]
 
         if self.weights:
-            # Hard coding the default inflection points
-            inflPoints = [3700, 2550, 1900, 0]  # Inflection points in decreasing order. To be specified by user.
-
-            # Hard coding the slope of the hyperbolic tangent
-            kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
-
-            # Hyperbolic tangent function
-            hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
-
-            # Calculate position of inflection points
-            p1 = np.argmin(np.abs(wavenumbers-inflPoints[2]))
-            p2 = np.argmin(np.abs(wavenumbers-inflPoints[1]))
-            p3 = np.argmin(np.abs(wavenumbers-inflPoints[0]))
-
-            # Resolution on the x-axis used in the hyperbolic tangent function
-            dx = 0.094
-
-            x1 = np.linspace(-(p1-1)*dx, 0, p1)
-            x2 = np.linspace(dx, np.floor((p2-p1)/2)*dx, np.int(np.floor((p2-p1)/2)))
-
-            xp1 = np.hstack([x1, x2])
-
-            x3 = np.linspace(-(np.ceil((p2-p1)/2)-1)*dx, 0, np.int((np.ceil((p2-p1)/2))))
-            x4 = np.linspace(dx, np.floor((p3-p2)/2)*dx, np.int(np.floor((p3-p2)/2)))
-
-            xp2 = np.hstack([x3, x4])
-
-            x5 = np.linspace(-(np.ceil((p3-p2)/2)-1)*dx, 0, np.int((np.ceil((p3-p2)/2))))
-            x6 = np.linspace(dx, (len(wavenumbers)-p3)*dx, np.int(len(wavenumbers)-p3))
-
-            xp3 = np.hstack([x5, x6])
-
-            patch1 = 1 - hypTan(xp1, kappa[2])
-            patch2 = hypTan(xp2, kappa[1])
-            patch3 = 1 - hypTan(xp3, kappa[0])
-
-            wei_X = np.hstack([patch1, patch2, patch3])
-
-            if inflPoints[3]:
-                p0 = np.argmin(np.abs(wavenumbers-inflPoints[3]))
-
-                x1a = np.linspace(-(p0-1)*dx, 0, p0)
-                x2a = np.linspace(dx, np.floor((p1-p0)/2)*dx, np.int(np.floor((p1-p0)/2)))
-                x3a = np.linspace(-(np.ceil((p1-p0)/2)-1)*dx, 0, np.int((np.ceil((p1-p0)/2))))
-
-                xp0 = np.hstack([x1a, x2a])
-                xp1 = np.hstack([x3a, x2])
-
-                patch0 = hypTan(xp0, kappa[3])
-                patch1 = 1 - hypTan(xp1, kappa[2])
-                wei_X = np.hstack([patch0, patch1, patch2, patch3])
-
-            wei_X = wei_X.reshape(1, -1)
+            # interpolate reference to the data
+            wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
+            # set whichever weights are undefined (usually at edges) to zero
+            wei_X[np.isnan(wei_X)] = 0
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
-        alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
-        gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
+        # if self.weights:
+        #     # Hard coding the default inflection points
+        #     inflPoints = [3700, 2550, 1900, 0]  # Inflection points in decreasing order. To be specified by user.
+        #
+        #     # Hard coding the slope of the hyperbolic tangent
+        #     kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
+        #     wei_X = weights_from_inflection_points(inflPoints, kappa, wavenumbers)
+        # else:
+        #     wei_X = np.ones((1, len(wavenumbers)))
+
+        #alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
+        #gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
         ref_X = ref_X*wei_X
         ref_X = ref_X[0]
@@ -369,9 +405,11 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         M_basic = make_basic_emsc_mod(ref_X)  # Consider to make the M_basic in the init since this one does not change.
 
         # Calculate scattering curves for ME-EMSC
-        Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
+        Qext = calculate_Qext_curves(nprs, nkks, self.alpha0, self.gamma, wavenumbers)
         Qext = orthogonalize_Qext(Qext, ref_X)
-        badspectra = compress_Mie_curves(Qext)
+        badspectra = compress_Mie_curves(Qext, self.ncomp)
+        print('num components', self.ncomp)
+        print('shape BS', badspectra.shape)
 
         # Establish ME-EMSC model
         M = make_emsc_model(badspectra, ref_X)
@@ -385,7 +423,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return newspectra
 
         # Iterate
-        newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, alpha0, gamma)
+        newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, self.alpha0, self.gamma)
 
         return newspectra
 
@@ -396,35 +434,43 @@ class MissingReferenceException(Exception):
 
 class ME_EMSC(Preprocess):
 
-    def __init__(self, reference=None, weights=None, ncomp=False, output_model=False, ranges=None):
+    def __init__(self, reference=None, weights=None, ncomp=False, n0 = np.linspace(1.1, 1.4, 10), a = np.linspace(2, 7.1, 10), h = 0.25, output_model=False, ranges=None):
         # the first non-kwarg can not be a data table (Preprocess limitations)
         # ranges could be a list like this [[800, 1000], [1300, 1500]]
         if reference is None:
             raise MissingReferenceException()
         self.reference = reference
         self.weights = weights
+        print(weights)
         self.ncomp = ncomp
         self.output_model = output_model
+        explainedVariance = 99.96
 
-        #self.n0 = np.linspace(1.1, 1.4, 10)
-        #self.a = np.linspace(2, 7.1, 10)
-        #self.h = 0.25
+        self.maxNiter = 30
+        self.fixedNiter = False
+        self.positiveRef = True
 
-        #alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
-        #gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
+        self.n0 = n0
+        self.a = a
+        self.h = h
 
-        #if not self.ncomp:
-        #    self.explainedVariance = explainedVariance
-        #else:
-        #    self.explainedVariance = False
+        self.alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
+        self.gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
-        # Estimate ncomp
-
-        # Can This function access the functions in _ME_EMSC?
+        if not self.ncomp:
+            #self.explainedVariance = explainedVariance
+            xs, xsind, mon, X = transform_to_sorted_features(self.reference)
+            wavenumbers_ref = xs[xsind]
+            print(wavenumbers_ref.shape)
+            print(X.shape)
+            self.ncomp = cal_ncomp(X[0,:], wavenumbers_ref, explainedVariance, self.alpha0, self.gamma)
+        else:
+            self.explainedVariance = False
 
     def __call__(self, data):
         # creates function for transforming data
-        common = _ME_EMSC(self.reference, self.weights, self.ncomp, data.domain)
+        common = _ME_EMSC(reference=self.reference, weights=self.weights, ncomp=self.ncomp, alpha0=self.alpha0,
+                          gamma=self.gamma, maxNiter=self.maxNiter, fixedNiter=self.fixedNiter, positiveRef=self.positiveRef, domain=data.domain)
         # takes care of domain column-wise, by above transformation function
         atts = [a.copy(compute_value=ME_EMSCFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
