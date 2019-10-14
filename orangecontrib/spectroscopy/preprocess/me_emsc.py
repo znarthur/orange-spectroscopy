@@ -222,20 +222,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         self.fixedNiter = fixedNiter
         self.positiveRef = positiveRef
 
-
-        # self.maxNiter = 30
-        # self.fixedNiter = False
-        # self.positiveRef = True
-        #
-        # self.n0 = np.linspace(1.1, 1.4, 10)
-        # self.a = np.linspace(2, 7.1, 10)
-        # self.h = 0.25
-        #
-        # if not self.ncomp:
-        #     self.explainedVariance = explainedVariance
-        # else:
-        #     self.explainedVariance = False
-
     def transformed(self, X, wavenumbers):
         # wavenumber have to be input as sorted
         # compute average spectrum from the reference
@@ -274,7 +260,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             return M
 
         def cal_emsc(M, X):
-            newspectra = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
+            correctedspectra = np.zeros((X.shape[0], X.shape[1] + M.shape[1]))
             for i, rawspectrum in enumerate(X):
                 m = np.linalg.lstsq(M, rawspectrum, rcond=-1)[0]
                 corrected = rawspectrum
@@ -283,17 +269,13 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                 corrected = corrected / m[1 + self.ncomp]
                 corrected[np.isinf(corrected)] = np.nan  # fix values caused by zero weights
                 corrected = np.hstack((corrected, m))  # append the model parameters
-                newspectra[i] = corrected
+                correctedspectra[i] = corrected
 
-            params = corrected[-(self.ncomp+2):]
-            params = params[np.newaxis, :]
-            res = X - np.dot(params, M.T)
-
-            return newspectra, res
+            params = correctedspectra[:, -(self.ncomp+2):]
+            res = X - np.dot(params, M.T)  # Have to check if this is correct FIXME
+            return correctedspectra, res
 
         def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
-            #first iteration is outside, this one makes the M_basic, alpha0 and gamma
-
             # scale with basic EMSC:
             reference = cal_emsc_basic(M_basic, reference)
 
@@ -370,19 +352,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         else:
             wei_X = np.ones((1, len(wavenumbers)))
 
-        # if self.weights:
-        #     # Hard coding the default inflection points
-        #     inflPoints = [3700, 2550, 1900, 0]  # Inflection points in decreasing order. To be specified by user.
-        #
-        #     # Hard coding the slope of the hyperbolic tangent
-        #     kappa = [1, 1, 1, 0]  # Slope at corresponding inflection points. To be specified by user.
-        #     wei_X = weights_from_inflection_points(inflPoints, kappa, wavenumbers)
-        # else:
-        #     wei_X = np.ones((1, len(wavenumbers)))
-
-        #alpha0 = (4 * np.pi * self.a * (self.n0 - 1)) * 1e-6
-        #gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
-
         ref_X = ref_X*wei_X
         ref_X = ref_X[0]
 
@@ -392,7 +361,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         if self.positiveRef:
             ref_X = nonzeroReference
 
-        resonant = True  # Possibility for using the 2008 verison
+        resonant = True  # Possibility for using the 2008 version
 
         if resonant:  # if this should be any point, we need to terminate after 1 iteartion for the non-resonant one
             nprs, nkks = calculate_complex_n(ref_X, wavenumbers)
@@ -408,8 +377,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         Qext = calculate_Qext_curves(nprs, nkks, self.alpha0, self.gamma, wavenumbers)
         Qext = orthogonalize_Qext(Qext, ref_X)
         badspectra = compress_Mie_curves(Qext, self.ncomp)
-        print('num components', self.ncomp)
-        print('shape BS', badspectra.shape)
 
         # Establish ME-EMSC model
         M = make_emsc_model(badspectra, ref_X)
@@ -419,7 +386,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         if self.fixedNiter==1 or self.maxNiter==1:
             numberOfIterations = np.ones([1, newspectra.shape[0]])
-            # Need to give res and numberOfIterations as output
             return newspectra
 
         # Iterate
@@ -434,21 +400,21 @@ class MissingReferenceException(Exception):
 
 class ME_EMSC(Preprocess):
 
-    def __init__(self, reference=None, weights=None, ncomp=False, n0 = np.linspace(1.1, 1.4, 10), a = np.linspace(2, 7.1, 10), h = 0.25, output_model=False, ranges=None):
+    def __init__(self, reference=None, weights=None, ncomp=False, n0=np.linspace(1.1, 1.4, 10), a=np.linspace(2, 7.1, 10), h=0.25,
+                 max_iter=30, fixed_iter=False, positive_reference=True, output_model=False, ranges=None):
         # the first non-kwarg can not be a data table (Preprocess limitations)
         # ranges could be a list like this [[800, 1000], [1300, 1500]]
         if reference is None:
             raise MissingReferenceException()
         self.reference = reference
         self.weights = weights
-        print(weights)
         self.ncomp = ncomp
         self.output_model = output_model
         explainedVariance = 99.96
 
-        self.maxNiter = 30
-        self.fixedNiter = False
-        self.positiveRef = True
+        self.maxNiter = max_iter
+        self.fixedNiter = fixed_iter
+        self.positiveRef = positive_reference
 
         self.n0 = n0
         self.a = a
@@ -458,11 +424,8 @@ class ME_EMSC(Preprocess):
         self.gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
         if not self.ncomp:
-            #self.explainedVariance = explainedVariance
             xs, xsind, mon, X = transform_to_sorted_features(self.reference)
             wavenumbers_ref = xs[xsind]
-            print(wavenumbers_ref.shape)
-            print(X.shape)
             self.ncomp = cal_ncomp(X[0,:], wavenumbers_ref, explainedVariance, self.alpha0, self.gamma)
         else:
             self.explainedVariance = False
@@ -476,7 +439,6 @@ class ME_EMSC(Preprocess):
                 for i, a in enumerate(data.domain.attributes)]
         model_metas = []
         n_badspec = self.ncomp
-        print('badspec', n_badspec)
         # Check if function knows about bad spectra
         used_names = set([var.name for var in data.domain.variables + data.domain.metas])
         if self.output_model:
@@ -488,7 +450,6 @@ class ME_EMSC(Preprocess):
                                                    compute_value=ME_EMSCModel(i, common)))
                 i += 1
             for o in range(n_badspec):
-                print('In loop, o:', o)
                 n = get_unique_names(used_names, "EMSC parameter bad spec " + str(o))
                 model_metas.append(
                     Orange.data.ContinuousVariable(name=n,

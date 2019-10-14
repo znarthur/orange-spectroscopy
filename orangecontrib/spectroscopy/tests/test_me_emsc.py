@@ -67,18 +67,14 @@ class TestME_EMSC(unittest.TestCase):
 
         weights = weights_from_inflection_points(inflPoints, kappa,wnS)
 
-        f = ME_EMSC(reference=reference, ncomp=False, weights=weights, output_model=True)
+        f = ME_EMSC(reference=reference, ncomp=False, weights=weights, max_iter=30, output_model=True)
         fdata = f(spectra)
-
 
         # f2 = ME_EMSC(reference=reference, ncomp=12, output_model=True)  # With weights
         # f2data = f2(spectra)
 
         f3 = ME_EMSC(reference=reference, ncomp=14, output_model=True)
         f3data = f3(spectra)
-
-        print(len(fdata.domain.metas))
-        print(fdata.metas.shape)
 
         plt.figure()
         plt.plot(wnM, reference.X[0], 'k')
