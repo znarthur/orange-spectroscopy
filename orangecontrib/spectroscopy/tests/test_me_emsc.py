@@ -117,47 +117,17 @@ class TestME_EMSC(unittest.TestCase):
             plt.show()
 
     def test_correction_output(self):
-        # Check corrected spectra
-        # corr_default = -
-        # corr_default = corr_default < 10e-4
-        # print('Corrected with default parameters are the same: ', corr_default.all())
         np.testing.assert_almost_equal(self.corr_default_20th_elem, self.f1data[0, 0::20].X.T[:, 0])
-
-        # Check corrected spectra
-        # corr_14ncomp = self.f2data[0, 0::20].X.T[:, 0]-self.corr_14ncomp_20th_elem
-        # corr_14ncomp = corr_14ncomp < 10e-4
-        # print('Corrected with ncomp 14 are the same: ', corr_14ncomp.all())
         np.testing.assert_almost_equal(self.corr_14ncomp_20th_elem, self.f2data[0, 0::20].X.T[:, 0])
-
-        # Check corrected spectra
-        # corr_fixed_iter3 = self.f3data[0, 0::20].X.T[:, 0]-self.corr_fixed_iter3_20th_elem
-        # corr_fixed_iter3 = corr_fixed_iter3 < 10e-4
-        # print('Corrected with fixed iter 3 are the same: ', corr_fixed_iter3.all())
         np.testing.assert_almost_equal(self.corr_fixed_iter3_20th_elem, self.f3data[0, 0::20].X.T[:, 0])
 
-        # np.testing.assert_almost_equal([1.0, 1.0], [1.0, 1.0])
-
     def test_EMSC_parameters(self):
-        # param_default = abs(self.f1data.metas[0, :-1])-abs(self.param_default_20th_elem)
-        # param_default = param_default < 10e-4
-        # print('Parameters with default parameters are the same: ', param_default.all())
-        #
-        # param_14ncomp = abs(self.f2data.metas[0, :-1])-abs(self.param_14ncomp_20th_elem)
-        # param_14ncomp = param_14ncomp < 10e-4
-        # print('Parameters with ncomp 14 are the same: ', param_14ncomp.all())
-        #
-        # param_fixed_iter3 = abs(self.f3data.metas[0, :-1])-abs(self.param_fixed_iter3_20th_elem)
-        # param_fixed_iter3 = param_fixed_iter3 < 10e-4
-        # print('Parameters with fixed iter 3 parameters are the same: ', param_fixed_iter3.all())
-
         np.testing.assert_almost_equal(abs(self.f1data.metas[0, :-1]), abs(self.param_default_20th_elem))
         np.testing.assert_almost_equal(abs(self.f2data.metas[0, :-1]), abs(self.param_14ncomp_20th_elem))
         np.testing.assert_almost_equal(abs(self.f3data.metas[0, :-1]), abs(self.param_fixed_iter3_20th_elem))
 
     def test_number_iterations(self):
-        # Check number of iterations
         numiter = np.array([self.f1data.metas[0, -1], self.f2data.metas[0, -1], self.f3data.metas[0, -1]])
-        # print((numiter == self.numiter_std).all())
         np.testing.assert_equal(numiter, self.numiter_std)
 
 
