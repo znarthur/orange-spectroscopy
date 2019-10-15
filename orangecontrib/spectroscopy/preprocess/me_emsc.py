@@ -64,17 +64,6 @@ def orthogonalize_Qext(Qext, reference):
     return Qext_orthogonalized
 
 def compress_Mie_curves(Qext_orthogonalized, numComp):
-    # if numComp:
-    #     svd = TruncatedSVD(n_components=numComp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
-    #     svd.fit(Qext_orthogonalized)
-    # else:
-    #     svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
-    #     svd.fit(Qext_orthogonalized)
-    #     # explainedVariance = np.cumsum(svd.explained_variance_ratio_)*100
-    #     lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
-    #     explainedVariance = 100*lda/np.sum(lda)
-    #     explainedVariance = np.cumsum(explainedVariance)
-    #     numComp = np.argmax(explainedVariance > explainedVar) + 1
     svd = TruncatedSVD(n_components=numComp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
     svd.fit(Qext_orthogonalized)
     badspectra = svd.components_[0:numComp, :]
@@ -231,6 +220,10 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
             # we know that X is not NaN. same handling of reference as of X
             interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
+            # print(interpolated)
+            # print(other_xs)
+            # print(wavenumbers)
+            # print(len(other_xs))
             return interpolated
 
         def make_basic_emsc_mod(ref_X):
@@ -391,6 +384,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         # Iterate
         newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, self.alpha0, self.gamma)
 
+        print('Num it: ', numberOfIterations)
         return newspectra
 
 
