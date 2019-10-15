@@ -184,23 +184,23 @@ class TestOWStackAlign(WidgetTest):
         self.widget = self.create_widget(OWStackAlign)  # type: OWStackAlign
 
     def test_add_remove_data(self):
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
+        out = self.get_output(self.widget.Outputs.newstack)
         self.assertIsInstance(out, Table)
-        self.send_signal(OWStackAlign.Inputs.data, None)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, None)
+        out = self.get_output(self.widget.Outputs.newstack)
         self.assertIs(out, None)
 
     def test_output_aligned(self):
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
+        out = self.get_output(self.widget.Outputs.newstack)
         image3d = orange_table_to_3d(out)
         for z in range(1, image3d.shape[2]):
             np.testing.assert_almost_equal(image3d[:, :, 0], image3d[:, :, z])
 
     def test_output_cropped(self):
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
+        out = self.get_output(self.widget.Outputs.newstack)
         image3d = orange_table_to_3d(out)
         # for a cropped image all have to be defined
         self.assertFalse(np.any(np.isnan(image3d)))
@@ -213,23 +213,23 @@ class TestOWStackAlign(WidgetTest):
     def test_sobel_called(self):
         with patch("orangecontrib.spectroscopy.widgets.owstackalign.sobel",
                    Mock(side_effect=sobel)) as mock:
-            self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
-            _ = self.get_output(OWStackAlign.Outputs.newstack)
+            self.send_signal(self.widget.Inputs.data, stxm_diamond)
+            _ = self.get_output(self.widget.Outputs.newstack)
             self.assertFalse(mock.called)
             self.widget.controls.sobel_filter.toggle()
-            _ = self.get_output(OWStackAlign.Outputs.newstack)
+            _ = self.get_output(self.widget.Outputs.newstack)
             self.assertTrue(mock.called)
 
     def test_report(self):
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
         self.widget.send_report()
 
     def test_nan_in_image(self):
         data = stxm_diamond.copy()
         data.X[1, 2] = np.nan
-        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Error.nan_in_image.is_shown())
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
         self.assertFalse(self.widget.Error.nan_in_image.is_shown())
 
     def test_with_class_columns(self):
@@ -238,8 +238,8 @@ class TestOWStackAlign(WidgetTest):
         z = ContinuousVariable(name="z")
         domain = Domain(data.domain.attributes, class_vars=[cv], metas=data.domain.metas + (z,))
         data = data.transform(domain)
-        self.send_signal(OWStackAlign.Inputs.data, data)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, data)
+        out = self.get_output(self.widget.Outputs.newstack)
         # The alignment rearranges table columns. Because we do not know, which
         # wavenumber they belong to, forget them for now.
         self.assertEqual(out.domain.class_vars, tuple())
@@ -248,43 +248,43 @@ class TestOWStackAlign(WidgetTest):
     def test_invalid_axis(self):
         data = stxm_diamond.copy()
         data.metas[:, 0] = np.nan
-        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Error.invalid_axis.is_shown())
-        self.send_signal(OWStackAlign.Inputs.data, None)
+        self.send_signal(self.widget.Inputs.data, None)
         self.assertFalse(self.widget.Error.invalid_axis.is_shown())
 
     def test_missing_metas(self):
         domain = Domain(stxm_diamond.domain.attributes)
         data = stxm_diamond.transform(domain)
         # this should not crash
-        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
 
     def test_no_wavenumbers(self):
         domain = Domain(stxm_diamond.domain.attributes[:0], metas=stxm_diamond.domain.metas)
         data = stxm_diamond.transform(domain)
-        self.send_signal(OWStackAlign.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
 
     def test_single_wavenumber(self):
         domain = Domain(stxm_diamond.domain.attributes[:1], metas=stxm_diamond.domain.metas)
         data = stxm_diamond.transform(domain)
-        self.send_signal(OWStackAlign.Inputs.data, data)
-        out = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, data)
+        out = self.get_output(self.widget.Outputs.newstack)
         image3d = orange_table_to_3d(out)
         np.testing.assert_almost_equal(image3d[:, :, 0], diamond())
 
     def test_frame_changes_output(self):
         self.widget.ref_frame_num = 1
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
-        out1 = self.get_output(OWStackAlign.Outputs.newstack)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
+        out1 = self.get_output(self.widget.Outputs.newstack)
         lineedit_type(self.widget.controls.ref_frame_num, "2")
         self.assertEqual(self.widget.ref_frame_num, 2)
-        out2 = self.get_output(OWStackAlign.Outputs.newstack)
+        out2 = self.get_output(self.widget.Outputs.newstack)
         self.assertIsNot(out1, out2)
         # due to cropping we get the same output on this very simple problem
         np.testing.assert_equal(out1.X, out2.X)
 
     def test_frame_limits(self):
-        self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+        self.send_signal(self.widget.Inputs.data, stxm_diamond)
         lineedit_type(self.widget.controls.ref_frame_num, "1")
         self.assertEqual(1, self.widget.ref_frame_num)
         # could not test input 0 for the first because lineedit_type does not use validatiors
@@ -297,7 +297,7 @@ class TestOWStackAlign(WidgetTest):
         se = SideEffect(process_stack)
         with patch("orangecontrib.spectroscopy.widgets.owstackalign.process_stack",
                    Mock(side_effect=se)) as mock:
-            self.send_signal(OWStackAlign.Inputs.data, stxm_diamond)
+            self.send_signal(self.widget.Inputs.data, stxm_diamond)
             lineedit_type(self.widget.controls.ref_frame_num, "1")
             self.assertEqual(2, mock.call_count)
             np.testing.assert_equal(se.return_value[0][0], (0, 0))

@@ -16,17 +16,17 @@ class TestNormalizeEditor(PreprocessorEditorTest):
 
     def test_no_interaction(self):
         self.widget.apply()
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         p = out.preprocessors[0]
         self.assertIsInstance(p, Normalize)
         self.assertIs(p.method, Normalize.Vector)
 
     def test_normalize_by_reference(self):
         reference = SMALL_COLLAGEN[:1]
-        self.send_signal(OWPreprocess.Inputs.reference, reference)
+        self.send_signal(self.widget.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
         self.widget.apply()
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         p = out.preprocessors[0]
         self.assertIsInstance(p, NormalizeReference)
         self.assertIs(p.reference, reference)
@@ -36,15 +36,15 @@ class TestNormalizeEditor(PreprocessorEditorTest):
         self.widget.apply()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertTrue(self.editor.Error.exception.is_shown())
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         self.assertIsNone(out)
 
     def test_normalize_by_reference_wrong_reference(self):
         reference = SMALL_COLLAGEN[:2]
-        self.send_signal(OWPreprocess.Inputs.reference, reference)
+        self.send_signal(self.widget.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
         self.widget.apply()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertTrue(self.editor.Error.exception.is_shown())
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         self.assertIsNone(out)

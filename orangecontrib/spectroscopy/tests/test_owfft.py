@@ -35,8 +35,8 @@ class TestOWFFT(WidgetTest):
     def test_keep_metas(self):
         self.widget.autocommit = True
         input = self.ifg_seq
-        self.send_signal(OWFFT.Inputs.data, input)
-        spectra = self.get_output(OWFFT.Outputs.spectra)
-        phases = self.get_output(OWFFT.Outputs.phases)
+        self.send_signal(self.widget.Inputs.data, input)
+        spectra = self.get_output(self.widget.Outputs.spectra)
+        phases = self.get_output(self.widget.Outputs.phases)
         np.testing.assert_equal(input.metas, spectra.metas)
         np.testing.assert_equal(input.metas, phases.metas[:, :input.metas.shape[1]])
