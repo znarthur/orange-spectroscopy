@@ -79,7 +79,6 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     explainedVariance = 100*lda/np.sum(lda)
     explainedVariance = np.cumsum(explainedVariance)
     numComp = np.argmax(explainedVariance > explainedVarLim) + 1
-    print('CAL NCOMP:', numComp)
     return numComp
 
 
@@ -220,10 +219,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
             # we know that X is not NaN. same handling of reference as of X
             interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
-            # print(interpolated)
-            # print(other_xs)
-            # print(wavenumbers)
-            # print(len(other_xs))
             return interpolated
 
         def make_basic_emsc_mod(ref_X):
@@ -383,8 +378,8 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         # Iterate
         newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, self.alpha0, self.gamma)
+        newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1,1)))
 
-        print('Num it: ', numberOfIterations)
         return newspectra
 
 
@@ -450,6 +445,11 @@ class ME_EMSC(Preprocess):
                                                    compute_value=ME_EMSCModel(i, common)))
                 i += 1
             n = get_unique_names(used_names, "EMSC scaling parameter")
+            model_metas.append(
+                Orange.data.ContinuousVariable(name=n,
+                                               compute_value=ME_EMSCModel(i, common)))
+            i += 1
+            n = get_unique_names(used_names, "Number of iterations")
             model_metas.append(
                 Orange.data.ContinuousVariable(name=n,
                                                compute_value=ME_EMSCModel(i, common)))
