@@ -1,11 +1,9 @@
 import unittest
 
 import numpy as np
+
 import Orange
 from Orange.data import FileFormat, dataset_dirs
-
-import pandas as pd
-
 
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 
@@ -26,36 +24,30 @@ class TestME_EMSC(unittest.TestCase):
         path2data5 = locate_dataset('emsc/MieStd5_residuals.csv')
         path2data6 = locate_dataset('emsc/MieStd6_niter.csv')
 
-        dframe1 = pd.read_csv(path2data1, header=None)
-        Spectra = dframe1.values[0, 1:]
-        cls.Spectra = np.vstack((Spectra, Spectra))
-        cls.wnS = dframe1.values[1, 1:]
+        v = np.loadtxt(path2data1, usecols=np.arange(1, 779), delimiter=",")
+        cls.wnS = v[1]
+        cls.Spectra = np.vstack((v[0], v[0]))
 
-        dframe2 = pd.read_csv(path2data2, header=None)
-        Matrigel = dframe2.values[0, 1:]
-        cls.Matrigel = Matrigel.reshape(1, -1)
-        cls.wnM = dframe2.values[1, 1:]
+        v = np.loadtxt(path2data2, usecols=np.arange(1, 752), delimiter=",")
+        cls.wnM = v[1]
+        cls.Matrigel = v[0].reshape(1, -1)
 
-        dframe3 = pd.read_csv(path2data3, header=None)
-        cls.corr_default_20th_elem = dframe3.values[0, 1:]
-        cls.corr_14ncomp_20th_elem = dframe3.values[1, 1:]
-        cls.corr_fixed_iter3_20th_elem = dframe3.values[2, 1:]
+        v = np.loadtxt(path2data3, usecols=np.arange(1, 40), delimiter=",")
+        cls.corr_default_20th_elem = v[0]
+        cls.corr_14ncomp_20th_elem = v[1]
+        cls.corr_fixed_iter3_20th_elem = v[2]
 
-        dframe4 = pd.read_csv(path2data4, header=None)
-        param_default_20th_elem = dframe4.values[0, 1:].astype('float64')
-        cls.param_default_20th_elem = param_default_20th_elem[~np.isnan(param_default_20th_elem)]
-        cls.param_14ncomp_20th_elem = dframe4.values[1, 1:]
-        param_fixed_iter3_20th_elem = dframe4.values[2, 1:].astype('float64')
-        cls.param_fixed_iter3_20th_elem = param_fixed_iter3_20th_elem[~np.isnan(param_fixed_iter3_20th_elem)]
+        v = np.loadtxt(path2data4, usecols=np.arange(1, 17), delimiter=",")
+        cls.param_default_20th_elem = v[0][~np.isnan(v[0])]
+        cls.param_14ncomp_20th_elem = v[1]
+        cls.param_fixed_iter3_20th_elem = v[2][~np.isnan(v[2])]
 
-        dframe5 = pd.read_csv(path2data5, header=None)
-        cls.res_default_20th_elem = dframe5.values[0, 1:]
-        cls.res_14ncomp_20th_elem = dframe5.values[1, 1:]
-        cls.res_fixed_iter3_20th_elem = dframe5.values[2, 1:]
+        v = np.loadtxt(path2data5, usecols=np.arange(1, 40), delimiter=",")
+        cls.res_default_20th_elem = v[0]
+        cls.res_14ncomp_20th_elem = v[1]
+        cls.res_fixed_iter3_20th_elem = v[2]
 
-        dframe6 = pd.read_csv(path2data6, header=None)
-        numiter_std = dframe6.values[:, 1:]
-        cls.numiter_std = numiter_std.T[0,:]
+        cls.numiter_std = np.loadtxt(path2data6, usecols=(1,), delimiter=",", dtype="int64")
 
         domain_reference = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                          for w in cls.wnM])
