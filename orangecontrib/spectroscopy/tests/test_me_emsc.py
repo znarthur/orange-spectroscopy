@@ -27,14 +27,12 @@ class TestME_EMSC(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        loc = '../datasets/MieStandard.xlsx'
-
-        path2data1 = '../datasets/MieStd1_rawSpec.csv'
-        path2data2 = '../datasets/MieStd2_refSpec.csv'
-        path2data3 = '../datasets/MieStd3_corr.csv'
-        path2data4 = '../datasets/MieStd4_param.csv'
-        path2data5 = '../datasets/MieStd5_residuals.csv'
-        path2data6 = '../datasets/MieStd6_niter.csv'
+        path2data1 = '../datasets/emsc/MieStd1_rawSpec.csv'
+        path2data2 = '../datasets/emsc/MieStd2_refSpec.csv'
+        path2data3 = '../datasets/emsc/MieStd3_corr.csv'
+        path2data4 = '../datasets/emsc/MieStd4_param.csv'
+        path2data5 = '../datasets/emsc/MieStd5_residuals.csv'
+        path2data6 = '../datasets/emsc/MieStd6_niter.csv'
 
         dframe1 = pd.read_csv(path2data1, header=None)
         Spectra = dframe1.values[0, 1:]
@@ -89,32 +87,31 @@ class TestME_EMSC(unittest.TestCase):
         f3 = ME_EMSC(reference=cls.reference, ncomp=False, fixed_iter=3, output_model=True)
         cls.f3data = f3(cls.spectra)
 
-    def test_plotting(self):
-        if 1:
-            # Default parameters
-            plt.figure()
-            plt.plot(self.wnS[0::20], self.f1data[0, 0::20].X.T, label='python')
-            plt.plot(self.wnS[0::20], self.corr_default_20th_elem, label='matlab')
-            plt.plot(self.wnS[0::20], self.f1data[0, 0::20].X.T[:, 0] - self.corr_default_20th_elem, label='diff')
-            plt.legend()
-            plt.title('Comparison Matlab/Python - default parameters')
+    def disabled_test_plotting(self):
+        # Default parameters
+        plt.figure()
+        plt.plot(self.wnS[0::20], self.f1data[0, 0::20].X.T, label='python')
+        plt.plot(self.wnS[0::20], self.corr_default_20th_elem, label='matlab')
+        plt.plot(self.wnS[0::20], self.f1data[0, 0::20].X.T[:, 0] - self.corr_default_20th_elem, label='diff')
+        plt.legend()
+        plt.title('Comparison Matlab/Python - default parameters')
 
-            # 14 principal components
-            plt.figure()
-            plt.plot(self.wnS[0::20], self.f2data[0, 0::20].X.T, label='python')
-            plt.plot(self.wnS[0::20], self.corr_14ncomp_20th_elem, label='matlab')
-            plt.plot(self.wnS[0::20], self.f2data[0, 0::20].X.T[:, 0]-self.corr_14ncomp_20th_elem, label='diff')
-            plt.legend()
-            plt.title('Comparison Matlab/Python - 14 principal components')
+        # 14 principal components
+        plt.figure()
+        plt.plot(self.wnS[0::20], self.f2data[0, 0::20].X.T, label='python')
+        plt.plot(self.wnS[0::20], self.corr_14ncomp_20th_elem, label='matlab')
+        plt.plot(self.wnS[0::20], self.f2data[0, 0::20].X.T[:, 0]-self.corr_14ncomp_20th_elem, label='diff')
+        plt.legend()
+        plt.title('Comparison Matlab/Python - 14 principal components')
 
-            # Fixed iteration number 3
-            plt.figure()
-            plt.plot(self.wnS[0::20], self.f3data[0, 0::20].X.T, label='python')
-            plt.plot(self.wnS[0::20], self.corr_fixed_iter3_20th_elem, label='matlab')
-            plt.plot(self.wnS[0::20], self.f3data[0, 0::20].X.T[:, 0]-self.corr_fixed_iter3_20th_elem, label='diff')
-            plt.legend()
-            plt.title('Comparison Matlab/Python - fixed iterations 3')
-            plt.show()
+        # Fixed iteration number 3
+        plt.figure()
+        plt.plot(self.wnS[0::20], self.f3data[0, 0::20].X.T, label='python')
+        plt.plot(self.wnS[0::20], self.corr_fixed_iter3_20th_elem, label='matlab')
+        plt.plot(self.wnS[0::20], self.f3data[0, 0::20].X.T[:, 0]-self.corr_fixed_iter3_20th_elem, label='diff')
+        plt.legend()
+        plt.title('Comparison Matlab/Python - fixed iterations 3')
+        plt.show()
 
     def test_correction_output(self):
         np.testing.assert_almost_equal(self.corr_default_20th_elem, self.f1data[0, 0::20].X.T[:, 0])
