@@ -117,31 +117,31 @@ class TestOWPreprocess(WidgetTest):
     def test_output_preprocessor_without_data(self):
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.apply()
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         self.assertIsInstance(out, Preprocess)
 
     def test_empty_no_inputs(self):
         self.widget.apply()
-        p = self.get_output(OWPreprocess.Outputs.preprocessor)
-        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        p = self.get_output(self.widget.Outputs.preprocessor)
+        d = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(None, p)
         self.assertEqual(None, d)
 
     def test_no_preprocessors(self):
         data = SMALL_COLLAGEN
-        self.send_signal(OWPreprocess.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.widget.apply()
-        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        d = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(SMALL_COLLAGEN, d)
 
     def test_widget_vs_manual(self):
         data = SMALL_COLLAGEN
-        self.send_signal(OWPreprocess.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.add_preprocessor(pack_editor(SavitzkyGolayFilteringEditor))
         self.widget.apply()
-        p = self.get_output(OWPreprocess.Outputs.preprocessor)
-        d = self.get_output(OWPreprocess.Outputs.preprocessed_data)
+        p = self.get_output(self.widget.Outputs.preprocessor)
+        d = self.get_output(self.widget.Outputs.preprocessed_data)
         manual = p(data)
         np.testing.assert_equal(d.X, manual.X)
 

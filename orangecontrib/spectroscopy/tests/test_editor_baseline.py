@@ -11,14 +11,14 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import layout_widget
 class TestBaselineEditor(PreprocessorEditorTest):
 
     def get_preprocessor(self):
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         return out.preprocessors[0]
 
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
         self.editor = self.add_editor(BaselineEditor, self.widget)
         self.data = SMALL_COLLAGEN
-        self.send_signal(OWPreprocess.Inputs.data, self.data)
+        self.send_signal(self.widget.Inputs.data, self.data)
 
     def test_no_interaction(self):
         self.widget.apply()

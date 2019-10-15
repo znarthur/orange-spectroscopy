@@ -52,7 +52,7 @@ class TestWarning(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(self.widget_cls)
         data = Table("iris")
-        self.send_signal(self.widget_cls.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(WarningEditor))
         self.editor = self.widget.flow_view.widgets()[0]
         self.assertIsInstance(self.editor, WarningEditor)
@@ -101,12 +101,12 @@ class TestWarning(WidgetTest):
         self.editor.edited.emit()
         self.widget.apply()
         self.assertTrue(self.widget.Error.applying.is_shown())
-        self.assertIsNone(self.get_output(self.widget_cls.Outputs.preprocessed_data))
-        self.assertIsNone(self.get_output(self.widget_cls.Outputs.preprocessor))
+        self.assertIsNone(self.get_output(self.widget.Outputs.preprocessed_data))
+        self.assertIsNone(self.get_output(self.widget.Outputs.preprocessor))
 
         self.editor.raise_exception = False
         self.editor.edited.emit()
         self.widget.apply()
         self.assertFalse(self.widget.Error.applying.is_shown())
-        self.assertIsNotNone(self.get_output(self.widget_cls.Outputs.preprocessed_data))
-        self.assertIsNotNone(self.get_output(self.widget_cls.Outputs.preprocessor))
+        self.assertIsNotNone(self.get_output(self.widget.Outputs.preprocessed_data))
+        self.assertIsNotNone(self.get_output(self.widget.Outputs.preprocessor))

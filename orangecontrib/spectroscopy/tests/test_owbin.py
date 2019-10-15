@@ -22,8 +22,8 @@ class TestOWBin(WidgetTest):
     def test_bin(self):
         self.widget.bin_shape = (2, 2)
         self.widget._init_bins
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
-        m = self.get_output(OWBin.Outputs.bindata)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
+        m = self.get_output(self.widget.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / 2**2)
         x_coords = self.mosaic[:, "map_x"].metas[:, 0]
         x_coords_binned = np.array([x_coords[0:2].mean(), x_coords[2:4].mean()])
@@ -34,18 +34,18 @@ class TestOWBin(WidgetTest):
         np.testing.assert_equal(m[:, "map_y"].metas[0:4, 0], y_coords_binned)
 
     def test_bin_changed(self):
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
         self.widget.bin_0 = 2
         self.widget.bin_1 = 2
         self.widget._bin_changed()
-        m = self.get_output(OWBin.Outputs.bindata)
+        m = self.get_output(self.widget.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / 2**2)
 
     def test_nonsquare_bin(self):
         self.widget.bin_shape = (2, 4)
         self.widget._init_bins()
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
-        m = self.get_output(OWBin.Outputs.bindata)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
+        m = self.get_output(self.widget.Outputs.bindata)
         np.testing.assert_equal(len(m.X), len(self.mosaic.X) / (2 * 4))
         x_coords = self.mosaic[:, "map_x"].metas[:, 0]
         x_coords_binned = np.array([x_coords[0:2].mean(), x_coords[2:4].mean()])
@@ -57,8 +57,8 @@ class TestOWBin(WidgetTest):
     def test_no_bin(self):
         self.widget.bin_shape = (1, 1)
         self.widget._init_bins()
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
-        m = self.get_output(OWBin.Outputs.bindata)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
+        m = self.get_output(self.widget.Outputs.bindata)
 
         # Comparing hypercube data and axes here instead of Tables because
         # self.mosaic is built (row, column) i.e. (map_y, map_x)
@@ -74,22 +74,22 @@ class TestOWBin(WidgetTest):
     def test_invalid_bin(self):
         self.widget.bin_shape = (3, 3)
         self.widget._init_bins()
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
         self.assertTrue(self.widget.Error.invalid_block.is_shown())
-        self.assertIsNone(self.get_output(OWBin.Outputs.bindata))
+        self.assertIsNone(self.get_output(self.widget.Outputs.bindata))
 
     def test_invalid_axis(self):
         data = self.mosaic.copy()
         data.metas[:, 0] = np.nan
-        self.send_signal(OWBin.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Error.invalid_axis.is_shown())
-        self.send_signal(OWBin.Inputs.data, None)
+        self.send_signal(self.widget.Inputs.data, None)
         self.assertFalse(self.widget.Error.invalid_axis.is_shown())
 
     def test_nan_in_image(self):
         data = self.mosaic.copy()
         data.X[1, 2] = np.nan
-        self.send_signal(OWBin.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Warning.nan_in_image.is_shown())
-        self.send_signal(OWBin.Inputs.data, self.mosaic)
+        self.send_signal(self.widget.Inputs.data, self.mosaic)
         self.assertFalse(self.widget.Warning.nan_in_image.is_shown())

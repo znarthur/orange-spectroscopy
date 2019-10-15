@@ -5,10 +5,10 @@ from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, GaussianSmoothingEditor
 
 
-class TestBaselineEditor(PreprocessorEditorTest):
+class TestGaussianEditor(PreprocessorEditorTest):
 
     def get_preprocessor(self):
-        out = self.get_output(OWPreprocess.Outputs.preprocessor)
+        out = self.get_output(self.widget.Outputs.preprocessor)
         return out.preprocessors[0]
 
     def setUp(self):
@@ -16,7 +16,7 @@ class TestBaselineEditor(PreprocessorEditorTest):
         self.editor = self.add_editor(GaussianSmoothingEditor,
                                       self.widget)  # type: GaussianSmoothingEditor
         data = SMALL_COLLAGEN
-        self.send_signal(OWPreprocess.Inputs.data, data)
+        self.send_signal(self.widget.Inputs.data, data)
 
     def test_no_interaction(self):
         self.widget.apply()
