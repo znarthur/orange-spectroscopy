@@ -2,11 +2,9 @@ import numpy as np
 from numpy import nextafter
 from scipy.signal import hilbert
 from sklearn.decomposition import TruncatedSVD
-import matplotlib.pyplot as plt
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
-#from Orange.widgets.utils.annotated_data import get_next_name
 
 try:  # get_unique_names was introduced in Orange 3.20
     from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
@@ -63,11 +61,13 @@ def orthogonalize_Qext(Qext, reference):
     Qext_orthogonalized = Qext - s[:, np.newaxis]*rnorm[np.newaxis, :]
     return Qext_orthogonalized
 
+
 def compress_Mie_curves(Qext_orthogonalized, numComp):
     svd = TruncatedSVD(n_components=numComp, n_iter=7, random_state=42)  # Self.ncomp needs to be specified
     svd.fit(Qext_orthogonalized)
     badspectra = svd.components_[0:numComp, :]
     return badspectra
+
 
 def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     nprs, nkks = calculate_complex_n(reference, wavenumbers)

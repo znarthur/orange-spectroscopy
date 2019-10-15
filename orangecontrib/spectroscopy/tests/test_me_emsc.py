@@ -3,23 +3,10 @@ import unittest
 import numpy as np
 import Orange
 
-import matplotlib.pyplot as plt
-import csv
-import xlrd
 import pandas as pd
 
-import os
 
-
-# Give the location of the file
-
-# print(numiter_std)
-# niter_default_20th_elem = dframe6.values[0, 1:]
-# niter_14ncomp_20th_elem = dframe6.values[1, 1:]
-# niter_fixed_iter3_20th_elem = dframe6.values[2, 1:]
-
-from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, MissingReferenceException, \
-    ranges_to_weight_table, interp1d_with_unknowns_numpy, getx, weights_from_inflection_points
+from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 
 
 class TestME_EMSC(unittest.TestCase):
@@ -41,7 +28,7 @@ class TestME_EMSC(unittest.TestCase):
 
         dframe2 = pd.read_csv(path2data2, header=None)
         Matrigel = dframe2.values[0, 1:]
-        cls.Matrigel = Matrigel.reshape(1,-1)
+        cls.Matrigel = Matrigel.reshape(1, -1)
         cls.wnM = dframe2.values[1, 1:]
 
         dframe3 = pd.read_csv(path2data3, header=None)
@@ -88,6 +75,8 @@ class TestME_EMSC(unittest.TestCase):
         cls.f3data = f3(cls.spectra)
 
     def disabled_test_plotting(self):
+        import matplotlib.pyplot as plt
+
         # Default parameters
         plt.figure()
         plt.plot(self.wnS[0::20], self.f1data[0, 0::20].X.T, label='python')
