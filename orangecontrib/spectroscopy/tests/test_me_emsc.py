@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import Orange
+from Orange.data import FileFormat, dataset_dirs
 
 import pandas as pd
 
@@ -14,12 +15,16 @@ class TestME_EMSC(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        path2data1 = '../datasets/emsc/MieStd1_rawSpec.csv'
-        path2data2 = '../datasets/emsc/MieStd2_refSpec.csv'
-        path2data3 = '../datasets/emsc/MieStd3_corr.csv'
-        path2data4 = '../datasets/emsc/MieStd4_param.csv'
-        path2data5 = '../datasets/emsc/MieStd5_residuals.csv'
-        path2data6 = '../datasets/emsc/MieStd6_niter.csv'
+
+        def locate_dataset(fn):
+            return FileFormat.locate(fn, dataset_dirs)
+
+        path2data1 = locate_dataset('emsc/MieStd1_rawSpec.csv')
+        path2data2 = locate_dataset('emsc/MieStd2_refSpec.csv')
+        path2data3 = locate_dataset('emsc/MieStd3_corr.csv')
+        path2data4 = locate_dataset('emsc/MieStd4_param.csv')
+        path2data5 = locate_dataset('emsc/MieStd5_residuals.csv')
+        path2data6 = locate_dataset('emsc/MieStd6_niter.csv')
 
         dframe1 = pd.read_csv(path2data1, header=None)
         Spectra = dframe1.values[0, 1:]
