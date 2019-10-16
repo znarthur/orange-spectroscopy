@@ -50,6 +50,7 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, MovableVl
 from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.emsc import EMSCEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.me_emsc import MeEMSCEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange, \
     REFERENCE_DATA_PARAM
@@ -1017,6 +1018,12 @@ PREPROCESSORS = [
         EMSCEditor
     ),
     PreprocessAction(
+        "ME-EMSC", "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc", "ME-EMSC",
+        Description("ME-EMSC",
+                    icon_path("Discretize.svg")),
+        MeEMSCEditor
+    ),
+    PreprocessAction(
         "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
         Description("XAS normalization",
                     icon_path("Discretize.svg")),
@@ -1612,4 +1619,4 @@ class OWPreprocess(SpectralPreprocessReference):
 if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
     data = Orange.data.Table("collagen.csv")
-    WidgetPreview(OWPreprocess).run(set_data=data, set_reference=data[:2])
+    WidgetPreview(OWPreprocess).run(set_data=data[:3], set_reference=data[10:11])
