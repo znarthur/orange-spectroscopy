@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import nextafter
 from scipy.signal import hilbert
 from sklearn.decomposition import TruncatedSVD
 
@@ -141,60 +140,6 @@ def weights_from_inflection_points(points, kappa, wavenumbers):
     wei_X = wei_X.reshape(1, -1)
     dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in wavenumbers])
     data = Orange.data.Table.from_numpy(dom, wei_X)
-    return data
-
-
-def ranges_to_weight_table(ranges):
-    """
-    Create a table of weights from ranges. Include only edge points of ranges.
-    Include each edge point twice: once as values within the range and zero
-    value outside the range (with this output the weights can easily be interpolated).
-
-    Weights of overlapping intervals are summed.
-
-    Assumes 64-bit floats.
-
-    :param ranges: list of triples (edge1, edge2, weight)
-    :return: an Orange.data.Table
-    """
-
-    values = {}
-
-    inf = float("inf")
-    minf = float("-inf")
-
-    def dict_to_numpy(d):
-        x = []
-        y = []
-        for a, b in d.items():
-            x.append(a)
-            y.append(b)
-        return np.array(x), np.array([y])
-
-    for l, r, w in ranges:
-        l, r = min(l, r), max(l, r)
-        positions = [nextafter(l, minf), l, r, nextafter(r, inf)]
-        weights = [0., float(w), float(w), 0.]
-
-        all_positions = list(set(positions) | set(values))  # new and old positions
-
-        # current values on all position
-        x, y = dict_to_numpy(values)
-        current = interp1d_with_unknowns_numpy(x, y, all_positions)[0]
-        current[np.isnan(current)] = 0
-
-        # new values on all positions
-        new = interp1d_with_unknowns_numpy(np.array(positions), np.array([weights]),
-                                           all_positions)[0]
-        new[np.isnan(new)] = 0
-
-        # update values
-        for p, f in zip(all_positions, current + new):
-            values[p] = f
-
-    x, y = dict_to_numpy(values)
-    dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in x])
-    data = Orange.data.Table.from_numpy(dom, y)
     return data
 
 
