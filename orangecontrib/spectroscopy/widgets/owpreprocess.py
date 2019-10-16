@@ -1056,14 +1056,8 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
                     w.line.report = self.parent_widget.curveplot
                     self.parent_widget.curveplot.add_marking(w.line)
 
-    def setParameters(self, params):
-        if params:
-            self.user_changed = True
 
-        self.order = params.get("order", self.ORDER_DEFAULT)
-        self.scaling = params.get("scaling", self.SCALING_DEFAULT)
-        self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
-
+    def _set_range_parameters(self, params):
         ranges = params.get("ranges", [])
         rw = list(self._range_widgets())
         for i, (rmin, rhigh, weight) in enumerate(ranges):
@@ -1075,6 +1069,15 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             pair[0].position = rmin
             pair[1].position = rhigh
 
+    def setParameters(self, params):
+        if params:
+            self.user_changed = True
+
+        self.order = params.get("order", self.ORDER_DEFAULT)
+        self.scaling = params.get("scaling", self.SCALING_DEFAULT)
+        self.output_model = params.get("output_model", self.OUTPUT_MODEL_DEFAULT)
+        self._set_range_parameters(params)
+
         self.update_reference_info()
 
     def parameters(self):
@@ -1085,15 +1088,20 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         return parameters
 
     @classmethod
+    def _compute_weights(cls, params):
+        weights = None
+        ranges = params.get("ranges", [])
+        if ranges:
+            weights = ranges_to_weight_table(ranges)
+        return weights
+
+    @classmethod
     def createinstance(cls, params):
         order = params.get("order", cls.ORDER_DEFAULT)
         scaling = params.get("scaling", cls.SCALING_DEFAULT)
         output_model = params.get("output_model", cls.OUTPUT_MODEL_DEFAULT)
 
-        weights = None
-        ranges = params.get("ranges", [])
-        if ranges:
-            weights = ranges_to_weight_table(ranges)
+        weights = cls._compute_weights(params)
 
         reference = params.get(REFERENCE_DATA_PARAM, None)
         if reference is None:
