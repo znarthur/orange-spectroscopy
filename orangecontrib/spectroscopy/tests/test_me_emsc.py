@@ -113,5 +113,7 @@ class TestME_EMSC(unittest.TestCase):
         numiter = np.array([self.f1data.metas[0, -1], self.f2data.metas[0, -1], self.f3data.metas[0, -1]])
         np.testing.assert_equal(numiter, self.numiter_std)
 
-
+    def test_same_data_reference(self):
+        # it was crashing before
+        ME_EMSC(reference=self.reference)(self.reference)
 

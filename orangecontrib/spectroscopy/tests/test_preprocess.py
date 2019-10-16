@@ -135,7 +135,7 @@ PREPROCESSORS_GROUPS_OF_SAMPLES = [
 ]
 
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
-    add_edge_case_data_parameter(ME_EMSC, "reference", SMALL_COLLAGEN[0:1]))
+    add_edge_case_data_parameter(ME_EMSC, "reference", SMALL_COLLAGEN[0:1], max_iter=4))
 
 PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
@@ -351,7 +351,7 @@ class TestCommon(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.collagen = SMALL_COLLAGEN
+        cls.collagen = SMALL_COLLAGEN[::10]
 
     def test_no_samples(self):
         """ Preprocessors should not crash when there are no input samples. """
