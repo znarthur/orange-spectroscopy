@@ -12,6 +12,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
     WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException
+from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
@@ -132,6 +133,9 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += \
 PREPROCESSORS_GROUPS_OF_SAMPLES = [
     PCADenoising(components=2),
 ]
+
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(
+    add_edge_case_data_parameter(ME_EMSC, "reference", SMALL_COLLAGEN[0:1]))
 
 PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
