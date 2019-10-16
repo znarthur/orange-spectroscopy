@@ -100,3 +100,6 @@ def layout_widgets(layout):
         layout = layout.layout()
     for i in range(layout.count()):
         yield layout.itemAt(i).widget()
+
+
+REFERENCE_DATA_PARAM = "_reference_data"
