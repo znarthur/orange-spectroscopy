@@ -81,7 +81,8 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     nprs, nkks = calculate_complex_n(reference, wavenumbers)
     Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
     Qext_orthogonalized = orthogonalize_Qext(Qext, reference)
-    svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
+    maxNcomp = reference.shape[0]-1
+    svd = TruncatedSVD(n_components=min(maxNcomp, 30), n_iter=7, random_state=42)
     svd.fit(Qext_orthogonalized)
     lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
     explainedVariance = 100*lda/np.sum(lda)

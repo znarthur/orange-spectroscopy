@@ -124,3 +124,12 @@ class TestME_EMSC(unittest.TestCase):
         # it was crashing before
         ME_EMSC(reference=self.reference)(self.reference)
 
+    def test_short_reference(self):
+        wnMshort = self.wnM[0::30]
+        Matrigelshort = self.Matrigel[0, 0::30]
+        Matrigelshort = Matrigelshort.reshape(-1, 1).T
+        domain_reference = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
+                                               for w in wnMshort])
+        reference = Orange.data.Table(domain_reference, Matrigelshort)
+        # it was crashing before
+        ME_EMSC(reference=reference)(self.spectra)
