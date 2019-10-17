@@ -267,17 +267,12 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
             # scale with basic EMSC:
-            try:  # FIXME move to iterate
-                reference = cal_emsc_basic(M_basic, reference)
-                # some BLAS implementation can raise an exception in the upper call (MKL)
-                # while some other only return an array of NaN (OpenBLAS), therefore
-                # raise an exception manually
-                if np.all(np.isnan(reference)):
-                    raise np.linalg.LinAlgError()
-            except np.linalg.LinAlgError:
-                newspectra = np.full([spectrum.shape[0], spectrum.shape[1]+self.ncomp+2], np.nan)
-                res = np.full(spectrum.shape, np.nan)
-                return newspectra, res, True
+            reference = cal_emsc_basic(M_basic, reference)
+            # some BLAS implementation can raise an exception in the upper call (MKL)
+            # while some other only return an array of NaN (OpenBLAS), therefore
+            # raise an exception manually
+            if np.all(np.isnan(reference)):
+                raise np.linalg.LinAlgError()
 
             # Apply weights
             reference = reference*wei_X
@@ -303,7 +298,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             # calculate parameters and corrected spectra
             newspectrum, res = cal_emsc(M, spectrum)
 
-            return newspectrum, res, False
+            return newspectrum, res
 
         def iterate(spectra, correctedFirsIteration, residualsFirstIteration, wavenumbers, M_basic, alpha0, gamma):
             newspectra = np.full(correctedFirsIteration.shape, np.nan)
@@ -316,10 +311,11 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                 rawSpec = rawSpec.reshape(1,-1)
                 RMSE = [round(np.sqrt((1/len(residualsFirstIteration[i,:]))*np.sum(residualsFirstIteration[i,:]**2)),4)]
                 for iterationNumber in range(2, self.maxNiter+1):
-                    newSpec, res, term = iteration_step(rawSpec, corrSpec[:-self.ncomp-2], wavenumbers, M_basic, alpha0, gamma)
-                    if term:
-                        newspectra[i, :] = newSpec[0,:]
-                        residuals[i, :] = res
+                    try:
+                        newSpec, res = iteration_step(rawSpec, corrSpec[:-self.ncomp-2], wavenumbers, M_basic, alpha0, gamma)
+                    except np.linalg.LinAlgError:
+                        newspectra[i, :] = np.full([rawSpec.shape[1] + self.ncomp + 2], np.nan)
+                        residuals[i, :] = np.full(rawSpec.shape, np.nan)
                         RMSEall[i] = np.nan
                         break
                     corrSpec = newSpec[0,:]
