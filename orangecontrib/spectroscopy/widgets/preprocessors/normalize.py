@@ -12,8 +12,7 @@ from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, Normaliz
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
-    BaseEditorOrange, SetXDoubleSpinBox
-
+    BaseEditorOrange, SetXDoubleSpinBox, REFERENCE_DATA_PARAM
 
 NORMALIZE_BY_REFERENCE = 42
 
@@ -201,7 +200,6 @@ class NormalizeEditor(BaseEditorOrange):
                              int_method=int_method, attr=attr)
         else:
             # avoids circular imports
-            from orangecontrib.spectroscopy.widgets.owpreprocess import REFERENCE_DATA_PARAM
             reference = params.get(REFERENCE_DATA_PARAM, None)
             return NormalizeReference(reference=reference)
 
