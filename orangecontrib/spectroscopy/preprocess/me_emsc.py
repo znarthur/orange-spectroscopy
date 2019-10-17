@@ -269,6 +269,11 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             # scale with basic EMSC:
             try:  # FIXME move to iterate
                 reference = cal_emsc_basic(M_basic, reference)
+                # some BLAS implementation can raise an exception in the upper call (MKL)
+                # while some other only return an array of NaN (OpenBLAS), therefore
+                # raise an exception manually
+                if np.all(np.isnan(reference)):
+                    raise np.linalg.LinAlgError()
             except np.linalg.LinAlgError:
                 newspectra = np.full([spectrum.shape[0], spectrum.shape[1]+self.ncomp+2], np.nan)
                 res = np.full(spectrum.shape, np.nan)
