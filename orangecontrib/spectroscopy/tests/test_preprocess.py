@@ -12,9 +12,24 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
     WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException
+from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
-SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 2, 2)
+
+COLLAGEN = Orange.data.Table("collagen")
+SMALL_COLLAGEN = smaller_data(COLLAGEN, 2, 2)
+SMALLER_COLLAGEN = smaller_data(COLLAGEN[195:621], 40, 4)  # only glycogen and lipids
+
+
+def preprocessor_data(preproc):
+    """
+    Rerturn appropriate test file for a preprocessor.
+
+    Very slow preprocessors should get smaller files.
+    """
+    if isinstance(preproc, ME_EMSC):
+        return SMALLER_COLLAGEN
+    return SMALL_COLLAGEN
 
 
 # Preprocessors that work per sample and should return the same
@@ -132,6 +147,9 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += \
 PREPROCESSORS_GROUPS_OF_SAMPLES = [
     PCADenoising(components=2),
 ]
+
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(
+    add_edge_case_data_parameter(ME_EMSC, "reference", SMALLER_COLLAGEN[0:1], max_iter=4))
 
 PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
 
@@ -345,19 +363,15 @@ class TestNormalizeReference(unittest.TestCase):
 
 class TestCommon(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.collagen = SMALL_COLLAGEN
-
     def test_no_samples(self):
         """ Preprocessors should not crash when there are no input samples. """
-        data = self.collagen[:0]
+        data = SMALL_COLLAGEN[:0]
         for proc in PREPROCESSORS:
             _ = proc(data)
 
     def test_no_attributes(self):
         """ Preprocessors should not crash when samples have no attributes. """
-        data = self.collagen
+        data = SMALL_COLLAGEN
         data = Orange.data.Table(Orange.data.Domain([],
                                                     class_vars=data.domain.class_vars,
                                                     metas=data.domain.metas), data)
@@ -366,19 +380,19 @@ class TestCommon(unittest.TestCase):
 
     def test_all_nans(self):
         """ Preprocessors should not crash when there are all-nan samples. """
-        data = self.collagen.copy()
-        data.X[0, :] = np.nan
         for proc in PREPROCESSORS:
+            data = preprocessor_data(proc).copy()
+            data.X[0, :] = np.nan
             try:
                 _ = proc(data)
             except PreprocessException:
                 continue  # allow explicit preprocessor exception
 
     def test_unordered_features(self):
-        data = self.collagen
-        data_reversed = reverse_attr(data)
-        data_shuffle = shuffle_attr(data)
         for proc in PREPROCESSORS:
+            data = preprocessor_data(proc)
+            data_reversed = reverse_attr(data)
+            data_shuffle = shuffle_attr(data)
             pdata = proc(data)
             X = pdata.X[:, np.argsort(getx(pdata))]
             pdata_reversed = proc(data_reversed)
@@ -389,11 +403,12 @@ class TestCommon(unittest.TestCase):
             np.testing.assert_almost_equal(X, X_shuffle, err_msg="Preprocessor " + str(proc))
 
     def test_unknown_no_propagate(self):
-        data = self.collagen.copy()
-        # one unknown in line
-        for i in range(min(len(data), len(data.domain.attributes))):
-            data.X[i, i] = np.nan
         for proc in PREPROCESSORS:
+            data = preprocessor_data(proc).copy()
+            # one unknown in line
+            for i in range(min(len(data), len(data.domain.attributes))):
+                data.X[i, i] = np.nan
+
             if hasattr(proc, "skip_add_zeros"):
                 continue
             pdata = proc(data)
@@ -402,13 +417,13 @@ class TestCommon(unittest.TestCase):
 
     def test_no_infs(self):
         """ Preprocessors should not return (-)inf """
-        data = self.collagen.copy()
-        # add some zeros to the dataset
-        for i in range(min(len(data), len(data.domain.attributes))):
-            data.X[i, i] = 0
-        data.X[0, :] = 0
-        data.X[:, 0] = 0
         for proc in PREPROCESSORS:
+            data = preprocessor_data(proc).copy()
+            # add some zeros to the dataset
+            for i in range(min(len(data), len(data.domain.attributes))):
+                data.X[i, i] = 0
+            data.X[0, :] = 0
+            data.X[:, 0] = 0
             try:
                 pdata = proc(data)
             except PreprocessException:

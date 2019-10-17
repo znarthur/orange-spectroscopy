@@ -13,7 +13,7 @@ from orangecontrib.spectroscopy.tests.test_preprocess import \
     PREPROCESSORS_INDEPENDENT_SAMPLES, \
     PREPROCESSORS
 
-from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
+from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN, preprocessor_data
 
 from orangecontrib.spectroscopy.preprocess import Interpolate, \
     Cut, SavitzkyGolayFiltering
@@ -101,8 +101,8 @@ class TestConversion(unittest.TestCase):
         """ Applying a preprocessor before spliting data into train and test
         and applying is just on train data should yield the same transformation of
         the test data. """
-        data = self.collagen
         for proc in PREPROCESSORS_INDEPENDENT_SAMPLES:
+            data = preprocessor_data(proc)
             _, test1 = separate_learn_test(proc(data))
             train, test = separate_learn_test(data)
             train = proc(train)
@@ -136,7 +136,7 @@ class TestConversion(unittest.TestCase):
             if hasattr(proc, "skip_add_zeros"):
                 continue
             # LR that can not handle unknown values
-            train, test = separate_learn_test(self.collagen)
+            train, test = separate_learn_test(preprocessor_data(proc))
             train1 = proc(train)
             aucorig = AUC(TestOnTestData()(train1, test, [learner]))
             test = slightly_change_wavenumbers(test, 0.00001)

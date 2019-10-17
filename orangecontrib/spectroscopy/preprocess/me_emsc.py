@@ -16,6 +16,14 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
     interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, transform_to_sorted_features
 
 
+def interpolate_to_data(other_xs, other_data, wavenumbers):
+    # all input data needs to be interpolated (and NaNs removed)
+    interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
+    # we know that X is not NaN. same handling of reference as of X
+    interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
+    return interpolated
+
+
 def calculate_complex_n(ref_X,wavenumbers):
     """Calculates the scaled imaginary part and scaled fluctuating real part of the refractive index."""
     npr = ref_X
@@ -73,7 +81,8 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     nprs, nkks = calculate_complex_n(reference, wavenumbers)
     Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
     Qext_orthogonalized = orthogonalize_Qext(Qext, reference)
-    svd = TruncatedSVD(n_components=30, n_iter=7, random_state=42)
+    maxNcomp = reference.shape[0]-1
+    svd = TruncatedSVD(n_components=min(maxNcomp, 30), n_iter=7, random_state=42)
     svd.fit(Qext_orthogonalized)
     lda = np.array([(sing_val**2)/(Qext_orthogonalized.shape[0]-1) for sing_val in svd.singular_values_])
     explainedVariance = 100*lda/np.sum(lda)
@@ -214,13 +223,6 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         # wavenumber have to be input as sorted
         # compute average spectrum from the reference
 
-        def interpolate_to_data(other_xs, other_data):
-            # all input data needs to be interpolated (and NaNs removed)
-            interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
-            # we know that X is not NaN. same handling of reference as of X
-            interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
-            return interpolated
-
         def make_basic_emsc_mod(ref_X):
             N = wavenumbers.shape[0]
             m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
@@ -266,6 +268,11 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
             # scale with basic EMSC:
             reference = cal_emsc_basic(M_basic, reference)
+            # some BLAS implementation can raise an exception in the upper call (MKL)
+            # while some other only return an array of NaN (OpenBLAS), therefore
+            # raise an exception manually
+            if np.all(np.isnan(reference)):
+                raise np.linalg.LinAlgError()
 
             # Apply weights
             reference = reference*wei_X
@@ -282,54 +289,64 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             nprs, nkks = calculate_complex_n(nonzeroReference, wavenumbers)
             Qext = calculate_Qext_curves(nprs, nkks, alpha0, gamma, wavenumbers)
             Qext = orthogonalize_Qext(Qext, reference)
+
             badspectra = compress_Mie_curves(Qext, self.ncomp)
 
             # build ME-EMSC model
             M = make_emsc_model(badspectra, reference)
+
             # calculate parameters and corrected spectra
             newspectrum, res = cal_emsc(M, spectrum)
+
             return newspectrum, res
 
-        def iterate(spectra, correctedFirsIteration, wavenumbers, M_basic, alpha0, gamma):
-            newspectra = np.empty(correctedFirsIteration.shape)
-            numberOfIterations = np.empty(spectra.shape[0])
-            residuals = np.empty(spectra.shape)
-
+        def iterate(spectra, correctedFirsIteration, residualsFirstIteration, wavenumbers, M_basic, alpha0, gamma):
+            newspectra = np.full(correctedFirsIteration.shape, np.nan)
+            numberOfIterations = np.full(spectra.shape[0], np.nan)
+            residuals = np.full(spectra.shape, np.nan)
+            RMSEall = np.full([spectra.shape[0]], np.nan)
             for i in range(correctedFirsIteration.shape[0]):
                 corrSpec = correctedFirsIteration[i]
                 rawSpec = spectra[i,:]
                 rawSpec = rawSpec.reshape(1,-1)
-                RMSE = []
+                RMSE = [round(np.sqrt((1/len(residualsFirstIteration[i,:]))*np.sum(residualsFirstIteration[i,:]**2)),4)]
                 for iterationNumber in range(2, self.maxNiter+1):
-                    newSpec, res = iteration_step(rawSpec, corrSpec[:-self.ncomp-2], wavenumbers, M_basic, alpha0, gamma)
+                    try:
+                        newSpec, res = iteration_step(rawSpec, corrSpec[:-self.ncomp-2], wavenumbers, M_basic, alpha0, gamma)
+                    except np.linalg.LinAlgError:
+                        newspectra[i, :] = np.full([rawSpec.shape[1] + self.ncomp + 2], np.nan)
+                        residuals[i, :] = np.full(rawSpec.shape, np.nan)
+                        RMSEall[i] = np.nan
+                        break
                     corrSpec = newSpec[0,:]
                     rmse = round(np.sqrt((1/len(res[0,:]))*np.sum(res**2)),4)
                     RMSE.append(rmse)
-
                     # Stop criterion
                     if iterationNumber == self.maxNiter:
-                        newspectra[i,:] = corrSpec
+                        newspectra[i, :] = corrSpec
                         numberOfIterations[i] = iterationNumber
-                        residuals[i,:] = res
+                        residuals[i, :] = res
+                        RMSEall[i] = RMSE[-1]
                         break
                     elif self.fixedNiter and iterationNumber < self.fixedNiter:
                         continue
                     elif iterationNumber == self.maxNiter or iterationNumber == self.fixedNiter:
-                        newspectra[i,:] = corrSpec
+                        newspectra[i, :] = corrSpec
                         numberOfIterations[i] = iterationNumber
-                        residuals[i,:] = res
+                        residuals[i, :] = res
+                        RMSEall[i] = RMSE[-1]
                         break
                     elif iterationNumber > 2 and self.fixedNiter == False:
                         if (rmse == RMSE[-2] and rmse == RMSE[-3]) or rmse > RMSE[-2]:
-                            newspectra[i,:] = corrSpec
+                            newspectra[i, :] = corrSpec
                             numberOfIterations[i] = iterationNumber
-                            residuals[i,:] = res
+                            residuals[i, :] = res
+                            RMSEall[i] = RMSE[-1]
                             break
-
-            return newspectra, res, numberOfIterations
+            return newspectra, RMSEall, numberOfIterations
 
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
-        ref_X = interpolate_to_data(getx(self.reference), ref_X)
+        ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers)
         ref_X = ref_X[0]
 
         if self.weights:
@@ -373,13 +390,15 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         newspectra, res = cal_emsc(M, X)
 
         if self.fixedNiter==1 or self.maxNiter==1:
+            res = np.array(res)
             numberOfIterations = np.ones([1, newspectra.shape[0]])
+            RMSEall = [round(np.sqrt((1/res.shape[1])*np.sum(res[specNum, :]**2)), 4) for specNum in range(newspectra.shape[0])]  # ADD RESIDUALS!!!!! FIXME
+            newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1), np.array(RMSEall).reshape(-1,1)))
             return newspectra
 
         # Iterate
-        newspectra, res2, numberOfIterations = iterate(X, newspectra, wavenumbers, M_basic, self.alpha0, self.gamma)
-        newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1,1)))
-
+        newspectra, RMSEall, numberOfIterations = iterate(X, newspectra, res, wavenumbers, M_basic, self.alpha0, self.gamma)
+        newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1),RMSEall.reshape(-1, 1)))
         return newspectra
 
 
@@ -413,9 +432,11 @@ class ME_EMSC(Preprocess):
         self.gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
         if not self.ncomp:
-            xs, xsind, mon, X = transform_to_sorted_features(self.reference)
-            wavenumbers_ref = xs[xsind]
-            self.ncomp = cal_ncomp(X[0,:], wavenumbers_ref, explainedVariance, self.alpha0, self.gamma)
+            ref_X = np.atleast_2d(spectra_mean(self.reference.X))
+            wavenumbers_ref = np.array(sorted(getx(self.reference)))
+            ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers_ref)
+            ref_X = ref_X[0]
+            self.ncomp = cal_ncomp(ref_X, wavenumbers_ref, explainedVariance, self.alpha0, self.gamma)
         else:
             self.explainedVariance = False
 
@@ -450,6 +471,11 @@ class ME_EMSC(Preprocess):
                                                compute_value=ME_EMSCModel(i, common)))
             i += 1
             n = get_unique_names(used_names, "Number of iterations")
+            model_metas.append(
+                Orange.data.ContinuousVariable(name=n,
+                                               compute_value=ME_EMSCModel(i, common)))
+            i += 1
+            n = get_unique_names(used_names, "RMSE")
             model_metas.append(
                 Orange.data.ContinuousVariable(name=n,
                                                compute_value=ME_EMSCModel(i, common)))
