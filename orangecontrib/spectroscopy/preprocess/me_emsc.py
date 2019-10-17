@@ -266,7 +266,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
         def iteration_step(spectrum, reference, wavenumbers, M_basic, alpha0, gamma):
             # scale with basic EMSC:
-            try:
+            try:  # FIXME move to iterate
                 reference = cal_emsc_basic(M_basic, reference)
             except np.linalg.LinAlgError:
                 newspectra = np.full([spectrum.shape[0], spectrum.shape[1]+self.ncomp+2], np.nan)
@@ -303,7 +303,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
             newspectra = np.full(correctedFirsIteration.shape, np.nan)
             numberOfIterations = np.full(spectra.shape[0], np.nan)
             residuals = np.full(spectra.shape, np.nan)
-
+            RMSEall = np.full([spectra.shape[0]], np.nan)
             for i in range(correctedFirsIteration.shape[0]):
                 corrSpec = correctedFirsIteration[i]
                 rawSpec = spectra[i,:]
@@ -314,16 +314,17 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                     if term:
                         newspectra[i, :] = newSpec[0,:]
                         residuals[i, :] = res
+                        RMSEall[i] = np.nan
                         break
                     corrSpec = newSpec[0,:]
                     rmse = round(np.sqrt((1/len(res[0,:]))*np.sum(res**2)),4)
                     RMSE.append(rmse)
-
                     # Stop criterion
                     if iterationNumber == self.maxNiter:
                         newspectra[i, :] = corrSpec
                         numberOfIterations[i] = iterationNumber
                         residuals[i, :] = res
+                        RMSEall[i] = RMSE[-1]
                         break
                     elif self.fixedNiter and iterationNumber < self.fixedNiter:
                         continue
@@ -331,14 +332,16 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                         newspectra[i, :] = corrSpec
                         numberOfIterations[i] = iterationNumber
                         residuals[i, :] = res
+                        RMSEall[i] = RMSE[-1]
                         break
                     elif iterationNumber > 2 and self.fixedNiter == False:
                         if (rmse == RMSE[-2] and rmse == RMSE[-3]) or rmse > RMSE[-2]:
                             newspectra[i, :] = corrSpec
                             numberOfIterations[i] = iterationNumber
                             residuals[i, :] = res
+                            RMSEall[i] = RMSE[-1]
                             break
-            return newspectra, residuals, numberOfIterations
+            return newspectra, RMSEall, numberOfIterations
 
         ref_X = np.atleast_2d(spectra_mean(self.reference.X))
         ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers)
@@ -385,13 +388,15 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         newspectra, res = cal_emsc(M, X)
 
         if self.fixedNiter==1 or self.maxNiter==1:
+            res = np.array(res)
             numberOfIterations = np.ones([1, newspectra.shape[0]])
+            RMSEall = [round(np.sqrt((1/res.shape[1])*np.sum(res[specNum, :]**2)), 4) for specNum in range(newspectra.shape[0])]  # ADD RESIDUALS!!!!! FIXME
+            newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1), np.array(RMSEall).reshape(-1,1)))
             return newspectra
 
         # Iterate
-        newspectra, res2, numberOfIterations = iterate(X, newspectra, res, wavenumbers, M_basic, self.alpha0, self.gamma)
-        newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1,1)))
-
+        newspectra, RMSEall, numberOfIterations = iterate(X, newspectra, res, wavenumbers, M_basic, self.alpha0, self.gamma)
+        newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1),RMSEall.reshape(-1, 1)))
         return newspectra
 
 
@@ -464,6 +469,11 @@ class ME_EMSC(Preprocess):
                                                compute_value=ME_EMSCModel(i, common)))
             i += 1
             n = get_unique_names(used_names, "Number of iterations")
+            model_metas.append(
+                Orange.data.ContinuousVariable(name=n,
+                                               compute_value=ME_EMSCModel(i, common)))
+            i += 1
+            n = get_unique_names(used_names, "RMSE")
             model_metas.append(
                 Orange.data.ContinuousVariable(name=n,
                                                compute_value=ME_EMSCModel(i, common)))
