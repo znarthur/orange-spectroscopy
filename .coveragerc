@@ -4,6 +4,7 @@ source =
 omit =
 	*/tests/*
 	*/utils/skimage/*
+	*/utils/spc/*
 
 [report]
 exclude_lines =

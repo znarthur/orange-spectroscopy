@@ -15,11 +15,6 @@ try:
 except ImportError:
     opusFC = None
 
-try:
-    import spc
-except ImportError:
-    spc = None
-
 
 def initialize_reader(reader, fn):
     """
@@ -260,7 +255,6 @@ class TestSpa(unittest.TestCase):
         self.assertEqual(points, 1738)
 
 
-@unittest.skipIf(spc is None, "spc module not installed")
 class TestSpc(unittest.TestCase):
 
     def test_multiple_x(self):
