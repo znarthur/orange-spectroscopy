@@ -705,6 +705,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         )
         self.color_individual_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         view_menu.addAction(self.color_individual_menu)
+        self.addAction(self.color_individual_menu)
 
         choose_color_action = QWidgetAction(self)
         choose_color_box = gui.hBox(self)
