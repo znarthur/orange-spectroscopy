@@ -1158,7 +1158,7 @@ class InterruptException(Exception):
     pass
 
 
-class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin):
+class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
@@ -1582,7 +1582,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin):
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
-class SpectralPreprocessReference(SpectralPreprocess):
+class SpectralPreprocessReference(SpectralPreprocess, openclass=True):
 
     class Inputs(SpectralPreprocess.Inputs):
         reference = Input("Reference", Orange.data.Table)
