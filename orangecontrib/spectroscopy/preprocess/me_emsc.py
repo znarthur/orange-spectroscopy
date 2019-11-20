@@ -90,7 +90,23 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     return numComp
 
 
-def weights_from_inflection_points(points, kappa, wavenumbers):
+def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
+    """ As ported from the original Matlab code.
+
+    Made legacy due to the following drawbacks:
+    - Only supports 3 or 4 points.
+    - Edges behave differently in 3 or 4 point cases.
+    - Transition shape depends on spacing of input wavenumbers.
+    - Essentially undefined behaviour when inflection points are too close.
+    - The wavenumbers are assumed to be equidistant.
+
+    This functions needs correctly ordered inputs. Example calls (function as f):
+    (3 points) f([3700, 2550, 1900, 0], [1, 1, 1, 1], np.arange(0, 5000, 10))
+    (4 points) f([3700, 2550, 1900, 1000], [1, 1, 1, 1], np.arange(0, 5000, 10))
+
+    For both calls the weights go towards 0 for wn > 3700. For (3 points)
+    wn < 1900 go towards 1, but for (4 points) they go towards 0 when wn < 1000.
+    """
     # Hyperbolic tangent function
     hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
 

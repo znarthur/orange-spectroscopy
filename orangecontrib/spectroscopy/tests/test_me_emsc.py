@@ -5,7 +5,7 @@ import numpy as np
 import Orange
 from Orange.data import FileFormat, dataset_dirs
 
-from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
+from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, weights_from_inflection_points_legacy
 
 
 class TestME_EMSC(unittest.TestCase):
@@ -133,3 +133,20 @@ class TestME_EMSC(unittest.TestCase):
         reference = Orange.data.Table(domain_reference, Matrigelshort)
         # it was crashing before
         ME_EMSC(reference=reference)(self.spectra)
+
+
+from matplotlib import pyplot
+
+
+class TestInflectionPointWeighting(unittest.TestCase):
+
+    def test_weights_from_inflection_points_old_use(self):
+        wns = np.arange(0, 5000, 10)
+        # at > 3700 towards 0, at > 1900 towards 1
+        weights = weights_from_inflection_points_legacy([3700, 2550, 1900, 0], [1, 1, 1, 1], wns)
+        pyplot.plot(wns, weights[0])
+
+        # at > 3700 towards 0, at > 1000 towards 0
+        weights = weights_from_inflection_points_legacy([3700, 2550, 1900, 1000], [1, 1, 1, 1], wns)
+        pyplot.plot(wns, weights[0])
+        pyplot.show()
