@@ -14,38 +14,23 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
     interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException
 
 
-def ranges_to_weight_table(ranges):
+def combine_weight_sections(ll):
     """
-    Create a table of weights from ranges. Include only edge points of ranges.
-    Include each edge point twice: once as values within the range and zero
-    value outside the range (with this output the weights can easily be interpolated).
-
-    Weights of overlapping intervals are summed.
-
-    Assumes 64-bit floats.
-
-    :param ranges: list of triples (edge1, edge2, weight)
-    :return: an Orange.data.Table
+    Creates a table of weights from a list of sections. Each section is defined
+    by two arrays: (positions, weights).
     """
-
-    values = {}
-
-    inf = float("inf")
-    minf = float("-inf")
 
     def dict_to_numpy(d):
         x = []
         y = []
-        for a, b in d.items():
+        for a in sorted(d):
             x.append(a)
-            y.append(b)
+            y.append(d[a])
         return np.array(x), np.array([y])
 
-    for l, r, w in ranges:
-        l, r = min(l, r), max(l, r)
-        positions = [nextafter(l, minf), l, r, nextafter(r, inf)]
-        weights = [0., float(w), float(w), 0.]
+    values = {}
 
+    for positions, weights in ll:
         all_positions = list(set(positions) | set(values))  # new and old positions
 
         # current values on all position
@@ -58,14 +43,40 @@ def ranges_to_weight_table(ranges):
                                            all_positions)[0]
         new[np.isnan(new)] = 0
 
-        # update values
-        for p, f in zip(all_positions, current + new):
+        # update values with a sum
+        save_values = current + new
+
+        for p, f in zip(all_positions, save_values):
             values[p] = f
 
     x, y = dict_to_numpy(values)
     dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in x])
     data = Orange.data.Table.from_numpy(dom, y)
     return data
+
+
+def ranges_to_weight_table(ranges):
+    """
+    Create a table of weights from ranges. Include only edge points of ranges.
+    Include each edge point twice: once as values within the range and zero
+    value outside the range (with this output the weights can easily be interpolated).
+
+    Weights of overlapping intervals are summed.
+
+    :param ranges: list of triples (edge1, edge2, weight)
+    :return: an Orange.data.Table
+    """
+
+    ll = []
+
+    for l, r, w in ranges:
+        l, r = float(l), float(r)
+        l, r = min(l, r), max(l, r)
+        positions = [nextafter(l, float("-inf")), l, r, nextafter(r, float("inf"))]
+        weights = [0., float(w), float(w), 0.]
+        ll.append((positions, weights))
+
+    return combine_weight_sections(ll)
 
 
 class EMSCFeature(SelectColumn):
