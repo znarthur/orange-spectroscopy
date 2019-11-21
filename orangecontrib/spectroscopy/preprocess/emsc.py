@@ -11,47 +11,35 @@ except ImportError:
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException, \
+    fill_edges_1d
 
 
-def combine_weight_sections(ll):
+def combine_weight_sections(sections):
     """
     Creates a table of weights from a list of sections. Each section is defined
     by two arrays: (positions, weights).
+
+    Weights of overlapping intervals are summed.
     """
 
-    def dict_to_numpy(d):
-        x = []
-        y = []
-        for a in sorted(d):
-            x.append(a)
-            y.append(d[a])
-        return np.array(x), np.array([y])
+    x = []  # will become all positions
+    for positions, _ in sections:
+        x = np.union1d(x, positions)
 
-    values = {}
+    combine = []
+    for positions, weights in sections:
+        new = interp1d_with_unknowns_numpy(np.array(positions),
+                                           np.array([weights]),
+                                           x)[0]
+        fill_edges_1d(new)
+        combine.append(new)
 
-    for positions, weights in ll:
-        all_positions = list(set(positions) | set(values))  # new and old positions
+    combined = np.vstack(combine)
+    y = combined.sum(axis=0)
 
-        # current values on all position
-        x, y = dict_to_numpy(values)
-        current = interp1d_with_unknowns_numpy(x, y, all_positions)[0]
-        current[np.isnan(current)] = 0
-
-        # new values on all positions
-        new = interp1d_with_unknowns_numpy(np.array(positions), np.array([weights]),
-                                           all_positions)[0]
-        new[np.isnan(new)] = 0
-
-        # update values with a sum
-        save_values = current + new
-
-        for p, f in zip(all_positions, save_values):
-            values[p] = f
-
-    x, y = dict_to_numpy(values)
     dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in x])
-    data = Orange.data.Table.from_numpy(dom, y)
+    data = Orange.data.Table.from_numpy(dom, [y])
     return data
 
 
@@ -66,17 +54,14 @@ def ranges_to_weight_table(ranges):
     :param ranges: list of triples (edge1, edge2, weight)
     :return: an Orange.data.Table
     """
-
-    ll = []
-
+    sections = []
     for l, r, w in ranges:
         l, r = float(l), float(r)
         l, r = min(l, r), max(l, r)
         positions = [nextafter(l, float("-inf")), l, r, nextafter(r, float("inf"))]
         weights = [0., float(w), float(w), 0.]
-        ll.append((positions, weights))
-
-    return combine_weight_sections(ll)
+        sections.append((positions, weights))
+    return combine_weight_sections(sections)
 
 
 class EMSCFeature(SelectColumn):
