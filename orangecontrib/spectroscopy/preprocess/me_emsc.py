@@ -159,6 +159,30 @@ def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
     return data
 
 
+def hyp_tan_tabulated(tol=1e-3, points=51):
+    """
+    Computes *points* points of hyperbolic tangent. The middle *points-2* points
+    are equally  spaced among the interval where the values of hyperbolic tangent
+    is between 1-tol and tol-1. The edge points have position where the hyperbolic
+    tangent function would have values 1-tol/10 and tol/10-1 - these are set to
+    1 and -1.
+
+    The argument *points* should be even: then, 0 is included.
+
+    Return two arrays: coordinates and values.
+    """
+    final_limit = np.arctanh(1-tol/10)
+    edge_limit = np.arctanh(1-tol)
+    xrange = np.zeros(points)
+    xrange[0] = -final_limit
+    xrange[1:-1] = np.linspace(-edge_limit, +edge_limit, points-2)
+    xrange[-1] = final_limit
+    tanh = np.tanh(xrange)
+    tanh[0] = -1
+    tanh[-1] = 1
+    return xrange, tanh
+
+
 class ME_EMSCFeature(SelectColumn):
     pass
 
