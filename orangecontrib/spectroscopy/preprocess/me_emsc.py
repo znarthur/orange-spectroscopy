@@ -5,6 +5,8 @@ from sklearn.decomposition import TruncatedSVD
 import Orange
 from Orange.preprocess.preprocess import Preprocess
 
+from orangecontrib.spectroscopy.preprocess.emsc import combine_weight_sections
+
 try:  # get_unique_names was introduced in Orange 3.20
     from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
 except ImportError:
@@ -181,6 +183,29 @@ def hyp_tan_tabulated(tol=1e-3, points=51):
     tanh[0] = -1
     tanh[-1] = 1
     return xrange, tanh
+
+
+def smoothed_ranges_to_weight_table(ranges):
+    """
+    Create a table of weights from ranges. Include only edge points
+    (can be multiple on either side) of ranges.
+
+    Uses hyp_tan for smoothing.
+
+    Weights of overlapping intervals are summed.
+
+    :param ranges: list of triples (edge1, edge2, weight, smoothing)
+    :return: an Orange.data.Table
+    """
+    hx, hy = hyp_tan_tabulated()
+    sections = []
+    for l, r, w, s in ranges:
+        l, r = float(l), float(r)
+        l, r = min(l, r), max(l, r)
+        xl, yl = hx*s + l, (hy+1)/2 * w
+        xr, yr = hx*s + r, (-hy+1)/2 * w
+        sections.append((np.hstack((xl, xr)), np.hstack((yl, yr))))
+    return combine_weight_sections(sections)
 
 
 class ME_EMSCFeature(SelectColumn):
