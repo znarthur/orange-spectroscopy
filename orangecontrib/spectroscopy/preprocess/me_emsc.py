@@ -92,8 +92,22 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     return numComp
 
 
-class SmoothedSelection(Segments):
+class Selection(Segments):
+    """
+    Weighted selection function. Includes min and max.
+    """
+    def __init__(self, min_, max_, w):
+        super().__init__((lambda x: True,
+                          lambda x: 0),
+                         (lambda x: np.logical_and(x >= min_, x <= max_),
+                          lambda x: w))
 
+
+class SmoothedSelection(Segments):
+    """
+    Weighted selection function. Min and max points are middle
+    points of smoothing with hyperbolic tangent.
+    """
     def __init__(self, min_, max_, s, w):
         middle = (min_ + max_) / 2
         super().__init__((lambda x: x < middle,
@@ -113,7 +127,10 @@ def smoothed_ranges_function(ranges):
     for l, r, w, s in ranges:
         l, r = float(l), float(r)
         l, r = min(l, r), max(l, r)
-        seg = SmoothedSelection(l, r, s, w)
+        if s == 0:
+            seg = Selection(l, r, w)
+        else:
+            seg = SmoothedSelection(l, r, s, w)
         sections.append(seg)
     return Sum(*sections)
 

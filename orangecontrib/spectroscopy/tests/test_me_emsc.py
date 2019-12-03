@@ -234,3 +234,8 @@ class TestInflectionPointWeighting(unittest.TestCase):
         new = smoothed_ranges_function([(3700, 2800, 1, ws / dx), (1900, 1000, 1, ws / dx)])
         newy = new(oldx)
         self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
+
+    def test_no_smoothing(self):
+        new = smoothed_ranges_function([(1, 2, 1, 0)])
+        np.testing.assert_equal(new(np.arange(0, 4, 1)), [0, 1, 1, 0])
+        np.testing.assert_equal(new(np.arange(0, 4, 0.5)), [0, 0, 1, 1, 1, 0, 0, 0])
