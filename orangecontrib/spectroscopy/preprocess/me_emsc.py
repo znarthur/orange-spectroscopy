@@ -5,7 +5,7 @@ from sklearn.decomposition import TruncatedSVD
 import Orange
 from Orange.preprocess.preprocess import Preprocess
 
-from orangecontrib.spectroscopy.preprocess.emsc import combine_weight_sections
+from orangecontrib.spectroscopy.preprocess.npfunc import Segments, Sum
 
 try:  # get_unique_names was introduced in Orange 3.20
     from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
@@ -92,52 +92,30 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     return numComp
 
 
+class SmoothedSelection(Segments):
 
-def hyp_tan_tabulated(tol=1e-3, points=51):
+    def __init__(self, min_, max_, s, w):
+        middle = (min_ + max_) / 2
+        super().__init__((lambda x: x < middle,
+                          lambda x: (np.tanh((x - min_) / s) + 1) / 2 * w),
+                         (lambda x: x >= middle,
+                          lambda x: (-np.tanh((x - max_) / s) + 1) / 2 * w))
+
+
+def smoothed_ranges_function(ranges):
     """
-    Computes *points* points of hyperbolic tangent. The middle *points-2* points
-    are equally  spaced among the interval where the values of hyperbolic tangent
-    is between 1-tol and tol-1. The edge points have position where the hyperbolic
-    tangent function would have values 1-tol/10 and tol/10-1 - these are set to
-    1 and -1.
-
-    The argument *points* should be even: then, 0 is included.
-
-    Return two arrays: coordinates and values.
-    """
-    final_limit = np.arctanh(1-tol/10)
-    edge_limit = np.arctanh(1-tol)
-    xrange = np.zeros(points)
-    xrange[0] = -final_limit
-    xrange[1:-1] = np.linspace(-edge_limit, +edge_limit, points-2)
-    xrange[-1] = final_limit
-    tanh = np.tanh(xrange)
-    tanh[0] = -1
-    tanh[-1] = 1
-    return xrange, tanh
-
-
-def smoothed_ranges_to_weight_table(ranges):
-    """
-    Create a table of weights from ranges. Include only edge points
-    (can be multiple on either side) of ranges.
-
-    Uses hyp_tan for smoothing.
-
-    Weights of overlapping intervals are summed.
+    Uses hyp_tan for smoothing. Weights of overlapping intervals are summed.
 
     :param ranges: list of triples (edge1, edge2, weight, smoothing)
-    :return: an Orange.data.Table
+    :return: a Function
     """
-    hx, hy = hyp_tan_tabulated()
     sections = []
     for l, r, w, s in ranges:
         l, r = float(l), float(r)
         l, r = min(l, r), max(l, r)
-        xl, yl = hx*s + l, (hy+1)/2 * w
-        xr, yr = hx*s + r, (-hy+1)/2 * w
-        sections.append((np.hstack((xl, xr)), np.hstack((yl, yr))))
-    return combine_weight_sections(sections)
+        seg = SmoothedSelection(l, r, s, w)
+        sections.append(seg)
+    return Sum(*sections)
 
 
 class ME_EMSCFeature(SelectColumn):

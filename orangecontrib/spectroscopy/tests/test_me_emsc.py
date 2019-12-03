@@ -8,7 +8,7 @@ from Orange.data import FileFormat, dataset_dirs
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import interp1d_with_unknowns_numpy
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, \
-    smoothed_ranges_to_weight_table
+    smoothed_ranges_function
 from orangecontrib.spectroscopy.preprocess.utils import fill_edges_1d
 
 
@@ -220,23 +220,17 @@ class TestInflectionPointWeighting(unittest.TestCase):
         wns = np.arange(0, 5000, ws)
 
         # at > 3700 towards 0, at > 1900 towards 1
-        weights = weights_from_inflection_points_legacy([3700, 2550, 1900, 0], [1, 1, 1, 1], wns)
+        weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 0], [1, 1, 1, 1], wns)
         oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
-        oldy = weights[0]
-        new = smoothed_ranges_to_weight_table([(3700, 2550, 1, ws/dx), (1900, -1000, 1, ws/dx)])
-        newy = interp1d_with_unknowns_numpy(getx(new), new.X, oldx)[0]
-        fill_edges_1d(newy)
-
-        self.assertLess(np.max(np.abs(newy-oldy)), 0.002)
+        oldy = weights.X[0]
+        new = smoothed_ranges_function([(3700, 2800, 1, ws / dx), (1900, -1000, 1, ws / dx)])
+        newy = new(oldx)
+        self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
 
         # at > 3700 towards 0, at > 1000 towards 0
-        weights = weights_from_inflection_points_legacy([3700, 2550, 1900, 1000], [1, 1, 1, 1], wns)
+        weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 1000], [1, 1, 1, 1], wns)
         oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
-        oldy = weights[0]
-
-        # new result
-        new = smoothed_ranges_to_weight_table([(3700, 2550, 1, ws/dx), (1900, 1000, 1, ws/dx)])
-        newy = interp1d_with_unknowns_numpy(getx(new), new.X, oldx)[0]
-        fill_edges_1d(newy)
-
-        self.assertLess(np.max(np.abs(newy-oldy)), 0.002)
+        oldy = weights.X[0]
+        new = smoothed_ranges_function([(3700, 2800, 1, ws / dx), (1900, 1000, 1, ws / dx)])
+        newy = new(oldx)
+        self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
