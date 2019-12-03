@@ -5,11 +5,9 @@ import numpy as np
 import Orange
 from Orange.data import FileFormat, dataset_dirs
 
-from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import interp1d_with_unknowns_numpy
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC, \
-    smoothed_ranges_function
-from orangecontrib.spectroscopy.preprocess.utils import fill_edges_1d
+    SmoothedSelection, Selection
+from orangecontrib.spectroscopy.preprocess.npfunc import Sum
 
 
 def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
@@ -223,7 +221,8 @@ class TestInflectionPointWeighting(unittest.TestCase):
         weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 0], [1, 1, 1, 1], wns)
         oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
         oldy = weights.X[0]
-        new = smoothed_ranges_function([(3700, 2800, 1, ws / dx), (1900, -1000, 1, ws / dx)])
+        new = Sum(SmoothedSelection(2800, 3700, ws / dx, 1),
+                  SmoothedSelection(-1000, 1900, ws / dx, 1))
         newy = new(oldx)
         self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
 
@@ -231,11 +230,12 @@ class TestInflectionPointWeighting(unittest.TestCase):
         weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 1000], [1, 1, 1, 1], wns)
         oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
         oldy = weights.X[0]
-        new = smoothed_ranges_function([(3700, 2800, 1, ws / dx), (1900, 1000, 1, ws / dx)])
+        new = Sum(SmoothedSelection(2800, 3700, ws / dx, 1),
+                  SmoothedSelection(1000, 1900, ws / dx, 1))
         newy = new(oldx)
         self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
 
     def test_no_smoothing(self):
-        new = smoothed_ranges_function([(1, 2, 1, 0)])
+        new = Selection(1, 2, 1)
         np.testing.assert_equal(new(np.arange(0, 4, 1)), [0, 1, 1, 0])
         np.testing.assert_equal(new(np.arange(0, 4, 0.5)), [0, 0, 1, 1, 1, 0, 0, 0])

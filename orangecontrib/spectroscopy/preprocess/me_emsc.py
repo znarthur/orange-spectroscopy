@@ -14,7 +14,7 @@ except ImportError:
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, transform_to_sorted_features
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
 
 
 def interpolate_to_data(other_xs, other_data, wavenumbers):
@@ -114,25 +114,6 @@ class SmoothedSelection(Segments):
                           lambda x: (np.tanh((x - min_) / s) + 1) / 2 * w),
                          (lambda x: x >= middle,
                           lambda x: (-np.tanh((x - max_) / s) + 1) / 2 * w))
-
-
-def smoothed_ranges_function(ranges):
-    """
-    Uses hyp_tan for smoothing. Weights of overlapping intervals are summed.
-
-    :param ranges: list of triples (edge1, edge2, weight, smoothing)
-    :return: a Function
-    """
-    sections = []
-    for l, r, w, s in ranges:
-        l, r = float(l), float(r)
-        l, r = min(l, r), max(l, r)
-        if s == 0:
-            seg = Selection(l, r, w)
-        else:
-            seg = SmoothedSelection(l, r, s, w)
-        sections.append(seg)
-    return Sum(*sections)
 
 
 class ME_EMSCFeature(SelectColumn):
