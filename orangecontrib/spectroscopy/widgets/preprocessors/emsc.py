@@ -7,7 +7,8 @@ from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QSty
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.data import spectra_mean, getx
 from orangecontrib.spectroscopy.preprocess import EMSC
-from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
+from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction
+from orangecontrib.spectroscopy.preprocess.npfunc import Sum
 from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     PreviewMinMaxMixin, layout_widgets, REFERENCE_DATA_PARAM
@@ -154,7 +155,7 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         weights = None
         ranges = params.get("ranges", [])
         if ranges:
-            weights = ranges_to_weight_table(ranges)
+            weights = Sum(*[SelectionFunction(min(l, r), max(l, r), w) for l, r, w in ranges])
         return weights
 
     @classmethod

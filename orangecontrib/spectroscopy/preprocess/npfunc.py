@@ -16,6 +16,7 @@ class Constant(Function):
         self.c = c
 
     def __call__(self, x):
+        x = np.asarray(x)
         return np.ones(x.shape)*self.c
 
 
@@ -40,6 +41,7 @@ class Segments(Function):
         self.segments = segments
 
     def __call__(self, x):
+        x = np.asarray(x)
         output = np.full(x.shape, np.nan)
         for cond, fn in self.segments:
             ind = cond(x)

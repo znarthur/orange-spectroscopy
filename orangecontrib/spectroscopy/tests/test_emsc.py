@@ -4,8 +4,10 @@ import numpy as np
 import Orange
 from Orange.data import Table
 
-from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException,\
-    ranges_to_weight_table, interp1d_with_unknowns_numpy, getx
+from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException, \
+    SelectionFunction, SmoothedSelectionFunction
+from orangecontrib.spectroscopy.preprocess.npfunc import Sum
+from orangecontrib.spectroscopy.tests.util import spectra_table
 
 
 class TestEMSC(unittest.TestCase):
@@ -49,16 +51,24 @@ class TestEMSC(unittest.TestCase):
         with self.assertRaises(MissingReferenceException):
             _ = EMSC()(data)
 
-    def test_ranges_to_weights(self):
-        nan = float("nan")
-        data = ranges_to_weight_table([[1, 2, 1], [3, 4, 1]])  # non-overlapping regions
-        a = interp1d_with_unknowns_numpy(getx(data), data.X, [0.5, 1, 2, 2.5, 3.5, 5])
-        np.testing.assert_equal(a[0], [nan, 1, 1, 0, 1, nan])
+    def test_select_all(self):
+        data = spectra_table([0, 1, 2, 3],
+                             [[1.0, 2.0, 1.0, 1.0],
+                              [3.0, 5.0, 3.0, 3.0]])
+        f = EMSC(reference=data[0:1], order=2, output_model=True)
+        noweights = f(data)
 
-        data = ranges_to_weight_table([[1, 2, 1], [1, 3, 1.3]])  # overlapping
-        a = interp1d_with_unknowns_numpy(getx(data), data.X,
-                                         [0.5, 1, 1.5, 2, 2.0001, 2.5, 2.999, 3.01, 3.5])
-        np.testing.assert_equal(a[0], [nan, 2.3, 2.3, 2.3, 1.3, 1.3, 1.3, nan, nan])
+        # table obtained by now-removed ranges_to_weight_table([(0, 3, 1)])
+        weight_table = spectra_table([-5e-324, 0.0, 3.0, 3.0000000000000004],
+                                     [[0, 1, 1, 0]])
+        f = EMSC(reference=data[0:1], order=2, output_model=True, weights=weight_table)
+        weights = f(data)
+        np.testing.assert_equal(weights.X, noweights.X)
+
+        f = EMSC(reference=data[0:1], order=2, output_model=True,
+                 weights=SelectionFunction(0, 3, 1))
+        weights = f(data)
+        np.testing.assert_equal(weights.X, noweights.X)
 
     def test_interpolate_wavenumbers(self):
         domain_ref = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
@@ -127,3 +137,26 @@ class TestEMSC(unittest.TestCase):
         np.testing.assert_almost_equal(
             fdata.metas,
             [[1.375, 1.375, 3.0, 6.0, 2.0]])
+
+
+class TestSelectionFuctions(unittest.TestCase):
+
+    def test_no_smoothing(self):
+        fn = SelectionFunction(1, 2, 1)
+        np.testing.assert_equal(fn(np.arange(0, 4, 1)), [0, 1, 1, 0])
+        np.testing.assert_equal(fn(np.arange(0, 4, 0.5)), [0, 0, 1, 1, 1, 0, 0, 0])
+
+    def test_overlap(self):
+        fn = Sum(SelectionFunction(1, 2, 1), SelectionFunction(3, 4, 1))  # non-overlapping regions
+        a = fn([0.5, 1, 2, 2.5, 3.5, 5])
+        np.testing.assert_equal(a, [0, 1, 1, 0, 1, 0])
+
+        fn = Sum(SelectionFunction(1, 2, 1), SelectionFunction(1, 3, 1.3))  # overlapping
+        a = fn([0.5, 1, 1.5, 2, 2.0001, 2.5, 2.999, 3.01, 3.5])
+        np.testing.assert_equal(a, [0, 2.3, 2.3, 2.3, 1.3, 1.3, 1.3, 0, 0])
+
+    def test_smoothing(self):
+        fn = SmoothedSelectionFunction(0, 10, 3, 4)
+        tx = np.array([-5, -0.1, 0, 0.1, 1, 5])
+        np.testing.assert_almost_equal(fn(tx), (np.tanh(tx/3)+1)/2 * 4)
+        np.testing.assert_almost_equal(fn(tx+10), (-np.tanh(tx/3)+1)/2 * 4)

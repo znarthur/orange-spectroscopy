@@ -33,3 +33,10 @@ def set_png_graph_save():
         with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
                    lambda *x: (fname, 'Portable Network Graphics (*.png)')):
             yield fname
+
+
+def spectra_table(wavenumbers, *args):
+    domain = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
+                                 for w in wavenumbers])
+    data = Orange.data.Table(domain, *args)
+    return data

@@ -5,8 +5,6 @@ from sklearn.decomposition import TruncatedSVD
 import Orange
 from Orange.preprocess.preprocess import Preprocess
 
-from orangecontrib.spectroscopy.preprocess.npfunc import Segments, Sum
-
 try:  # get_unique_names was introduced in Orange 3.20
     from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
 except ImportError:
@@ -15,6 +13,7 @@ except ImportError:
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
     interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
+from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers
 
 
 def interpolate_to_data(other_xs, other_data, wavenumbers):
@@ -90,30 +89,6 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     explainedVariance = np.cumsum(explainedVariance)
     numComp = np.argmax(explainedVariance > explainedVarLim) + 1
     return numComp
-
-
-class Selection(Segments):
-    """
-    Weighted selection function. Includes min and max.
-    """
-    def __init__(self, min_, max_, w):
-        super().__init__((lambda x: True,
-                          lambda x: 0),
-                         (lambda x: np.logical_and(x >= min_, x <= max_),
-                          lambda x: w))
-
-
-class SmoothedSelection(Segments):
-    """
-    Weighted selection function. Min and max points are middle
-    points of smoothing with hyperbolic tangent.
-    """
-    def __init__(self, min_, max_, s, w):
-        middle = (min_ + max_) / 2
-        super().__init__((lambda x: x < middle,
-                          lambda x: (np.tanh((x - min_) / s) + 1) / 2 * w),
-                         (lambda x: x >= middle,
-                          lambda x: (-np.tanh((x - max_) / s) + 1) / 2 * w))
 
 
 class ME_EMSCFeature(SelectColumn):
@@ -267,13 +242,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers)
         ref_X = ref_X[0]
 
-        if self.weights:
-            # interpolate reference to the data
-            wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # set whichever weights are undefined (usually at edges) to zero
-            wei_X[np.isnan(wei_X)] = 0
-        else:
-            wei_X = np.ones((1, len(wavenumbers)))
+        wei_X = weighted_wavenumbers(self.weights, wavenumbers)
 
         ref_X = ref_X*wei_X
         ref_X = ref_X[0]
