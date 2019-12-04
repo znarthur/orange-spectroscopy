@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QSty
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.data import spectra_mean, getx
 from orangecontrib.spectroscopy.preprocess import EMSC
-from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction
+from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction, SmoothedSelectionFunction
 from orangecontrib.spectroscopy.preprocess.npfunc import Sum
 from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
@@ -119,11 +119,10 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
                     w.line.report = self.parent_widget.curveplot
                     self.parent_widget.curveplot.add_marking(w.line)
 
-
     def _set_range_parameters(self, params):
         ranges = params.get("ranges", [])
         rw = list(self._range_widgets())
-        for i, (rmin, rhigh, weight) in enumerate(ranges):
+        for i, (rmin, rhigh, _, smoothing) in enumerate(ranges):
             if i >= len(rw):
                 lw = self.add_range_selection_ui()
                 pair = self._extract_pair(lw)
@@ -147,15 +146,25 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         parameters = super().parameters()
         parameters["ranges"] = []
         for pair in self._range_widgets():
-            parameters["ranges"].append([float(pair[0].position), float(pair[1].position), 1.0])  # for now weight is always 1.0
+            # for now weight is always 1.0, smoothing always 0.0
+            parameters["ranges"].append([float(pair[0].position), float(pair[1].position),
+                                         1.0, 0.0])
         return parameters
 
     @classmethod
     def _compute_weights(cls, params):
         weights = None
         ranges = params.get("ranges", [])
+
+        def sel(l, r, w, s):
+            l, r = min(l, r), max(l, r)
+            if s < 1e-20:
+                return SelectionFunction(l, r, w)
+            else:
+                return SmoothedSelectionFunction(l, r, s, w)
+
         if ranges:
-            weights = Sum(*[SelectionFunction(min(l, r), max(l, r), w) for l, r, w in ranges])
+            weights = Sum(*[sel(l, r, w, s) for l, r, w, s in ranges])
         return weights
 
     @classmethod
