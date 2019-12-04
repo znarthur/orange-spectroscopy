@@ -70,7 +70,8 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
     def add_range_selection_ui(self):
         linelayout = gui.hBox(self)
         pmin, pmax = self.preview_min_max()
-        #TODO make the size appropriate so that the sidebar of the Preprocess Spectra doesn't change when the region is added
+        # TODO make the size appropriate so that the sidebar of the Preprocess Spectra
+        # doesn't change when the region is added
         mine = XPosLineEdit(label="")
         maxe = XPosLineEdit(label="")
         mine.set_default(pmin)
@@ -80,8 +81,9 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             w.edited.connect(self.edited)
             w.focusIn.connect(self.activateOptions)
 
-        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
-                                    "", autoDefault=False)
+        remove_button = QPushButton(
+            QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
+            "", autoDefault=False)
         remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
@@ -179,7 +181,8 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         if reference is None:
             return lambda data: data[:0]  # return an empty data table
         else:
-            return EMSC(reference=reference, weights=weights, order=order, scaling=scaling, output_model=output_model)
+            return EMSC(reference=reference, weights=weights, order=order,
+                        scaling=scaling, output_model=output_model)
 
     def set_reference_data(self, reference):
         self.reference = reference
