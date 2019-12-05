@@ -2,14 +2,14 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QStyle
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QStyle, QSizePolicy
 
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.data import spectra_mean, getx
 from orangecontrib.spectroscopy.preprocess import EMSC
 from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction, SmoothedSelectionFunction
 from orangecontrib.spectroscopy.preprocess.npfunc import Sum
-from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
+from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit, lineEditFloatOrNone
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     PreviewMinMaxMixin, layout_widgets, REFERENCE_DATA_PARAM
 
@@ -62,9 +62,10 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
     def add_range_selection(self):
         pmin, pmax = self.preview_min_max()
         lw = self.add_range_selection_ui()
-        pair = self._extract_pair(lw)
+        pair = self._extract_all(lw)
         pair[0].position = pmin
         pair[1].position = pmax
+        pair[2].position = None
         self.edited.emit()  # refresh output
 
     def add_range_selection_ui(self):
@@ -74,9 +75,12 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         # doesn't change when the region is added
         mine = XPosLineEdit(label="")
         maxe = XPosLineEdit(label="")
+        smoothinge = XPosLineEdit(label="", element=lineEditFloatOrNone)
+        smoothinge.edit.sizeHintFactor = 0.4
         mine.set_default(pmin)
         maxe.set_default(pmax)
-        for w in [mine, maxe]:
+        smoothinge.edit.setPlaceholderText("smoothing")
+        for w in [mine, maxe, smoothinge]:
             linelayout.layout().addWidget(w)
             w.edited.connect(self.edited)
             w.focusIn.connect(self.activateOptions)
@@ -84,6 +88,7 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         remove_button = QPushButton(
             QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
             "", autoDefault=False)
+        remove_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed))
         remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
@@ -97,18 +102,18 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
 
         # remove selection lines
         curveplot = self.parent_widget.curveplot
-        for w in self._extract_pair(box):
+        for w in self._extract_all(box)[:2]:
             if curveplot.in_markings(w.line):
                 curveplot.remove_marking(w.line)
 
         self.edited.emit()
 
-    def _extract_pair(self, container):
-        return list(layout_widgets(container))[:2]
+    def _extract_all(self, container):
+        return list(layout_widgets(container))
 
     def _range_widgets(self):
         for b in layout_widgets(self.ranges_box):
-            yield self._extract_pair(b)
+            yield self._extract_all(b)
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -116,7 +121,7 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             self.parent_widget.curveplot.add_marking(self.reference_curve)
 
         for pair in self._range_widgets():
-            for w in pair:
+            for w in pair[:2]:
                 if w.line not in self.parent_widget.curveplot.markings:
                     w.line.report = self.parent_widget.curveplot
                     self.parent_widget.curveplot.add_marking(w.line)
@@ -127,11 +132,12 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         for i, (rmin, rhigh, _, smoothing) in enumerate(ranges):
             if i >= len(rw):
                 lw = self.add_range_selection_ui()
-                pair = self._extract_pair(lw)
+                pair = self._extract_all(lw)
             else:
                 pair = rw[i]
             pair[0].position = rmin
             pair[1].position = rhigh
+            pair[2].position = smoothing
 
     def setParameters(self, params):
         if params:
@@ -148,9 +154,10 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         parameters = super().parameters()
         parameters["ranges"] = []
         for pair in self._range_widgets():
-            # for now weight is always 1.0, smoothing always 0.0
-            parameters["ranges"].append([float(pair[0].position), float(pair[1].position),
-                                         1.0, 0.0])
+            parameters["ranges"].append([pair[0].position,
+                                         pair[1].position,
+                                         1.0,  # for now weight is always 1.0
+                                         pair[2].position])
         return parameters
 
     @classmethod
@@ -159,7 +166,9 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         ranges = params.get("ranges", [])
 
         def sel(l, r, w, s):
-            l, r = min(l, r), max(l, r)
+            if s is None:
+                s = 0
+            l, r = float(min(l, r)), float(max(l, r))
             if s < 1e-20:
                 return SelectionFunction(l, r, w)
             else:

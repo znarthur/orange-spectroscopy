@@ -450,7 +450,7 @@ class XPosLineEdit(QWidget, OWComponent):
     edited = Signal()
     focusIn = Signal()
 
-    def __init__(self, parent=None, label=""):
+    def __init__(self, parent=None, label="", element=lineEditFloatRange):
         QWidget.__init__(self, parent)
         OWComponent.__init__(self, None)
 
@@ -460,7 +460,7 @@ class XPosLineEdit(QWidget, OWComponent):
 
         self.position = 0
 
-        self.edit = lineEditFloatRange(self, self, "position", callback=self.edited.emit)
+        self.edit = element(self, self, "position", callback=self.edited.emit)
         layout.addWidget(self.edit)
         self.edit.focusIn.connect(self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)
