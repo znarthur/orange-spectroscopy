@@ -31,7 +31,7 @@ class TestReaders(unittest.TestCase):
         d2 = Orange.data.Table("collagen.csv")
         d2x = getx(d2)
         ndom = Orange.data.Domain(features_with_interpolation(d2x), None)
-        dround = Orange.data.Table(ndom, d2)
+        dround = d2.transform(ndom)
         np.testing.assert_allclose(dround.X, d2.X)
 
 

@@ -28,7 +28,7 @@ class TestOWSpectralSeries(WidgetTest):
         # dataset without any attributes
         iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
         # dataset without rows
-        empty = Orange.data.Table(cls.iris[:0], cls.iris)
+        empty = cls.iris[:0]
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         # dataset without any attributes, but XY

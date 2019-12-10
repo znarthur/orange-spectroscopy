@@ -56,7 +56,7 @@ def odd_attr(data):
     natts = [a for i, a in enumerate(data.domain.attributes) if i%2 == 0]
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                                  metas=data.domain.metas)
-    return Orange.data.Table(ndomain, data)
+    return data.transform(ndomain)
 
 
 class TestConversion(unittest.TestCase):
@@ -106,7 +106,7 @@ class TestConversion(unittest.TestCase):
             _, test1 = separate_learn_test(proc(data))
             train, test = separate_learn_test(data)
             train = proc(train)
-            test_transformed = Orange.data.Table(train.domain, test)
+            test_transformed = test.transform(train.domain)
             np.testing.assert_almost_equal(test_transformed.X, test1.X,
                                            err_msg="Preprocessor " + str(proc))
 
@@ -147,11 +147,11 @@ class TestConversion(unittest.TestCase):
             train = proc(train)
             # explicit domain conversion test to catch exceptions that would
             # otherwise be silently handled in TestOnTestData
-            _ = Orange.data.Table(train.domain, test)
+            _ = test.transform(train.domain)
             aucnow = AUC(TestOnTestData()(train, test, [learner]))
             self.assertAlmostEqual(aucnow, aucorig, delta=0.02, msg="Preprocessor " + str(proc))
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
-            _ = Orange.data.Table(train.domain, test)  # explicit call again
+            _ = test.transform(train.domain)  # explicit call again
             aucnow = AUC(TestOnTestData()(train, test, [learner]))
             # the difference should be slight
             self.assertAlmostEqual(aucnow, aucorig, delta=0.05, msg="Preprocessor " + str(proc))

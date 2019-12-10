@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 
 import Orange
+from Orange.data import Table
 from Orange.preprocess.preprocess import PreprocessorList
 
 from orangecontrib.spectroscopy.data import getx
@@ -100,14 +101,14 @@ def shuffle_attr(data):
     random.Random(0).shuffle(natts)
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                                  metas=data.domain.metas)
-    return Orange.data.Table(ndomain, data)
+    return data.transform(ndomain)
 
 
 def reverse_attr(data):
     natts = reversed(data.domain.attributes)
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                                  metas=data.domain.metas)
-    return Orange.data.Table(ndomain, data)
+    return data.transform(ndomain)
 
 
 def add_edge_case_data_parameter(class_, data_arg_name, data_to_modify, *args, **kwargs):
@@ -237,19 +238,19 @@ class TestRubberbandBaseline(unittest.TestCase):
 
     def test_whole(self):
         """ Every point belongs in the convex region. """
-        data = Orange.data.Table([[2, 1, 2]])
+        data = Table.from_numpy(None, [[2, 1, 2]])
         i = RubberbandBaseline()(data)
         np.testing.assert_equal(i.X, 0)
-        data = Orange.data.Table([[1, 2, 1]])
+        data = Table.from_numpy(None, [[1, 2, 1]])
         i = RubberbandBaseline(peak_dir=RubberbandBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, 0)
 
     def test_simple(self):
         """ Just one point is not in the convex region. """
-        data = Orange.data.Table([[1, 2, 1, 1]])
+        data = Table.from_numpy(None, [[1, 2, 1, 1]])
         i = RubberbandBaseline()(data)
         np.testing.assert_equal(i.X, [[0, 1, 0, 0]])
-        data = Orange.data.Table([[1, 2, 1, 1]])
+        data = Table.from_numpy(None, [[1, 2, 1, 1]])
         i = RubberbandBaseline(peak_dir=RubberbandBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, [[0, 0, -0.5, 0]])
 
@@ -257,31 +258,31 @@ class TestRubberbandBaseline(unittest.TestCase):
 class TestLinearBaseline(unittest.TestCase):
 
     def test_whole(self):
-        data = Orange.data.Table([[1, 5, 1]])
+        data = Table.from_numpy(None, [[1, 5, 1]])
         i = LinearBaseline()(data)
         np.testing.assert_equal(i.X, [[0, 4, 0]])
 
-        data = Orange.data.Table([[4, 1, 2, 4]])
+        data = Table.from_numpy(None, [[4, 1, 2, 4]])
         i = LinearBaseline(peak_dir=LinearBaseline.PeakNegative)(data)
         np.testing.assert_equal(i.X, [[0, -3, -2, 0]])
 
     def test_edgepoints(self):
-        data = Orange.data.Table([[1, 5, 1]])
+        data = Table.from_numpy(None, [[1, 5, 1]])
         i = LinearBaseline(zero_points=[0, 2])(data)
         np.testing.assert_equal(i.X, [[0, 4, 0]])
 
     def test_edgepoints_extrapolate(self):
-        data = Orange.data.Table([[1, 5, 1]])
+        data = Table.from_numpy(None, [[1, 5, 1]])
         i = LinearBaseline(zero_points=[0, 1])(data)
         np.testing.assert_equal(i.X, [[0, 0, -8]])
 
     def test_3points(self):
-        data = Orange.data.Table([[1, 5, 1, 5]])
+        data = Table.from_numpy(None, [[1, 5, 1, 5]])
         i = LinearBaseline(zero_points=[0, 1, 3])(data)
         np.testing.assert_equal(i.X, [[0, 0, -4, 0]])
 
     def test_edgepoints_out_of_data(self):
-        data = Orange.data.Table([[1, 5, 1]])
+        data = Table.from_numpy(None, [[1, 5, 1]])
         i = LinearBaseline(zero_points=[0, 2.000000001])(data)
         np.testing.assert_almost_equal(i.X, [[0, 4, 0]])
 
@@ -289,7 +290,7 @@ class TestLinearBaseline(unittest.TestCase):
 class TestNormalize(unittest.TestCase):
 
     def test_vector_norm(self):
-        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
         p = Normalize(method=Normalize.Vector)(data)
         q = data.X / np.sqrt((data.X * data.X).sum(axis=1))
         np.testing.assert_equal(p.X, q)
@@ -301,7 +302,7 @@ class TestNormalize(unittest.TestCase):
     def test_vector_norm_nan_correction(self):
         # even though some values are unknown the other values
         # should be normalized to the same results
-        data = Orange.data.Table([[2, 2, 2, 2]])
+        data = Table.from_numpy(None, [[2, 2, 2, 2]])
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 0.5)
         # unknown in between that can be interpolated does not change results
@@ -316,7 +317,7 @@ class TestNormalize(unittest.TestCase):
         self.assertTrue(np.all(np.isnan(p.X[0, 2:])))
 
     def test_area_norm(self):
-        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
         p = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, data.X / 3)
         p = Normalize(method=Normalize.Area, int_method=Integrate.Simple, lower=0, upper=4)(data)
@@ -326,7 +327,7 @@ class TestNormalize(unittest.TestCase):
         np.testing.assert_equal(q.X, np.ones_like(q.X))
 
     def test_attribute_norm(self):
-        data = Orange.data.Table([[2, 1, 2, 2, 3]])
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
         ndom = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
                                   metas=[Orange.data.ContinuousVariable("f")])
         data = data.transform(ndom)
@@ -341,7 +342,7 @@ class TestNormalize(unittest.TestCase):
         np.testing.assert_equal(p.X, data.X / 2)
 
     def test_attribute_norm_unknown(self):
-        data = Orange.data.Table([[2, 1, 2, 2, 3]], metas=[[2]])
+        data = Table.from_numpy(None, X=[[2, 1, 2, 2, 3]], metas=[[2]])
         p = Normalize(method=Normalize.Attribute, attr="unknown")(data)
         self.assertTrue(np.all(np.isnan(p.X)))
 
@@ -349,7 +350,7 @@ class TestNormalize(unittest.TestCase):
 class TestNormalizeReference(unittest.TestCase):
 
     def test_reference(self):
-        data = Orange.data.Table([[2, 1, 3], [4, 2, 6]])
+        data = Table.from_numpy(None, [[2, 1, 3], [4, 2, 6]])
         reference = data[:1]
         p = NormalizeReference(reference=reference)(data)
         np.testing.assert_almost_equal(p, [[1, 1, 1], [2, 2, 2]])
@@ -358,7 +359,7 @@ class TestNormalizeReference(unittest.TestCase):
         with self.assertRaises(MissingReferenceException):
             NormalizeReference(reference=None)
         with self.assertRaises(WrongReferenceException):
-            NormalizeReference(reference=Orange.data.Table([[2], [6]]))
+            NormalizeReference(reference=Table.from_numpy(None, [[2], [6]]))
 
 
 class TestCommon(unittest.TestCase):
@@ -372,9 +373,9 @@ class TestCommon(unittest.TestCase):
     def test_no_attributes(self):
         """ Preprocessors should not crash when samples have no attributes. """
         data = SMALL_COLLAGEN
-        data = Orange.data.Table(Orange.data.Domain([],
-                                                    class_vars=data.domain.class_vars,
-                                                    metas=data.domain.metas), data)
+        data = data.transform(Orange.data.Domain([],
+                                                 class_vars=data.domain.class_vars,
+                                                 metas=data.domain.metas))
         for proc in PREPROCESSORS:
             _ = proc(data)
 
@@ -438,14 +439,14 @@ class TestPCADenoising(unittest.TestCase):
         data = Orange.data.Table("iris")
         proc = PCADenoising()
         d1 = proc(data[:0])
-        newdata = Orange.data.Table(d1.domain, data)
+        newdata = data.transform(d1.domain)
         np.testing.assert_equal(newdata.X, np.nan)
 
     def test_iris(self):
         data = Orange.data.Table("iris")
         proc = PCADenoising(components=2)
         d1 = proc(data)
-        newdata = Orange.data.Table(d1.domain, data)
+        newdata = data.transform(d1.domain)
         differences = newdata.X - data.X
         self.assertTrue(np.all(np.abs(differences) < 0.6))
         # pin some values to detect changes in the PCA implementation
@@ -458,7 +459,7 @@ class TestPCADenoising(unittest.TestCase):
 class TestCurveShift(unittest.TestCase):
 
     def test_simple(self):
-        data = Orange.data.Table([[1.0, 2.0, 3.0, 4.0]])
+        data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
         f = CurveShift(amount=1.1)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
