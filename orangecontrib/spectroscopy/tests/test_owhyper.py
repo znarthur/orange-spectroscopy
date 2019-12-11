@@ -93,16 +93,16 @@ class TestOWHyper(WidgetTest):
         cls.whitelight_unknown = cls.whitelight.copy()
         cls.whitelight_unknown[0][0] = NAN
         # dataset with a single attribute
-        cls.iris1 = Orange.data.Table(Orange.data.Domain(cls.iris.domain[:1]), cls.iris)
+        cls.iris1 = cls.iris.transform(Orange.data.Domain(cls.iris.domain[:1]))
         # dataset without any attributes
-        iris0 = Orange.data.Table(Orange.data.Domain([]), cls.iris)
+        iris0 = cls.iris.transform(Orange.data.Domain([]))
         # dataset without rows
-        empty = Orange.data.Table(cls.iris[:0], cls.iris)
+        empty = cls.iris[:0]
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         # dataset without any attributes, but XY
-        whitelight0 = Orange.data.Table(
-            Orange.data.Domain([], None, metas=cls.whitelight.domain.metas), cls.whitelight)
+        whitelight0 = cls.whitelight.transform(
+            Orange.data.Domain([], None, metas=cls.whitelight.domain.metas))
         cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0]
 
     def setUp(self):

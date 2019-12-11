@@ -1274,7 +1274,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         if color_var is None:
             rd[None] = np.full((len(data.X),), True, dtype=bool)
         else:
-            cvd = Orange.data.Table(Orange.data.Domain([color_var]), data)
+            cvd = data.transform(Orange.data.Domain([color_var]))
             feature_values = cvd.X[:, 0]  # obtain 1D vector
             for v in range(len(color_var.values)):
                 v1 = np.in1d(feature_values, v)

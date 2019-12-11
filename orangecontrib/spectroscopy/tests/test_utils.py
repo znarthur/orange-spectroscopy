@@ -25,7 +25,7 @@ class TestHyperspec(unittest.TestCase):
 
         features = getx(d)
         ndom = Orange.data.Domain([xat, yat])
-        datam = Orange.data.Table(ndom, d)
+        datam = d.transform(ndom)
         coorx = datam.X[:, 0]
         coory = datam.X[:, 1]
         coords = np.ones((lsx[2], lsy[2], 2))

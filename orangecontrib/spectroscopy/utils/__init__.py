@@ -101,7 +101,7 @@ def get_ndim_hyperspec(data, attrs):
         ndom = Domain(attrs)
     except TypeError:
         raise InvalidAxisException("Axis cannot be None")
-    datam = Table(ndom, data)
+    datam = data.transform(ndom)
 
     ls, indices = axes_to_ndim_linspace(datam, attrs)
 

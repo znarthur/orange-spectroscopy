@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import Orange
+from Orange.data import Table
 
 from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceException,\
     ranges_to_weight_table, interp1d_with_unknowns_numpy, getx
@@ -10,8 +11,8 @@ from orangecontrib.spectroscopy.preprocess.emsc import EMSC, MissingReferenceExc
 class TestEMSC(unittest.TestCase):
 
     def test_ab(self):
-        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
-                                  [3.0, 5.0, 3.0, 3.0]])
+        data = Table.from_numpy(None, [[1.0, 2.0, 1.0, 1.0],
+                                       [3.0, 5.0, 3.0, 3.0]])
         f = EMSC(reference=data[0:1], order=0, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
@@ -25,8 +26,8 @@ class TestEMSC(unittest.TestCase):
 
     def test_abde(self):
         # TODO Find test values
-        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
-                                  [3.0, 5.0, 3.0, 3.0]])
+        data = Table.from_numpy(None, [[1.0, 2.0, 1.0, 1.0],
+                                       [3.0, 5.0, 3.0, 3.0]])
         f = EMSC(reference=data[0:1], order=2, output_model=True)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
@@ -43,8 +44,8 @@ class TestEMSC(unittest.TestCase):
 
     def test_no_reference(self):
         # average from the data will be used
-        data = Orange.data.Table([[1.0, 2.0, 1.0, 1.0],
-                                  [3.0, 5.0, 3.0, 3.0]])
+        data = Table.from_numpy(None, [[1.0, 2.0, 1.0, 1.0],
+                                       [3.0, 5.0, 3.0, 3.0]])
         with self.assertRaises(MissingReferenceException):
             _ = EMSC()(data)
 
@@ -62,11 +63,11 @@ class TestEMSC(unittest.TestCase):
     def test_interpolate_wavenumbers(self):
         domain_ref = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                          for w in [1.0, 2.0, 3.0, 4.0]])
-        data_ref = Orange.data.Table(domain_ref, [[1.0, 3.0, 2.0, 3.0]])
+        data_ref = Table.from_numpy(domain_ref, X=[[1.0, 3.0, 2.0, 3.0]])
         domain = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                      for w in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]])
-        data = Orange.data.Table(domain, [[2.0, 4.0, 6.0, 5.0, 4.0, 5.0, 6.0],
-                                          [1.5, 2.0, 2.5, 2.25, 2.0, 2.25, 2.5]])
+        data = Table.from_numpy(domain, [[2.0, 4.0, 6.0, 5.0, 4.0, 5.0, 6.0],
+                                         [1.5, 2.0, 2.5, 2.25, 2.0, 2.25, 2.5]])
 
         f = EMSC(reference=data_ref[0:1], order=0, output_model=True)
         fdata = f(data)
@@ -80,12 +81,12 @@ class TestEMSC(unittest.TestCase):
     def test_order_wavenumbers(self):
         domain_ref = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                          for w in [4.0, 3.0, 2.0, 1.0]])
-        data_ref = Orange.data.Table(domain_ref, [[3.0, 2.0, 3.0, 1.0]])
+        data_ref = data = Table.from_numpy(domain_ref, [[3.0, 2.0, 3.0, 1.0]])
         domain = Orange.data.Domain(
             [Orange.data.ContinuousVariable(str(w))
              for w in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]])
-        data = Orange.data.Table(domain, [[2.0, 4.0, 6.0, 5.0, 4.0, 5.0, 6.0],
-                                          [1.5, 2.0, 2.5, 2.25, 2.0, 2.25, 2.5]])
+        data = data = Table.from_numpy(domain, [[2.0, 4.0, 6.0, 5.0, 4.0, 5.0, 6.0],
+                                                [1.5, 2.0, 2.5, 2.25, 2.0, 2.25, 2.5]])
 
         f = EMSC(reference=data_ref[0:1], order=0, output_model=True)
         fdata = f(data)
@@ -97,10 +98,10 @@ class TestEMSC(unittest.TestCase):
                                         [1.0, 0.5]])
 
     def test_badspectra(self):
-        data = Orange.data.Table([[0, 0.25, 4.5, 4.75, 1.0, 1.25,
-                                   7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
-        data_ref = Orange.data.Table([[0, 0, 2, 2, 0, 0, 3, 3, 0, 0, 0, 0]])
-        badspec = Orange.data.Table([[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0]])
+        data = Table.from_numpy(None, [[0, 0.25, 4.5, 4.75, 1.0, 1.25,
+                                        7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
+        data_ref = Table.from_numpy(None, [[0, 0, 2, 2, 0, 0, 3, 3, 0, 0, 0, 0]])
+        badspec = Table.from_numpy(None, [[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0]])
 
         f = EMSC(reference=data_ref[0:1], badspectra=badspec, order=1, output_model=True)
         fdata = f(data)
@@ -112,11 +113,11 @@ class TestEMSC(unittest.TestCase):
             [[1.375, 1.375, 3.0, 2.0]])
 
     def test_multiple_badspectra(self):
-        data = Orange.data.Table([[0, 0.25, 4.5, 4.75, 1.0, 1.25,
-                                   7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
-        data_ref = Orange.data.Table([[0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0]])
-        badspec = Orange.data.Table([[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
-                                     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]])
+        data = Table.from_numpy(None, [[0, 0.25, 4.5, 4.75, 1.0, 1.25,
+                                        7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
+        data_ref = Table.from_numpy(None, [[0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0]])
+        badspec = Table.from_numpy(None, [[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+                                          [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]])
 
         f = EMSC(reference=data_ref[0:1], badspectra=badspec, order=1, output_model=True)
         fdata = f(data)

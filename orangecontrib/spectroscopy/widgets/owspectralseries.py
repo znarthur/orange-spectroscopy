@@ -174,7 +174,7 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
             if self.attr_x is not None:
                 xat = self.data.domain[self.attr_x]
                 ndom = Domain([xat])
-                datam = Table(ndom, self.data)
+                datam = self.data.transform(ndom)
                 coorx = datam.X[:, 0]
             else:
                 coorx = np.arange(len(self.data))

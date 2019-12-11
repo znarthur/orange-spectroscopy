@@ -112,7 +112,7 @@ class AsciiMapReader(FileFormat):
             dom_vals = [float(v) for v in header[2:]]
             domain = Orange.data.Domain([ContinuousVariable.make("%f" % f) for f in dom_vals], None)
             tbl = np.loadtxt(f, ndmin=2)
-            data = Orange.data.Table(domain, tbl[:, 2:])
+            data = Table.from_numpy(domain, X=tbl[:, 2:])
             metas = [ContinuousVariable.make('map_x'), ContinuousVariable.make('map_y')]
             domain = Orange.data.Domain(domain.attributes, None, metas=metas)
             data = data.transform(domain)
@@ -1032,7 +1032,7 @@ def build_spec_table(domvals, data, additional_table=None):
     features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
     if additional_table is None:
         domain = Orange.data.Domain(features, None)
-        return Orange.data.Table(domain, data)
+        return Table.from_numpy(domain, X=data)
     else:
         domain = Domain(features,
                         class_vars=additional_table.domain.class_vars,
