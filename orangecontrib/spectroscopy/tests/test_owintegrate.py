@@ -35,11 +35,10 @@ class TestOWIntegrate(WidgetTest):
             self.widget.apply()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
-        data = Orange.data.Table(
+        data = data.transform(
             Orange.data.Domain([],
                                class_vars=data.domain.class_vars,
-                               metas=data.domain.metas),
-            data)
+                               metas=data.domain.metas))
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)

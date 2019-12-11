@@ -276,7 +276,7 @@ class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):
             newmetas = [m for m in tdata.domain.metas if m not in oldmetas]
             domain = Orange.data.Domain(newmetas, data.domain.class_vars,
                                         metas=data.domain.metas)
-            tdata = Orange.data.Table(domain, tdata)
+            tdata = tdata.transform(domain)
         return tdata
 
 

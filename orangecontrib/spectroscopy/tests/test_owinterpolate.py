@@ -25,10 +25,10 @@ class TestOWInterpolate(WidgetTest):
         out = self.get_output("Interpolated data")
         np.testing.assert_equal(getx(self.collagen), getx(out))
         # no auto-interpolation
-        non_interp = Orange.data.Table(self.collagen.domain, self.peach)
+        non_interp = self.peach.transform(self.collagen.domain)
         self.assertTrue(np.isnan(non_interp.X).all())
         # auto-interpolation
-        auto_interp = Orange.data.Table(out.domain, self.peach)
+        auto_interp = self.peach.transform(out.domain)
         self.assertFalse(np.isnan(auto_interp.X).all())
         np.testing.assert_equal(getx(self.collagen), getx(auto_interp))
 

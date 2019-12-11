@@ -110,7 +110,7 @@ class OWReshape(OWWidget):
             # add new variables for X and Y dimension ot the data domain
             metas = self.data.domain.metas + (xmeta, ymeta)
             domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
-            map_data = Orange.data.Table(domain, self.data)
+            map_data = self.data.transform(domain)
             map_data[:, xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
             map_data[:, ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
         self.Outputs.map.send(map_data)

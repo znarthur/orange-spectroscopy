@@ -11,7 +11,7 @@ class TestXASnormalization(unittest.TestCase):
     def test_flat(self):
         domain = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                      for w in [6800., 6940., 7060., 7400., 7800., 8000.]])
-        data = Orange.data.Table(domain, [[0.2, 0.2, 0.8, 0.8, 0.8, 0.8]])
+        data = Table.from_numpy(domain, [[0.2, 0.2, 0.8, 0.8, 0.8, 0.8]])
 
         f = XASnormalization(edge=7000.,
                              preedge_dict={'from': 6800., 'to': 6950., 'deg': 1},
@@ -31,7 +31,7 @@ class TestExtractEXAFS(unittest.TestCase):
                                      for w in [6800., 6940., 7060., 7400., 7800., 8000.]])
         spectra = [[0., 0., 1., 1., 1., 1.]]
 
-        data = Orange.data.Table(domain, spectra)
+        data = Table.from_numpy(domain, spectra)
 
         test_edge = 7000.
         test_extra_from = 7002.

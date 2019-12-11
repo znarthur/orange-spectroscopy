@@ -14,7 +14,7 @@ class InvalidBlockShape(Exception):
 
 def get_coords(data, bin_attrs):
     ndom = Domain(bin_attrs)
-    datam = Table(ndom, data)
+    datam = data.transform(ndom)
 
     ls, indices = axes_to_ndim_linspace(datam, bin_attrs)
 
@@ -60,4 +60,4 @@ def bin_hyperspectra(data, bin_attrs, bin_shape):
     table_view_coords = mean_coords.reshape(-1, len(bin_attrs))
 
     domain = Domain(data.domain.attributes, metas=bin_attrs)
-    return Table(domain, table_view, metas=table_view_coords)
+    return Table.from_numpy(domain, X=table_view, metas=table_view_coords)

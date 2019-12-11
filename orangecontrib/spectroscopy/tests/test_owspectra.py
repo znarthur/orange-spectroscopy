@@ -32,9 +32,9 @@ class TestOWSpectra(WidgetTest):
         cls.collagen = Table("collagen")
         cls.normal_data = [cls.iris, cls.collagen]
         # dataset with a single attribute
-        iris1 = Table(Domain(cls.iris.domain[:1]), cls.iris)
+        iris1 = cls.iris.transform(Domain(cls.iris.domain[:1]))
         # dataset without any attributes
-        iris0 = Table(Domain([]), cls.iris)
+        iris0 = cls.iris.transform(Domain([]))
         # data set with no lines
         empty = cls.iris[:0]
         # dataset with large blank regions
@@ -43,7 +43,7 @@ class TestOWSpectra(WidgetTest):
         cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
         # a data set with features with the same names
         sfdomain = Domain([ContinuousVariable("1"), ContinuousVariable("1")])
-        cls.same_features = Table(sfdomain, [[0, 1]])
+        cls.same_features = Table.from_numpy(sfdomain, X=[[0, 1]])
         # a data set with only infs
         cls.only_inf = iris1.copy()
         cls.only_inf.X *= np.Inf

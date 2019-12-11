@@ -623,7 +623,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             yat = self.data.domain[self.attr_y]
 
             ndom = Orange.data.Domain([xat, yat])
-            datam = Orange.data.Table(ndom, self.data)
+            datam = self.data.transform(ndom)
             coorx = datam.X[:, 0]
             coory = datam.X[:, 1]
             self.data_points = datam.X
@@ -653,7 +653,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             else:
                 dat = self.data.domain[self.parent.attr_value]
                 ndom = Orange.data.Domain([dat])
-                d = Orange.data.Table(ndom, self.data).X[:, 0]
+                d = self.data.transform(ndom).X[:, 0]
             self.refresh_markings(di)
 
             xindex, xnan = index_values_nan(coorx, lsx)
