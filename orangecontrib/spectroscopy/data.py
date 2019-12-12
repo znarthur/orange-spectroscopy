@@ -440,7 +440,7 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
     DESCRIPTION = 'Agilent Mosaic Image'
 
     def read_spectra(self):
-        am = agilentMosaic(self.filename)
+        am = agilentMosaic(self.filename, dtype=np.float64)
         info = am.info
         X = am.data
 
@@ -468,7 +468,7 @@ class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
     PRIORITY = agilentMosaicReader.PRIORITY + 1
 
     def read_spectra(self):
-        am = agilentMosaicIFG(self.filename)
+        am = agilentMosaicIFG(self.filename, dtype=np.float64)
         info = am.info
         X = am.data
 
