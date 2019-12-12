@@ -35,8 +35,8 @@ def set_png_graph_save():
             yield fname
 
 
-def spectra_table(wavenumbers, *args):
+def spectra_table(wavenumbers, *args, **kwargs):
     domain = Orange.data.Domain([Orange.data.ContinuousVariable(str(w))
                                  for w in wavenumbers])
-    data = Orange.data.Table(domain, *args)
+    data = Orange.data.Table.from_numpy(domain, *args, **kwargs)
     return data
