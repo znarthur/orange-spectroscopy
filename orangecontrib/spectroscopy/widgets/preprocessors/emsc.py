@@ -42,17 +42,26 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         gui.checkBox(self.controlArea, self, "output_model", "Output EMSC model as metas",
                      callback=self.edited.emit)
 
+        self._init_regions()
+        self._init_reference_curve()
+
+        self.user_changed = False
+
+    def _init_regions(self):
         self.ranges_box = gui.vBox(self.controlArea)  # container for ranges
 
         self.range_button = QPushButton("Select Region", autoDefault=False)
         self.range_button.clicked.connect(self.add_range_selection)
         self.controlArea.layout().addWidget(self.range_button)
 
+        self.weight_curve = pg.PlotCurveItem()
+        self.weight_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=1.))
+        self.weight_curve.setZValue(11)
+
+    def _init_reference_curve(self):
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
-
-        self.user_changed = False
 
     def _set_button_text(self):
         self.range_button.setText("Select Region"
@@ -126,6 +135,15 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
                     w.line.report = self.parent_widget.curveplot
                     self.parent_widget.curveplot.add_marking(w.line)
 
+        # add the second viewbox for weight display with X connected but y free
+        cp = self.parent_widget.curveplot
+        p2 = pg.ViewBox()
+        p2.setEnabled(False)  # disable mouse events
+        cp.plot.scene().addItem(p2)
+        p2.addItem(self.weight_curve)
+        p2.setXLink(cp.plot)
+        cp.add_connected_view(p2)
+
     def _set_range_parameters(self, params):
         ranges = params.get("ranges", [])
         rw = list(self._range_widgets())
@@ -149,6 +167,7 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         self._set_range_parameters(params)
 
         self.update_reference_info()
+        self.update_weight_curve(params)
 
     def parameters(self):
         parameters = super().parameters()
@@ -212,6 +231,18 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
+
+    def update_weight_curve(self, params):
+        weights = self._compute_weights(params)
+        if weights is None:
+            self.weight_curve.hide()
+        else:
+            pmin, pmax = self.preview_min_max()
+            dist = pmax-pmin
+            xs = np.linspace(pmin-dist/2, pmax+dist/2, 10000)
+            ys = weights(xs)
+            self.weight_curve.setData(x=xs, y=ys)
+            self.weight_curve.show()
 
     def set_preview_data(self, data):
         self.preview_data = data

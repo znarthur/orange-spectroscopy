@@ -1,7 +1,4 @@
-import pyqtgraph as pg
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QLabel
+from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
@@ -36,15 +33,8 @@ class MeEMSCEditor(EMSCEditor):
         gui.checkBox(self.controlArea, self, "output_model", "Output EMSC model",
                      callback=self.edited.emit)
 
-        self.ranges_box = gui.vBox(self.controlArea)  # container for ranges
-
-        self.range_button = QPushButton("Select Region", autoDefault=False)
-        self.range_button.clicked.connect(self.add_range_selection)
-        self.controlArea.layout().addWidget(self.range_button)
-
-        self.reference_curve = pg.PlotCurveItem()
-        self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
-        self.reference_curve.setZValue(10)
+        self._init_regions()
+        self._init_reference_curve()
 
         self.user_changed = False
 
@@ -57,6 +47,7 @@ class MeEMSCEditor(EMSCEditor):
         self._set_range_parameters(params)
 
         self.update_reference_info()
+        self.update_weight_curve(params)
 
     @classmethod
     def createinstance(cls, params):

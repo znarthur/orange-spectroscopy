@@ -542,6 +542,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.hideButtons()  # hide the autorange button
         self.plot.setDownsampling(auto=True, mode="peak")
 
+        self.connected_views = []
+        self.plot.vb.sigResized.connect(self._update_connected_views)
+
         for pos in ["top", "right"]:
             self.plot.showAxis(pos, True)
             self.plot.getAxis(pos).setStyle(showValues=False)
@@ -753,6 +756,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.legend = self._create_legend()
         self.viewhelpers_show()
+
+    def _update_connected_views(self):
+        for w in self.connected_views:
+            w.setGeometry(self.plot.vb.sceneBoundingRect())
 
     def _create_legend(self):
         legend = LegendItem()
@@ -1129,9 +1136,20 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.markings.remove(item)
 
     def clear_markings(self):
+        self.clear_connect_views()
         for m in self.markings:
             self.plot.removeItem(m)
         self.markings = []
+
+    def add_connected_view(self, vb):
+        self.connected_views.append(vb)
+        self._update_connected_views()
+
+    def clear_connect_views(self):
+        for v in self.connected_views:
+            v.clear()  # if the viewbox is not clear the children would be deleted
+            self.plot.scene().removeItem(v)
+        self.connected_views = []
 
     def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
