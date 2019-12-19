@@ -33,12 +33,3 @@ class TestMeEMSCEditor(PreprocessorEditorTest):
         self.assertEqual(
             settings["storedsettings"]["preprocessors"][0],
             (name, {"ranges": [[0, 1, 2, 0]]}))
-
-    def test_migrate_smoothing_emsc(self):
-        # TODO belongs into the EMSCEditor test class, which does not exits yet
-        name = "orangecontrib.spectroscopy.preprocess.emsc"
-        settings = {"storedsettings": {"preprocessors": [(name, {"ranges": [[0, 1, 2]]})]}}
-        OWPreprocess.migrate_settings(settings, 6)
-        self.assertEqual(
-            settings["storedsettings"]["preprocessors"][0],
-            (name, {"ranges": [[0, 1, 2, 0]]}))
