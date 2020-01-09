@@ -1039,10 +1039,11 @@ class DatMetaReader(FileFormat):
 def spectra_mean(X):
     return np.nanmean(X, axis=0, dtype=np.float64)
 
+
 def reader_gsf(file_path):
-    
+
     with open(file_path, "rb") as f:
-        if not (f.readline() == b'Gwyddion Simple Field 1.0\n'):
+        if not f.readline() == b'Gwyddion Simple Field 1.0\n':
             raise ValueError('Not a correct GSF file, wrong header.')
 
         meta = {}
@@ -1072,11 +1073,12 @@ def reader_gsf(file_path):
         X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
 
         XRr = np.arange(XR)
-        YRr = np.arange(YR-1, -1, -1) # needed to have the same orientation as in Gwyddion
+        YRr = np.arange(YR-1, -1, -1)  # needed to have the same orientation as in Gwyddion
 
         X = X.reshape((meta["YRes"], meta["XRes"]) + (1,))
 
     return X, XRr, YRr
+
 
 class NeaReaderGSF(FileFormat, SpectralFileFormat):
 
@@ -1101,23 +1103,21 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
             file_gsf_p = self.filename.replace('A raw.gsf', 'P raw.gsf')
             file_html = folder_file + '.html'
 
-
         data_gsf_a = self._gsf_reader(file_gsf_a)
         data_gsf_p = self._gsf_reader(file_gsf_p)
         info = self._html_reader(file_html)
 
         final_data, parameters, final_metas = self._format_file(data_gsf_a, data_gsf_p, info)
 
-
         metas = [Orange.data.ContinuousVariable.make("run"),
-                Orange.data.ContinuousVariable.make("row"),
-                Orange.data.ContinuousVariable.make("column"),
-                Orange.data.StringVariable.make("channel")]
+                 Orange.data.ContinuousVariable.make("row"),
+                 Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.StringVariable.make("channel")]
 
         domain = Orange.data.Domain([], None, metas=metas)
         meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
                                      metas=np.asarray(final_metas, dtype=object))
-        
+
         meta_data.attributes = parameters
 
         depth = np.arange(0, int(parameters['Pixel Area (X, Y, Z)'][3]))
@@ -1125,15 +1125,15 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
         return depth, final_data, meta_data
 
     def _format_file(self, gsf_a, gsf_p, parameters):
-        
+
         info = {}
         for row in range(len(parameters)):
-            info.update({parameters[row,0].replace(':', ''): parameters[row,1:]})
+            info.update({parameters[row, 0].replace(':', ''): parameters[row, 1:]})
 
         averaging = int(info['Averaging'][1])
-        px_x = int(info['Pixel Area (X, Y, Z)'][1]) # 10
-        px_y = int(info['Pixel Area (X, Y, Z)'][2]) # 10
-        px_z = number_of_points = int(info['Pixel Area (X, Y, Z)'][3]) # 1024
+        px_x = int(info['Pixel Area (X, Y, Z)'][1])  # 10
+        px_y = int(info['Pixel Area (X, Y, Z)'][2])  # 10
+        px_z = number_of_points = int(info['Pixel Area (X, Y, Z)'][3])  # 1024
         description = info['Description'][1]
 
         data_complete = []
@@ -1147,9 +1147,8 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
                 for run in range(0, averaging):
                     data_complete += [amplitude[i:f]]
                     data_complete += [phase[i:f]]
-                    
-                    final_metas += [[run,x, y, self.channel_a]]
-                    final_metas += [[run,x, y, self.channel_p]]
+                    final_metas += [[run, x, y, self.channel_a]]
+                    final_metas += [[run, x, y, self.channel_p]]
                     i = f
                     f = i + px_z
 
@@ -1166,8 +1165,5 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
         return parameters
 
     def _gsf_reader(self, path):
-
-        X, XRr, YRr = reader_gsf(path)
-
+        X, _, _ = reader_gsf(path)
         return np.asarray(X)
-

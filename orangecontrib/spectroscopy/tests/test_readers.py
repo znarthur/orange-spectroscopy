@@ -243,6 +243,7 @@ class TestNea(unittest.TestCase):
         self.assertEqual("O0A", data.metas[6][2])
         np.testing.assert_almost_equal(data.X[6, 0], 38.0)
 
+
 class TestNeaGSF(unittest.TestCase):
 
     def test_read(self):
@@ -255,7 +256,7 @@ class TestNeaGSF(unittest.TestCase):
         np.testing.assert_almost_equal(data.X[0, 0], 0.734363853931427)
         self.assertEqual("O2P", data.metas[1][3])
         np.testing.assert_almost_equal(data.X[1, 43], 0.17290098965168)
-        
+
 
 class TestSpa(unittest.TestCase):
 
