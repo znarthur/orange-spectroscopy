@@ -9,11 +9,17 @@ from Orange.tests import named_file
 from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader, NeaReader
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
+from orangecontrib.spectroscopy.data import NeaReaderGSF
 
 try:
     import opusFC
 except ImportError:
     opusFC = None
+
+try:
+    import lxml
+except ImportError:
+    lxml = None
 
 
 def initialize_reader(reader, fn):
@@ -241,6 +247,21 @@ class TestNea(unittest.TestCase):
         np.testing.assert_almost_equal(data.X[0, 0], 92.0)
         self.assertEqual("O0A", data.metas[6][2])
         np.testing.assert_almost_equal(data.X[6, 0], 38.0)
+
+
+class TestNeaGSF(unittest.TestCase):
+
+    @unittest.skipIf(lxml is None, "lxml module not installed")
+    def test_read(self):
+        fn = 'NeaReaderGSF_test/NeaReaderGSF_test O2P raw.gsf'
+        absolute_filename = FileFormat.locate(fn, dataset_dirs)
+        data = NeaReaderGSF(absolute_filename).read()
+        self.assertEqual(len(data), 2)
+        self.assertEqual("column", data.domain.metas[2].name)
+        self.assertEqual("O2A", data.metas[0][3])
+        np.testing.assert_almost_equal(data.X[0, 0], 0.734363853931427)
+        self.assertEqual("O2P", data.metas[1][3])
+        np.testing.assert_almost_equal(data.X[1, 43], 0.17290098965168)
 
 
 class TestSpa(unittest.TestCase):

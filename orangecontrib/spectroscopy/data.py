@@ -798,43 +798,9 @@ class GSFReader(FileFormat, SpectralFileFormat):
     DESCRIPTION = 'Gwyddion Simple Field'
 
     def read_spectra(self):
-        with open(self.filename, "rb") as f:
-            if not (f.readline() == b'Gwyddion Simple Field 1.0\n'):
-                raise ValueError('Not a correct GSF file, wrong header.')
-
-            meta = {}
-
-            term = False #there are mandatory fileds
-            while term != b'\x00':
-                l = f.readline().decode('utf-8')
-                name, value = l.split("=")
-                name = name.strip()
-                value = value.strip()
-                meta[name] = value
-                term = f.read(1)
-                f.seek(-1, 1)
-
-            f.read(4 - f.tell() % 4)
-
-            meta["XRes"] = XR = int(meta["XRes"])
-            meta["YRes"] = YR = int(meta["YRes"])
-            meta["XReal"] = float(meta.get("XReal", 1))
-            meta["YReal"] = float(meta.get("YReal", 1))
-            meta["XOffset"] = float(meta.get("XOffset", 0))
-            meta["YOffset"] = float(meta.get("YOffset", 0))
-            meta["Title"] = meta.get("Title", None)
-            meta["XYUnits"] = meta.get("XYUnits", None)
-            meta["ZUnits"] = meta.get("ZUnits", None)
-
-            X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
-
-            XRr = np.arange(XR)
-            YRr = np.arange(YR-1, -1, -1) # needed to have the same orientation as in Gwyddion
-
-            X = X.reshape((meta["YRes"], meta["XRes"]) + (1,))
-            data = _spectra_from_image(X, [1], XRr, YRr)
-
-            return data
+        X, XRr, YRr = reader_gsf(self.filename)
+        data = _spectra_from_image(X, [1], XRr, YRr)
+        return data
 
 
 class NeaReader(FileFormat, SpectralFileFormat):
@@ -1072,3 +1038,131 @@ class DatMetaReader(FileFormat):
 
 def spectra_mean(X):
     return np.nanmean(X, axis=0, dtype=np.float64)
+
+
+def reader_gsf(file_path):
+
+    with open(file_path, "rb") as f:
+        if not f.readline() == b'Gwyddion Simple Field 1.0\n':
+            raise ValueError('Not a correct GSF file, wrong header.')
+
+        meta = {}
+
+        term = False #there are mandatory fileds
+        while term != b'\x00':
+            l = f.readline().decode('utf-8')
+            name, value = l.split("=")
+            name = name.strip()
+            value = value.strip()
+            meta[name] = value
+            term = f.read(1)
+            f.seek(-1, 1)
+
+        f.read(4 - f.tell() % 4)
+
+        meta["XRes"] = XR = int(meta["XRes"])
+        meta["YRes"] = YR = int(meta["YRes"])
+        meta["XReal"] = float(meta.get("XReal", 1))
+        meta["YReal"] = float(meta.get("YReal", 1))
+        meta["XOffset"] = float(meta.get("XOffset", 0))
+        meta["YOffset"] = float(meta.get("YOffset", 0))
+        meta["Title"] = meta.get("Title", None)
+        meta["XYUnits"] = meta.get("XYUnits", None)
+        meta["ZUnits"] = meta.get("ZUnits", None)
+
+        X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
+
+        XRr = np.arange(XR)
+        YRr = np.arange(YR-1, -1, -1)  # needed to have the same orientation as in Gwyddion
+
+        X = X.reshape((meta["YRes"], meta["XRes"]) + (1,))
+
+    return X, XRr, YRr
+
+
+class NeaReaderGSF(FileFormat, SpectralFileFormat):
+
+    EXTENSIONS = (".gsf",)
+    DESCRIPTION = 'NeaSPEC raw files'
+
+    def read_spectra(self):
+
+        file_channel = str(self.filename.split(' ')[-2]).strip()
+        folder_file = str(self.filename.split(file_channel)[-2]).strip()
+
+        if 'P' in file_channel:
+            self.channel_p = file_channel
+            self.channel_a = file_channel.replace('P', 'A')
+            file_gsf_p = self.filename
+            file_gsf_a = self.filename.replace('P raw.gsf', 'A raw.gsf')
+            file_html = folder_file + '.html'
+        elif 'A' in file_channel:
+            self.channel_a = file_channel
+            self.channel_p = file_channel.replace('A', 'P')
+            file_gsf_a = self.filename
+            file_gsf_p = self.filename.replace('A raw.gsf', 'P raw.gsf')
+            file_html = folder_file + '.html'
+
+        data_gsf_a = self._gsf_reader(file_gsf_a)
+        data_gsf_p = self._gsf_reader(file_gsf_p)
+        info = self._html_reader(file_html)
+
+        final_data, parameters, final_metas = self._format_file(data_gsf_a, data_gsf_p, info)
+
+        metas = [Orange.data.ContinuousVariable.make("run"),
+                 Orange.data.ContinuousVariable.make("row"),
+                 Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.StringVariable.make("channel")]
+
+        domain = Orange.data.Domain([], None, metas=metas)
+        meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
+                                     metas=np.asarray(final_metas, dtype=object))
+
+        meta_data.attributes = parameters
+
+        depth = np.arange(0, int(parameters['Pixel Area (X, Y, Z)'][3]))
+
+        return depth, final_data, meta_data
+
+    def _format_file(self, gsf_a, gsf_p, parameters):
+
+        info = {}
+        for row in range(len(parameters)):
+            info.update({parameters[row, 0].replace(':', ''): parameters[row, 1:]})
+
+        averaging = int(info['Averaging'][1])
+        px_x = int(info['Pixel Area (X, Y, Z)'][1])  # 10
+        px_y = int(info['Pixel Area (X, Y, Z)'][2])  # 10
+        px_z = number_of_points = int(info['Pixel Area (X, Y, Z)'][3])  # 1024
+        description = info['Description'][1]
+
+        data_complete = []
+        final_metas = []
+        for y in range(0, px_y):
+            amplitude = gsf_a[y].reshape((1, px_x * px_z * averaging))[0]
+            phase = gsf_p[y].reshape((1, px_x * px_z * averaging))[0]
+            i = 0
+            f = i + px_z
+            for x in range(0, px_x):
+                for run in range(0, averaging):
+                    data_complete += [amplitude[i:f]]
+                    data_complete += [phase[i:f]]
+                    final_metas += [[run, x, y, self.channel_a]]
+                    final_metas += [[run, x, y, self.channel_p]]
+                    i = f
+                    f = i + px_z
+
+        return np.asarray(data_complete), info, final_metas
+
+    def _html_reader(self, path):
+        from pandas import read_html
+        try:
+            parameters = np.asarray(read_html(path, keep_default_na=False)[0])
+        except ImportError:
+            raise RuntimeError('''Install lxml: try "pip install lxml" or "conda install -c conda-forge lxml"''')
+
+        return parameters
+
+    def _gsf_reader(self, path):
+        X, _, _ = reader_gsf(path)
+        return np.asarray(X)

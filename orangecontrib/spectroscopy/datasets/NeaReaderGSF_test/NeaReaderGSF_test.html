@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <style>
+        table {
+            font-family: verdana;
+            font-size: 12px;
+        }
+        table#parameters-table tbody tr:nth-child(odd) {
+            background-color: #fafafa;
+        }
+        table#parameters-table tbody tr:nth-child(even) {
+            background-color: #efefef;
+        }
+        td.caption {
+            font-weight: bold;
+        }
+        td.text {
+            color: gray;
+            font-family: verdana;
+            font-size: 12px;
+            text-align: left;
+        }
+        td.number {
+            color: gray;
+            font-family: courier;
+            text-align: right;
+        }
+        figure.preview {
+            display: inline-block; 
+        }
+        .ThermalAnalysis {
+        }
+    </style>    
+    <meta charset="utf-8">
+    <title>Ref NeaReaderGSF_test</title>
+</head>
+<body>
+<table id="parameters-table">
+    <tbody>
+        <tr>
+            <td class="caption">Scan:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="ScanMode" colspan="3">Fourier Scan</td>
+        </tr>
+        <tr>
+            <td class="caption">Project:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="Project.Name" colspan="3">Spectroscopy datasets</td>
+        </tr>
+        <tr>
+            <td class="caption">Description:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="Name" colspan="3">Ref NeaReaderGSF_test</td>
+        </tr>
+        <tr>
+            <td class="caption">Date:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="Timestamp" colspan="3">02/02/2020 00:22:00</td>
+        </tr>
+        
+        <tr>
+            <td class="caption">Scanner Center Position (X, Y):</td>
+            <td class="number">[&micro;m]</td>
+            <td class="number" id="PhysicalOffsetX">65.31</td>
+            <td class="number" id="PhysicalOffsetY">42.72</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Rotation:</td>
+            <td class="number">[&deg;]</td>
+            <td class="number" id="Angle">0</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Scan Area (X, Y, Z):</td>
+            <td class="number">[&micro;m]</td>
+            <td class="number" id="PhysicalSizeX">0.000</td>
+            <td class="number" id="PhysicalSizeY">0.000</td>
+            <td class="number" id="PhysicalSizeZ">0.000</td>
+        </tr>
+        <tr>
+            <td class="caption">Pixel Area (X, Y, Z):</td>
+            <td class="number">[px]</td>
+            <td class="number" id="TargetResolutionWidth">1</td>
+            <td class="number" id="TargetResolutionHeight">1</td>
+            <td class="number" id="ResolutionDepth">1024</td>
+        </tr>
+        <tr id="FourierStageRow">
+            <td class="caption">Interferometer Center/Distance:</td>
+            <td class="number" id="FourierStageUnit">[&#181;m]</td>
+            <td class="number" id="FourierStageCenter">700.000</td>
+            <td class="number" id="FourierStageLength">1,000.000</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Averaging:</td>
+            <td class="number">&nbsp;</td>
+            <td class="number" id="DepthRuns">1</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Integration time:</td>
+            <td class="number">[ms]</td>
+            <td class="number" id="TargetMillisecondsPerPixel">15</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Laser Source:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="LaserSource.Name" colspan="3">Synchrotron</td>
+        </tr>
+        <tr>
+            <td class="caption">Target Wavelength:</td>
+            <td class="number">[&micro;m]</td>
+            <td class="number" id="LaserSourceTargetWavelength"></td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        
+        <tr>
+            <td class="caption">Demodulation Mode:</td>
+            <td class="number">&nbsp;</td>
+            <td class="text" id="Metadata.DemodulationMode" colspan="3">Fourier</td>
+        </tr>
+        <tr>
+            <td class="caption">Tip Frequency:</td>
+            <td class="number">[Hz]</td>
+            <td class="number" id="Metadata.HeadFrequency">243,743.824</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Tip Amplitude:</td>
+            <td class="number">[mV]</td>
+            <td class="number" id="Metadata.HeadAmplitude">14.600</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        
+        
+        
+        <tr>
+            <td class="caption">Tapping Amplitude:</td>
+            <td class="number">[nm]</td>
+            <td class="number" id="Metadata.TappingAmplitude">81.504</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Modulation Frequency:</td>
+            <td class="number">[Hz]</td>
+            <td class="number" id="Metadata.MirrorFrequency">0.000</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Modulation Amplitude:</td>
+            <td class="number">[mV]</td>
+            <td class="number" id="Metadata.MirrorAmplitude">0.000</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Modulation Offset:</td>
+            <td class="number">[mV]</td>
+            <td class="number" id="Metadata.MirrorOffset">0.000</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Setpoint:</td>
+            <td class="number">[%]</td>
+            <td class="number" id="Metadata.RelativeRegulatorSetpointZ">76.19</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">Regulator (P, I, D):</td>
+            <td class="number">&nbsp;</td>
+            <td class="number" id="Metadata.RegulatorTuningP">3.507821</td>
+            <td class="number" id="Metadata.RegulatorTuningI">9.892523</td>
+            <td class="number" id="Metadata.RegulatorTuningD">1.000000</td>
+        </tr>
+        <tr>
+            <td class="caption">Tip Potential:</td>
+            <td class="number">[mV]</td>
+            <td class="number" id="Metadata.TipPotential">0.000</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        <tr>
+            <td class="caption">M1A Scaling:</td>
+            <td class="number">[nm/V]</td>
+            <td class="number" id="Metadata.NanometersPerVoltM1A">4.978</td>
+            <td class="number">&nbsp;</td>
+            <td class="number">&nbsp;</td>
+        </tr>
+        
+        
+        
+        
+             
+        <tr>
+            <td class="caption">Version:</td>
+            <td class="number">&nbsp;</td>
+            <td class="number" id="Version" colspan="3">1.8.4702.0</td>
+        </tr>
+    </tbody>
+</table>
+</body>
+</html>
