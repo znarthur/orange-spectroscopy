@@ -1159,8 +1159,7 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
         try:
             parameters = np.asarray(read_html(path, keep_default_na=False)[0])
         except ImportError:
-            print('''Probably you need to install lxml\nTry\n "pip install lxml"\nor\n"conda install -c conda-forge lxml"''')
-            pass
+            raise RuntimeError('''Install lxml: try "pip install lxml" or "conda install -c conda-forge lxml"''')
 
         return parameters
 
