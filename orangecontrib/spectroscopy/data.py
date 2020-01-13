@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import reduce
 import numbers
 import struct
+from html.parser import HTMLParser
 
 import numpy as np
 import spectral.io.envi
@@ -1127,13 +1128,13 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
     def _format_file(self, gsf_a, gsf_p, parameters):
 
         info = {}
-        for row in range(len(parameters)):
-            info.update({parameters[row, 0].replace(':', ''): parameters[row, 1:]})
+        for row in parameters:
+            info.update({row[0].strip(':'): row[1:]})
 
         averaging = int(info['Averaging'][1])
-        px_x = int(info['Pixel Area (X, Y, Z)'][1])  # 10
-        px_y = int(info['Pixel Area (X, Y, Z)'][2])  # 10
-        px_z = number_of_points = int(info['Pixel Area (X, Y, Z)'][3])  # 1024
+        px_x = int(info['Pixel Area (X, Y, Z)'][1])
+        px_y = int(info['Pixel Area (X, Y, Z)'][2])
+        px_z = int(info['Pixel Area (X, Y, Z)'][3])
         description = info['Description'][1]
 
         data_complete = []
@@ -1155,13 +1156,39 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
         return np.asarray(data_complete), info, final_metas
 
     def _html_reader(self, path):
-        from pandas import read_html
-        try:
-            parameters = np.asarray(read_html(path, keep_default_na=False)[0])
-        except ImportError:
-            raise RuntimeError('''Install lxml: try "pip install lxml" or "conda install -c conda-forge lxml"''')
 
-        return parameters
+        class HTMLTableParser(HTMLParser):
+
+            def __init__(self):
+                super().__init__()
+                self._current_row = []
+                self._current_table = []
+                self._in_cell = False
+
+                self.tables = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "td":
+                    self._in_cell = True
+
+            def handle_endtag(self, tag):
+                if tag == "tr":
+                    self._current_table.append(self._current_row)
+                    self._current_row = []
+                elif tag == "table":
+                    self.tables.append(self._current_table)
+                    self._current_table = []
+                elif tag == "td":
+                    self._in_cell = False
+
+            def handle_data(self, data):
+                if self._in_cell:
+                    self._current_row.append(data.strip())
+
+        p = HTMLTableParser()
+        with open(path, "rt", encoding="utf8") as f:
+            p.feed(f.read())
+        return p.tables[0]
 
     def _gsf_reader(self, path):
         X, _, _ = reader_gsf(path)

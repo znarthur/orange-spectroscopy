@@ -16,11 +16,6 @@ try:
 except ImportError:
     opusFC = None
 
-try:
-    import lxml
-except ImportError:
-    lxml = None
-
 
 def initialize_reader(reader, fn):
     """
@@ -251,7 +246,6 @@ class TestNea(unittest.TestCase):
 
 class TestNeaGSF(unittest.TestCase):
 
-    @unittest.skipIf(lxml is None, "lxml module not installed")
     def test_read(self):
         fn = 'NeaReaderGSF_test/NeaReaderGSF_test O2P raw.gsf'
         absolute_filename = FileFormat.locate(fn, dataset_dirs)
