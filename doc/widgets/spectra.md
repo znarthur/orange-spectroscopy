@@ -58,7 +58,7 @@ Example
 
 The **Spectra** widget is used to visualize spectral data. X axis normally shows wavenumbers, while the Y axis shows the absorbance. We will plot the *Liver spectroscopy* data from the **Datasets** widget as an example.
 
-We have used *Color by* option to display the type of each spectrum. Or you can also press 'C' and the plot will show colors.
+We have used *Color by* option to display the type of each spectrum. Or you can also press 'C' and the plot will show colors. Colors are defined with the data; to change colors, use the **Color** widget.
 
 Now, let's say I am interested in those spectra, that are quite separated from the rest at wavenumber around 1027. I will press 'S' and drag a line. This will select the spectra under the line I have dragged.
 
