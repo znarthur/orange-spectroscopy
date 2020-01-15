@@ -25,3 +25,11 @@ class TestMeEMSCEditor(PreprocessorEditorTest):
         self.widget.apply()
         p = self.get_preprocessor()
         self.assertIsInstance(p, ME_EMSC)
+
+    def test_migrate_smoothing(self):
+        name = "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc"
+        settings = {"storedsettings": {"preprocessors": [(name, {"ranges": [[0, 1, 2]]})]}}
+        OWPreprocess.migrate_settings(settings, 6)
+        self.assertEqual(
+            settings["storedsettings"]["preprocessors"][0],
+            (name, {"ranges": [[0, 1, 2, 0]]}))

@@ -1073,6 +1073,13 @@ def migrate_preprocessor(preprocessor, version):
         settings["from_type"] = 0
         settings["to_type"] = 1
         version = 5
+    if name in ["orangecontrib.spectroscopy.preprocess.emsc",
+                "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc"] \
+            and version < 7:
+        ranges = settings.get("ranges", [])
+        new_ranges = [[l, r, w, 0.0] for l, r, w in ranges]
+        settings["ranges"] = new_ranges
+        version = 7
     return [((name, settings), version)]
 
 
@@ -1585,7 +1592,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 6
+    settings_version = 7
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     PREPROCESSORS = PREPROCESSORS

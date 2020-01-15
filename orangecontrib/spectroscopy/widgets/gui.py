@@ -2,9 +2,9 @@ import math
 from decimal import Decimal
 from abc import ABCMeta, abstractmethod
 
-from AnyQt.QtCore import QLocale, Qt
+from AnyQt.QtCore import QLocale, Qt, QSize
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
-from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit
+from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QSizePolicy
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
@@ -173,6 +173,7 @@ class LineEdit(LineEditMarkFinished):
         self.__changed = False
         self.editingFinished.connect(self.__signal_if_changed)
         self.textEdited.connect(self.__textEdited)
+        self.sizeHintFactor = 1
 
     def setText(self, text):
         self.__changed = False
@@ -189,6 +190,10 @@ class LineEdit(LineEditMarkFinished):
     def focusInEvent(self, *e):
         self.focusIn.emit()
         return QWidget.focusInEvent(self, *e)
+
+    def sizeHint(self):
+        sh = super().sizeHint()
+        return QSize(int(sh.width()*self.sizeHintFactor), sh.height())
 
 
 def connect_line_edit_finished(lineedit, master, value, valueToStr=str, valueType=str, callback=None):
@@ -218,30 +223,41 @@ def lineEditValidator(widget, master, value, validator=None, valueType=None,
     return le
 
 
+def set_numeric_le(le):
+    """ Smaller line edit that does not expand. """
+    le.sizeHintFactor = 0.8
+    le.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed))
+    return le
+
+
 def lineEditIntOrNone(widget, master, value, **kwargs):
-    return lineEditValidator(widget, master, value,
-                             validator=IntOrEmptyValidator(master),
-                             valueType=intornone,
-                             valueToStr=str_or_empty,
-                             **kwargs)
+    le = lineEditValidator(widget, master, value,
+                           validator=IntOrEmptyValidator(master),
+                           valueType=intornone,
+                           valueToStr=str_or_empty,
+                           **kwargs)
+    return le
 
 
 def lineEditFloatOrNone(widget, master, value, **kwargs):
-    return lineEditValidator(widget, master, value,
-                             validator=FloatOrEmptyValidator(master, allow_empty=True),
-                             valueType=floatornone,
-                             valueToStr=str_or_empty,
-                             **kwargs)
+    le = lineEditValidator(widget, master, value,
+                           validator=FloatOrEmptyValidator(master, allow_empty=True),
+                           valueType=floatornone,
+                           valueToStr=str_or_empty,
+                           **kwargs)
+    set_numeric_le(le)
+    return le
 
 
 def lineEditFloatRange(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
     le = lineEditValidator(widget, master, value,
-                             validator=FloatOrEmptyValidator(master, allow_empty=False,
-                                                             bottom=bottom, top=top, default_text=str(default)),
-                             valueType=Decimal,  # every text need to be a valid float before saving setting
-                             valueToStr=str,
-                             **kwargs)
+                           validator=FloatOrEmptyValidator(master, allow_empty=False,
+                                                           bottom=bottom, top=top, default_text=str(default)),
+                           valueType=Decimal,  # every text need to be a valid float before saving setting
+                           valueToStr=str,
+                           **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
+    set_numeric_le(le)
     return le
 
 
@@ -255,17 +271,19 @@ def lineEditIntRange(widget, master, value, bottom=-2147483647, top=2147483647,
                            valueToStr=str,
                            **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
+    set_numeric_le(le)
     return le
 
 
 def lineEditDecimalOrNone(widget, master, value, bottom=float("-inf"), top=float("inf"), default=0., **kwargs):
     le = lineEditValidator(widget, master, value,
-                             validator=FloatOrEmptyValidator(master, allow_empty=True,
-                                                             bottom=bottom, top=top, default_text=str(default)),
-                             valueType=decimalornone,  # every text need to be a valid float before saving setting
-                             valueToStr=str_or_empty,
-                             **kwargs)
+                           validator=FloatOrEmptyValidator(master, allow_empty=True,
+                                                           bottom=bottom, top=top, default_text=str(default)),
+                           valueType=decimalornone,  # every text need to be a valid float before saving setting
+                           valueToStr=str_or_empty,
+                           **kwargs)
     le.set_default = lambda v: le.validator().setDefault(str(v))
+    set_numeric_le(le)
     return le
 
 
@@ -432,7 +450,7 @@ class XPosLineEdit(QWidget, OWComponent):
     edited = Signal()
     focusIn = Signal()
 
-    def __init__(self, parent=None, label=""):
+    def __init__(self, parent=None, label="", element=lineEditFloatRange):
         QWidget.__init__(self, parent)
         OWComponent.__init__(self, None)
 
@@ -442,7 +460,7 @@ class XPosLineEdit(QWidget, OWComponent):
 
         self.position = 0
 
-        self.edit = lineEditFloatRange(self, self, "position", callback=self.edited.emit)
+        self.edit = element(self, self, "position", callback=self.edited.emit)
         layout.addWidget(self.edit)
         self.edit.focusIn.connect(self.focusIn.emit)
         self.line = MovableVline(position=self.position, label=label)

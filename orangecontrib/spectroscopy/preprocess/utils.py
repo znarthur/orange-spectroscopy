@@ -167,14 +167,19 @@ def transform_back_to_features(xsind, mon, X):
     return X if mon else X[:, np.argsort(xsind)]
 
 
+def fill_edges_1d(l):
+    """Replace (inplace!) NaN at sides with the closest value"""
+    loc = np.where(~np.isnan(l))[0]
+    if len(loc):
+        fi, li = loc[[0, -1]]
+        l[:fi] = l[fi]
+        l[li + 1:] = l[li]
+
+
 def fill_edges(mat):
     """Replace (inplace!) NaN at sides with the closest value"""
     for l in mat:
-        loc = np.where(~np.isnan(l))[0]
-        if len(loc):
-            fi, li = loc[[0, -1]]
-            l[:fi] = l[fi]
-            l[li + 1:] = l[li]
+        fill_edges_1d(l)
 
 
 def remove_whole_nan_ys(x, ys):

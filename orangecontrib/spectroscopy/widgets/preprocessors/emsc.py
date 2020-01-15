@@ -2,13 +2,14 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QStyle
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QApplication, QStyle, QSizePolicy
 
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.data import spectra_mean, getx
 from orangecontrib.spectroscopy.preprocess import EMSC
-from orangecontrib.spectroscopy.preprocess.emsc import ranges_to_weight_table
-from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
+from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction, SmoothedSelectionFunction
+from orangecontrib.spectroscopy.preprocess.npfunc import Sum
+from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit, lineEditFloatOrNone
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     PreviewMinMaxMixin, layout_widgets, REFERENCE_DATA_PARAM
 
@@ -41,17 +42,26 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         gui.checkBox(self.controlArea, self, "output_model", "Output EMSC model as metas",
                      callback=self.edited.emit)
 
+        self._init_regions()
+        self._init_reference_curve()
+
+        self.user_changed = False
+
+    def _init_regions(self):
         self.ranges_box = gui.vBox(self.controlArea)  # container for ranges
 
         self.range_button = QPushButton("Select Region", autoDefault=False)
         self.range_button.clicked.connect(self.add_range_selection)
         self.controlArea.layout().addWidget(self.range_button)
 
+        self.weight_curve = pg.PlotCurveItem()
+        self.weight_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=1.))
+        self.weight_curve.setZValue(11)
+
+    def _init_reference_curve(self):
         self.reference_curve = pg.PlotCurveItem()
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
-
-        self.user_changed = False
 
     def _set_button_text(self):
         self.range_button.setText("Select Region"
@@ -61,26 +71,33 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
     def add_range_selection(self):
         pmin, pmax = self.preview_min_max()
         lw = self.add_range_selection_ui()
-        pair = self._extract_pair(lw)
+        pair = self._extract_all(lw)
         pair[0].position = pmin
         pair[1].position = pmax
+        pair[2].position = None
         self.edited.emit()  # refresh output
 
     def add_range_selection_ui(self):
         linelayout = gui.hBox(self)
         pmin, pmax = self.preview_min_max()
-        #TODO make the size appropriate so that the sidebar of the Preprocess Spectra doesn't change when the region is added
+        # TODO make the size appropriate so that the sidebar of the Preprocess Spectra
+        # doesn't change when the region is added
         mine = XPosLineEdit(label="")
         maxe = XPosLineEdit(label="")
+        smoothinge = XPosLineEdit(label="", element=lineEditFloatOrNone)
+        smoothinge.edit.sizeHintFactor = 0.4
         mine.set_default(pmin)
         maxe.set_default(pmax)
-        for w in [mine, maxe]:
+        smoothinge.edit.setPlaceholderText("smoothing")
+        for w in [mine, maxe, smoothinge]:
             linelayout.layout().addWidget(w)
             w.edited.connect(self.edited)
             w.focusIn.connect(self.activateOptions)
 
-        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
-                                    "", autoDefault=False)
+        remove_button = QPushButton(
+            QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
+            "", autoDefault=False)
+        remove_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed))
         remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
@@ -94,18 +111,18 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
 
         # remove selection lines
         curveplot = self.parent_widget.curveplot
-        for w in self._extract_pair(box):
+        for w in self._extract_all(box)[:2]:
             if curveplot.in_markings(w.line):
                 curveplot.remove_marking(w.line)
 
         self.edited.emit()
 
-    def _extract_pair(self, container):
-        return list(layout_widgets(container))[:2]
+    def _extract_all(self, container):
+        return list(layout_widgets(container))
 
     def _range_widgets(self):
         for b in layout_widgets(self.ranges_box):
-            yield self._extract_pair(b)
+            yield self._extract_all(b)
 
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
@@ -113,23 +130,32 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             self.parent_widget.curveplot.add_marking(self.reference_curve)
 
         for pair in self._range_widgets():
-            for w in pair:
+            for w in pair[:2]:
                 if w.line not in self.parent_widget.curveplot.markings:
                     w.line.report = self.parent_widget.curveplot
                     self.parent_widget.curveplot.add_marking(w.line)
 
+        # add the second viewbox for weight display with X connected but y free
+        cp = self.parent_widget.curveplot
+        p2 = pg.ViewBox()
+        p2.setEnabled(False)  # disable mouse events
+        cp.plot.scene().addItem(p2)
+        p2.addItem(self.weight_curve)
+        p2.setXLink(cp.plot)
+        cp.add_connected_view(p2)
 
     def _set_range_parameters(self, params):
         ranges = params.get("ranges", [])
         rw = list(self._range_widgets())
-        for i, (rmin, rhigh, weight) in enumerate(ranges):
+        for i, (rmin, rhigh, _, smoothing) in enumerate(ranges):
             if i >= len(rw):
                 lw = self.add_range_selection_ui()
-                pair = self._extract_pair(lw)
+                pair = self._extract_all(lw)
             else:
                 pair = rw[i]
             pair[0].position = rmin
             pair[1].position = rhigh
+            pair[2].position = smoothing
 
     def setParameters(self, params):
         if params:
@@ -141,20 +167,34 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         self._set_range_parameters(params)
 
         self.update_reference_info()
+        self.update_weight_curve(params)
 
     def parameters(self):
         parameters = super().parameters()
         parameters["ranges"] = []
         for pair in self._range_widgets():
-            parameters["ranges"].append([float(pair[0].position), float(pair[1].position), 1.0])  # for now weight is always 1.0
+            parameters["ranges"].append([pair[0].position,
+                                         pair[1].position,
+                                         1.0,  # for now weight is always 1.0
+                                         pair[2].position])
         return parameters
 
     @classmethod
     def _compute_weights(cls, params):
         weights = None
         ranges = params.get("ranges", [])
+
+        def sel(l, r, w, s):
+            if s is None:
+                s = 0
+            l, r = float(min(l, r)), float(max(l, r))
+            if s < 1e-20:
+                return SelectionFunction(l, r, w)
+            else:
+                return SmoothedSelectionFunction(l, r, s, w)
+
         if ranges:
-            weights = ranges_to_weight_table(ranges)
+            weights = Sum(*[sel(l, r, w, s) for l, r, w, s in ranges])
         return weights
 
     @classmethod
@@ -169,7 +209,8 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
         if reference is None:
             return lambda data: data[:0]  # return an empty data table
         else:
-            return EMSC(reference=reference, weights=weights, order=order, scaling=scaling, output_model=output_model)
+            return EMSC(reference=reference, weights=weights, order=order,
+                        scaling=scaling, output_model=output_model)
 
     def set_reference_data(self, reference):
         self.reference = reference
@@ -190,6 +231,18 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
             xsind = np.argsort(x)
             self.reference_curve.setData(x=x[xsind], y=X_ref[xsind])
             self.reference_curve.setVisible(self.scaling)
+
+    def update_weight_curve(self, params):
+        weights = self._compute_weights(params)
+        if weights is None:
+            self.weight_curve.hide()
+        else:
+            pmin, pmax = self.preview_min_max()
+            dist = pmax-pmin
+            xs = np.linspace(pmin-dist/2, pmax+dist/2, 10000)
+            ys = weights(xs)
+            self.weight_curve.setData(x=xs, y=ys)
+            self.weight_curve.show()
 
     def set_preview_data(self, data):
         self.preview_data = data

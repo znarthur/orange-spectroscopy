@@ -12,7 +12,8 @@ except ImportError:
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, transform_to_sorted_features
+    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
+from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers
 
 
 def interpolate_to_data(other_xs, other_data, wavenumbers):
@@ -88,59 +89,6 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
     explainedVariance = np.cumsum(explainedVariance)
     numComp = np.argmax(explainedVariance > explainedVarLim) + 1
     return numComp
-
-
-def weights_from_inflection_points(points, kappa, wavenumbers):
-    # Hyperbolic tangent function
-    hypTan = lambda x_range, kap: 0.5*(np.tanh(kap*x_range) + 1)
-
-    # Calculate position of inflection points
-    p1 = np.argmin(np.abs(wavenumbers - points[2]))
-    p2 = np.argmin(np.abs(wavenumbers - points[1]))
-    p3 = np.argmin(np.abs(wavenumbers - points[0]))
-
-    # Resolution on the x-axis used in the hyperbolic tangent function
-    dx = 0.094
-
-    x1 = np.linspace(-(p1-1)*dx, 0, p1)
-    x2 = np.linspace(dx, np.floor((p2-p1)/2)*dx, np.int(np.floor((p2-p1)/2)))
-
-    xp1 = np.hstack([x1, x2])
-
-    x3 = np.linspace(-(np.ceil((p2-p1)/2)-1)*dx, 0, np.int((np.ceil((p2-p1)/2))))
-    x4 = np.linspace(dx, np.floor((p3-p2)/2)*dx, np.int(np.floor((p3-p2)/2)))
-
-    xp2 = np.hstack([x3, x4])
-
-    x5 = np.linspace(-(np.ceil((p3-p2)/2)-1)*dx, 0, np.int((np.ceil((p3-p2)/2))))
-    x6 = np.linspace(dx, (len(wavenumbers)-p3)*dx, np.int(len(wavenumbers)-p3))
-
-    xp3 = np.hstack([x5, x6])
-
-    patch1 = 1 - hypTan(xp1, kappa[2])
-    patch2 = hypTan(xp2, kappa[1])
-    patch3 = 1 - hypTan(xp3, kappa[0])
-
-    wei_X = np.hstack([patch1, patch2, patch3])
-
-    if points[3]:
-        p0 = np.argmin(np.abs(wavenumbers - points[3]))
-
-        x1a = np.linspace(-(p0-1)*dx, 0, p0)
-        x2a = np.linspace(dx, np.floor((p1-p0)/2)*dx, np.int(np.floor((p1-p0)/2)))
-        x3a = np.linspace(-(np.ceil((p1-p0)/2)-1)*dx, 0, np.int((np.ceil((p1-p0)/2))))
-
-        xp0 = np.hstack([x1a, x2a])
-        xp1 = np.hstack([x3a, x2])
-
-        patch0 = hypTan(xp0, kappa[3])
-        patch1 = 1 - hypTan(xp1, kappa[2])
-        wei_X = np.hstack([patch0, patch1, patch2, patch3])
-
-    wei_X = wei_X.reshape(1, -1)
-    dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in wavenumbers])
-    data = Orange.data.Table.from_numpy(dom, wei_X)
-    return data
 
 
 class ME_EMSCFeature(SelectColumn):
@@ -294,13 +242,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers)
         ref_X = ref_X[0]
 
-        if self.weights:
-            # interpolate reference to the data
-            wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # set whichever weights are undefined (usually at edges) to zero
-            wei_X[np.isnan(wei_X)] = 0
-        else:
-            wei_X = np.ones((1, len(wavenumbers)))
+        wei_X = weighted_wavenumbers(self.weights, wavenumbers)
 
         ref_X = ref_X*wei_X
         ref_X = ref_X[0]

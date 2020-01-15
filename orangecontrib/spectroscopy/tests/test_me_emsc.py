@@ -6,6 +6,80 @@ import Orange
 from Orange.data import FileFormat, dataset_dirs
 
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
+from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction, SmoothedSelectionFunction
+from orangecontrib.spectroscopy.preprocess.npfunc import Sum
+
+
+def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
+    """ As ported from the original Matlab code.
+
+    BUG: results are shifted for 1 wavenumber positions-wise
+
+    Made legacy due to the following drawbacks:
+    - Only supports 3 or 4 points.
+    - Edges behave differently in 3 or 4 point cases.
+    - Transition shape depends on spacing of input wavenumbers.
+    - Essentially undefined behaviour when inflection points are too close.
+    - The wavenumbers are assumed to be equidistant.
+
+    This functions needs correctly ordered inputs. Example calls (function as f):
+    (3 points) f([3700, 2550, 1900, 0], [1, 1, 1, 1], np.arange(0, 5000, 10))
+    (4 points) f([3700, 2550, 1900, 1000], [1, 1, 1, 1], np.arange(0, 5000, 10))
+
+    For both calls the weights go towards 0 for wn > 3700. For (3 points)
+    wn < 1900 go towards 1, but for (4 points) they go towards 0 when wn < 1000.
+    """
+    # Hyperbolic tangent function
+    hypTan = lambda x_range, kap: 0.5 * (np.tanh(kap * x_range) + 1)
+
+    # Calculate position of inflection points
+    p1 = np.argmin(np.abs(wavenumbers - points[2]))
+    p2 = np.argmin(np.abs(wavenumbers - points[1]))
+    p3 = np.argmin(np.abs(wavenumbers - points[0]))
+
+    # Resolution on the x-axis used in the hyperbolic tangent function
+    dx = 0.094
+
+    x1 = np.linspace(-(p1 - 1) * dx, 0, p1)
+    x2 = np.linspace(dx, np.floor((p2 - p1) / 2) * dx, np.int(np.floor((p2 - p1) / 2)))
+
+    xp1 = np.hstack([x1, x2])
+
+    x3 = np.linspace(-(np.ceil((p2 - p1) / 2) - 1) * dx, 0, np.int((np.ceil((p2 - p1) / 2))))
+    x4 = np.linspace(dx, np.floor((p3 - p2) / 2) * dx, np.int(np.floor((p3 - p2) / 2)))
+
+    xp2 = np.hstack([x3, x4])
+
+    x5 = np.linspace(-(np.ceil((p3 - p2) / 2) - 1) * dx, 0, np.int((np.ceil((p3 - p2) / 2))))
+    x6 = np.linspace(dx, (len(wavenumbers) - p3) * dx, np.int(len(wavenumbers) - p3))
+
+    xp3 = np.hstack([x5, x6])
+
+    patch1 = 1 - hypTan(xp1, kappa[2])
+    patch2 = hypTan(xp2, kappa[1])
+    patch3 = 1 - hypTan(xp3, kappa[0])
+
+    wei_X = np.hstack([patch1, patch2, patch3])
+
+    if points[3]:
+        p0 = np.argmin(np.abs(wavenumbers - points[3]))
+
+        x1a = np.linspace(-(p0 - 1) * dx, 0, p0)
+        x2a = np.linspace(dx, np.floor((p1 - p0) / 2) * dx, np.int(np.floor((p1 - p0) / 2)))
+        x3a = np.linspace(-(np.ceil((p1 - p0) / 2) - 1) * dx, 0, np.int((np.ceil((p1 - p0) / 2))))
+
+        xp0 = np.hstack([x1a, x2a])
+        xp1 = np.hstack([x3a, x2])
+
+        patch0 = hypTan(xp0, kappa[3])
+        patch1 = 1 - hypTan(xp1, kappa[2])
+        wei_X = np.hstack([patch0, patch1, patch2, patch3])
+
+    wei_X = wei_X.reshape(1, -1)
+    dom = Orange.data.Domain(
+        [Orange.data.ContinuousVariable(name=str(float(a))) for a in wavenumbers])
+    data = Orange.data.Table.from_numpy(dom, wei_X)
+    return data
 
 
 class TestME_EMSC(unittest.TestCase):
@@ -133,3 +207,30 @@ class TestME_EMSC(unittest.TestCase):
         reference = Orange.data.Table(domain_reference, Matrigelshort)
         # it was crashing before
         ME_EMSC(reference=reference)(self.spectra)
+
+
+class TestInflectionPointWeighting(unittest.TestCase):
+
+    def test_weights_from_inflection_points_old_use(self):
+        ws = 5  # spacing between wavenumbers
+        dx = 0.094  # hardcoded constant from weights_from_inflection_points_legacy
+
+        wns = np.arange(0, 5000, ws)
+
+        # at > 3700 towards 0, at > 1900 towards 1
+        weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 0], [1, 1, 1, 1], wns)
+        oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
+        oldy = weights.X[0]
+        new = Sum(SmoothedSelectionFunction(2800, 3700, ws / dx, 1),
+                  SmoothedSelectionFunction(-1000, 1900, ws / dx, 1))
+        newy = new(oldx)
+        self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)
+
+        # at > 3700 towards 0, at > 1000 towards 0
+        weights = weights_from_inflection_points_legacy([3700, 2800, 1900, 1000], [1, 1, 1, 1], wns)
+        oldx = wns + ws  # shift due to a bug in weights_from_inflection_points_legacy
+        oldy = weights.X[0]
+        new = Sum(SmoothedSelectionFunction(2800, 3700, ws / dx, 1),
+                  SmoothedSelectionFunction(1000, 1900, ws / dx, 1))
+        newy = new(oldx)
+        self.assertLess(np.max(np.abs(newy-oldy)), 1e-7)

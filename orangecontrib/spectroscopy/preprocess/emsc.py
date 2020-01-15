@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import nextafter
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
@@ -12,60 +11,50 @@ except ImportError:
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
     interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException
+from orangecontrib.spectroscopy.preprocess.npfunc import Function, Segments
 
 
-def ranges_to_weight_table(ranges):
+class SelectionFunction(Segments):
     """
-    Create a table of weights from ranges. Include only edge points of ranges.
-    Include each edge point twice: once as values within the range and zero
-    value outside the range (with this output the weights can easily be interpolated).
-
-    Weights of overlapping intervals are summed.
-
-    Assumes 64-bit floats.
-
-    :param ranges: list of triples (edge1, edge2, weight)
-    :return: an Orange.data.Table
+    Weighted selection function. Includes min and max.
     """
+    def __init__(self, min_, max_, w):
+        super().__init__((lambda x: True,
+                          lambda x: 0),
+                         (lambda x: np.logical_and(x >= min_, x <= max_),
+                          lambda x: w))
 
-    values = {}
 
-    inf = float("inf")
-    minf = float("-inf")
+class SmoothedSelectionFunction(Segments):
+    """
+    Weighted selection function. Min and max points are middle
+    points of smoothing with hyperbolic tangent.
+    """
+    def __init__(self, min_, max_, s, w):
+        middle = (min_ + max_) / 2
+        super().__init__((lambda x: x < middle,
+                          lambda x: (np.tanh((x - min_) / s) + 1) / 2 * w),
+                         (lambda x: x >= middle,
+                          lambda x: (-np.tanh((x - max_) / s) + 1) / 2 * w))
 
-    def dict_to_numpy(d):
-        x = []
-        y = []
-        for a, b in d.items():
-            x.append(a)
-            y.append(b)
-        return np.array(x), np.array([y])
 
-    for l, r, w in ranges:
-        l, r = min(l, r), max(l, r)
-        positions = [nextafter(l, minf), l, r, nextafter(r, inf)]
-        weights = [0., float(w), float(w), 0.]
-
-        all_positions = list(set(positions) | set(values))  # new and old positions
-
-        # current values on all position
-        x, y = dict_to_numpy(values)
-        current = interp1d_with_unknowns_numpy(x, y, all_positions)[0]
-        current[np.isnan(current)] = 0
-
-        # new values on all positions
-        new = interp1d_with_unknowns_numpy(np.array(positions), np.array([weights]),
-                                           all_positions)[0]
-        new[np.isnan(new)] = 0
-
-        # update values
-        for p, f in zip(all_positions, current + new):
-            values[p] = f
-
-    x, y = dict_to_numpy(values)
-    dom = Orange.data.Domain([Orange.data.ContinuousVariable(name=str(float(a))) for a in x])
-    data = Orange.data.Table.from_numpy(dom, y)
-    return data
+def weighted_wavenumbers(weights, wavenumbers):
+    """
+    Return weights for the given wavenumbers. If weights are a data table,
+    the weights are interpolated. If they are a npfunc.Function, the function is
+    computed on the given wavenumbers.
+    """
+    if isinstance(weights, Function):
+        return weights(wavenumbers).reshape(1, -1)
+    elif weights:
+        # interpolate reference to the data
+        w = interp1d_with_unknowns_numpy(getx(weights), weights.X, wavenumbers)
+        # set whichever weights are undefined (usually at edges) to zero
+        w[np.isnan(w)] = 0
+        return w
+    else:
+        w = np.ones((1, len(wavenumbers)))
+        return w
 
 
 class EMSCFeature(SelectColumn):
@@ -100,14 +89,7 @@ class _EMSC(CommonDomainOrderUnknowns):
             return interpolated
 
         ref_X = interpolate_to_data(getx(self.reference), ref_X)
-
-        if self.weights:
-            # interpolate reference to the data
-            wei_X = interp1d_with_unknowns_numpy(getx(self.weights), self.weights.X, wavenumbers)
-            # set whichever weights are undefined (usually at edges) to zero
-            wei_X[np.isnan(wei_X)] = 0
-        else:
-            wei_X = np.ones((1, len(wavenumbers)))
+        wei_X = weighted_wavenumbers(self.weights, wavenumbers)
 
         N = wavenumbers.shape[0]
         m0 = - 2.0 / (wavenumbers[0] - wavenumbers[N - 1])
