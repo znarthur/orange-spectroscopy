@@ -21,7 +21,8 @@ class TestBaselineEditor(PreprocessorEditorTest):
         self.send_signal(self.widget.Inputs.data, self.data)
 
     def test_no_interaction(self):
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertIsInstance(p, LinearBaseline)
         self.assertIs(p.zero_points, None)
@@ -39,12 +40,14 @@ class TestBaselineEditor(PreprocessorEditorTest):
         dmin, dmax = min(getx(self.data)), max(getx(self.data))
         # first addition adds two limits
         self.editor.range_button.click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertEqual(p.zero_points, [dmin, dmax])
         # the second addition adds one limit
         self.editor.range_button.click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertEqual(p.zero_points, [dmin, dmax, (dmin + dmax)/2])
 
@@ -55,13 +58,15 @@ class TestBaselineEditor(PreprocessorEditorTest):
         second = list(layout_widgets(self.editor.ranges_box))[1]
         button = list(layout_widgets(second))[1]
         button.click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertEqual(p.zero_points, [dmin, (dmin + dmax)/2])
         # if there are two entries, remove both
         second = list(layout_widgets(self.editor.ranges_box))[1]
         button = list(layout_widgets(second))[1]
         button.click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertEqual(p.zero_points, None)

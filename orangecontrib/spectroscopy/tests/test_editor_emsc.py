@@ -23,7 +23,8 @@ class TestEMSCEditor(PreprocessorEditorTest):
     def test_no_interaction(self):
         reference = SMALL_COLLAGEN
         self.send_signal(self.widget.Inputs.reference, reference)
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertIsInstance(p, EMSC)
 

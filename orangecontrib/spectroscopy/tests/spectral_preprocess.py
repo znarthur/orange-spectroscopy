@@ -99,14 +99,16 @@ class TestWarning(WidgetTest):
     def test_exception_apply(self):
         self.editor.raise_exception = True
         self.editor.edited.emit()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertIsNone(self.get_output(self.widget.Outputs.preprocessed_data))
         self.assertIsNone(self.get_output(self.widget.Outputs.preprocessor))
 
         self.editor.raise_exception = False
         self.editor.edited.emit()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         self.assertFalse(self.widget.Error.applying.is_shown())
         self.assertIsNotNone(self.get_output(self.widget.Outputs.preprocessed_data))
         self.assertIsNotNone(self.get_output(self.widget.Outputs.preprocessor))

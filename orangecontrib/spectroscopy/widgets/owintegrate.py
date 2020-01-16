@@ -1,4 +1,5 @@
 import sys
+import time
 
 from AnyQt.QtWidgets import QFormLayout, QSizePolicy
 
@@ -7,7 +8,7 @@ import numpy as np
 import Orange.data
 from Orange import preprocess
 from Orange.widgets.data.owpreprocess import (
-    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked
+    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked,
 )
 from Orange.widgets import gui, settings
 from Orange.widgets.widget import Output, Msg
@@ -18,7 +19,7 @@ from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owpreprocess import (
-    SpectralPreprocess
+    SpectralPreprocess, create_preprocessor, InterruptException
 )
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     SetXDoubleSpinBox
@@ -244,22 +245,43 @@ class OWIntegrate(SpectralPreprocess):
         self.redraw_integral()
 
     def create_outputs(self):
-        data = self.data
-        preprocessor = self._build_preprocessor()
+        pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
+        self.start(self.run_task, self.data, pp_def, self.output_metas)
+
+    @staticmethod
+    def run_task(data: Orange.data.Table, pp_def, output_metas, state):
+
+        def progress_interrupt(i: float):
+            state.set_progress_value(i)
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        # Protects against running the task in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Wait 100 ms before processing - if a new task is started in meanwhile,
+        # allow that is easily` cancelled.
+        for i in range(10):
+            time.sleep(0.005)
+            progress_interrupt(0)
+
+        n = len(pp_def)
+        plist = []
+        for i in range(n):
+            progress_interrupt(0)
+            item = pp_def[i]
+            pp = create_preprocessor(item, None)
+            plist.append(pp)
+
+        preprocessor = None
+        if plist:
+            preprocessor = PreprocessorListMoveMetas(not output_metas, preprocessors=plist)
+
         if data is not None and preprocessor is not None:
             data = preprocessor(data)
-        return data, preprocessor
 
-    def _build_preprocessor(self):
-        plist = []
-        for i in range(self.preprocessormodel.rowCount()):
-            item = self.preprocessormodel.item(i)
-            pp = self._create_preprocessor(item, None)
-            plist.append(pp)
-        if plist:
-            return PreprocessorListMoveMetas(not self.output_metas, preprocessors=plist)
-        else:
-            return None
+        progress_interrupt(100)
+
+        return data, preprocessor
 
 
 class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):

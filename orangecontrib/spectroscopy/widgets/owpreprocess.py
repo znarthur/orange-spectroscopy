@@ -1,6 +1,7 @@
 import random
 from collections import Iterable
 from decimal import Decimal
+import time
 
 from extranormal3 import curved_tools
 
@@ -20,6 +21,7 @@ from Orange.widgets.data.owpreprocess import (
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
+from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin
 
 from AnyQt.QtCore import (
     Qt, QEvent, QSize, QMimeData, QTimer
@@ -1136,7 +1138,27 @@ class PrepareSavingSettingsHandler(SettingsHandler):
         return super().pack_data(widget)
 
 
-class SpectralPreprocess(OWWidget):
+def prepare_params(params, reference):
+    if not isinstance(params, dict):
+        params = {}
+    # add optional reference data
+    params[REFERENCE_DATA_PARAM] = reference
+    return params
+
+
+def create_preprocessor(item, reference):
+    desc = item.data(DescriptionRole)
+    params = item.data(ParametersRole)
+    params = prepare_params(params, reference)
+    create = desc.viewclass.createinstance
+    return create(params)
+
+
+class InterruptException(Exception):
+    pass
+
+
+class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin):
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
@@ -1176,10 +1198,10 @@ class SpectralPreprocess(OWWidget):
 
     def __init__(self):
         super().__init__()
+        ConcurrentWidgetMixin.__init__(self)
 
         self.data = None
         self.reference_data = None
-        self._invalidated = False
 
         # List of available preprocessors (DescriptionRole : Description)
         self.preprocessors = QStandardItemModel()
@@ -1328,7 +1350,7 @@ class SpectralPreprocess(OWWidget):
                 widgets[i].set_preview_data(data)
                 item = self.preprocessormodel.item(i)
                 try:
-                    preproc = self._create_preprocessor(item, reference_data)
+                    preproc = create_preprocessor(item, reference_data)
                     data = widgets[i].execute_instance(preproc, data)
                     if self.process_reference and reference_data is not None and i != n - 1:
                         reference_data = preproc(reference_data)
@@ -1395,7 +1417,7 @@ class SpectralPreprocess(OWWidget):
             # will be triggered by LayoutRequest event on the `flow_view`)
             self.__update_size_constraint()
 
-        # call apply() to output the preprocessor even if there is no input data
+        # output the preprocessor even if there is no input data
         self.unconditional_commit()
 
     def load(self, saved):
@@ -1478,47 +1500,33 @@ class SpectralPreprocess(OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
-    def _prepare_params(self, params, reference):
-        if not isinstance(params, dict):
-            params = {}
-        # add optional reference data
-        params[REFERENCE_DATA_PARAM] = reference
-        return params
-
-    def _create_preprocessor(self, item, reference):
-        desc = item.data(DescriptionRole)
-        params = item.data(ParametersRole)
-        params = self._prepare_params(params, reference)
-        create = desc.viewclass.createinstance
-        return create(params)
-
     def create_outputs(self):
         raise NotImplementedError()
 
-    def apply(self):
+    def commit(self):
         self.show_preview()
         self.Error.applying.clear()
-        try:
-            data, preprocessor = self.create_outputs()
-        except PreprocessException as e:
-            self.Error.applying(e.message())
-            data, preprocessor = None, None
+        self.create_outputs()
+
+    def on_partial_result(self, _):
+        pass
+
+    def on_done(self, results):
+        data, preprocessor = results
         self.Outputs.preprocessor.send(preprocessor)
         self.Outputs.preprocessed_data.send(data)
 
-    def commit(self):
-        # Do not run() apply immediately: delegate it to the event loop.
-        # Protects against running apply() in succession many times, as would
-        # happen when adding a preprocessor (there, commit() is called twice).
-        # Now, apply() will usually be only called once.
-        if not self._invalidated:
-            self._invalidated = True
-            QApplication.postEvent(self, QEvent(QEvent.User))
+    def on_exception(self, ex):
+        if isinstance(ex, InterruptException):
+            return  # do not change outputs if interrupted
 
-    def customEvent(self, event):
-        if event.type() == QEvent.User and self._invalidated:
-            self._invalidated = False
-            self.apply()
+        if isinstance(ex, PreprocessException):
+            self.Error.applying(ex.message())
+        else:
+            raise ex
+
+        self.Outputs.preprocessor.send(None)
+        self.Outputs.preprocessed_data.send(None)
 
     def eventFilter(self, receiver, event):
         if receiver is self.flow_view and event.type() == QEvent.LayoutRequest:
@@ -1533,6 +1541,7 @@ class SpectralPreprocess(OWWidget):
         super().storeSpecificSettings()
 
     def onDeleteWidget(self):
+        self.shutdown()
         self.data = None
         self.set_model(None)
         super().onDeleteWidget()
@@ -1606,19 +1615,39 @@ class OWPreprocess(SpectralPreprocessReference):
 
     def create_outputs(self):
         self._reference_compat_warning()
+        pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
+        self.start(self.run_task, self.data, self.reference_data, pp_def, self.process_reference)
+
+    @staticmethod
+    def run_task(data: Orange.data.Table, reference: Orange.data.Table,
+                 pp_def, process_reference, state: TaskState):
+
+        def progress_interrupt(i: float):
+            state.set_progress_value(i)
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        # Protects against running the task in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Wait 100 ms before processing - if a new task is started in meanwhile,
+        # allow that is easily` cancelled.
+        for i in range(10):
+            time.sleep(0.010)
+            progress_interrupt(0)
+
+        n = len(pp_def)
         plist = []
-        data = self.data
-        reference = self.reference_data
-        n = self.preprocessormodel.rowCount()
         for i in range(n):
-            item = self.preprocessormodel.item(i)
-            pp = self._create_preprocessor(item, reference)
+            progress_interrupt(i/n*100)
+            item = pp_def[i]
+            pp = create_preprocessor(item, reference)
             plist.append(pp)
             if data is not None:
                 data = pp(data)
-            if self.process_reference and reference is not None and i != n - 1:
+            progress_interrupt((i/n + 0.5/n)*100)
+            if process_reference and reference is not None and i != n - 1:
                 reference = pp(reference)
-        # output None if there are no preprocessors
+        # if there are no preprocessors, return None instead of an empty list
         preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
         return data, preprocessor
 
