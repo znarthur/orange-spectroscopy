@@ -16,14 +16,7 @@ from orangecontrib.spectroscopy.tests.util import smaller_data
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
 
 
-class TestOWPreprocess(WidgetTest):
-
-    def setUp(self):
-        self.widget = self.create_widget(OWPreprocess)
-
-    def test_load_unload(self):
-        self.send_signal("Data", Orange.data.Table("iris.tab"))
-        self.send_signal("Data", None)
+class TestAllPreprocessors(WidgetTest):
 
     def test_allpreproc_indv(self):
         data = Orange.data.Table("peach_juice.dpt")
@@ -84,6 +77,16 @@ class TestOWPreprocess(WidgetTest):
             self.widget.show_preview()
             self.widget.unconditional_commit()
             self.wait_until_finished()
+
+
+class TestOWPreprocess(WidgetTest):
+
+    def setUp(self):
+        self.widget = self.create_widget(OWPreprocess)
+
+    def test_load_unload(self):
+        self.send_signal("Data", Orange.data.Table("iris.tab"))
+        self.send_signal("Data", None)
 
     def test_transfer_highlight(self):
         data = SMALL_COLLAGEN
