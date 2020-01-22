@@ -331,25 +331,16 @@ class CutEditor(BaseEditorOrange):
         highlim = params.get("highlim", None)
         return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
 
-    def execute_instance(self, instance: Cut, data):
-        self.Warning.out_of_range.clear()
-        xs = getx(data)
-        if len(xs):
-            minx = np.min(xs)
-            maxx = np.max(xs)
-            if (instance.lowlim < minx and instance.highlim < minx) \
-                    or (instance.lowlim > maxx and instance.highlim > maxx):
-                self.parent_widget.Warning.preprocessor()
-                self.Warning.out_of_range()
-        return instance(data)
-
     def set_preview_data(self, data):
+        self.Warning.out_of_range.clear()
         x = getx(data)
         if len(x):
-            range = max(x) - min(x)
+            minx = np.min(x)
+            maxx = np.max(x)
+            range = maxx - minx
 
-            init_lowlim = round_virtual_pixels(min(x) + 0.1 * range, range)
-            init_highlim = round_virtual_pixels(max(x) - 0.1 * range, range)
+            init_lowlim = round_virtual_pixels(minx + 0.1 * range, range)
+            init_highlim = round_virtual_pixels(maxx - 0.1 * range, range)
 
             self._lowlime.set_default(init_lowlim)
             self._highlime.set_default(init_highlim)
@@ -358,6 +349,11 @@ class CutEditor(BaseEditorOrange):
                 self.lowlim = init_lowlim
                 self.highlim = init_highlim
                 self.edited.emit()
+
+            if (self.lowlim < minx and self.highlim < minx) \
+                    or (self.lowlim > maxx and self.highlim > maxx):
+                self.parent_widget.Warning.preprocessor()
+                self.Warning.out_of_range()
 
 
 class CutEditorInverse(CutEditor):
@@ -1160,6 +1156,8 @@ class InterruptException(Exception):
 
 class PreviewRunner(QObject, ConcurrentMixin):
 
+    preview_updated = Signal()
+
     def __init__(self, master):
         super().__init__(parent=master)
         ConcurrentMixin.__init__(self)
@@ -1189,6 +1187,9 @@ class PreviewRunner(QObject, ConcurrentMixin):
         if isinstance(ex, InterruptException):
             return
 
+        self.master.curveplot.set_data(self.preview_data)
+        self.master.curveplot_after.set_data(self.after_data)
+
         if isinstance(ex, PreprocessException):
             self.master.Error.preview(ex.message())
             widgets = self.master.flow_view.widgets()
@@ -1196,8 +1197,10 @@ class PreviewRunner(QObject, ConcurrentMixin):
                 w = widgets[self.last_partial]
                 if getattr(w, "Error", None):  # only BaseEditorOrange supports errors
                     w.Error.exception(ex.message())
+            self.preview_updated.emit()
         else:
             raise ex
+
 
     def on_done(self, result):
         orig_data, after_data = result
@@ -1213,6 +1216,8 @@ class PreviewRunner(QObject, ConcurrentMixin):
         self.master.curveplot_after.set_data(self.after_data)
 
         self.show_image_info(final_preview)
+
+        self.preview_updated.emit()
 
     def show_image_info(self, final_preview):
         master = self.master

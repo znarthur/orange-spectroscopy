@@ -1,6 +1,6 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor
+from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor, wait_for_preview
 from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS,\
     IntegrateSimpleEditor
 from orangecontrib.spectroscopy.tests import spectral_preprocess
@@ -21,8 +21,7 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            # direct calls the preview so that exceptions do not get lost in Qt
-            self.widget.show_preview()
+            wait_for_preview(self.widget)
             self.widget.unconditional_commit()
 
     def test_allint_indv_empty(self):
@@ -31,7 +30,7 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
+            wait_for_preview(self.widget)
             self.widget.unconditional_commit()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
@@ -43,7 +42,7 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
+            wait_for_preview(self.widget)
             self.widget.unconditional_commit()
 
     def test_saving_preview_position(self):
@@ -97,9 +96,11 @@ class TestOWIntegrate(WidgetTest):
         self.send_signal(OWIntegrate.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(IntegrateSimpleEditor))
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertEqual(0, len(self.widget.curveplot.markings))
         self.widget.flow_view.set_preview_n(0)
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertGreater(len(self.widget.curveplot.markings), 0)
 
     def test_out_of_range(self):
@@ -109,9 +110,11 @@ class TestOWIntegrate(WidgetTest):
         editor = self.widget.flow_view.widgets()[0]
         editor.set_value("Low limit", 0)
         editor.edited.emit()
+        wait_for_preview(self.widget)
         self.assertFalse(editor.Warning.out_of_range.is_shown())
         editor.set_value("Low limit", -1)
         editor.edited.emit()
+        wait_for_preview(self.widget)
         self.assertTrue(editor.Warning.out_of_range.is_shown())
 
 

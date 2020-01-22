@@ -1,3 +1,5 @@
+from AnyQt.QtTest import QSignalSpy
+
 from Orange.data import Table
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description
 from Orange.widgets.tests.base import WidgetTest
@@ -8,6 +10,11 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOra
 
 def pack_editor(editor):
     return PreprocessAction("", "", "", Description("Packed"), editor)
+
+
+def wait_for_preview(widget, timeout=5000):
+    spy = QSignalSpy(widget.preview_runner.preview_updated)
+    assert spy.wait(timeout), "Failed to get output in the specified timeout"
 
 
 class WarningEditor(BaseEditorOrange):
@@ -27,7 +34,7 @@ class WarningEditor(BaseEditorOrange):
     def parameters(self):
         return {"raise_exception": self.raise_exception}
 
-    def execute_instance(self, instance, data):
+    def set_preview_data(self, data):
         if self.warn_editor:
             self.Warning.some_warning()
         else:
@@ -35,8 +42,6 @@ class WarningEditor(BaseEditorOrange):
 
         if self.warn_widget:
             self.parent_widget.Warning.preprocessor()
-
-        return instance(data)
 
     @staticmethod
     def createinstance(params):
@@ -59,6 +64,7 @@ class TestWarning(WidgetTest):
 
     def test_no_warnings(self):
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertFalse(self.widget.Warning.preprocessor.is_shown())
         self.assertFalse(self.editor.Warning.some_warning.is_shown())
         self.assertTrue(self.editor.message_bar.isHidden())
@@ -66,32 +72,36 @@ class TestWarning(WidgetTest):
     def test_warn_widget(self):
         self.editor.warn_widget = True
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertTrue(self.widget.Warning.preprocessor.is_shown())
         self.editor.warn_widget = False
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertFalse(self.widget.Warning.preprocessor.is_shown())
 
     def test_warn_editor(self):
         self.editor.warn_editor = True
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertTrue(self.editor.Warning.some_warning.is_shown())
         self.assertFalse(self.editor.message_bar.isHidden())
         self.editor.warn_editor = False
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertFalse(self.editor.Warning.some_warning.is_shown())
         self.assertTrue(self.editor.message_bar.isHidden())
 
     def test_exception_preview(self):
         self.editor.raise_exception = True
         self.editor.edited.emit()
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertTrue(self.editor.Error.exception.is_shown())
         self.assertTrue(self.widget.Error.preview.is_shown())
         self.assertFalse(self.editor.message_bar.isHidden())
 
         self.editor.raise_exception = False
         self.editor.edited.emit()
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertFalse(self.editor.Error.exception.is_shown())
         self.assertFalse(self.widget.Error.preview.is_shown())
         self.assertTrue(self.editor.message_bar.isHidden())

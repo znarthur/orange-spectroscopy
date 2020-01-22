@@ -19,6 +19,7 @@ class TestEMSCEditor(PreprocessorEditorTest):
         self.editor = self.add_editor(EMSCEditor, self.widget)  # type: EMSCEditor
         self.data = SMALL_COLLAGEN
         self.send_signal(self.widget.Inputs.data, self.data)
+        self.wait_for_preview()  # ensure initialization with preview data
 
     def test_no_interaction(self):
         reference = SMALL_COLLAGEN

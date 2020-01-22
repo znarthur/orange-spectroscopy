@@ -103,20 +103,19 @@ class IntegrateOneEditor(BaseEditorOrange):
             values.append(params.get(name, 0.))
         return Integrate(methods=cls.integrator, limits=[values], metas=True)
 
-    def execute_instance(self, instance, data):
+    def set_preview_data(self, data):
         self.Warning.out_of_range.clear()
         if data:
             xs = getx(data)
             if len(xs):
                 minx = np.min(xs)
                 maxx = np.max(xs)
-                # we use single integrals per Integrate: len(instance.limits) == 1
-                limits = instance.limits[0]
+                limits = [self.__values.get(name, 0.)
+                          for ind, (name, _) in enumerate(self.integrator.parameters())]
                 for v in limits:
                     if v < minx or v > maxx:
                         self.parent_widget.Warning.preprocessor()
                         self.Warning.out_of_range()
-        return instance(data)
 
 
 class IntegrateSimpleEditor(IntegrateOneEditor):
@@ -130,6 +129,7 @@ class IntegrateSimpleEditor(IntegrateOneEditor):
                 self.set_value("Low limit", min(x))
                 self.set_value("High limit", max(x))
                 self.edited.emit()
+        super().set_preview_data(data)
 
 
 class IntegrateBaselineEditor(IntegrateSimpleEditor):
@@ -157,6 +157,7 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
             if len(x):
                 self.set_value("Closest to", min(x))
                 self.edited.emit()
+        super().set_preview_data(data)
 
 
 class IntegratePeakXEditor(IntegrateSimpleEditor):

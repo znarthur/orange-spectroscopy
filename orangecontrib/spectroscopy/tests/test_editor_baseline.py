@@ -19,6 +19,7 @@ class TestBaselineEditor(PreprocessorEditorTest):
         self.editor = self.add_editor(BaselineEditor, self.widget)
         self.data = SMALL_COLLAGEN
         self.send_signal(self.widget.Inputs.data, self.data)
+        self.wait_for_preview()  # ensure initialization with preview data
 
     def test_no_interaction(self):
         self.widget.unconditional_commit()

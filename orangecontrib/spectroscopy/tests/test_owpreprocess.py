@@ -6,7 +6,7 @@ from Orange.preprocess.preprocess import Preprocess
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.tests import spectral_preprocess
-from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor
+from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor, wait_for_preview
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
     CutEditor, SavitzkyGolayFilteringEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
@@ -24,9 +24,8 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            # direct calls the preview so that exceptions do not get lost in Qt
-            self.widget.show_preview()
             self.widget.unconditional_commit()
+            wait_for_preview(self.widget)
             self.wait_until_finished()
 
     def test_allpreproc_indv_empty(self):
@@ -35,8 +34,8 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
             self.widget.unconditional_commit()
+            wait_for_preview(self.widget)
             self.wait_until_finished()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
@@ -48,8 +47,8 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
             self.widget.unconditional_commit()
+            wait_for_preview(self.widget)
             self.wait_until_finished()
 
     def test_allpreproc_indv_ref(self):
@@ -59,9 +58,8 @@ class TestAllPreprocessors(WidgetTest):
             self.send_signal("Data", data)
             self.send_signal("Reference", data)
             self.widget.add_preprocessor(p)
-            # direct calls the preview so that exceptions do not get lost in Qt
-            self.widget.show_preview()
             self.widget.unconditional_commit()
+            wait_for_preview(self.widget)
             self.wait_until_finished()
 
     def test_allpreproc_indv_ref_multi(self):
@@ -73,9 +71,8 @@ class TestAllPreprocessors(WidgetTest):
             self.send_signal("Data", data)
             self.send_signal("Reference", data)
             self.widget.add_preprocessor(p)
-            # direct calls the preview so that exceptions do not get lost in Qt
-            self.widget.show_preview()
             self.widget.unconditional_commit()
+            wait_for_preview(self.widget)
             self.wait_until_finished()
 
 
@@ -91,6 +88,7 @@ class TestOWPreprocess(WidgetTest):
     def test_transfer_highlight(self):
         data = SMALL_COLLAGEN
         self.send_signal("Data", data)
+        wait_for_preview(self.widget)
         self.widget.curveplot.highlight(1)
         self.assertEqual(self.widget.curveplot_after.highlighted, 1)
         self.widget.curveplot.highlight(None)
@@ -243,6 +241,7 @@ class TestSampling(WidgetTest):
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
         self.widget.preview_curves = 3
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertEqual(3, len(RememberData.data))
 
     def test_preview_keep_order(self):
@@ -252,9 +251,11 @@ class TestSampling(WidgetTest):
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
         self.widget.preview_curves = 3
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         ids_old = RememberData.data.ids
         self.widget.preview_curves = 4
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         ids_new = RememberData.data.ids
         self.assertEqual(4, len(ids_new))
         self.assertEqual(list(ids_old), list(ids_new[:len(ids_old)]))
@@ -299,7 +300,7 @@ class TestReference(WidgetTest):
         self.send_signal("Reference", data)
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         processed = getx(RememberData.reference)
         # cut by default cuts 10% of the data on both edges
         original = getx(data)
@@ -319,7 +320,7 @@ class TestReference(WidgetTest):
         self.send_signal("Reference", data)
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertIs(data, RememberData.reference)
         self.assertTrue(self.widget.Warning.reference_compat.is_shown())
         self.widget.unconditional_commit()
@@ -354,16 +355,19 @@ class TestPreprocessWarning(spectral_preprocess.TestWarning):
     def test_exception_preview_after_data(self):
         self.editor.raise_exception = True
         self.editor.edited.emit()
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertIsNone(self.widget.curveplot_after.data)
 
         self.editor.raise_exception = False
         self.editor.edited.emit()
-        self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertIsNotNone(self.widget.curveplot_after.data)
 
 
 class PreprocessorEditorTest(WidgetTest):
+
+    def wait_for_preview(self):
+        wait_for_preview(self.widget)
 
     def add_editor(self, cls, widget):
         # type: (Type[T], object) -> T

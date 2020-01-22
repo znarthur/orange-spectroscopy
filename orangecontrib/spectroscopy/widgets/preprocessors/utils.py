@@ -12,21 +12,16 @@ from orangecontrib.spectroscopy.data import getx
 class BaseEditor(BaseEditor):
 
     def set_preview_data(self, data):
-        """Handle the preview data (initialize parameters)"""
+        """Handle the preview data (initialize parameters).
+
+        Here, editors can check if preview data corresponds to the settings
+        and warn users.
+        """
         pass
 
     def set_reference_data(self, data):
         """Set the reference data"""
         pass
-
-    def execute_instance(self, instance, data):
-        """Execute the preprocessor instance with the given data and return
-        the transformed data.
-
-        This function will be called when generating previews. An Editor
-        can here handle exceptions in the preprocessor and pass warnings to the interface.
-        """
-        return instance(data)
 
 
 class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
