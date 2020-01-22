@@ -53,6 +53,7 @@ class IntegrateOneEditor(BaseEditorOrange):
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)
             def cf(x, name=name):
+                self.edited.emit()
                 return self.set_value(name, x)
             e.valueChanged[float].connect(cf)
             self.__editors[name] = e
@@ -60,7 +61,6 @@ class IntegrateOneEditor(BaseEditorOrange):
 
             l = MovableVline(position=v, label=name)
             l.sigMoved.connect(cf)
-            l.sigMoveFinished.connect(self.edited)
             self.__lines[name] = l
 
         self.focusIn = self.activateOptions
@@ -83,7 +83,6 @@ class IntegrateOneEditor(BaseEditorOrange):
             with blocked(self.__editors[name]):
                 self.__editors[name].setValue(v)
                 self.__lines[name].setValue(v)
-            self.parent_widget.redraw_integral()
             self.changed.emit()
 
     def setParameters(self, params):
@@ -216,6 +215,7 @@ class OWIntegrate(SpectralPreprocess):
         self.curveplot.selection_type = SELECTONE
         self.curveplot.select_at_least_1 = True
         self.curveplot.selection_changed.connect(self.redraw_integral)
+        self.preview_runner.preview_updated.connect(self.redraw_integral)
 
     def redraw_integral(self):
         dis = []
@@ -243,7 +243,6 @@ class OWIntegrate(SpectralPreprocess):
     def show_preview(self, show_info_anyway=False):
         # redraw integrals if number of preview curves was changed
         super().show_preview(False)
-        self.redraw_integral()
 
     def create_outputs(self):
         pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
