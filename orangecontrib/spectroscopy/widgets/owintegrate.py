@@ -239,7 +239,7 @@ class OWIntegrate(SpectralPreprocess):
                     dis.append({"draw": di, "color": color})
         refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
-    def show_preview(self, show_info=False):
+    def show_preview(self, show_info_anyway=False):
         # redraw integrals if number of preview curves was changed
         super().show_preview(False)
         self.redraw_integral()
