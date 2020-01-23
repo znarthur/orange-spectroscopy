@@ -15,7 +15,8 @@ class TestNormalizeEditor(PreprocessorEditorTest):
         self.send_signal(OWPreprocess.Inputs.data, data)
 
     def test_no_interaction(self):
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         out = self.get_output(self.widget.Outputs.preprocessor)
         p = out.preprocessors[0]
         self.assertIsInstance(p, Normalize)
@@ -25,7 +26,8 @@ class TestNormalizeEditor(PreprocessorEditorTest):
         reference = SMALL_COLLAGEN[:1]
         self.send_signal(self.widget.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         out = self.get_output(self.widget.Outputs.preprocessor)
         p = out.preprocessors[0]
         self.assertIsInstance(p, NormalizeReference)
@@ -33,7 +35,8 @@ class TestNormalizeEditor(PreprocessorEditorTest):
 
     def test_normalize_by_reference_no_reference(self):
         self.editor._group.buttons()[3].click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertTrue(self.editor.Error.exception.is_shown())
         out = self.get_output(self.widget.Outputs.preprocessor)
@@ -43,7 +46,8 @@ class TestNormalizeEditor(PreprocessorEditorTest):
         reference = SMALL_COLLAGEN[:2]
         self.send_signal(self.widget.Inputs.reference, reference)
         self.editor._group.buttons()[3].click()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertTrue(self.editor.Error.exception.is_shown())
         out = self.get_output(self.widget.Outputs.preprocessor)

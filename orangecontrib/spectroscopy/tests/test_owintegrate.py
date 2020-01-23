@@ -1,6 +1,6 @@
 import Orange
 from Orange.widgets.tests.base import WidgetTest
-from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor
+from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor, wait_for_preview
 from orangecontrib.spectroscopy.widgets.owintegrate import OWIntegrate, PREPROCESSORS,\
     IntegrateSimpleEditor
 from orangecontrib.spectroscopy.tests import spectral_preprocess
@@ -21,9 +21,8 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            # direct calls the preview so that exceptions do not get lost in Qt
-            self.widget.show_preview()
-            self.widget.apply()
+            wait_for_preview(self.widget)
+            self.widget.unconditional_commit()
 
     def test_allint_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -31,8 +30,8 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
-            self.widget.apply()
+            wait_for_preview(self.widget)
+            self.widget.unconditional_commit()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = data.transform(
@@ -43,8 +42,8 @@ class TestOWIntegrate(WidgetTest):
             self.widget = self.create_widget(OWIntegrate)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.show_preview()  # direct call
-            self.widget.apply()
+            wait_for_preview(self.widget)
+            self.widget.unconditional_commit()
 
     def test_saving_preview_position(self):
         self.send_signal("Data", Orange.data.Table("iris.tab"))
@@ -68,7 +67,7 @@ class TestOWIntegrate(WidgetTest):
         self.widget.output_metas = True
         self.send_signal(OWIntegrate.Inputs.data, data)
         self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
-        self.widget.apply()
+        self.widget.unconditional_commit()
         out_data = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(len(data.domain.attributes), len(out_data.domain.attributes))
         self.assertEqual(1, len(out_data.domain.metas))
@@ -82,7 +81,7 @@ class TestOWIntegrate(WidgetTest):
         data = Orange.data.Table("iris.tab")
         self.send_signal(self.widget.Inputs.data, data)
         self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
-        self.widget.apply()
+        self.widget.unconditional_commit()
         out_data = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(1, len(out_data.domain.attributes))
         self.assertEqual(0, len(out_data.domain.metas))
@@ -97,9 +96,11 @@ class TestOWIntegrate(WidgetTest):
         self.send_signal(OWIntegrate.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(IntegrateSimpleEditor))
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertEqual(0, len(self.widget.curveplot.markings))
         self.widget.flow_view.set_preview_n(0)
         self.widget.show_preview()
+        wait_for_preview(self.widget)
         self.assertGreater(len(self.widget.curveplot.markings), 0)
 
     def test_out_of_range(self):
@@ -109,9 +110,11 @@ class TestOWIntegrate(WidgetTest):
         editor = self.widget.flow_view.widgets()[0]
         editor.set_value("Low limit", 0)
         editor.edited.emit()
+        wait_for_preview(self.widget)
         self.assertFalse(editor.Warning.out_of_range.is_shown())
         editor.set_value("Low limit", -1)
         editor.edited.emit()
+        wait_for_preview(self.widget)
         self.assertTrue(editor.Warning.out_of_range.is_shown())
 
 

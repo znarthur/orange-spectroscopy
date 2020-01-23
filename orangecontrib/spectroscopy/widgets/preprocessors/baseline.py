@@ -51,6 +51,8 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
         self.reference_curve.setPen(pg.mkPen(color=QColor(Qt.red), width=2.))
         self.reference_curve.setZValue(10)
 
+        self.preview_data = None
+
         self.user_changed = False
 
         self._adapt_ui()

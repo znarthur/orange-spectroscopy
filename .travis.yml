@@ -8,7 +8,7 @@ matrix:
       env: ORANGE="release"  RUN_PYLINT=true
 
     - python: '3.6'
-      env: ORANGE="3.11.0"
+      env: ORANGE="3.24.0"
 
     - python: '3.6'
       env: ORANGE="release"  UPLOAD_COVERAGE=true
@@ -25,8 +25,6 @@ cache:
 install:
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel codecov
-    # Orange before 3.18.0 is imcompatible with scikit-learn 0.22+
-    - if [ $ORANGE = "3.11.0" ]; then pip install scikit-learn~=0.21.0; fi
     # 20180124 force PyQt 5.9.2 due to segfaults on new 5.10
     - pip install pyqt5==5.9.2
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh

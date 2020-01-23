@@ -1,4 +1,5 @@
 import sys
+import time
 
 from AnyQt.QtWidgets import QFormLayout, QSizePolicy
 
@@ -7,7 +8,7 @@ import numpy as np
 import Orange.data
 from Orange import preprocess
 from Orange.widgets.data.owpreprocess import (
-    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked
+    PreprocessAction, Description, icon_path, DescriptionRole, ParametersRole, blocked,
 )
 from Orange.widgets import gui, settings
 from Orange.widgets.widget import Output, Msg
@@ -18,7 +19,7 @@ from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owpreprocess import (
-    SpectralPreprocess
+    SpectralPreprocess, create_preprocessor, InterruptException
 )
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     SetXDoubleSpinBox
@@ -52,6 +53,7 @@ class IntegrateOneEditor(BaseEditorOrange):
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)
             def cf(x, name=name):
+                self.edited.emit()
                 return self.set_value(name, x)
             e.valueChanged[float].connect(cf)
             self.__editors[name] = e
@@ -59,7 +61,6 @@ class IntegrateOneEditor(BaseEditorOrange):
 
             l = MovableVline(position=v, label=name)
             l.sigMoved.connect(cf)
-            l.sigMoveFinished.connect(self.edited)
             self.__lines[name] = l
 
         self.focusIn = self.activateOptions
@@ -82,7 +83,6 @@ class IntegrateOneEditor(BaseEditorOrange):
             with blocked(self.__editors[name]):
                 self.__editors[name].setValue(v)
                 self.__lines[name].setValue(v)
-            self.parent_widget.redraw_integral()
             self.changed.emit()
 
     def setParameters(self, params):
@@ -102,20 +102,19 @@ class IntegrateOneEditor(BaseEditorOrange):
             values.append(params.get(name, 0.))
         return Integrate(methods=cls.integrator, limits=[values], metas=True)
 
-    def execute_instance(self, instance, data):
+    def set_preview_data(self, data):
         self.Warning.out_of_range.clear()
         if data:
             xs = getx(data)
             if len(xs):
                 minx = np.min(xs)
                 maxx = np.max(xs)
-                # we use single integrals per Integrate: len(instance.limits) == 1
-                limits = instance.limits[0]
+                limits = [self.__values.get(name, 0.)
+                          for ind, (name, _) in enumerate(self.integrator.parameters())]
                 for v in limits:
                     if v < minx or v > maxx:
                         self.parent_widget.Warning.preprocessor()
                         self.Warning.out_of_range()
-        return instance(data)
 
 
 class IntegrateSimpleEditor(IntegrateOneEditor):
@@ -129,6 +128,7 @@ class IntegrateSimpleEditor(IntegrateOneEditor):
                 self.set_value("Low limit", min(x))
                 self.set_value("High limit", max(x))
                 self.edited.emit()
+        super().set_preview_data(data)
 
 
 class IntegrateBaselineEditor(IntegrateSimpleEditor):
@@ -156,6 +156,7 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
             if len(x):
                 self.set_value("Closest to", min(x))
                 self.edited.emit()
+        super().set_preview_data(data)
 
 
 class IntegratePeakXEditor(IntegrateSimpleEditor):
@@ -214,6 +215,7 @@ class OWIntegrate(SpectralPreprocess):
         self.curveplot.selection_type = SELECTONE
         self.curveplot.select_at_least_1 = True
         self.curveplot.selection_changed.connect(self.redraw_integral)
+        self.preview_runner.preview_updated.connect(self.redraw_integral)
 
     def redraw_integral(self):
         dis = []
@@ -238,28 +240,48 @@ class OWIntegrate(SpectralPreprocess):
                     dis.append({"draw": di, "color": color})
         refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
-    def show_preview(self, show_info=False):
+    def show_preview(self, show_info_anyway=False):
         # redraw integrals if number of preview curves was changed
         super().show_preview(False)
-        self.redraw_integral()
 
     def create_outputs(self):
-        data = self.data
-        preprocessor = self._build_preprocessor()
+        pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
+        self.start(self.run_task, self.data, pp_def, self.output_metas)
+
+    @staticmethod
+    def run_task(data: Orange.data.Table, pp_def, output_metas, state):
+
+        def progress_interrupt(i: float):
+            state.set_progress_value(i)
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        # Protects against running the task in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Wait 100 ms before processing - if a new task is started in meanwhile,
+        # allow that is easily` cancelled.
+        for i in range(10):
+            time.sleep(0.005)
+            progress_interrupt(0)
+
+        n = len(pp_def)
+        plist = []
+        for i in range(n):
+            progress_interrupt(0)
+            item = pp_def[i]
+            pp = create_preprocessor(item, None)
+            plist.append(pp)
+
+        preprocessor = None
+        if plist:
+            preprocessor = PreprocessorListMoveMetas(not output_metas, preprocessors=plist)
+
         if data is not None and preprocessor is not None:
             data = preprocessor(data)
-        return data, preprocessor
 
-    def _build_preprocessor(self):
-        plist = []
-        for i in range(self.preprocessormodel.rowCount()):
-            item = self.preprocessormodel.item(i)
-            pp = self._create_preprocessor(item, None)
-            plist.append(pp)
-        if plist:
-            return PreprocessorListMoveMetas(not self.output_metas, preprocessors=plist)
-        else:
-            return None
+        progress_interrupt(100)
+
+        return data, preprocessor
 
 
 class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):

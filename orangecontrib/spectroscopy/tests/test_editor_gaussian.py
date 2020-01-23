@@ -19,7 +19,8 @@ class TestGaussianEditor(PreprocessorEditorTest):
         self.send_signal(self.widget.Inputs.data, data)
 
     def test_no_interaction(self):
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertIsInstance(p, GaussianSmoothing)
         self.assertEqual(p.sd, GaussianSmoothingEditor.DEFAULT_SD)
@@ -27,14 +28,16 @@ class TestGaussianEditor(PreprocessorEditorTest):
     def test_zero(self):
         self.editor.sd = 0
         self.editor.edited.emit()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertEqual(p.sd, 0)
 
     def test_basic(self):
         self.editor.sd = 1.5
         self.editor.edited.emit()
-        self.widget.apply()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
         self.process_events()
         p = self.get_preprocessor()  # type: GaussianSmoothing
         self.assertEqual(1.5, p.sd)

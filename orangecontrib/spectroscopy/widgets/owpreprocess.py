@@ -1,6 +1,7 @@
 import random
 from collections import Iterable
 from decimal import Decimal
+import time
 
 from extranormal3 import curved_tools
 
@@ -20,6 +21,7 @@ from Orange.widgets.data.owpreprocess import (
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
 from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
+from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin, ConcurrentMixin
 
 from AnyQt.QtCore import (
     Qt, QEvent, QSize, QMimeData, QTimer
@@ -34,7 +36,7 @@ from AnyQt.QtGui import (
     QIcon, QStandardItemModel, QStandardItem,
     QKeySequence, QFont, QColor
 )
-from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
+from AnyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot, QObject
 
 from orangecontrib.spectroscopy.data import getx
 
@@ -193,7 +195,7 @@ class SequenceFlow(SequenceFlow):
                 if sender != f:
                     f.set_preview(False)
 
-        self.preview_callback(show_info=True)
+        self.preview_callback()
 
     def insertWidget(self, index, widget, title):
         """ Mostly copied to get different kind of frame """
@@ -329,25 +331,16 @@ class CutEditor(BaseEditorOrange):
         highlim = params.get("highlim", None)
         return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
 
-    def execute_instance(self, instance: Cut, data):
-        self.Warning.out_of_range.clear()
-        xs = getx(data)
-        if len(xs):
-            minx = np.min(xs)
-            maxx = np.max(xs)
-            if (instance.lowlim < minx and instance.highlim < minx) \
-                    or (instance.lowlim > maxx and instance.highlim > maxx):
-                self.parent_widget.Warning.preprocessor()
-                self.Warning.out_of_range()
-        return instance(data)
-
     def set_preview_data(self, data):
+        self.Warning.out_of_range.clear()
         x = getx(data)
         if len(x):
-            range = max(x) - min(x)
+            minx = np.min(x)
+            maxx = np.max(x)
+            range = maxx - minx
 
-            init_lowlim = round_virtual_pixels(min(x) + 0.1 * range, range)
-            init_highlim = round_virtual_pixels(max(x) - 0.1 * range, range)
+            init_lowlim = round_virtual_pixels(minx + 0.1 * range, range)
+            init_highlim = round_virtual_pixels(maxx - 0.1 * range, range)
 
             self._lowlime.set_default(init_lowlim)
             self._highlime.set_default(init_highlim)
@@ -356,6 +349,11 @@ class CutEditor(BaseEditorOrange):
                 self.lowlim = init_lowlim
                 self.highlim = init_highlim
                 self.edited.emit()
+
+            if (self.lowlim < minx and self.highlim < minx) \
+                    or (self.lowlim > maxx and self.highlim > maxx):
+                self.parent_widget.Warning.preprocessor()
+                self.Warning.out_of_range()
 
 
 class CutEditorInverse(CutEditor):
@@ -1136,7 +1134,155 @@ class PrepareSavingSettingsHandler(SettingsHandler):
         return super().pack_data(widget)
 
 
-class SpectralPreprocess(OWWidget):
+def prepare_params(params, reference):
+    if not isinstance(params, dict):
+        params = {}
+    # add optional reference data
+    params[REFERENCE_DATA_PARAM] = reference
+    return params
+
+
+def create_preprocessor(item, reference):
+    desc = item.data(DescriptionRole)
+    params = item.data(ParametersRole)
+    params = prepare_params(params, reference)
+    create = desc.viewclass.createinstance
+    return create(params)
+
+
+class InterruptException(Exception):
+    pass
+
+
+class PreviewRunner(QObject, ConcurrentMixin):
+
+    preview_updated = Signal()
+
+    def __init__(self, master):
+        super().__init__(parent=master)
+        ConcurrentMixin.__init__(self)
+        self.master = master
+
+        # save state in function
+        self.last_text = ""
+        self.show_info_anyway = None
+        self.preview_pos = None
+        self.preview_data = None
+        self.after_data = None
+        self.last_partial = None
+
+    def on_partial_result(self, result):
+        i, data, reference = result
+        self.last_partial = i
+        if self.preview_pos == i:
+            self.preview_data = data
+        if self.preview_pos == i-1:
+            self.after_data = data
+        widgets = self.master.flow_view.widgets()
+        if i < len(widgets):
+            widgets[i].set_reference_data(reference)
+            widgets[i].set_preview_data(data)
+
+    def on_exception(self, ex: Exception):
+        if isinstance(ex, InterruptException):
+            return
+
+        self.master.curveplot.set_data(self.preview_data)
+        self.master.curveplot_after.set_data(self.after_data)
+
+        if isinstance(ex, PreprocessException):
+            self.master.Error.preview(ex.message())
+            widgets = self.master.flow_view.widgets()
+            if self.last_partial is not None and self.last_partial < len(widgets):
+                w = widgets[self.last_partial]
+                if getattr(w, "Error", None):  # only BaseEditorOrange supports errors
+                    w.Error.exception(ex.message())
+            self.preview_updated.emit()
+        else:
+            raise ex
+
+
+    def on_done(self, result):
+        orig_data, after_data = result
+        final_preview = self.preview_pos is None
+        if final_preview:
+            self.preview_data = orig_data
+            self.after_data = after_data
+
+        if self.preview_data is None:  # happens in OWIntegrate
+            self.preview_data = orig_data
+
+        self.master.curveplot.set_data(self.preview_data)
+        self.master.curveplot_after.set_data(self.after_data)
+
+        self.show_image_info(final_preview)
+
+        self.preview_updated.emit()
+
+    def show_image_info(self, final_preview):
+        master = self.master
+
+        if not master.preview_on_image:
+            master.final_preview_toggle = final_preview
+            if final_preview:
+                new_text = None
+            else:
+                item = master.preprocessormodel.item(self.preview_pos)
+                new_text = item.data(DescriptionRole).description.title
+
+            if new_text != self.last_text or self.show_info_anyway:
+                if new_text is None:
+                    master.curveplot_info.setText('Original data')
+                    master.curveplot_after_info.setText('Preprocessed data')
+                else:
+                    master.curveplot_info.setText('Input to "' + new_text + '"')
+                    master.curveplot_after_info.setText('Output of "' + new_text + '"')
+
+            self.last_text = new_text
+
+    def show_preview(self, show_info_anyway=False):
+        """ Shows preview and also passes preview data to the widgets """
+        master = self.master
+        self.preview_pos = master.flow_view.preview_n()
+        self.last_partial = None
+        self.show_info_anyway = show_info_anyway
+        self.preview_data = None
+        self.after_data = None
+        pp_def = [master.preprocessormodel.item(i)
+                  for i in range(master.preprocessormodel.rowCount())]
+        if master.data is not None:
+            data = master.sample_data(master.data)
+            self.start(self.run_preview, data, master.reference_data,
+                       pp_def, master.process_reference)
+        else:
+            master.curveplot.set_data(None)
+            master.curveplot_after.set_data(None)
+
+    @staticmethod
+    def run_preview(data: Orange.data.Table, reference: Orange.data.Table,
+                    pp_def, process_reference, state: TaskState):
+
+        def progress_interrupt(i: float):
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        n = len(pp_def)
+        orig_data = data
+        for i in range(n):
+            progress_interrupt(0)
+            state.set_partial_result((i, data, reference))
+            item = pp_def[i]
+            pp = create_preprocessor(item, reference)
+            data = pp(data)
+            progress_interrupt(0)
+            if process_reference and reference is not None and i != n - 1:
+                reference = pp(reference)
+        progress_interrupt(0)
+        state.set_partial_result((n, data, None))
+        return orig_data, data
+
+
+class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
@@ -1176,10 +1322,12 @@ class SpectralPreprocess(OWWidget):
 
     def __init__(self):
         super().__init__()
+        ConcurrentWidgetMixin.__init__(self)
+
+        self.preview_runner = PreviewRunner(self)
 
         self.data = None
         self.reference_data = None
-        self._invalidated = False
 
         # List of available preprocessors (DescriptionRole : Description)
         self.preprocessors = QStandardItemModel()
@@ -1212,7 +1360,7 @@ class SpectralPreprocess(OWWidget):
         # List of 'selected' preprocessors and their parameters.
         self.preprocessormodel = None
 
-        self.flow_view = SequenceFlow(preview_callback=self.show_preview,
+        self.flow_view = SequenceFlow(preview_callback=self._show_preview_info,
                                       multiple_previews=self.preview_on_image)
         self.controler = ViewController(self.flow_view, parent=self)
 
@@ -1284,8 +1432,11 @@ class SpectralPreprocess(OWWidget):
 
         self._initialize()
 
+    def _show_preview_info(self):
+        self.show_preview(show_info_anyway=True)
+
     def _update_preview_number(self):
-        self.show_preview(show_info=False)
+        self.show_preview(show_info_anyway=False)
 
     def sample_data(self, data):
         if data is not None and len(data) > self.preview_curves:
@@ -1299,67 +1450,17 @@ class SpectralPreprocess(OWWidget):
         if not self.process_reference and self.reference_data is not None:
             self.Warning.reference_compat()
 
-    def show_preview(self, show_info=False):
+    def show_preview(self, show_info_anyway=False):
         """ Shows preview and also passes preview data to the widgets """
         self._reference_compat_warning()
         self.Warning.preprocessor.clear()
         self.Error.preprocessor.clear()
         self.Error.preview.clear()
-
-        widgets = self.flow_view.widgets()
-        for w in widgets:
+        for w in  self.flow_view.widgets():
             if getattr(w, "Error", None):  # only BaseEditorOrange supports errors
                 w.Error.exception.clear()
 
-        if self.data is not None:
-            orig_data = data = self.sample_data(self.data)
-            reference_data = self.reference_data
-            preview_pos = self.flow_view.preview_n()
-            n = self.preprocessormodel.rowCount()
-
-            preview_data = None
-            after_data = None
-
-            for i in range(n):
-                if preview_pos == i:
-                    preview_data = data
-
-                widgets[i].set_reference_data(reference_data)
-                widgets[i].set_preview_data(data)
-                item = self.preprocessormodel.item(i)
-                try:
-                    preproc = self._create_preprocessor(item, reference_data)
-                    data = widgets[i].execute_instance(preproc, data)
-                    if self.process_reference and reference_data is not None and i != n - 1:
-                        reference_data = preproc(reference_data)
-                except PreprocessException as e:
-                    widgets[i].Error.exception(e.message())
-                    self.Error.preview(e.message())
-                    data = None
-                    break
-
-                if preview_pos == i:
-                    after_data = data
-                    if show_info:
-                        current_name = item.data(DescriptionRole).description.title
-                        self.curveplot_info.setText('Input to "' + current_name + '"')
-                        self.curveplot_after_info.setText('Output of "' + current_name + '"')
-
-            if preview_data is None:  # show final result
-                preview_data = orig_data
-                if not self.preview_on_image:
-                    after_data = data
-                    self.final_preview_toggle = True
-                    self.curveplot_info.setText('Original data')
-                    self.curveplot_after_info.setText('Preprocessed data')
-            elif not self.preview_on_image:
-                self.final_preview_toggle = False
-
-            self.curveplot.set_data(preview_data)
-            self.curveplot_after.set_data(after_data)
-        else:
-            self.curveplot.set_data(None)
-            self.curveplot_after.set_data(None)
+        return self.preview_runner.show_preview(show_info_anyway=show_info_anyway)
 
     def _initialize(self):
         for pp_def in self.PREPROCESSORS:
@@ -1395,7 +1496,7 @@ class SpectralPreprocess(OWWidget):
             # will be triggered by LayoutRequest event on the `flow_view`)
             self.__update_size_constraint()
 
-        # call apply() to output the preprocessor even if there is no input data
+        # output the preprocessor even if there is no input data
         self.unconditional_commit()
 
     def load(self, saved):
@@ -1478,47 +1579,33 @@ class SpectralPreprocess(OWWidget):
         item.setData(action, DescriptionRole)
         self.preprocessormodel.appendRow([item])
 
-    def _prepare_params(self, params, reference):
-        if not isinstance(params, dict):
-            params = {}
-        # add optional reference data
-        params[REFERENCE_DATA_PARAM] = reference
-        return params
-
-    def _create_preprocessor(self, item, reference):
-        desc = item.data(DescriptionRole)
-        params = item.data(ParametersRole)
-        params = self._prepare_params(params, reference)
-        create = desc.viewclass.createinstance
-        return create(params)
-
     def create_outputs(self):
         raise NotImplementedError()
 
-    def apply(self):
+    def commit(self):
         self.show_preview()
         self.Error.applying.clear()
-        try:
-            data, preprocessor = self.create_outputs()
-        except PreprocessException as e:
-            self.Error.applying(e.message())
-            data, preprocessor = None, None
+        self.create_outputs()
+
+    def on_partial_result(self, _):
+        pass
+
+    def on_done(self, results):
+        data, preprocessor = results
         self.Outputs.preprocessor.send(preprocessor)
         self.Outputs.preprocessed_data.send(data)
 
-    def commit(self):
-        # Do not run() apply immediately: delegate it to the event loop.
-        # Protects against running apply() in succession many times, as would
-        # happen when adding a preprocessor (there, commit() is called twice).
-        # Now, apply() will usually be only called once.
-        if not self._invalidated:
-            self._invalidated = True
-            QApplication.postEvent(self, QEvent(QEvent.User))
+    def on_exception(self, ex):
+        if isinstance(ex, InterruptException):
+            return  # do not change outputs if interrupted
 
-    def customEvent(self, event):
-        if event.type() == QEvent.User and self._invalidated:
-            self._invalidated = False
-            self.apply()
+        if isinstance(ex, PreprocessException):
+            self.Error.applying(ex.message())
+        else:
+            raise ex
+
+        self.Outputs.preprocessor.send(None)
+        self.Outputs.preprocessed_data.send(None)
 
     def eventFilter(self, receiver, event):
         if receiver is self.flow_view and event.type() == QEvent.LayoutRequest:
@@ -1533,6 +1620,8 @@ class SpectralPreprocess(OWWidget):
         super().storeSpecificSettings()
 
     def onDeleteWidget(self):
+        self.shutdown()
+        self.preview_runner.shutdown()
         self.data = None
         self.set_model(None)
         super().onDeleteWidget()
@@ -1573,7 +1662,7 @@ class SpectralPreprocess(OWWidget):
                 cls.migrate_preprocessors(settings_["storedsettings"]["preprocessors"], version)
 
 
-class SpectralPreprocessReference(SpectralPreprocess):
+class SpectralPreprocessReference(SpectralPreprocess, openclass=True):
 
     class Inputs(SpectralPreprocess.Inputs):
         reference = Input("Reference", Orange.data.Table)
@@ -1606,19 +1695,39 @@ class OWPreprocess(SpectralPreprocessReference):
 
     def create_outputs(self):
         self._reference_compat_warning()
+        pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
+        self.start(self.run_task, self.data, self.reference_data, pp_def, self.process_reference)
+
+    @staticmethod
+    def run_task(data: Orange.data.Table, reference: Orange.data.Table,
+                 pp_def, process_reference, state: TaskState):
+
+        def progress_interrupt(i: float):
+            state.set_progress_value(i)
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        # Protects against running the task in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Wait 100 ms before processing - if a new task is started in meanwhile,
+        # allow that is easily` cancelled.
+        for i in range(10):
+            time.sleep(0.010)
+            progress_interrupt(0)
+
+        n = len(pp_def)
         plist = []
-        data = self.data
-        reference = self.reference_data
-        n = self.preprocessormodel.rowCount()
         for i in range(n):
-            item = self.preprocessormodel.item(i)
-            pp = self._create_preprocessor(item, reference)
+            progress_interrupt(i/n*100)
+            item = pp_def[i]
+            pp = create_preprocessor(item, reference)
             plist.append(pp)
             if data is not None:
                 data = pp(data)
-            if self.process_reference and reference is not None and i != n - 1:
+            progress_interrupt((i/n + 0.5/n)*100)
+            if process_reference and reference is not None and i != n - 1:
                 reference = pp(reference)
-        # output None if there are no preprocessors
+        # if there are no preprocessors, return None instead of an empty list
         preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
         return data, preprocessor
 
