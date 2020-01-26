@@ -251,7 +251,7 @@ class TestNeaGSF(unittest.TestCase):
         absolute_filename = FileFormat.locate(fn, dataset_dirs)
         data = NeaReaderGSF(absolute_filename).read()
         self.assertEqual(len(data), 2)
-        self.assertEqual("column", data.domain.metas[2].name)
+        self.assertEqual("run", data.domain.metas[2].name)
         self.assertEqual("O2A", data.metas[0][3])
         np.testing.assert_almost_equal(data.X[0, 0], 0.734363853931427)
         self.assertEqual("O2P", data.metas[1][3])
