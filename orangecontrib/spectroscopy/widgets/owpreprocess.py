@@ -1201,7 +1201,6 @@ class PreviewRunner(QObject, ConcurrentMixin):
         else:
             raise ex
 
-
     def on_done(self, result):
         orig_data, after_data = result
         final_preview = self.preview_pos is None
