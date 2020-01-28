@@ -1110,9 +1110,9 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
 
         final_data, parameters, final_metas = self._format_file(data_gsf_a, data_gsf_p, info)
 
-        metas = [Orange.data.ContinuousVariable.make("run"),
+        metas = [Orange.data.ContinuousVariable.make("column"),
                  Orange.data.ContinuousVariable.make("row"),
-                 Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.ContinuousVariable.make("run"),
                  Orange.data.StringVariable.make("channel")]
 
         domain = Orange.data.Domain([], None, metas=metas)
@@ -1130,12 +1130,13 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
         info = {}
         for row in parameters:
             info.update({row[0].strip(':'): row[1:]})
+        
+        info.update({'Reader': 'NeaReaderGSF'}) # key used in confirmation for complex fft calculation
 
         averaging = int(info['Averaging'][1])
         px_x = int(info['Pixel Area (X, Y, Z)'][1])
         px_y = int(info['Pixel Area (X, Y, Z)'][2])
         px_z = int(info['Pixel Area (X, Y, Z)'][3])
-        description = info['Description'][1]
 
         data_complete = []
         final_metas = []
@@ -1148,8 +1149,8 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
                 for run in range(0, averaging):
                     data_complete += [amplitude[i:f]]
                     data_complete += [phase[i:f]]
-                    final_metas += [[run, x, y, self.channel_a]]
-                    final_metas += [[run, x, y, self.channel_p]]
+                    final_metas += [[x, y, run, self.channel_a]]
+                    final_metas += [[x, y, run, self.channel_p]]
                     i = f
                     f = i + px_z
 
