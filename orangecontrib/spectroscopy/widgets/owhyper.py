@@ -558,8 +558,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
 
-        self.markings_integral = []
-
         self.lsx = None  # info about the X axis
         self.lsy = None  # info about the Y axis
 
@@ -614,36 +612,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         else:
             self.data = None
             self.data_ids = {}
-
-    def refresh_markings(self, di):
-        refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
-
-    def redraw_integral_info(self, datai):
-        try:
-            draw_info = datai.domain.attributes[0].compute_value.draw_info
-        except: # pylint: disable=bare-except
-            draw_info = None
-        di = {}
-        if draw_info and np.any(self.parent.curveplot.selection_group):
-            # curveplot can have a subset of curves on the input> match IDs
-            ind = np.flatnonzero(self.parent.curveplot.selection_group)[0]
-            dind = self.data_ids[self.parent.curveplot.data[ind].id]
-            di = draw_info(self.data[dind:dind+1])
-        self.refresh_markings(di)
-
-    def _integrate_func(self):
-        if self.parent.value_type == 0:  # integrals
-            imethod = self.parent.integration_methods[self.parent.integration_method]
-
-            if imethod != Integrate.PeakAt:
-                return Integrate(methods=imethod,
-                                 limits=[[self.parent.lowlim, self.parent.highlim]])
-            else:
-                return Integrate(methods=imethod,
-                                 limits=[[self.parent.choose, self.parent.choose]])
-        else:
-            return lambda x, attr=self.parent.attr_value: \
-                self.data.transform(Domain([self.data.domain[attr]]))
 
     def refresh_img_selection(self):
         selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
@@ -721,7 +689,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         if self.data and self.attr_x and self.attr_y:
             self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
-                       self._integrate_func())
+                       self.parent.integrate_fn())
 
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
@@ -790,7 +758,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         height = (lsy[1]-lsy[0]) + 2*shifty
         self.img.setRect(QRectF(left, bottom, width, height))
 
-        self.redraw_integral_info(res.datai)
         self.refresh_img_selection()
         self.image_updated.emit()
 
@@ -907,7 +874,7 @@ class OWHyper(OWWidget):
         self.imageplot.selection_changed.connect(self.output_image_selection)
 
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
-        self.curveplot.selection_changed.connect(self.redraw_data)
+        self.curveplot.selection_changed.connect(self.redraw_integral_info)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
@@ -923,6 +890,8 @@ class OWHyper(OWWidget):
             line.sigMoveFinished.connect(self.changed_integral_range)
             self.curveplot.add_marking(line)
             line.hide()
+
+        self.markings_integral = []
 
         self.data = None
         self.disable_integral_range = False
@@ -963,7 +932,38 @@ class OWHyper(OWWidget):
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
+    def redraw_integral_info(self):
+        di = {}
+        integrate = self.integrate_fn()
+        if isinstance(integrate, Integrate) and np.any(self.curveplot.selection_group):
+            # curveplot can have a subset of curves on the input> match IDs
+            ind = np.flatnonzero(self.curveplot.selection_group)[0]
+            dind = self.imageplot.data_ids[self.curveplot.data[ind].id]
+            dshow = self.data[dind:dind+1]
+            datai = integrate(dshow)
+            draw_info = datai.domain.attributes[0].compute_value.draw_info
+            di = draw_info(dshow)
+        self.refresh_markings(di)
+
+    def refresh_markings(self, di):
+        refresh_integral_markings([{"draw": di}], self.markings_integral, self.curveplot)
+
+    def integrate_fn(self):
+        if self.value_type == 0:  # integrals
+            imethod = self.integration_methods[self.integration_method]
+
+            if imethod != Integrate.PeakAt:
+                return Integrate(methods=imethod,
+                                 limits=[[self.lowlim, self.highlim]])
+            else:
+                return Integrate(methods=imethod,
+                                 limits=[[self.choose, self.choose]])
+        else:
+            return lambda data, attr=self.attr_value: \
+                data.transform(Domain([data.domain[attr]]))
+
     def redraw_data(self):
+        self.redraw_integral_info()
         self.imageplot.update_view()
 
     def update_feature_value(self):
