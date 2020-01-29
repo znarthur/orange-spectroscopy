@@ -7,7 +7,7 @@ import Orange.data
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table, getx
 from orangecontrib.spectroscopy.utils import get_hypercube, index_values, \
-    InvalidAxisException
+    InvalidAxisException, split_to_size
 
 
 class TestHyperspec(unittest.TestCase):
@@ -45,3 +45,16 @@ class TestHyperspec(unittest.TestCase):
     def test_none_attr(self):
         with self.assertRaises(InvalidAxisException):
             get_hypercube(self.mosaic, None, None)
+
+
+class TestSplitToSize(unittest.TestCase):
+
+    def test_single(self):
+        self.assertEqual([], split_to_size(0, 10))
+        self.assertEqual([slice(0, 1)], split_to_size(1, 10))
+        self.assertEqual([slice(0, 10)], split_to_size(10, 10))
+
+    def test_more(self):
+        self.assertEqual([slice(0, 10), slice(10, 11)], split_to_size(11, 10))
+        self.assertEqual([slice(0, 10), slice(10, 20)], split_to_size(20, 10))
+        self.assertEqual([slice(0, 10), slice(10, 20), slice(20, 21)], split_to_size(21, 10))

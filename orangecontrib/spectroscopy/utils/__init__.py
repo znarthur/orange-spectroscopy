@@ -132,3 +132,12 @@ def get_hypercube(data, xat, yat):
     attrs = [yat, xat]
     hypercube, (lsy, lsx) = get_ndim_hyperspec(data, attrs)
     return hypercube, lsx, lsy
+
+
+def split_to_size(size, interval):
+    pos = 0
+    intervals = []
+    while pos < size:
+        intervals.append(slice(pos, pos + min(size - pos, interval)))
+        pos += min(size, interval)
+    return intervals

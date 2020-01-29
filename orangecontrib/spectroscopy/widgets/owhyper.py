@@ -29,7 +29,7 @@ from Orange.data import DiscreteVariable, ContinuousVariable
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 
 from orangecontrib.spectroscopy.preprocess import Integrate
-from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan
+from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan, split_to_size
 
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
@@ -675,6 +675,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.make_selection(sel)
 
     def update_view(self):
+        self.cancel()
         self.parent.Error.image_too_big.clear()
         self.parent.Information.not_shown.clear()
         self.img.clear()
@@ -721,7 +722,16 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
             raise ImageTooBigException((lsx[-1], lsy[-1]))
 
-        res.datai = integrate_fn(data)
+        # the code bellow does this, but part-wise:
+        # d = integrate_fn(data).X[:, 0]
+        parts = []
+        for slice in split_to_size(len(data), 10000):
+            part = integrate_fn(data[slice]).X[:, 0]
+            parts.append(part)
+            progress_interrupt(0)
+        d = np.concatenate(parts)
+
+        res.d = d
         progress_interrupt(0)
 
         return res
@@ -731,7 +741,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.lsx, self.lsy = res.lsx, res.lsy
         lsx, lsy = self.lsx, self.lsy
 
-        d = res.datai.X[:, 0]
+        d = res.d
 
         self.data_points = res.data_points
 
