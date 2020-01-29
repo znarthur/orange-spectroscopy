@@ -2,7 +2,7 @@ import os
 from unittest.mock import Mock, patch
 
 from AnyQt.QtCore import QRectF, QPoint, Qt
-from AnyQt.QtTest import QTest
+from AnyQt.QtTest import QTest, QSignalSpy
 import numpy as np
 import pyqtgraph as pg
 
@@ -20,6 +20,13 @@ from orangecontrib.spectroscopy.preprocess import Interpolate
 
 
 NAN = float("nan")
+
+
+def wait_for_graph(widget, timeout=5000):
+    concurrent = widget.curveplot.show_average_thread
+    if concurrent.task is not None:
+        spy = QSignalSpy(concurrent.average_shown)
+        assert spy.wait(timeout), "Failed to update graph in the specified timeout"
 
 
 class TestOWSpectra(WidgetTest):
@@ -95,6 +102,7 @@ class TestOWSpectra(WidgetTest):
         for data in self.normal_data + self.strange_data:
             self.send_signal("Data", data)
             self.widget.curveplot.show_average()
+            wait_for_graph(self.widget)
 
     def test_empty(self):
         self.send_signal("Data", None)
@@ -193,6 +201,7 @@ class TestOWSpectra(WidgetTest):
         self.send_signal("Data", self.iris[:100])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
         self.widget.curveplot.show_average()
+        wait_for_graph(self.widget)
         self.send_signal("Data", self.iris[:99])
         self.assertFalse(self.widget.Information.showing_sample.is_shown())
 
@@ -208,16 +217,19 @@ class TestOWSpectra(WidgetTest):
         np.testing.assert_equal(x, range(len(self.iris.domain.attributes)))
 
     def test_show_average(self):
-        self.send_signal("Data", self.iris)
-        curves_plotted = self.widget.curveplot.curves_plotted
-        self.widget.curveplot.show_average()
-        curves_plotted2 = self.widget.curveplot.curves_plotted
         def numcurves(curves):
             return sum(len(a[1]) for a in curves)
-        self.assertLess(numcurves(curves_plotted2), numcurves(curves_plotted))
+
+        self.send_signal("Data", self.iris)
+        curves_plotted = self.widget.curveplot.curves_plotted
+        self.assertEqual(numcurves(curves_plotted), 150)
+        self.widget.curveplot.show_average()
+        wait_for_graph(self.widget)
+        curves_plotted = self.widget.curveplot.curves_plotted
+        self.assertEqual(numcurves(curves_plotted), 3)
         self.widget.curveplot.show_individual()
-        curves_plotted3 = self.widget.curveplot.curves_plotted
-        self.assertEqual(numcurves(curves_plotted), numcurves(curves_plotted3))
+        curves_plotted = self.widget.curveplot.curves_plotted
+        self.assertEqual(numcurves(curves_plotted), 150)
 
     def test_limits(self):
         self.send_signal("Data", self.iris)
@@ -428,6 +440,7 @@ class TestOWSpectra(WidgetTest):
         self.widget.curveplot.cycle_color_attr()
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
         self.widget.curveplot.show_average()
+        wait_for_graph(self.widget)
 
     def test_curveplot_highlight(self):
         data = self.iris[:10]

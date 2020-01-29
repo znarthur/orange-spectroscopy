@@ -3,7 +3,7 @@ import numpy as np
 from Orange.data import Domain, Table
 
 
-def apply_columns_numpy(array, function, selector=None, chunk_size=10 ** 7):
+def apply_columns_numpy(array, function, selector=None, chunk_size=10 ** 7, callback=None):
     """Split the array by columns, applies selection and then the function.
     Returns output equivalent to function(array[selector])
     """
@@ -13,6 +13,8 @@ def apply_columns_numpy(array, function, selector=None, chunk_size=10 ** 7):
     parts = np.array_split(array, chunks, axis=1)
     res = []
     for p in parts:
+        if callback:
+            callback(0)
         res.append(function(p[selector]))
     return np.hstack(res)
 
