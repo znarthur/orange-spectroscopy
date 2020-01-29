@@ -5,9 +5,11 @@ from unittest.mock import patch
 import numpy as np
 
 from AnyQt.QtCore import QPointF, Qt
+from AnyQt.QtTest import QSignalSpy
 import Orange
 from Orange.widgets.tests.base import WidgetTest
 
+from orangecontrib.spectroscopy.widgets import owhyper
 from orangecontrib.spectroscopy.widgets.owhyper import \
     OWHyper, ANNOTATED_DATA_SIGNAL_NAME
 from orangecontrib.spectroscopy.preprocess import Interpolate
@@ -17,6 +19,11 @@ from orangecontrib.spectroscopy.utils import values_to_linspace, \
     index_values, location_values, index_values_nan
 
 NAN = float("nan")
+
+
+def wait_for_image(widget, timeout=5000):
+    spy = QSignalSpy(widget.imageplot.image_updated)
+    assert spy.wait(timeout), "Failed update image in the specified timeout"
 
 
 class TestReadCoordinates(unittest.TestCase):
@@ -106,7 +113,7 @@ class TestOWHyper(WidgetTest):
         cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0]
 
     def setUp(self):
-        self.widget = self.create_widget(OWHyper)
+        self.widget = self.create_widget(OWHyper)  # type: OWHyper
 
     def try_big_selection(self):
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100))
@@ -148,6 +155,7 @@ class TestOWHyper(WidgetTest):
 
     def test_select_all(self):
         self.send_signal("Data", self.whitelight)
+        wait_for_image(self.widget)
 
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
@@ -175,6 +183,7 @@ class TestOWHyper(WidgetTest):
     def test_select_polygon_as_rectangle(self):
         # rectangle and a polygon need to give the same results
         self.send_signal("Data", self.whitelight)
+        wait_for_image(self.widget)
         self.widget.imageplot.select_square(QPointF(5, 5), QPointF(15, 10))
         out = self.get_output("Selection")
         self.widget.imageplot.select_polygon([QPointF(5, 5), QPointF(15, 5), QPointF(15, 10),
@@ -184,6 +193,7 @@ class TestOWHyper(WidgetTest):
 
     def test_select_click(self):
         self.send_signal("Data", self.whitelight)
+        wait_for_image(self.widget)
         self.widget.imageplot.select_by_click(QPointF(1, 2))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[1, 2]])
@@ -191,6 +201,7 @@ class TestOWHyper(WidgetTest):
     def test_select_click_multiple_groups(self):
         data = self.whitelight
         self.send_signal("Data", data)
+        wait_for_image(self.widget)
         self.widget.imageplot.select_by_click(QPointF(1, 2))
         with hold_modifiers(self.widget, Qt.ControlModifier):
             self.widget.imageplot.select_by_click(QPointF(2, 2))
@@ -259,6 +270,16 @@ class TestOWHyper(WidgetTest):
         self.widget.controls.value_type.buttons[1].click()
         self.widget.imageplot.update_color_schema()
 
+    def test_image_too_big_error(self):
+        oldval = owhyper.IMAGE_TOO_BIG
+        try:
+            owhyper.IMAGE_TOO_BIG = 3
+            self.send_signal("Data", self.iris)
+            wait_for_image(self.widget)
+            self.assertTrue(self.widget.Error.image_too_big.is_shown())
+        finally:
+            owhyper.IMAGE_TOO_BIG = oldval
+
     def test_save_graph(self):
         self.send_signal("Data", self.iris)
         with set_png_graph_save() as fname:
@@ -269,4 +290,5 @@ class TestOWHyper(WidgetTest):
         data = Orange.data.Table("iris")
         data.Y[0] = np.nan
         self.send_signal("Data", data)
+        wait_for_image(self.widget)
         self.assertTrue(self.widget.Information.not_shown.is_shown())

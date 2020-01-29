@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
@@ -18,6 +18,7 @@ from pyqtgraph import GraphicsWidget
 import colorcet
 
 import Orange.data
+from Orange.data import Domain
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -25,6 +26,7 @@ from Orange.widgets.settings import \
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.utils import saveplot
 from Orange.data import DiscreteVariable, ContinuousVariable
+from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 
 from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan
@@ -42,6 +44,14 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 
 
 IMAGE_TOO_BIG = 1024*1024*100
+
+
+class InterruptException(Exception):
+    pass
+
+
+class ImageTooBigException(Exception):
+    pass
 
 
 def refresh_integral_markings(dis, markings_list, curveplot):
@@ -131,7 +141,7 @@ class ImageItemNan(pg.ImageItem):
 
         if self.image is None or self.image.size == 0:
             return
-        if isinstance(self.lut, collections.Callable):
+        if isinstance(self.lut, collections.abc.Callable):
             lut = self.lut(self.image)
         else:
             lut = self.lut
@@ -147,7 +157,7 @@ class ImageItemNan(pg.ImageItem):
         w = 1
         if np.any(self.selection):
             max_sel = np.max(self.selection)
-            colors = DiscreteVariable(values=map(str, range(max_sel))).colors
+            colors = DiscreteVariable(name="colors", values=map(str, range(max_sel))).colors
             fargb = argb.astype(np.float32)
             for i, color in enumerate(colors):
                 color = np.hstack((color[::-1], [255]))  # qt color
@@ -435,13 +445,14 @@ class ImageColorLegend(GraphicsWidget):
 
 
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
-                ImageColorSettingMixin, ImageZoomMixin):
+                ImageColorSettingMixin, ImageZoomMixin, ConcurrentMixin):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
     gamma = Setting(0)
 
     selection_changed = Signal()
+    image_updated = Signal()
 
     def __init__(self, parent):
         QWidget.__init__(self)
@@ -449,6 +460,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         SelectionGroupMixin.__init__(self)
         ImageColorSettingMixin.__init__(self)
         ImageZoomMixin.__init__(self)
+        ConcurrentMixin.__init__(self)
         self.parent = parent
 
         self.selection_type = SELECTMANY
@@ -546,8 +558,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
 
-        self.markings_integral = []
-
         self.lsx = None  # info about the X axis
         self.lsy = None  # info about the Y axis
 
@@ -602,86 +612,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         else:
             self.data = None
             self.data_ids = {}
-
-    def refresh_markings(self, di):
-        refresh_integral_markings([{"draw": di}], self.markings_integral, self.parent.curveplot)
-
-    def update_view(self):
-        self.parent.Error.image_too_big.clear()
-        self.parent.Information.not_shown.clear()
-        self.img.clear()
-        self.img.setSelection(None)
-        self.legend.set_colors(None)
-        self.lsx = None
-        self.lsy = None
-        self.data_points = None
-        self.data_values = None
-        self.data_imagepixels = None
-        self.data_valid_positions = None
-        if self.data and self.attr_x and self.attr_y:
-            xat = self.data.domain[self.attr_x]
-            yat = self.data.domain[self.attr_y]
-
-            ndom = Orange.data.Domain([xat, yat])
-            datam = self.data.transform(ndom)
-            coorx = datam.X[:, 0]
-            coory = datam.X[:, 1]
-            self.data_points = datam.X
-            self.lsx = lsx = values_to_linspace(coorx)
-            self.lsy = lsy = values_to_linspace(coory)
-            if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
-                self.parent.Error.image_too_big(lsx[-1], lsy[-1])
-                return
-
-            di = {}
-            if self.parent.value_type == 0:  # integrals
-                imethod = self.parent.integration_methods[self.parent.integration_method]
-
-                if imethod != Integrate.PeakAt:
-                    datai = Integrate(methods=imethod,
-                                      limits=[[self.parent.lowlim, self.parent.highlim]])(self.data)
-                else:
-                    datai = Integrate(methods=imethod,
-                                      limits=[[self.parent.choose, self.parent.choose]])(self.data)
-
-                if np.any(self.parent.curveplot.selection_group):
-                    # curveplot can have a subset of curves on the input> match IDs
-                    ind = np.flatnonzero(self.parent.curveplot.selection_group)[0]
-                    dind = self.data_ids[self.parent.curveplot.data[ind].id]
-                    di = datai.domain.attributes[0].compute_value.draw_info(self.data[dind:dind+1])
-                d = datai.X[:, 0]
-            else:
-                dat = self.data.domain[self.parent.attr_value]
-                ndom = Orange.data.Domain([dat])
-                d = self.data.transform(ndom).X[:, 0]
-            self.refresh_markings(di)
-
-            xindex, xnan = index_values_nan(coorx, lsx)
-            yindex, ynan = index_values_nan(coory, lsy)
-            self.data_valid_positions = valid = np.logical_not(np.logical_or(xnan, ynan))
-            invalid_positions = len(d) - np.sum(valid)
-            if invalid_positions:
-                self.parent.Information.not_shown(invalid_positions)
-
-            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
-            imdata[yindex[valid], xindex[valid]] = d[valid]
-            self.data_values = d
-            self.data_imagepixels = np.vstack((yindex, xindex)).T
-
-            self.img.setImage(imdata, autoLevels=False)
-            self.update_levels()
-            self.update_color_schema()
-
-            # shift centres of the pixels so that the axes are useful
-            shiftx = _shift(lsx)
-            shifty = _shift(lsy)
-            left = lsx[0] - shiftx
-            bottom = lsy[0] - shifty
-            width = (lsx[1]-lsx[0]) + 2*shiftx
-            height = (lsy[1]-lsy[0]) + 2*shifty
-            self.img.setRect(QRectF(left, bottom, width, height))
-
-            self.refresh_img_selection()
 
     def refresh_img_selection(self):
         selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
@@ -744,6 +674,106 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         sel = self._points_at_pos(pos)
         self.make_selection(sel)
 
+    def update_view(self):
+        self.parent.Error.image_too_big.clear()
+        self.parent.Information.not_shown.clear()
+        self.img.clear()
+        self.img.setSelection(None)
+        self.legend.set_colors(None)
+        self.lsx = None
+        self.lsy = None
+        self.data_points = None
+        self.data_values = None
+        self.data_imagepixels = None
+        self.data_valid_positions = None
+
+        if self.data and self.attr_x and self.attr_y:
+            self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
+                       self.parent.integrate_fn())
+
+    @staticmethod
+    def compute_image(data: Orange.data.Table, attr_x, attr_y,
+                      integrate_fn, state: TaskState):
+
+        def progress_interrupt(i: float):
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        class Result():
+            pass
+        res = Result()
+
+        xat = data.domain[attr_x]
+        yat = data.domain[attr_y]
+
+        ndom = Domain([xat, yat])
+        datam = data.transform(ndom)
+        progress_interrupt(0)
+        res.coorx = datam.X[:, 0]
+        res.coory = datam.X[:, 1]
+        res.data_points = datam.X
+        res.lsx = lsx = values_to_linspace(res.coorx)
+        res.lsy = lsy = values_to_linspace(res.coory)
+        progress_interrupt(0)
+
+        if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
+            raise ImageTooBigException((lsx[-1], lsy[-1]))
+
+        res.datai = integrate_fn(data)
+        progress_interrupt(0)
+
+        return res
+
+    def on_done(self, res):
+
+        self.lsx, self.lsy = res.lsx, res.lsy
+        lsx, lsy = self.lsx, self.lsy
+
+        d = res.datai.X[:, 0]
+
+        self.data_points = res.data_points
+
+        xindex, xnan = index_values_nan(res.coorx, self.lsx)
+        yindex, ynan = index_values_nan(res.coory, self.lsy)
+        self.data_valid_positions = valid = np.logical_not(np.logical_or(xnan, ynan))
+        invalid_positions = len(d) - np.sum(valid)
+        if invalid_positions:
+            self.parent.Information.not_shown(invalid_positions)
+
+        imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+        imdata[yindex[valid], xindex[valid]] = d[valid]
+        self.data_values = d
+        self.data_imagepixels = np.vstack((yindex, xindex)).T
+
+        self.img.setImage(imdata, autoLevels=False)
+        self.update_levels()
+        self.update_color_schema()
+
+        # shift centres of the pixels so that the axes are useful
+        shiftx = _shift(lsx)
+        shifty = _shift(lsy)
+        left = lsx[0] - shiftx
+        bottom = lsy[0] - shifty
+        width = (lsx[1]-lsx[0]) + 2*shiftx
+        height = (lsy[1]-lsy[0]) + 2*shifty
+        self.img.setRect(QRectF(left, bottom, width, height))
+
+        self.refresh_img_selection()
+        self.image_updated.emit()
+
+    def on_partial_result(self, result):
+        pass
+
+    def on_exception(self, ex: Exception):
+        if isinstance(ex, InterruptException):
+            return
+
+        if isinstance(ex, ImageTooBigException):
+            self.parent.Error.image_too_big(ex.args[0][0], ex.args[0][1])
+            self.image_updated.emit()
+        else:
+            raise ex
+
 
 class CurvePlotHyper(CurvePlot):
     viewtype = Setting(AVERAGE)  # average view by default
@@ -795,7 +825,7 @@ class OWHyper(OWWidget):
             # delete the saved attr_value to prevent crashes
             try:
                 del settings_["context_settings"][0].values["attr_value"]
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
         # migrate selection
@@ -806,7 +836,7 @@ class OWHyper(OWWidget):
                 if selection is not None:
                     selection = [(i, 1) for i in np.flatnonzero(np.array(selection))]
                     settings_.setdefault("imageplot", {})["selection_group_saved"] = selection
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
     def __init__(self):
@@ -844,7 +874,7 @@ class OWHyper(OWWidget):
         self.imageplot.selection_changed.connect(self.output_image_selection)
 
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
-        self.curveplot.selection_changed.connect(self.redraw_data)
+        self.curveplot.selection_changed.connect(self.redraw_integral_info)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
@@ -860,6 +890,8 @@ class OWHyper(OWWidget):
             line.sigMoveFinished.connect(self.changed_integral_range)
             self.curveplot.add_marking(line)
             line.hide()
+
+        self.markings_integral = []
 
         self.data = None
         self.disable_integral_range = False
@@ -900,7 +932,38 @@ class OWHyper(OWWidget):
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
+    def redraw_integral_info(self):
+        di = {}
+        integrate = self.integrate_fn()
+        if isinstance(integrate, Integrate) and np.any(self.curveplot.selection_group):
+            # curveplot can have a subset of curves on the input> match IDs
+            ind = np.flatnonzero(self.curveplot.selection_group)[0]
+            dind = self.imageplot.data_ids[self.curveplot.data[ind].id]
+            dshow = self.data[dind:dind+1]
+            datai = integrate(dshow)
+            draw_info = datai.domain.attributes[0].compute_value.draw_info
+            di = draw_info(dshow)
+        self.refresh_markings(di)
+
+    def refresh_markings(self, di):
+        refresh_integral_markings([{"draw": di}], self.markings_integral, self.curveplot)
+
+    def integrate_fn(self):
+        if self.value_type == 0:  # integrals
+            imethod = self.integration_methods[self.integration_method]
+
+            if imethod != Integrate.PeakAt:
+                return Integrate(methods=imethod,
+                                 limits=[[self.lowlim, self.highlim]])
+            else:
+                return Integrate(methods=imethod,
+                                 limits=[[self.choose, self.choose]])
+        else:
+            return lambda data, attr=self.attr_value: \
+                data.transform(Domain([data.domain[attr]]))
+
     def redraw_data(self):
+        self.redraw_integral_info()
         self.imageplot.update_view()
 
     def update_feature_value(self):
