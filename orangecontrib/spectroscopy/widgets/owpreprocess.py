@@ -1621,6 +1621,8 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
     def onDeleteWidget(self):
         self.shutdown()
         self.preview_runner.shutdown()
+        self.curveplot.shutdown()
+        self.curveplot_after.shutdown()
         self.data = None
         self.set_model(None)
         super().onDeleteWidget()

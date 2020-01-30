@@ -1064,6 +1064,11 @@ class OWHyper(OWWidget):
     def save_graph(self):
         self.imageplot.save_graph()
 
+    def onDeleteWidget(self):
+        self.curveplot.shutdown()
+        self.imageplot.shutdown()
+        super().onDeleteWidget()
+
 
 if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview

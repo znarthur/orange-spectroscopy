@@ -1497,6 +1497,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         sel = np.flatnonzero(intersect_curves_chunked(x, ys, self.data_xsind, q1, q2, xmin, xmax))
         return sel
 
+    def shutdown(self):
+        self.show_average_thread.shutdown()
+
     @classmethod
     def migrate_settings_sub(cls, settings, version):
         # manually called from the parent
@@ -1584,6 +1587,10 @@ class OWSpectra(OWWidget):
     def save_graph(self):
         # directly call save_graph so it hides axes
         self.curveplot.save_graph()
+
+    def onDeleteWidget(self):
+        self.curveplot.shutdown()
+        super().onDeleteWidget()
 
     @classmethod
     def migrate_settings(cls, settings, version):
