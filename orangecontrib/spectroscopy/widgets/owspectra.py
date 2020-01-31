@@ -10,7 +10,7 @@ from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
-from AnyQt.QtCore import Qt, QRectF, QPointF
+from AnyQt.QtCore import Qt, QRectF, QPointF, QObject
 from AnyQt.QtCore import pyqtSignal
 
 import numpy as np
@@ -31,6 +31,7 @@ from Orange.widgets.utils.plot import \
 from Orange.widgets.utils import saveplot
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
+from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 
 try:
     # since Orange 3.17
@@ -181,6 +182,122 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     yp = np.hstack((yp, np.zeros((yp.shape[0], 1)) * float("nan")))
     dc = distance_curves(xp, yp, (0, 0))
     return dc
+
+
+class InterruptException(Exception):
+    pass
+
+
+class ShowAverage(QObject, ConcurrentMixin):
+
+    average_shown = pyqtSignal()
+
+    def __init__(self, master):
+        super().__init__(parent=master)
+        ConcurrentMixin.__init__(self)
+        self.master = master
+
+    def show_average(self):
+        master = self.master
+        master.clear_graph()  # calls cancel
+        master.view_average_menu.setChecked(True)
+        master.set_pen_colors()
+        master.viewtype = AVERAGE
+        if not master.data:
+            self.average_shown.emit()
+        else:
+            color_var = master.current_color_var()
+            self.start(self.compute_averages, master.data, color_var, master.subset_indices,
+                       master.selection_group, master.data_xsind, master.selection_type)
+
+    @staticmethod
+    def compute_averages(data: Orange.data.Table, color_var, subset_indices,
+                         selection_group, data_xsind, selection_type, state: TaskState):
+
+        def progress_interrupt(i: float):
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        def _split_by_color_value(data, color_var):
+            rd = {}
+            if color_var is None:
+                rd[None] = np.full((len(data.X),), True, dtype=bool)
+            else:
+                cvd = data.transform(Orange.data.Domain([color_var]))
+                feature_values = cvd.X[:, 0]  # obtain 1D vector
+                for v in range(len(color_var.values)):
+                    v1 = np.in1d(feature_values, v)
+                    if np.any(v1):
+                        rd[color_var.values[v]] = v1
+                nanind = np.isnan(feature_values)
+                if np.any(nanind):
+                    rd[None] = nanind
+            return rd
+
+        results = []
+
+        dsplit = _split_by_color_value(data, color_var)
+        for colorv, indices in dsplit.items():
+            for part in [None, "subset", "selection"]:
+                progress_interrupt(0)
+                if part is None:
+                    part_selection = indices
+                elif part == "selection" and selection_type:
+                    part_selection = indices & (selection_group > 0)
+                elif part == "subset":
+                    part_selection = indices & subset_indices
+                if np.any(part_selection):
+                    std = apply_columns_numpy(data.X,
+                                              lambda x: np.nanstd(x, axis=0),
+                                              part_selection,
+                                              callback=progress_interrupt)
+                    mean = apply_columns_numpy(data.X,
+                                               lambda x: np.nanmean(x, axis=0),
+                                               part_selection,
+                                               callback=progress_interrupt)
+                    std = std[data_xsind]
+                    mean = mean[data_xsind]
+                    results.append((colorv, part, mean, std, part_selection))
+        progress_interrupt(0)
+        return results
+
+    def on_done(self, res):
+        master = self.master
+
+        ysall = []
+        cinfo = []
+
+        x = master.data_x
+
+        for colorv, part, mean, std, part_selection in res:
+            if part is None:
+                pen = master.pen_normal if np.any(master.subset_indices) else master.pen_subset
+            elif part == "selection" and master.selection_type:
+                pen = master.pen_selected
+            elif part == "subset":
+                pen = master.pen_subset
+            ysall.append(mean)
+            penc = QPen(pen[colorv])
+            penc.setWidth(3)
+            master.add_curve(x, mean, pen=penc)
+            master.add_fill_curve(x, mean + std, mean - std, pen=penc)
+            cinfo.append((colorv, part, part_selection))
+
+        master.curves.append((x, np.array(ysall)))
+        master.multiple_curves_info = cinfo
+        master.curves_cont.update()
+        master.plot.vb.set_mode_panning()
+
+        self.average_shown.emit()
+
+    def on_partial_result(self, result):
+        pass
+
+    def on_exception(self, ex: Exception):
+        if isinstance(ex, InterruptException):
+            return
+
+        raise ex
 
 
 class InteractiveViewBox(ViewBox):
@@ -527,6 +644,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         QWidget.__init__(self)
         OWComponent.__init__(self, parent)
         SelectionGroupMixin.__init__(self)
+
+        self.show_average_thread = ShowAverage(self)
+        self.show_average_thread.average_shown.connect(self.rescale)
 
         self.parent = parent
 
@@ -892,8 +1012,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.discrete_palette = None
 
     def clear_graph(self):
-        # reset caching. if not, it is not cleared when view changing when zoomed
+        self.show_average_thread.cancel()
         self.highlighted = None
+        # reset caching. if not, it is not cleared when view changing when zoomed
         self.curves_cont.setCacheMode(QGraphicsItem.NoCache)
         self.curves_cont.setCacheMode(QGraphicsItem.DeviceCoordinateCache)
         self.plot.vb.disableAutoRange()
@@ -1106,7 +1227,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         thispen = self.pen_subset if insubset or not have_subset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
-        color_var = self._current_color_var()
+        color_var = self.current_color_var()
         value = None
         if color_var is not None:
             value = str(self.data[idcdata][color_var])
@@ -1208,7 +1329,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         # for zoom to work correctly
         self.curves_plotted.append((x, np.array([ylow, yhigh])))
 
-    def _current_color_var(self):
+    def current_color_var(self):
         color_var = None
         if self.feature_color and self.data:
             color_var = self.data.domain[self.feature_color]
@@ -1230,7 +1351,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.pen_normal.clear()
         self.pen_subset.clear()
         self.pen_selected.clear()
-        color_var = self._current_color_var()
+        color_var = self.current_color_var()
         self.legend.clear()
         palette, legend = False, False
         if color_var is not None:
@@ -1255,9 +1376,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.legend.setVisible(bool(self.legend.items))
 
     def show_individual(self):
+        self.clear_graph()
         self.view_average_menu.setChecked(False)
         self.set_pen_colors()
-        self.clear_graph()
         self.viewtype = INDIVIDUAL
         if not self.data:
             return
@@ -1286,23 +1407,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
             self.plot.vb.pad_current_view_y()
 
-    def _split_by_color_value(self, data):
-        color_var = self._current_color_var()
-        rd = {}
-        if color_var is None:
-            rd[None] = np.full((len(data.X),), True, dtype=bool)
-        else:
-            cvd = data.transform(Orange.data.Domain([color_var]))
-            feature_values = cvd.X[:, 0]  # obtain 1D vector
-            for v in range(len(color_var.values)):
-                v1 = np.in1d(feature_values, v)
-                if np.any(v1):
-                    rd[color_var.values[v]] = v1
-            nanind = np.isnan(feature_values)
-            if np.any(nanind):
-                rd[None] = nanind
-        return rd
-
     def viewtype_changed(self):
         if self.viewtype == AVERAGE:
             self.viewtype = INDIVIDUAL
@@ -1311,53 +1415,16 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.update_view()
 
     def show_average(self):
-        self.view_average_menu.setChecked(True)
-        self.set_pen_colors()
-        self.clear_graph()
-        self.viewtype = AVERAGE
-        if not self.data:
-            return
-        x = self.data_x
-        if self.data:
-            ysall = []
-            cinfo = []
-            dsplit = self._split_by_color_value(self.data)
-            for colorv, indices in dsplit.items():
-                for part in [None, "subset", "selection"]:
-                    if part is None:
-                        part_selection = indices
-                        pen = self.pen_normal if np.any(self.subset_indices) else self.pen_subset
-                    elif part == "selection" and self.selection_type:
-                        part_selection = indices & (self.selection_group > 0)
-                        pen = self.pen_selected
-                    elif part == "subset":
-                        part_selection = indices & self.subset_indices
-                        pen = self.pen_subset
-                    if np.any(part_selection):
-                        std = apply_columns_numpy(self.data.X,
-                                                  lambda x: np.nanstd(x, axis=0),
-                                                  part_selection)
-                        mean = apply_columns_numpy(self.data.X,
-                                                   lambda x: np.nanmean(x, axis=0),
-                                                   part_selection)
-                        std = std[self.data_xsind]
-                        mean = mean[self.data_xsind]
-                        ysall.append(mean)
-                        penc = QPen(pen[colorv])
-                        penc.setWidth(3)
-                        self.add_curve(x, mean, pen=penc)
-                        self.add_fill_curve(x, mean + std, mean - std, pen=penc)
-                        cinfo.append((colorv, part, part_selection))
-            self.curves.append((x, np.array(ysall)))
-            self.multiple_curves_info = cinfo
-        self.curves_cont.update()
-        self.plot.vb.set_mode_panning()
+        self.show_average_thread.show_average()
 
     def update_view(self):
         if self.viewtype == INDIVIDUAL:
             self.show_individual()
+            self.rescale()
         elif self.viewtype == AVERAGE:
             self.show_average()
+
+    def rescale(self):
         if self.rescale_next:
             self.plot.vb.autoRange()
 
@@ -1386,6 +1453,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.make_selection_valid()
         else:
             self.clear_data()
+            self.clear_graph()
         if auto_update:
             self.update_view()
 

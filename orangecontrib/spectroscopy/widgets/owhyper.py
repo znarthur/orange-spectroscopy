@@ -690,6 +690,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if self.data and self.attr_x and self.attr_y:
             self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
                        self.parent.integrate_fn())
+        else:
+            self.image_updated.emit()
 
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
