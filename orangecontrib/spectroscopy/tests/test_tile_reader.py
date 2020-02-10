@@ -10,7 +10,7 @@ from orangecontrib.spectroscopy import get_sample_datasets_dir
 from orangecontrib.spectroscopy.tests.test_preprocess import PREPROCESSORS_INDEPENDENT_SAMPLES
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS
 
-from orangecontrib.protospec.widgets.owtilefile import OWTilefile
+from orangecontrib.spectroscopy.widgets.owtilefile import OWTilefile
 
 AGILENT_TILE = "agilent/5_mosaic_agg1024.dmt"
 

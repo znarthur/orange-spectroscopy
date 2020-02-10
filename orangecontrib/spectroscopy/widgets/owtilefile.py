@@ -16,11 +16,12 @@ from orangecontrib.spectroscopy import get_sample_datasets_dir
 
 class OWTilefile(owfile.OWFile):
     name = "Tile File"
-    id = "orangecontrib.protospec.widgets.tilefile"
+    id = "orangecontrib.spectroscopy.widgets.tilefile"
     icon = "icons/tilefile.svg"
     description = "Read data tile-by-tile from input files, " \
                   "preprocess, and send a data table to the output."
     priority = 10000
+    replaces = ["orangecontrib.protospec.widgets.owtilefile.OWTilefile"]
 
     SEARCH_PATHS = [("sample-datasets", get_sample_datasets_dir())]
     SIZE_LIMIT = 0
@@ -157,7 +158,7 @@ if __name__ == "__main__":
     import sys
     from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
     from Orange.preprocess.preprocess import PreprocessorList
-    import orangecontrib.protospec #load readers
+    import orangecontrib.spectroscopy #load readers
     a = QApplication(sys.argv)
     # preproc = PreprocessorList([Cut(lowlim=2000, highlim=2006), LinearBaseline()])
     preproc = PreprocessorList([LinearBaseline(), Cut(lowlim=2000, highlim=2006)])

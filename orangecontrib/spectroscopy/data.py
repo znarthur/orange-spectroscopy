@@ -16,7 +16,7 @@ from Orange.data.io import FileFormat
 import Orange.data.io
 
 from .pymca5 import OmnicMap
-from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG
+from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG, agilentMosaicTiles
 from .utils import spc
 
 
