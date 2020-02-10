@@ -7,9 +7,9 @@ from Orange.preprocess.preprocess import PreprocessorList
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy import get_sample_datasets_dir
-from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.tests.test_preprocess import PREPROCESSORS_INDEPENDENT_SAMPLES
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, create_preprocessor
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
+    create_preprocessor
 
 from orangecontrib.spectroscopy.widgets.owtilefile import OWTilefile
 
@@ -73,8 +73,6 @@ class TestTileReaderWidget(WidgetTest):
         pp = PREPROCESSORS[0]
         self.preproc_widget.add_preprocessor(pp)
         self.preproc_widget.unconditional_commit()
-        #wait_for_preview(self.preproc_widget)
-        #self.wait_until_finished(self.preproc_widget)
         pp_out = self.get_output("Preprocessor", widget=self.preproc_widget)
         self.send_signal("Preprocessor", pp_out, widget=self.widget)
         self.assertEqual(self.widget.preprocessor, pp_out)

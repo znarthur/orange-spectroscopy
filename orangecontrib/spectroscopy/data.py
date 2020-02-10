@@ -1205,7 +1205,6 @@ class TileFileFormat:
         Return a generator of Tables, where each Table is a chunk of the total.
         Tables should already have appropriate meta-data (i.e. map_x/map_y)
         """
-        pass
 
     def read(self):
         ret_table = None
@@ -1244,18 +1243,12 @@ class agilentMosaicTileReader(FileFormat, TileFileFormat):
 
 
     def read_tile(self):
-        ret_table = None
         am = agilentMosaicTiles(self.filename)
         info = am.info
         tiles = am.tiles
         ytiles = am.tiles.shape[0]
-        xtiles = am.tiles.shape[1]
 
-        try:
-            features = info['wavenumbers']
-        except KeyError:
-            #just start counting from 0 when nothing is known
-            features = np.arange(X.shape[-1])
+        features = info['wavenumbers']
 
         attrs = [Orange.data.ContinuousVariable.make("%f" % f) for f in features]
         domain = Orange.data.Domain(attrs, None,

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from typing import List
 
 import numpy as np
-from AnyQt.QtCore import Qt, QTimer, QSize
+from AnyQt.QtCore import Qt, QSize
 from AnyQt.QtWidgets import QApplication
 from AnyQt.QtWidgets import \
     QStyle, QComboBox, QMessageBox, QGridLayout, QLabel, \
@@ -23,12 +23,13 @@ from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import RecentPathsWComboMixin, open_filename_dialog
 from Orange.widgets.widget import Input, Msg, Output
 
-from orangecontrib.spectroscopy import get_sample_datasets_dir
-
 # Backward compatibility (from owfile): class RecentPath used to be defined in this module,
 # and it is used in saved (pickled) settings. It must be imported into the
 # module's namespace so that old saved settings still work
 from Orange.widgets.utils.filedialogs import RecentPath
+
+from orangecontrib.spectroscopy import get_sample_datasets_dir
+
 
 log = logging.getLogger(__name__)
 
@@ -578,15 +579,9 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
 if __name__ == "__main__":
     import sys
     from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
-    from Orange.preprocess.preprocess import PreprocessorList
-    import orangecontrib.spectroscopy #load readers
+    import orangecontrib.spectroscopy  #load readers
     a = QApplication(sys.argv)
-    # preproc = PreprocessorList([Cut(lowlim=2000, highlim=2006), LinearBaseline()])
     preproc = PreprocessorList([LinearBaseline(), Cut(lowlim=2000, highlim=2006)])
-    # preproc = PreprocessorList([Cut(lowlim=2000, highlim=2006), Cut(lowlim=2002, highlim=2006)])
-    # Test 2nd Deriv superwide
-    # from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, integrate, SavitzkyGolayFiltering
-    # preproc = PreprocessorList([Normalize(lower=1591.0484214631633, upper=1719.720747038586, int_method=integrate.IntegrateFeatureSimple), SavitzkyGolayFiltering(window=13, deriv=2), Integrate(methods=integrate.IntegrateFeatureAtPeak, limits=[[1625.0, 1.0], [1152.0, 1.0], [1575.0, 1.0], [1127.0, 1.0]])])
     ow = OWTilefile()
     ow.update_preprocessor(preproc)
     ow.show()
