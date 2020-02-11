@@ -85,6 +85,13 @@
     "icon": "../orangecontrib/spectroscopy/widgets/icons/stackalign.svg",
     "background": "light-blue",
     "keywords": []
+   },
+   {
+    "text": "Tile File",
+    "doc": "widgets/tilefile.md",
+    "icon": "../orangecontrib/spectroscopy/widgets/icons/tilefile.svg",
+    "background": "light-blue",
+    "keywords": []
    }
   ]
  ]
