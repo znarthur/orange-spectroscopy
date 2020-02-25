@@ -3,11 +3,11 @@ Tile File
 
 Read data tile-by-tile from input file(s), preprocess the spectra, and send a data table to the output.
 
-Inputs
+**Inputs**
 
  - Preprocessor: A preprocessor list from the Preprocess Spectra widget
 
-Outputs
+**Outputs**
 
  - Data: preprocessed dataset read from the input file(s)
 
