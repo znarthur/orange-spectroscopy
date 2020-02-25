@@ -9,10 +9,11 @@ from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
 
-from Orange.widgets import gui
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
 from Orange.widgets.data.owpreprocess import blocked
+
+from orangewidget.gui import ValueCallback, ControlledCallFront, ControlledCallback
 
 
 def pixels_to_decimals(n):
@@ -143,7 +144,7 @@ def str_or_empty(val):
         return str(val)
 
 
-class CallFrontLineEditCustomConversion(gui.ControlledCallFront):
+class CallFrontLineEditCustomConversion(ControlledCallFront):
 
     def __init__(self, control, valToStr):
         super().__init__(control)
@@ -198,7 +199,7 @@ class LineEdit(LineEditMarkFinished):
 
 def connect_line_edit_finished(lineedit, master, value, valueToStr=str, valueType=str, callback=None):
     # callback is only for compatibility with the old code
-    update_value = gui.ValueCallback(master, value, valueType)  # save the value
+    update_value = ValueCallback(master, value, valueType)  # save the value
     update_control = CallFrontLineEditCustomConversion(lineedit, valueToStr)  # update control
     update_value.opposite = update_control
     update_control(getdeepattr(master, value))  # set the first value
@@ -392,7 +393,7 @@ class MovableVline(pg.UIGraphicsItem):
         super().paint(p, *args)
 
 
-class LineCallFront(gui.ControlledCallFront):
+class LineCallFront(ControlledCallFront):
 
     def action(self, value):
         self.control.setValue(floatornone(value))
@@ -409,7 +410,7 @@ class ValueTransform(metaclass=ABCMeta):
         """Inverse transform"""
 
 
-class ValueCallbackTransform(gui.ControlledCallback):
+class ValueCallbackTransform(ControlledCallback):
 
     def __call__(self, value):
         self.acyclic_setattr(value)
@@ -437,7 +438,7 @@ def connect_settings(master, value, value2, transform=None):
 
 
 def connect_line(line, master, value):
-    update_value = gui.ValueCallback(master, value)  # save the value
+    update_value = ValueCallback(master, value)  # save the value
     update_control = LineCallFront(line)  # update control
     update_value.opposite = update_control
     update_control(getdeepattr(master, value))  # set the first value
