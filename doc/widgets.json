@@ -52,6 +52,13 @@
     "keywords": []
    },
    {
+    "text": "Tile File",
+    "doc": "widgets/tilefile.md",
+    "icon": "../orangecontrib/spectroscopy/widgets/icons/tilefile.svg",
+    "background": "light-blue",
+    "keywords": []
+   },
+   {
     "text": "Average Spectra",
     "doc": "widgets/average.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/average.svg",

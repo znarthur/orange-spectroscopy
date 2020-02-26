@@ -16,7 +16,7 @@ from Orange.data.io import FileFormat
 import Orange.data.io
 
 from .pymca5 import OmnicMap
-from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG
+from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG, agilentMosaicTiles
 from .utils import spc
 
 
@@ -1194,3 +1194,81 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
     def _gsf_reader(self, path):
         X, _, _ = reader_gsf(path)
         return np.asarray(X)
+
+
+class TileFileFormat:
+
+    def read_tile(self):
+        """ Read file in chunks (tiles) to allow preprocessing before combining
+        into one large Table.
+
+        Return a generator of Tables, where each Table is a chunk of the total.
+        Tables should already have appropriate meta-data (i.e. map_x/map_y)
+        """
+
+    def read(self):
+        ret_table = None
+        for tile_table in self.read_tile():
+            if ret_table is None:
+                ret_table = self.preprocess(tile_table)
+            else:
+                tile_table_pp = tile_table.transform(ret_table.domain)
+                ret_table.X = np.vstack((ret_table.X, tile_table_pp.X))
+                ret_table._Y = np.vstack((ret_table._Y, tile_table_pp._Y))
+                ret_table.metas = np.vstack((ret_table.metas, tile_table_pp.metas))
+                ret_table.W = np.vstack((ret_table.W, tile_table_pp.W))
+                ret_table.ids = np.hstack((ret_table.ids, tile_table_pp.ids))
+
+        return ret_table
+
+
+class agilentMosaicTileReader(FileFormat, TileFileFormat):
+    """ Tile-by-tile reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dmt',)
+    DESCRIPTION = 'Agilent Mosaic Tile-by-tile'
+    PRIORITY = agilentMosaicReader.PRIORITY + 100
+
+    def __init__(self, filename):
+        super().__init__(filename)
+        self.preprocessor = None
+
+    def set_preprocessor(self, preprocessor):
+        self.preprocessor = preprocessor
+
+    def preprocess(self, table):
+        if self.preprocessor is not None:
+            return self.preprocessor(table)
+        else:
+            return table
+
+
+    def read_tile(self):
+        am = agilentMosaicTiles(self.filename)
+        info = am.info
+        tiles = am.tiles
+        ytiles = am.tiles.shape[0]
+
+        features = info['wavenumbers']
+
+        attrs = [Orange.data.ContinuousVariable.make("%f" % f) for f in features]
+        domain = Orange.data.Domain(attrs, None,
+                                    metas=[Orange.data.ContinuousVariable.make("map_x"),
+                                           Orange.data.ContinuousVariable.make("map_y")]
+                                    )
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+
+        for (x, y) in np.ndindex(tiles.shape):
+            tile = tiles[x, y]()
+            x_size, y_size = tile.shape[1], tile.shape[0]
+            x_locs = np.linspace(x*x_size*px_size, (x+1)*x_size*px_size, num=x_size, endpoint=False)
+            y_locs = np.linspace((ytiles-y-1)*y_size*px_size, (ytiles-y)*y_size*px_size, num=y_size, endpoint=False)
+
+            _, data, additional_table = _spectra_from_image(tile, None, x_locs, y_locs)
+            data = np.asarray(data, dtype=np.float64)  # Orange assumes X to be float64
+            tile_table = Orange.data.Table.from_numpy(domain, X=data, metas=additional_table.metas)
+            yield tile_table

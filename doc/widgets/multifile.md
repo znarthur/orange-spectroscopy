@@ -3,7 +3,7 @@ Multifile
 
 Read data from input files and send a data table to the output.
 
-Outputs
+**Outputs**
 
 - Data: a data table of all the loaded files
 
