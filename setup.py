@@ -123,7 +123,7 @@ if __name__ == '__main__':
         long_description=LONG_DESCRIPTION,
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
-        version="0.4.9",
+        version="0.5.0",
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
         data_files=DATA_FILES,
