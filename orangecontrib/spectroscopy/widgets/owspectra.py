@@ -103,6 +103,44 @@ class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
         return QWidget.focusNextPrevChild(self, next)
 
 
+class FinitePlotCurveItem(pg.PlotCurveItem):
+    """
+    PlotCurveItem which filters non-finite values from set_data
+
+    Required to work around Qt>=5.12 plotting bug
+    See https://github.com/Quasars/orange-spectroscopy/issues/408
+    and https://github.com/pyqtgraph/pyqtgraph/issues/1057
+    """
+
+    def __init__(self, *args, **kargs):
+        super().__init__(*args, **kargs)
+
+    def setData(self, *args, **kargs):
+        """Filter non-finite values from x,y before passing on to updateData"""
+        if len(args) == 1:
+            y = args[0]
+        elif len(args) == 2:
+            x = args[0]
+            y = args[1]
+        else:
+            x = kargs.get('x', None)
+            y = kargs.get('y', None)
+
+        if x is not None and y is not None:
+            non_finite_values = np.logical_not(np.isfinite(x) & np.isfinite(y))
+            kargs['x'] = x[~non_finite_values]
+            kargs['y'] = y[~non_finite_values]
+        elif y is not None:
+            non_finite_values = np.logical_not(np.isfinite(y))
+            kargs['y'] = y[~non_finite_values]
+        else:
+            kargs['x'] = x
+            kargs['y'] = y
+
+        # Don't pass args as (x,y) have been moved to kargs
+        self.updateData(**kargs)
+
+
 class PlotCurvesItem(GraphicsObject):
     """ Multiple curves on a single plot that can be cached together. """
 
@@ -1025,7 +1063,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.curves_plotted = []  # currently plotted elements (for rescale)
         self.curves = []  # for finding closest curve
         self.plotview.addItem(self.label, ignoreBounds=True)
-        self.highlighted_curve = pg.PlotCurveItem(pen=self.pen_mouse)
+        self.highlighted_curve = FinitePlotCurveItem(pen=self.pen_mouse)
         self.highlighted_curve.setZValue(10)
         self.highlighted_curve.hide()
         self.plot.addItem(self.highlighted_curve, ignoreBounds=True)
@@ -1309,15 +1347,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.curves_plotted.append((x, ys))
 
     def add_curve(self, x, y, pen=None, ignore_bounds=False):
-        c = pg.PlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
+        c = FinitePlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
         self.curves_cont.add_curve(c, ignore_bounds=ignore_bounds)
         # for rescale to work correctly
         if not ignore_bounds:
             self.curves_plotted.append((x, np.array([y])))
 
     def add_fill_curve(self, x, ylow, yhigh, pen):
-        phigh = pg.PlotCurveItem(x, yhigh, pen=pen)
-        plow = pg.PlotCurveItem(x, ylow, pen=pen)
+        phigh = FinitePlotCurveItem(x, yhigh, pen=pen)
+        plow = FinitePlotCurveItem(x, ylow, pen=pen)
         color = pen.color()
         color.setAlphaF(color.alphaF() * 0.3)
         cc = pg.mkBrush(color)
