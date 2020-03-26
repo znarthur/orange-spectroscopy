@@ -312,8 +312,12 @@ class TestOWSpectra(WidgetTest):
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, None)
         self.widget.curveplot.feature_color = "iris"
+        iris_context = self.widget.settingsHandler.pack_data(self.widget)["context_settings"]
         self.send_signal("Data", Table("housing"))
         self.assertEqual(self.widget.curveplot.feature_color, None)
+        # because previous settings match any domain, use only context for iris
+        self.widget = self.create_widget(OWSpectra,
+                                         stored_settings={"context_settings": iris_context})
         self.send_signal("Data", self.iris)
         self.assertEqual(self.widget.curveplot.feature_color, "iris")
 

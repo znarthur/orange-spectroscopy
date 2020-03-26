@@ -1594,7 +1594,8 @@ class OWSpectra(OWWidget):
 
     @classmethod
     def migrate_settings(cls, settings, version):
-        CurvePlot.migrate_settings_sub(settings["curveplot"], version)
+        if "curveplot" in settings:
+            CurvePlot.migrate_settings_sub(settings["curveplot"], version)
 
 
 def main(argv=None):
