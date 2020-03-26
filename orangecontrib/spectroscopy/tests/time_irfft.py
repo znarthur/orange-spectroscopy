@@ -1,4 +1,4 @@
-import time
+import time, sys
 
 import numpy as np
 from Orange.data import Table
@@ -7,15 +7,18 @@ from orangecontrib.spectroscopy.data import getx, agilentMosaicIFGReader
 
 from orangecontrib.spectroscopy.irfft import (IRFFT, zero_fill, PhaseCorrection,
                                               find_zpd, PeakSearch, ApodFunc
-                                             )
+                                              )
 from orangecontrib.spectroscopy.tests.test_readers import initialize_reader
 
-def test_time_multi_fft():
-    fns = ["agilent/4_noimage_agg256.seq",
-           "C:\\Users\\reads\\tmp\\aff-testdata\\2017-11-10 4X-25X\\2017-11-10 4X-25X.dmt",
-           "/data/staff/reads/aff-testdata/2017-11-10 4X-25X/2017-11-10 4x-25x.dmt",
-           "/data/staff/reads/USAF 25X Mosaic/usaf 25x mosaic.dmt"
-           ]
+FILENAMES = ["agilent/4_noimage_agg256.seq",
+             "C:\\Users\\reads\\tmp\\aff-testdata\\2017-11-10 4X-25X\\2017-11-10 4X-25X.dmt",
+             "/data/staff/reads/aff-testdata/2017-11-10 4X-25X/2017-11-10 4x-25x.dmt",
+             "/data/staff/reads/USAF 25X Mosaic/usaf 25x mosaic.dmt"
+             ]
+FILENAMES_FAST = FILENAMES[0:1]
+
+
+def test_time_multi_fft(fns):
     for fn in fns:
         print(fn)
         if fn[-3:] == 'dmt':
@@ -68,6 +71,11 @@ def test_time_multi_fft():
             print("Speedup: infinity!")
 
 
-
 if __name__ == "__main__":
-    test_time_multi_fft()
+    try:
+        fast = sys.argv[1]
+    except IndexError:
+        fast = False
+    finally:
+        fns = FILENAMES_FAST if fast == "--fast" else FILENAMES
+    test_time_multi_fft(fns)
