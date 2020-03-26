@@ -48,6 +48,11 @@ class TestOWSpectra(WidgetTest):
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         cls.unknown_last_instance = cls.iris.copy()
         cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
+        # dataset with mixed unknowns
+        cls.unknown_pts = cls.collagen.copy()
+        cls.unknown_pts[5] = np.nan
+        cls.unknown_pts[8:10] = np.nan
+        cls.unknown_pts[15] = np.inf
         # a data set with features with the same names
         sfdomain = Domain([ContinuousVariable("1"), ContinuousVariable("1")])
         cls.same_features = Table.from_numpy(sfdomain, X=[[0, 1]])
@@ -55,7 +60,7 @@ class TestOWSpectra(WidgetTest):
         cls.only_inf = iris1.copy()
         cls.only_inf.X *= np.Inf
         cls.strange_data = [iris1, iris0, empty, irisunknown, cls.unknown_last_instance,
-                            cls.same_features, cls.only_inf]
+                            cls.same_features, cls.only_inf, cls.unknown_pts]
 
     def setUp(self):
         self.widget = self.create_widget(OWSpectra)  # OWSpectra
@@ -491,3 +496,10 @@ class TestOWSpectra(WidgetTest):
         with set_png_graph_save() as fname:
             self.widget.save_graph()
             self.assertGreater(os.path.getsize(fname), 10000)
+
+    def test_filter_unknowns(self):
+        self.send_signal("Data", self.unknown_pts)
+        curves_cont = self.widget.curveplot.curves_cont
+        for obj in curves_cont.objs:
+            self.assertTrue(np.isfinite(obj.yData).all())
+            self.assertTrue(np.isfinite(obj.xData).all())
