@@ -46,27 +46,50 @@ def test_time_multi_fft(fns):
 
         print(data.X.shape)
 
-        min_multi = float('inf')
-        for n in range(3):
-            t = time.time()
-            r = fft(data.X)
-            dt = time.time() - t
-            print("multi", dt)
-            min_multi = min(min_multi, dt)
-        print("multi (min)", min_multi)
-
         min_row = float('inf')
         for n in range(3):
             t = time.time()
             for row in data:
-                r = fft(row)
+                # Array is at RowInstance.x
+                r = fft(row.x)
             dt = time.time() - t
             print("row by row", dt)
             min_row = min(min_row, dt)
         print("row by row (min)", min_row)
 
+        min_batch = float('inf')
+        chunk_size = 100
+        chunks = max(1, len(data) // chunk_size)
+        print(f"{chunks} chunks")
+        for n in range(3):
+            t = time.time()
+            for chunk in np.array_split(data.X, chunks, axis=0):
+                r = fft(chunk)
+            dt = time.time() - t
+            print("100 batch", dt)
+            min_batch = min(min_batch, dt)
+        print("100 batch (min)", min_batch)
+
+        min_multi = float('inf')
+        for n in range(3):
+            t = time.time()
+            try:
+                r = fft(data.X)
+            except MemoryError as e:
+                print(e)
+                break
+            dt = time.time() - t
+            print("multi", dt)
+            min_multi = min(min_multi, dt)
+        print("multi (min)", min_multi)
+
         try:
-            print(f"Speedup: {min_row / min_multi}")
+            print(f"Multirow Speedup: {min_row / min_multi}")
+        except ZeroDivisionError:
+            print("Speedup: infinity!")
+
+        try:
+            print(f"100 Batch Speedup: {min_row / min_batch}")
         except ZeroDivisionError:
             print("Speedup: infinity!")
 
