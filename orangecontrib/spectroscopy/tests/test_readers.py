@@ -1,5 +1,7 @@
 import unittest
 from unittest.mock import patch
+from io import BytesIO
+from PIL import Image
 
 import numpy as np
 import Orange
@@ -68,6 +70,39 @@ class TestDat(unittest.TestCase):
             d1.save(fn)
             d2 = Orange.data.Table(fn)
             np.testing.assert_equal(d1.X, d2.X)
+
+
+@unittest.skipIf(opusFC is None, "opusFC module not installed")
+class TestOpusReader(unittest.TestCase):
+
+    def test_no_visible_image_read(self):
+        d = Orange.data.Table("opus/no_visible_images.0")
+
+        # visible_images is not a permanent key
+        self.assertNotIn("visible_images", d.attributes)
+
+    def test_one_visible_image_read(self):
+        d = Orange.data.Table("opus/one_visible_image.0")
+
+        self.assertIn("visible_images", d.attributes)
+        self.assertEqual(len(d.attributes["visible_images"]), 1)
+
+        img_info = d.attributes["visible_images"][0]
+        # decompress bytes only in widgets to reduce memory footprint
+        self.assertEqual(type(img_info["image_bytes"]), bytes)
+        self.assertEqual(img_info["name"], "Image 01")
+        self.assertAlmostEqual(img_info["pixel_size_x"], 0.90088498)
+        self.assertAlmostEqual(img_info["pixel_size_y"], 0.89284902)
+        self.assertAlmostEqual(img_info["pos_x"],
+                               43552.0 * img_info["pixel_size_x"])
+        self.assertAlmostEqual(img_info["pos_y"],
+                               20727.0 * img_info["pixel_size_y"])
+
+        # test image
+        with BytesIO(img_info["image_bytes"]) as f:
+            img = Image.open(f)
+            img = np.array(img)
+            self.assertEqual(img.shape, (538, 666, 3))
 
 
 class TestHermesHDF5Reader(unittest.TestCase):
