@@ -272,8 +272,7 @@ class IRFFT():
         elif self.phase_corr == PhaseCorrection.STORED:
             if self.phase is None:
                 raise ValueError("No stored phase provided.")
-            else:
-                return
+            return
         elif self.phase_corr == PhaseCorrection.MERTZ:
             self.phase = np.arctan2(ifg_sub_fft.imag, ifg_sub_fft.real)
         elif self.phase_corr == PhaseCorrection.MERTZSIGNED:
@@ -284,7 +283,7 @@ class IRFFT():
 
 class MultiIRFFT(IRFFT):
 
-    def __call__(self, ifg, zpd, phase=None):
+    def __call__(self, ifg, zpd=None, phase=None):
         if ifg.ndim != 2:
             raise ValueError("ifg must be 2D array of row-wise interferograms")
         # TODO does stored phase work / make sense here?
