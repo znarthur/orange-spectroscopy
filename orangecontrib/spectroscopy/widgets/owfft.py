@@ -23,6 +23,7 @@ def add_meta_to_table(data, var, values):
     return newtable
 
 DEFAULT_HENE = 15797.337544
+CHUNK_SIZE = 100
 
 class OWFFT(OWWidget):
     # Widget's name as displayed in the canvas
@@ -369,6 +370,7 @@ class OWFFT(OWWidget):
                                  peak_search=self.peak_search,
                                 )
 
+        ifg_data = self.data.X
         stored_phase = self.stored_phase
         stored_zpd_fwd, stored_zpd_back = None, None
         # Only use first row stored phase for now
@@ -383,12 +385,22 @@ class OWFFT(OWWidget):
             except ValueError:
                 stored_zpd_back = None
             stored_phase = stored_phase.x # lowercase x for RowInstance
-        # Use manual zpd value(s) if specified
+        # Use manual zpd value(s) if specified and enable batch processing
         elif not self.peak_search_enable:
             stored_zpd_fwd = self.zpd1
             stored_zpd_back = self.zpd2
+            chunks = max(1, len(self.data) // CHUNK_SIZE)
+            ifg_data = np.array_split(self.data.X, chunks, axis=0)
+            fft_single = irfft.MultiIRFFT(
+                dx=self.dx,
+                apod_func=self.apod_func,
+                zff=2**self.zff,
+                phase_res=self.phase_resolution if self.phase_res_limit else None,
+                phase_corr=self.phase_corr,
+                peak_search=self.peak_search,
+                )
 
-        for row in self.data.X:
+        for row in ifg_data:
             if self.sweeps in [2, 3]:
                 # split double-sweep for forward/backward
                 # forward: 2-2 = 0 , backward: 3-2 = 1
@@ -445,10 +457,15 @@ class OWFFT(OWWidget):
 
         self.phases_table = build_spec_table(wavenumbers, phases,
                                              additional_table=self.data)
+        if not self.peak_search_enable:
+            # All zpd values are equal by definition
+            zpd_fwd = zpd_fwd[:1]
         self.phases_table = add_meta_to_table(self.phases_table,
                                               ContinuousVariable.make("zpd_fwd"),
                                               zpd_fwd)
         if zpd_back:
+            if not self.peak_search_enable:
+                zpd_back = zpd_back[:1]
             self.phases_table = add_meta_to_table(self.phases_table,
                                                   ContinuousVariable.make("zpd_back"),
                                                   zpd_back)
