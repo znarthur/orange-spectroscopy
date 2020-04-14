@@ -102,11 +102,11 @@ class TestIRFFT(unittest.TestCase):
     def test_multi(self):
         dx_ag = (1 / 1.57980039e+04 / 2) * 4
         fft = MultiIRFFT(dx=dx_ag,
-                    apod_func=ApodFunc.BLACKMAN_HARRIS_4,
-                    zff=1,
-                    phase_res=None,
-                    phase_corr=PhaseCorrection.MERTZ,
-                    peak_search=PeakSearch.MINIMUM)
+                         apod_func=ApodFunc.BLACKMAN_HARRIS_4,
+                         zff=1,
+                         phase_res=None,
+                         phase_corr=PhaseCorrection.MERTZ,
+                         peak_search=PeakSearch.MINIMUM)
         zpd = 69    # from test_agilent_fft_sc(), TODO replace with value read from file
         fft(self.ifg_seq_ref.X, zpd)
 
@@ -117,11 +117,11 @@ class TestIRFFT(unittest.TestCase):
         dat = dat_T.X
         dx_ag = (1 / 1.57980039e+04 / 2) * 4
         fft = MultiIRFFT(dx=dx_ag,
-                    apod_func=ApodFunc.BLACKMAN_HARRIS_4,
-                    zff=1,
-                    phase_res=None,
-                    phase_corr=PhaseCorrection.MERTZ,
-                    peak_search=PeakSearch.MINIMUM)
+                         apod_func=ApodFunc.BLACKMAN_HARRIS_4,
+                         zff=1,
+                         phase_res=None,
+                         phase_corr=PhaseCorrection.MERTZ,
+                         peak_search=PeakSearch.MINIMUM)
         zpd = 69  # from test_agilent_fft_sc(), TODO replace with value read from file
         fft(ifg_ref, zpd)
         rsc = fft.spectrum
