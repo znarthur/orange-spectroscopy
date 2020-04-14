@@ -163,13 +163,15 @@ class OWFFT(OWWidget):
             callback=self.peak_search_changed,
             enabled=self.peak_search_enable,
             )
-        le1 = gui.lineEdit(self.dataBox, self, "zpd1",
+        le1 = gui.lineEdit(
+            self.dataBox, self, "zpd1",
             callback=self.peak_search_changed,
             valueType=int,
             controlWidth=50,
             disabled=self.peak_search_enable,
             )
-        le2 = gui.lineEdit(self.dataBox, self, "zpd2",
+        le2 = gui.lineEdit(
+            self.dataBox, self, "zpd2",
             callback=self.peak_search_changed,
             valueType=int,
             controlWidth=50,
