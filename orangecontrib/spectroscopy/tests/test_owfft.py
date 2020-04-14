@@ -40,3 +40,14 @@ class TestOWFFT(WidgetTest):
         phases = self.get_output(self.widget.Outputs.phases)
         np.testing.assert_equal(input.metas, spectra.metas)
         np.testing.assert_equal(input.metas, phases.metas[:, :input.metas.shape[1]])
+
+    def test_custom_zpd(self):
+        """ Test setting custom zpd value"""
+        custom_zpd = 1844
+        self.widget.autocommit = True
+        self.send_signal(self.widget.Inputs.data, self.ifg_single)
+        self.widget.peak_search_enable = False
+        self.widget.zpd1 = custom_zpd
+        self.widget.peak_search_changed()
+        phases = self.get_output(self.widget.Outputs.phases)
+        self.assertEqual(phases[0, "zpd_fwd"], custom_zpd)

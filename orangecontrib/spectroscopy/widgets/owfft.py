@@ -55,6 +55,9 @@ class OWFFT(OWWidget):
     auto_sweeps = settings.Setting(True)
     sweeps = settings.Setting(0)
     peak_search = settings.Setting(irfft.PeakSearch.MAXIMUM)
+    peak_search_enable = settings.Setting(True)
+    zpd1 = settings.Setting(0)
+    zpd2 = settings.Setting(0)
     apod_func = settings.Setting(1)
     zff = settings.Setting(1)  # an exponent for zero-filling factor, IRFFT() needs 2**zff
     phase_corr = settings.Setting(0)
@@ -122,7 +125,7 @@ class OWFFT(OWWidget):
             self.dataBox, self, "dx",
             callback=self.setting_changed,
             valueType=float,
-            controlWidth=100, disabled=self.dx_HeNe
+            disabled=self.dx_HeNe,
             )
         self.dx_HeNe_cb = gui.checkBox(
             self.dataBox, self, "dx_HeNe",
@@ -131,8 +134,8 @@ class OWFFT(OWWidget):
             )
         lb = gui.widgetLabel(self.dataBox, "cm")
         grid.addWidget(self.dx_HeNe_cb, 0, 0)
-        grid.addWidget(self.dx_edit, 0, 1)
-        grid.addWidget(lb, 0, 2)
+        grid.addWidget(self.dx_edit, 0, 1, 1, 2)
+        grid.addWidget(lb, 0, 3)
 
         wl = gui.widgetLabel(self.dataBox, "Sweep Direction:")
         box = gui.comboBox(
@@ -149,16 +152,41 @@ class OWFFT(OWWidget):
             )
         grid.addWidget(wl, 1, 0, 1, 3)
         grid.addWidget(cb2, 2, 0)
-        grid.addWidget(box, 2, 1)
+        grid.addWidget(box, 2, 1, 1, 2)
 
-        self.dataBox.layout().addLayout(grid)
-
+        wl = gui.widgetLabel(self.dataBox, "ZPD Peak Search:")
         box = gui.comboBox(
             self.dataBox, self, "peak_search",
-            label="ZPD Peak Search:",
+            label=None,
             items=[name.title() for name, _ in irfft.PeakSearch.__members__.items()],
-            callback=self.setting_changed
+            callback=self.peak_search_changed,
+            enabled=self.peak_search_enable,
             )
+        le1 = gui.lineEdit(self.dataBox, self, "zpd1",
+            callback=self.peak_search_changed,
+            valueType=int,
+            controlWidth=50,
+            disabled=self.peak_search_enable,
+            )
+        le2 = gui.lineEdit(self.dataBox, self, "zpd2",
+            callback=self.peak_search_changed,
+            valueType=int,
+            controlWidth=50,
+            disabled=self.peak_search_enable,
+            )
+        cb = gui.checkBox(
+            self.dataBox, self, "peak_search_enable",
+            label=None,
+            callback=self.peak_search_changed,
+        )
+        grid.addWidget(wl, 3, 0, 1, 3)
+        grid.addWidget(cb, 4, 0)
+        grid.addWidget(box, 4, 1, 1, 2)
+        grid.addWidget(gui.widgetLabel(self.dataBox, "    Manual ZPD:"), 5, 0)
+        grid.addWidget(le1, 5, 1)
+        grid.addWidget(le2, 5, 2)
+
+        self.dataBox.layout().addLayout(grid)
 
         # FFT Options control area
         self.optionsBox = gui.widgetBox(self.controlArea, "FFT Options")
@@ -291,12 +319,20 @@ class OWFFT(OWWidget):
     def sweeps_changed(self):
         self.controls.sweeps.setDisabled(self.auto_sweeps)
         self.determine_sweeps()
+        if not self.peak_search_enable:
+            self.controls.zpd2.setDisabled(self.sweeps == 0)
         self.commit()
 
     def dx_changed(self):
         self.dx_edit.setDisabled(self.dx_HeNe)
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
+        self.commit()
+
+    def peak_search_changed(self):
+        self.controls.peak_search.setEnabled(self.peak_search_enable)
+        self.controls.zpd1.setDisabled(self.peak_search_enable)
+        self.controls.zpd2.setDisabled(self.peak_search_enable or self.sweeps == 0)
         self.commit()
 
     def commit(self):
@@ -347,6 +383,10 @@ class OWFFT(OWWidget):
             except ValueError:
                 stored_zpd_back = None
             stored_phase = stored_phase.x # lowercase x for RowInstance
+        # Use manual zpd value(s) if specified
+        elif not self.peak_search_enable:
+            stored_zpd_fwd = self.zpd1
+            stored_zpd_back = self.zpd2
 
         for row in self.data.X:
             if self.sweeps in [2, 3]:
