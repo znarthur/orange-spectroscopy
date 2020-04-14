@@ -5,7 +5,7 @@ from Orange.data import Table
 
 from orangecontrib.spectroscopy.data import getx, agilentMosaicIFGReader
 
-from orangecontrib.spectroscopy.irfft import (IRFFT, zero_fill, PhaseCorrection,
+from orangecontrib.spectroscopy.irfft import (IRFFT, MultiIRFFT, zero_fill, PhaseCorrection,
                                               find_zpd, PeakSearch, ApodFunc
                                               )
 from orangecontrib.spectroscopy.tests.test_readers import initialize_reader
@@ -43,6 +43,12 @@ def test_time_multi_fft(fns):
                     phase_res=None,
                     phase_corr=PhaseCorrection.MERTZ,
                     peak_search=PeakSearch.MINIMUM)
+        mfft = MultiIRFFT(dx=dx_ag,
+                    apod_func=ApodFunc.BLACKMAN_HARRIS_4,
+                    zff=1,
+                    phase_res=None,
+                    phase_corr=PhaseCorrection.MERTZ,
+                    peak_search=PeakSearch.MINIMUM)
 
         print(data.X.shape)
 
@@ -64,7 +70,7 @@ def test_time_multi_fft(fns):
         for n in range(3):
             t = time.time()
             for chunk in np.array_split(data.X, chunks, axis=0):
-                r = fft(chunk)
+                r = mfft(chunk, zpd=fft.zpd) # use last zpd from fft
             dt = time.time() - t
             print("100 batch", dt)
             min_batch = min(min_batch, dt)
@@ -74,7 +80,7 @@ def test_time_multi_fft(fns):
         for n in range(3):
             t = time.time()
             try:
-                r = fft(data.X)
+                r = mfft(data.X, zpd=fft.zpd) # use last zpd from fft
             except MemoryError as e:
                 print(e)
                 break
