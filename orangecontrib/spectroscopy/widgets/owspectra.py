@@ -19,7 +19,7 @@ from pyqtgraph.graphicsItems.ViewBox import ViewBox
 from pyqtgraph import Point, GraphicsObject
 
 import Orange.data
-from Orange.data import DiscreteVariable, Variable
+from Orange.data import DiscreteVariable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -1425,10 +1425,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             bright = qrect.right()
 
             ymax = max(np.max(ys[:, np.searchsorted(x, bleft):
-                                    np.searchsorted(x, bright, side="right")])
+                                 np.searchsorted(x, bright, side="right")])
                        for x, ys in self.curves_plotted)
             ymin = min(np.min(ys[:, np.searchsorted(x, bleft):
-                                    np.searchsorted(x, bright, side="right")])
+                                 np.searchsorted(x, bright, side="right")])
                        for x, ys in self.curves_plotted)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
@@ -1603,7 +1603,8 @@ class OWSpectra(OWWidget):
 
     def selection_changed(self):
         # selection table
-        annotated_data = groups_or_annotated_table(self.curveplot.data, self.curveplot.selection_group)
+        annotated_data = groups_or_annotated_table(self.curveplot.data,
+                                                   self.curveplot.selection_group)
         self.Outputs.annotated_data.send(annotated_data)
 
         # selected elements
