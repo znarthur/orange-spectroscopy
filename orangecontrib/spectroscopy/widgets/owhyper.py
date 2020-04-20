@@ -805,7 +805,7 @@ class OWHyper(OWWidget):
     priority = 20
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
 
-    settings_version = 3
+    settings_version = 4
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
@@ -850,6 +850,11 @@ class OWHyper(OWWidget):
                     settings_.setdefault("imageplot", {})["selection_group_saved"] = selection
             except:  # pylint: disable=bare-except
                 pass
+
+    @classmethod
+    def migrate_context(cls, context, version):
+        if version <= 3 and "curveplot" in context.values:
+            CurvePlot.migrate_context_sub_feature_color(context.values["curveplot"], version)
 
     def __init__(self):
         super().__init__()

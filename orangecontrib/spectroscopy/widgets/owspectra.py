@@ -244,7 +244,7 @@ class ShowAverage(QObject, ConcurrentMixin):
         if not master.data:
             self.average_shown.emit()
         else:
-            color_var = master.current_color_var()
+            color_var = master.feature_color
             self.start(self.compute_averages, master.data, color_var, master.subset_indices,
                        master.selection_group, master.data_xsind, master.selection_type)
 
@@ -976,13 +976,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             pass
 
     def cycle_color_attr(self):
-        elements = [(a.name if isinstance(a, Variable) else a)
-                    for a in self.feature_color_model]
-        currentind = 0
-        try:
-            currentind = elements.index(self.feature_color)
-        except ValueError:
-            pass
+        elements = [a for a in self.feature_color_model]
+        currentind = elements.index(self.feature_color)
         next = (currentind + 1) % len(self.feature_color_model)
         self.feature_color = elements[next]
         self.update_view()
@@ -1265,7 +1260,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         thispen = self.pen_subset if insubset or not have_subset else self.pen_normal
         if inselected:
             thispen = self.pen_selected
-        color_var = self.current_color_var()
+        color_var = self.feature_color
         value = None
         if color_var is not None:
             value = str(self.data[idcdata][color_var])
@@ -1367,11 +1362,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         # for zoom to work correctly
         self.curves_plotted.append((x, np.array([ylow, yhigh])))
 
-    def current_color_var(self):
-        color_var = None
-        if self.feature_color and self.data:
-            color_var = self.data.domain[self.feature_color]
-        return color_var
 
     @staticmethod
     def _generate_pens(color, color_unselected=None, color_selected=None):
@@ -1389,7 +1379,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.pen_normal.clear()
         self.pen_subset.clear()
         self.pen_selected.clear()
-        color_var = self.current_color_var()
+        color_var = self.feature_color
         self.legend.clear()
         palette, legend = False, False
         if color_var is not None:
@@ -1546,6 +1536,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             if settings["selected_indices"]:
                 settings["selection_group_saved"] = [(a, 1) for a in settings["selected_indices"]]
 
+    @classmethod
+    def migrate_context_sub_feature_color(cls, values, version):
+        # convert strings to Variable
+        name = "feature_color"
+        var, vartype = values[name]
+        if 0 <= vartype <= 100:
+            values[name] = (var, 100 + vartype)
+
 
 class OWSpectra(OWWidget):
     name = "Spectra"
@@ -1564,6 +1562,7 @@ class OWSpectra(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owcurves.OWCurves",
                 "orangecontrib.infrared.widgets.owspectra.OWSpectra"]
 
+    settings_version = 2
     settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
@@ -1634,6 +1633,11 @@ class OWSpectra(OWWidget):
     def migrate_settings(cls, settings, version):
         if "curveplot" in settings:
             CurvePlot.migrate_settings_sub(settings["curveplot"], version)
+
+    @classmethod
+    def migrate_context(cls, context, version):
+        if version <= 1 and "curveplot" in context.values:
+            CurvePlot.migrate_context_sub_feature_color(context.values["curveplot"], version)
 
 
 def main(argv=None):
