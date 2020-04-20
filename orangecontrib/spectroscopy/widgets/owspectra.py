@@ -877,8 +877,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                                                valid_types=(DiscreteVariable,), placeholder="None")
         self.feature_color_combo = gui.comboBox(
             choose_color_box, self, "feature_color",
-            callback=self.update_view, model=self.feature_color_model,
-            valueType=str)
+            callback=self.update_view, model=self.feature_color_model)
         choose_color_box.setFocusProxy(self.feature_color_combo)
         choose_color_action.setDefaultWidget(choose_color_box)
         view_menu.addAction(choose_color_action)

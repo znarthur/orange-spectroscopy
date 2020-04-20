@@ -537,8 +537,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.addActions(actions)
 
         common_options = dict(
-            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
-            valueType=str)
+            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True)
 
         choose_xy = QWidgetAction(self)
         box = gui.vBox(self)
@@ -869,7 +868,7 @@ class OWHyper(OWWidget):
         self.box_values_spectra = gui.indentedBox(rbox)
 
         gui.comboBox(
-            self.box_values_spectra, self, "integration_method", valueType=int,
+            self.box_values_spectra, self, "integration_method",
             items=(a.name for a in self.integration_methods),
             callback=self._change_integral_type)
         gui.rubber(self.controlArea)
@@ -882,8 +881,7 @@ class OWHyper(OWWidget):
                                                valid_types=DomainModel.PRIMITIVE)
         self.feature_value = gui.comboBox(
             self.box_values_feature, self, "attr_value",
-            callback=self.update_feature_value, model=self.feature_value_model,
-            sendSelectedValue=True, valueType=str)
+            callback=self.update_feature_value, model=self.feature_value_model)
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
