@@ -4,7 +4,7 @@ import sklearn.cross_decomposition as skl_pls
 
 from Orange.data import Variable, ContinuousVariable
 from Orange.preprocess.score import LearnerScorer
-from Orange.base import SklLearner, SklModel
+from Orange.regression import SklLearner, SklModel
 
 # Add any pre-processing of data here
 # Normalization is only needed if and when the data

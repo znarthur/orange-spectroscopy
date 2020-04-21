@@ -8,5 +8,5 @@ class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
                                          stored_settings={"auto_apply": False})
         self.init()
         self.parameters = [
-            ParameterMapping('iters', self.widget.n_iters),
+            ParameterMapping('max_iter', self.widget.n_iters),
             ParameterMapping('n_components', self.widget.ncomps_spin)]
