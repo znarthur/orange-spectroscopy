@@ -22,30 +22,18 @@ class _FeatureScorerMixin(LearnerScorer):
         return np.abs(model.coefficients), model.domain.attributes
 
 
-# Simple PLS Regression:
-
-
-class SklPLSRegressionLearner(SklLearner, _FeatureScorerMixin):
+class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
     __wraps__ = skl_pls.PLSRegression
-
-    def __init__(self, preprocessors=None):
-        super().__init__(preprocessors=preprocessors)
+    preprocessors = pls_pps
 
     def fit(self, X, Y, W=None):
         model = super().fit(X, Y, W)
         return PLSModel(model.skl_model)
 
-
-class PLSRegressionLearner(SklPLSRegressionLearner):
-    __wraps__ = skl_pls.PLSRegression
-    preprocessors = pls_pps
-
     def __init__(self, n_components=2, scale=True,
                  max_iter=500, preprocessors=None):
         super().__init__(preprocessors=preprocessors)
         self.params = vars()
-
-# PLS MODEL
 
 
 class PLSModel(SklModel):
