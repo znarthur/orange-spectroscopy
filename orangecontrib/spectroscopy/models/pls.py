@@ -1,7 +1,6 @@
 import numpy as np
 import sklearn.cross_decomposition as skl_pls
 
-
 from Orange.data import Variable, ContinuousVariable
 from Orange.preprocess.score import LearnerScorer
 from Orange.regression import SklLearner, SklModel
@@ -26,6 +25,9 @@ class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
     __wraps__ = skl_pls.PLSRegression
     preprocessors = pls_pps
 
+    # this learner enforces a single class because multitarget is not
+    # explicitly allowed
+
     def fit(self, X, Y, W=None):
         model = super().fit(X, Y, W)
         return PLSModel(model.skl_model)
@@ -44,13 +46,8 @@ class PLSModel(SklModel):
 
     def predict(self, X):
         vals = self.skl_model.predict(X)
-        if len(vals.shape) == 1:
-            # Prevent IndexError for 1D array
-            return vals
-        elif vals.shape[1] == 1:
-            return vals.ravel()
-        else:
-            return vals
+        assert vals.shape[1] == 1  # currently support only single class
+        return vals.ravel()
 
     def __str__(self):
         return 'PLSModel {}'.format(self.skl_model)
@@ -61,6 +58,6 @@ if __name__ == '__main__':
 
     data = Orange.data.Table('housing')
     learners = [PLSRegressionLearner(n_components=2, max_iter=100)]
-    res = Orange.evaluation.CrossValidation(data, learners)
+    res = Orange.evaluation.CrossValidation()(data, learners)
     for l, ca in zip(learners, Orange.evaluation.RMSE(res)):
         print("learner: {}\nRMSE: {}\n".format(l, ca))

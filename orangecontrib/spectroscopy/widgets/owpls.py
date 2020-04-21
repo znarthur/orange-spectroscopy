@@ -1,6 +1,5 @@
 from AnyQt.QtCore import Qt
 import scipy.sparse as sp
-from orangecontrib.spectroscopy.models.pls import PLSRegressionLearner
 
 from Orange.widgets import gui
 from Orange.widgets.widget import Msg
@@ -9,6 +8,8 @@ from Orange.widgets.settings import Setting
 from Orange.widgets.utils.owlearnerwidget import OWBaseLearner
 from Orange.widgets.utils.signals import Output
 from Orange.widgets.utils.widgetpreview import WidgetPreview
+
+from orangecontrib.spectroscopy.models.pls import PLSRegressionLearner
 
 
 class OWPLS(OWBaseLearner):
@@ -23,7 +24,7 @@ class OWPLS(OWBaseLearner):
         coefsdata = Output("Coefficients", Table, explicit=True)
 
     class Warning(OWBaseLearner.Warning):
-        sparse_data = Msg('Input data is sparse, default preprocessing is to scale it.')
+        sparse_data = Msg('Sparse input data: default preprocessing is to scale it.')
 
     #: number of components
     n_components = Setting(2)
@@ -72,6 +73,7 @@ class OWPLS(OWBaseLearner):
         return PLSRegressionLearner(n_components=self.n_components,
                                     max_iter=self.max_iter,
                                     **common_args)
+
 
 if __name__ == "__main__":  # pragma: no cover
     WidgetPreview(OWPLS).run(Table("housing"))
