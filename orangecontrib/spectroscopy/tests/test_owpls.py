@@ -38,10 +38,10 @@ class TestPLS(TestCase):
         d.Y = np.random.RandomState(0).rand(*d.Y.shape)
         orange_model = PLSRegressionLearner()(d)
         scikit_model = PLSRegression().fit(d.X, d.Y)
-        np.testing.assert_equal(scikit_model.predict(d.X).ravel(),
-                                orange_model(d))
-        np.testing.assert_equal(scikit_model.coef_,
-                                orange_model.coefficients)
+        np.testing.assert_almost_equal(scikit_model.predict(d.X).ravel(),
+                                       orange_model(d))
+        np.testing.assert_almost_equal(scikit_model.coef_,
+                                       orange_model.coefficients)
 
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
