@@ -117,12 +117,9 @@ class AsciiMapReader(FileFormat):
     @staticmethod
     def write_file(filename, data):
         wavelengths = getx(data)
-        try:
-            ndom = Domain([data.domain["map_x"], data.domain["map_y"]] +
-                          list(data.domain.attributes))
-        except KeyError:
-            raise RuntimeError('Data needs to include meta variables '
-                               '"map_x" and "map_y"')
+        map_x = data.domain["map_x"] if "map_x" in data.domain else ContinuousVariable("map_x")
+        map_y = data.domain["map_y"] if "map_y" in data.domain else ContinuousVariable("map_y")
+        ndom = Domain([map_x, map_y] + list(data.domain.attributes))
         data = data.transform(ndom)
         with open(filename, "wb") as f:
             header = ["", ""] + [("%g" % w) for w in wavelengths]
