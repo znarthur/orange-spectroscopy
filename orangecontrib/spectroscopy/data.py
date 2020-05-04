@@ -88,13 +88,6 @@ class SelectColumnReader(FileFormat, SpectralFileFormat):
                               unpack=True)
         return spectrum[0], np.atleast_2d(spectrum[1]), None
 
-    @staticmethod
-    def write_file(filename, data):
-        xs = getx(data)
-        xs = xs.reshape((-1, 1))
-        table = np.hstack((xs, data.X.T))
-        np.savetxt(filename, table, delimiter="\t", fmt="%g")
-
 
 class AsciiMapReader(FileFormat):
     """ Reader ascii map files.
