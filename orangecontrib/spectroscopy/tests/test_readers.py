@@ -256,6 +256,9 @@ class TestNeaGSF(unittest.TestCase):
         np.testing.assert_almost_equal(data.X[0, 0], 0.734363853931427)
         self.assertEqual("O2P", data.metas[1][3])
         np.testing.assert_almost_equal(data.X[1, 43], 0.17290098965168)
+        n_ifg = int(data.attributes['Pixel Area (X, Y, Z)'][3])
+        self.assertEqual(n_ifg, 1024)
+        self.assertEqual(n_ifg, len(data.domain.attributes))
 
 
 class TestSpa(unittest.TestCase):

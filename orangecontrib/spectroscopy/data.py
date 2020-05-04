@@ -1005,7 +1005,8 @@ def build_spec_table(domvals, data, additional_table=None):
                         class_vars=additional_table.domain.class_vars,
                         metas=additional_table.domain.metas)
         ret_data = Table.from_numpy(domain, X=data, Y=additional_table.Y,
-                                    metas=additional_table.metas)
+                                    metas=additional_table.metas,
+                                    attributes=additional_table.attributes)
         return ret_data
 
 
