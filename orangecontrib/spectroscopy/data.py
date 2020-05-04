@@ -1130,11 +1130,15 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
 
         info = {}
         for row in parameters:
-            info.update({row[0].strip(':'): row[1:]})
+            key = row[0].strip(':')
+            value = [v for v in row[1:] if len(v)]
+            if len(value) == 1:
+                value = value[0]
+            info.update({key: value})
         
         info.update({'Reader': 'NeaReaderGSF'}) # key used in confirmation for complex fft calculation
 
-        averaging = int(info['Averaging'][1])
+        averaging = int(info['Averaging'])
         px_x = int(info['Pixel Area (X, Y, Z)'][1])
         px_y = int(info['Pixel Area (X, Y, Z)'][2])
         px_z = int(info['Pixel Area (X, Y, Z)'][3])
