@@ -65,11 +65,12 @@ For large projects in particular, consider working in a public Pull Request mark
 * Make commits of logical and atomic units.
 * Check for unnecessary whitespace with `git diff --check` before committing.
 * Make sure your commit messages are clear and reference the code/module you are changing.
-* Make sure you have added the necessary tests for your changes.
+* **Make sure you have added the necessary tests for your changes.**
 * Run _all_ the tests to assure nothing else was accidentally broken.
   * `python setup.py test`
 * Check your code quality with pylint (Does not work on Windows at the moment, see [#188](https://github.com/Quasars/orange-spectroscopy/issues/188)):
   * `python setup.py lint`
+* Please add appropriate **documentation** for your new or changed feature.
 
 ## Submitting Changes
 
