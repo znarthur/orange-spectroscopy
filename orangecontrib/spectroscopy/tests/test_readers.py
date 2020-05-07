@@ -115,10 +115,12 @@ class TestAsciiMapReader(unittest.TestCase):
             np.testing.assert_equal(getx(d1), getx(d2))
             np.testing.assert_equal(d1.metas, d2.metas)
 
-    def test_write_exception(self):
+    def test_undefined_map_positions(self):
         d = Orange.data.Table("iris")
-        with self.assertRaises(RuntimeError):
-            d.save("test.xyz")
+        with named_file("", suffix=".xyz") as fn:
+            d.save(fn)
+            d2 = Orange.data.Table(fn)
+            np.testing.assert_equal(np.isnan(d2.metas), np.ones((150, 2)))
 
 
 class TestAgilentReader(unittest.TestCase):

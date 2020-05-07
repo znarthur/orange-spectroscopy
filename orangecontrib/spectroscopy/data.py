@@ -88,13 +88,6 @@ class SelectColumnReader(FileFormat, SpectralFileFormat):
                               unpack=True)
         return spectrum[0], np.atleast_2d(spectrum[1]), None
 
-    @staticmethod
-    def write_file(filename, data):
-        xs = getx(data)
-        xs = xs.reshape((-1, 1))
-        table = np.hstack((xs, data.X.T))
-        np.savetxt(filename, table, delimiter="\t", fmt="%g")
-
 
 class AsciiMapReader(FileFormat):
     """ Reader ascii map files.
@@ -124,12 +117,9 @@ class AsciiMapReader(FileFormat):
     @staticmethod
     def write_file(filename, data):
         wavelengths = getx(data)
-        try:
-            ndom = Domain([data.domain["map_x"], data.domain["map_y"]] +
-                          list(data.domain.attributes))
-        except KeyError:
-            raise RuntimeError('Data needs to include meta variables '
-                               '"map_x" and "map_y"')
+        map_x = data.domain["map_x"] if "map_x" in data.domain else ContinuousVariable("map_x")
+        map_y = data.domain["map_y"] if "map_y" in data.domain else ContinuousVariable("map_y")
+        ndom = Domain([map_x, map_y] + list(data.domain.attributes))
         data = data.transform(ndom)
         with open(filename, "wb") as f:
             header = ["", ""] + [("%g" % w) for w in wavelengths]
