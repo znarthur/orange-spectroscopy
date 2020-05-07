@@ -6,6 +6,7 @@ import Orange
 from Orange.data import dataset_dirs
 from Orange.data.io import FileFormat
 from Orange.tests import named_file
+from Orange.widgets.data.owfile import OWFile
 from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader, NeaReader
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
@@ -24,6 +25,15 @@ def initialize_reader(reader, fn):
     """
     absolute_filename = FileFormat.locate(fn, Orange.data.table.dataset_dirs)
     return reader(absolute_filename)
+
+# pylint: disable=protected-access
+def check_attributes(table):
+    """
+    Checks output attributes conform to OWFile expectations
+    Keys "Name" and "Description" must be strings, etc
+    This should be added to tests for all readers that implement attributes
+    """
+    OWFile._describe(table)
 
 
 class TestReaders(unittest.TestCase):
@@ -256,6 +266,10 @@ class TestNeaGSF(unittest.TestCase):
         np.testing.assert_almost_equal(data.X[0, 0], 0.734363853931427)
         self.assertEqual("O2P", data.metas[1][3])
         np.testing.assert_almost_equal(data.X[1, 43], 0.17290098965168)
+        n_ifg = int(data.attributes['Pixel Area (X, Y, Z)'][3])
+        self.assertEqual(n_ifg, 1024)
+        self.assertEqual(n_ifg, len(data.domain.attributes))
+        check_attributes(data)
 
 
 class TestSpa(unittest.TestCase):
