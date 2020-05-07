@@ -14,8 +14,8 @@ from orangecontrib.spectroscopy.models.pls import PLSRegressionLearner
 
 class OWPLS(OWBaseLearner):
     name = 'PLS'
-    description = "Partial Least Squares Regression algorithm for multivariate data analysis"
-    icon = "icons/SVM.svg"
+    description = "Partial Least Squares Regression widget for multivariate data analysis"
+    icon = "icons/PLS.svg"
     keywords = ["partial least squares"]
 
     LEARNER = PLSRegressionLearner
