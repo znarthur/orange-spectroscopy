@@ -321,12 +321,17 @@ class _NormalizeCommon(CommonDomain):
                 nd = data.domain[self.attr]
             else:  # invalid attribute for normalization
                 data.X *= float("nan")
+        elif self.method == Normalize.MinMax:
+            min = np.nanmin(data.X, axis=1, keepdims=True)
+            max = np.nanmax(data.X, axis=1, keepdims=True)
+            data.X = (data.X - min) / (max - min)
+            replace_infs(data.X)
         return data.X
 
 
 class Normalize(Preprocess):
     # Normalization methods
-    Vector, Area, Attribute = 0, 1, 2
+    Vector, Area, Attribute, MinMax = 0, 1, 2, 3
 
     def __init__(self, method=Vector, lower=float, upper=float, int_method=0, attr=None):
         self.method = method

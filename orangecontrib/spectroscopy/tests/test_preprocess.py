@@ -54,6 +54,7 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     LinearBaseline(),
     Normalize(method=Normalize.Vector),
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
+    Normalize(method=Normalize.MinMax),
     CurveShift(1),
 ]
 
@@ -345,6 +346,16 @@ class TestNormalize(unittest.TestCase):
         data = Table.from_numpy(None, X=[[2, 1, 2, 2, 3]], metas=[[2]])
         p = Normalize(method=Normalize.Attribute, attr="unknown")(data)
         self.assertTrue(np.all(np.isnan(p.X)))
+
+    def test_minmax_norm(self):
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.MinMax)(data)
+        q = (data.X - 1) / (3 - 1)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.MinMax, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.MinMax, lower=0, upper=2)(data)
+        np.testing.assert_equal(p.X, q)
 
 
 class TestNormalizeReference(unittest.TestCase):

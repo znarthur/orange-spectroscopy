@@ -5,6 +5,7 @@ from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
 from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 
+NORMALIZE_REFERENCE_INDEX = NormalizeEditor.Normalizers.index(("Normalize by Reference", 42))
 
 class TestNormalizeEditor(PreprocessorEditorTest):
 
@@ -25,7 +26,7 @@ class TestNormalizeEditor(PreprocessorEditorTest):
     def test_normalize_by_reference(self):
         reference = SMALL_COLLAGEN[:1]
         self.send_signal(self.widget.Inputs.reference, reference)
-        self.editor._group.buttons()[3].click()
+        self.editor._group.buttons()[NORMALIZE_REFERENCE_INDEX].click()
         self.widget.unconditional_commit()
         self.wait_until_finished()
         out = self.get_output(self.widget.Outputs.preprocessor)
@@ -34,7 +35,7 @@ class TestNormalizeEditor(PreprocessorEditorTest):
         self.assertIs(p.reference, reference)
 
     def test_normalize_by_reference_no_reference(self):
-        self.editor._group.buttons()[3].click()
+        self.editor._group.buttons()[NORMALIZE_REFERENCE_INDEX].click()
         self.widget.unconditional_commit()
         self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
@@ -45,7 +46,7 @@ class TestNormalizeEditor(PreprocessorEditorTest):
     def test_normalize_by_reference_wrong_reference(self):
         reference = SMALL_COLLAGEN[:2]
         self.send_signal(self.widget.Inputs.reference, reference)
-        self.editor._group.buttons()[3].click()
+        self.editor._group.buttons()[NORMALIZE_REFERENCE_INDEX].click()
         self.widget.unconditional_commit()
         self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
