@@ -11,7 +11,7 @@ fi
 
 if [ $ORANGE == "master" ]; then
     echo "Orange: from git master"
-    pip install https://github.com/biolab/orange3/archive/master.zip
+    pip install https://github.com/biolab/orange-canvas-core/archive/master.zip https://github.com/biolab/orange-widget-base/archive/master.zip https://github.com/biolab/orange3/archive/master.zip
     return $?;
 fi
 
