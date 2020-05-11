@@ -357,6 +357,16 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.MinMax, lower=0, upper=2)(data)
         np.testing.assert_equal(p.X, q)
 
+    def test_SNV_norm(self):
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
+        p = Normalize(method=Normalize.SNV)(data)
+        q = (data.X - 2) / 0.6324555320336759
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.SNV, lower=0, upper=4)(data)
+        np.testing.assert_equal(p.X, q)
+        p = Normalize(method=Normalize.SNV, lower=0, upper=2)(data)
+        np.testing.assert_equal(p.X, q)
+
 
 class TestNormalizeReference(unittest.TestCase):
 

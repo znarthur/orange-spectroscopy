@@ -312,6 +312,9 @@ class _NormalizeCommon(CommonDomain):
                                   limits=[[self.lower, self.upper]])(data)
             data.X /= norm_data.X
             replace_infs(data.X)
+        elif self.method == Normalize.SNV:
+            data.X = (data.X - np.nanmean(data.X, axis=1, keepdims=True)) / np.nanstd(data.X, axis=1, keepdims=True)
+            replace_infs(data.X)
         elif self.method == Normalize.Attribute:
             if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
                 ndom = Orange.data.Domain([data.domain[self.attr]])
@@ -331,7 +334,7 @@ class _NormalizeCommon(CommonDomain):
 
 class Normalize(Preprocess):
     # Normalization methods
-    Vector, Area, Attribute, MinMax = 0, 1, 2, 3
+    Vector, Area, Attribute, MinMax, SNV = 0, 1, 2, 3, 4
 
     def __init__(self, method=Vector, lower=float, upper=float, int_method=0, attr=None):
         self.method = method
