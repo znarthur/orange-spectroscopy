@@ -350,7 +350,7 @@ class TestNormalize(unittest.TestCase):
     def test_minmax_norm(self):
         data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
         p = Normalize(method=Normalize.MinMax)(data)
-        q = (data.X - 1) / (3 - 1)
+        q = (data.X) / (3 - 1)
         np.testing.assert_equal(p.X, q)
         p = Normalize(method=Normalize.MinMax, lower=0, upper=4)(data)
         np.testing.assert_equal(p.X, q)

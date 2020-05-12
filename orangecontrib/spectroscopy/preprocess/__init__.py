@@ -327,7 +327,7 @@ class _NormalizeCommon(CommonDomain):
         elif self.method == Normalize.MinMax:
             min = np.nanmin(data.X, axis=1, keepdims=True)
             max = np.nanmax(data.X, axis=1, keepdims=True)
-            data.X = (data.X - min) / (max - min)
+            data.X = (data.X) / (max - min)
             replace_infs(data.X)
         return data.X
 
