@@ -91,6 +91,23 @@ class TestOWIntegrate(WidgetTest):
         self.assertEqual(1, len(preprocessed.domain.attributes))
         self.assertEqual(0, len(out_data.domain.metas))
 
+    def test_output_data_with_metas(self):
+        data = Orange.data.Table("iris.tab")
+        self.widget.output_metas = True
+        self.send_signal(self.widget.Inputs.data, data)
+        self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
+        self.widget.unconditional_commit()
+        out_tdata_t = self.get_output(self.widget.Outputs.preprocessed_data)
+        out_data_t = self.get_output(self.widget.Outputs.data)
+        self.assertEqual(out_tdata_t, out_data_t)
+        self.widget.output_metas = False
+        self.widget.unconditional_commit()
+        out_tdata_f = self.get_output(self.widget.Outputs.preprocessed_data)
+        out_data_f = self.get_output(self.widget.Outputs.data)
+        self.assertNotEqual(out_tdata_f, out_data_f)
+        self.assertEqual(out_data_t.domain.attributes, out_data_f.domain.attributes)
+        self.assertEqual(len(out_data_t.domain.metas), len(out_data_f.domain.metas))
+
     def test_simple_preview(self):
         data = Orange.data.Table("iris.tab")
         self.send_signal(OWIntegrate.Inputs.data, data)

@@ -1603,8 +1603,8 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
         else:
             raise ex
 
-        self.Outputs.preprocessor.send(None)
-        self.Outputs.preprocessed_data.send(None)
+        for output in self.get_signals("outputs"):
+            output = None
 
     def eventFilter(self, receiver, event):
         if receiver is self.flow_view and event.type() == QEvent.LayoutRequest:

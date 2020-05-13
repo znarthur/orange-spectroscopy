@@ -201,6 +201,7 @@ class OWIntegrate(SpectralPreprocess):
 
     class Outputs:
         preprocessed_data = Output("Integrated Data", Orange.data.Table, default=True)
+        data = Output("Data", Orange.data.Table)
         preprocessor = Output("Preprocessor", preprocess.preprocess.Preprocess)
 
     output_metas = settings.Setting(True)
@@ -248,6 +249,12 @@ class OWIntegrate(SpectralPreprocess):
         pp_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
         self.start(self.run_task, self.data, pp_def, self.output_metas)
 
+    def on_done(self, results):
+        tdata, data, preprocessor = results
+        self.Outputs.preprocessor.send(preprocessor)
+        self.Outputs.preprocessed_data.send(tdata)
+        self.Outputs.data.send(data)
+
     @staticmethod
     def run_task(data: Orange.data.Table, pp_def, output_metas, state):
 
@@ -272,16 +279,26 @@ class OWIntegrate(SpectralPreprocess):
             pp = create_preprocessor(item, None)
             plist.append(pp)
 
+        tdata = data
         preprocessor = None
         if plist:
             preprocessor = PreprocessorListMoveMetas(not output_metas, preprocessors=plist)
 
         if data is not None and preprocessor is not None:
-            data = preprocessor(data)
+            tdata = preprocessor(data)
+            if not output_metas:
+                newmetas = data.domain.metas + tdata.domain.attributes
+                domain = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
+                                            metas=newmetas)
+                metad = np.hstack((data.metas, tdata.X))
+                data = data.transform(domain)
+                data.metas = metad
+            else:
+                data = tdata
 
         progress_interrupt(100)
 
-        return data, preprocessor
+        return tdata, data, preprocessor
 
 
 class PreprocessorListMoveMetas(preprocess.preprocess.PreprocessorList):
