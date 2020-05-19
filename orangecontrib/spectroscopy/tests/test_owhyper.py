@@ -1,6 +1,8 @@
 import os
 import unittest
 from unittest.mock import patch
+import io
+from base64 import b64decode
 
 import numpy as np
 
@@ -323,3 +325,62 @@ class TestOWHyper(WidgetTest):
                                          stored_settings={"context_settings": [c]})
         self.send_signal("Data", self.iris)
         self.assertIsInstance(self.widget.curveplot.feature_color, DiscreteVariable)
+
+
+class TestVisibleImage(WidgetTest):
+
+    @classmethod
+    def mock_visible_image_data(cls):
+        red_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAAA"
+                            "oAAAAKCAYAAACNMs+9AAAAFUlE"
+                            "QVR42mP8z8AARIQB46hC+ioEAG"
+                            "X8E/cKr6qsAAAAAElFTkSuQmCC")
+        black_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAA"
+                              "AoAAAAKCAQAAAAnOwc2AAAAEU"
+                              "lEQVR42mNk+M+AARiHsiAAcCI"
+                              "KAYwFoQ8AAAAASUVORK5CYII=")
+
+        return [
+            {
+                "name": "Image 01",
+                "image_bytes": red_img,
+                "pos_x": 100,
+                "pos_y": 100,
+                "pixel_size_x": 1.7,
+                "pixel_size_y": 2.3
+            },
+            {
+                "name": "Image 02",
+                "image_bytes": black_img,
+                "pos_x": 0.5,
+                "pos_y": 0.5,
+                "pixel_size_x": 1,
+                "pixel_size_y": 0.3
+            },
+        ]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.data_with_visible_images = Orange.data.Table(
+            "agilent/4_noimage_agg256.dat"
+        )
+        cls.data_with_visible_images.attributes["visible_images"] = \
+            cls.mock_visible_image_data()
+
+    def setUp(self):
+        self.widget = self.create_widget(OWHyper)  # type: OWHyper
+
+    def test_no_visible_image(self):
+        data = Orange.data.Table("agilent/4_noimage_agg256.dat")
+        self.send_signal("Data", data)
+        wait_for_image(self.widget)
+
+        self.assertFalse(self.widget.visbox.isEnabled())
+
+    def test_controls_enabled_when_visible_image(self):
+        w = self.widget
+        self.send_signal("Data", self.data_with_visible_images)
+        wait_for_image(w)
+
+        self.assertTrue(w.visbox.isEnabled())

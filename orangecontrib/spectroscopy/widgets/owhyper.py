@@ -916,6 +916,8 @@ class OWHyper(OWWidget):
         self.imageplot = ImagePlot(self)
         self.imageplot.selection_changed.connect(self.output_image_selection)
 
+        self.setup_visible_image_controls()
+
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
         self.curveplot.selection_changed.connect(self.redraw_integral_info)
         self.curveplot.plot.vb.x_padding = 0.005  # pad view so that lines are not hidden
@@ -945,11 +947,15 @@ class OWHyper(OWWidget):
         # prepare interface according to the new context
         self.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
 
+    def setup_visible_image_controls(self):
+        self.visbox = gui.widgetBox(self.controlArea, True)
+
     def init_interface_data(self, data):
         same_domain = (self.data and data and
                        data.domain == self.data.domain)
         if not same_domain:
             self.init_attr_values(data)
+        self.init_visible_image(data)
 
     def output_image_selection(self):
         if not self.data:
@@ -974,6 +980,12 @@ class OWHyper(OWWidget):
         domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
+
+    def init_visible_image(self, data):
+        if data is not None and 'visible_images' in data.attributes:
+            self.visbox.setEnabled(True)
+        else:
+            self.visbox.setEnabled(False)
 
     def redraw_integral_info(self):
         di = {}
