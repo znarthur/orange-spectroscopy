@@ -1,8 +1,11 @@
 import numpy as np
 
 import Orange
+from Orange.data import dataset_dirs
+from Orange.data.io import FileFormat
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.data import NeaReaderGSF
 from orangecontrib.spectroscopy import irfft
 from orangecontrib.spectroscopy.widgets.owfft import OWFFT, CHUNK_SIZE
 
@@ -13,6 +16,9 @@ class TestOWFFT(WidgetTest):
         self.widget = self.create_widget(OWFFT)
         self.ifg_single = Orange.data.Table("IFG_single.dpt")
         self.ifg_seq = Orange.data.Table("agilent/4_noimage_agg256.seq")
+        fn = 'NeaReaderGSF_test/NeaReaderGSF_test O2A raw.gsf'
+        absolute_filename = FileFormat.locate(fn, dataset_dirs)
+        self.ifg_gsf = NeaReaderGSF(absolute_filename).read()
 
     def test_load_unload(self):
         self.send_signal("Interferogram", self.ifg_single)
@@ -37,6 +43,8 @@ class TestOWFFT(WidgetTest):
     def test_auto_dx(self):
         self.send_signal("Interferogram", self.ifg_seq)
         self.assertEqual(self.widget.dx, (1 / 1.57980039e+04 / 2) * 4)
+        self.send_signal("Interferogram", self.ifg_gsf)
+        self.assertEqual(self.widget.dx, (0.00019550342130987293))
 
     def test_keep_metas(self):
         input = self.ifg_seq
@@ -109,3 +117,19 @@ class TestOWFFT(WidgetTest):
         # Compare to agilent absorbance
         # NB 4 mAbs error
         np.testing.assert_allclose(calc_abs[:, limits[0]:limits[1]], abs.X, atol=0.004)
+
+    def test_complex_calculation(self):
+        """" Test calculation Complex FFT """
+
+        self.widget.zff = 2  # 2**2 = 4
+        self.widget.limit_output = False
+        self.widget.peak_search = 1 # MINIMUM
+        self.widget.apod_func = 0 # boxcar
+
+        self.send_signal(self.widget.Inputs.data, self.ifg_gsf)
+        self.commit_and_wait()
+        result_gsf = self.get_output(self.widget.Outputs.spectra)
+
+        np.testing.assert_allclose(result_gsf.X.size, (4098)) #array
+        np.testing.assert_allclose(result_gsf.X[0, 429:432], (25.10095084, 25.13973286, 24.29236258)) #Amplitude
+        np.testing.assert_allclose(result_gsf.X[1, 429:432], (-0.19909249, -0.81488487, -1.42043501)) #Phase
