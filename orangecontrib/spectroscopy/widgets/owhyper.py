@@ -23,7 +23,7 @@ from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
-from Orange.widgets.utils.itemmodels import DomainModel
+from Orange.widgets.utils.itemmodels import DomainModel, PyListModel
 from Orange.widgets.utils import saveplot
 from Orange.data import DiscreteVariable, ContinuousVariable
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
@@ -843,6 +843,8 @@ class OWHyper(OWWidget):
     value_type = Setting(0)
     attr_value = ContextSetting(None)
 
+    cur_visible_image_idx = Setting(-1)
+
     lowlim = Setting(None)
     highlim = Setting(None)
     choose = Setting(None)
@@ -950,6 +952,11 @@ class OWHyper(OWWidget):
     def setup_visible_image_controls(self):
         self.visbox = gui.widgetBox(self.controlArea, True)
 
+        self.vis_img_name_model = PyListModel()
+        self.vis_img_combo = gui.comboBox(
+            self.visbox, self, 'cur_visible_image_idx',
+            model=self.vis_img_name_model)
+
     def init_interface_data(self, data):
         same_domain = (self.data and data and
                        data.domain == self.data.domain)
@@ -982,10 +989,16 @@ class OWHyper(OWWidget):
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
     def init_visible_image(self, data):
+        self.vis_img_name_model.clear()
         if data is not None and 'visible_images' in data.attributes:
             self.visbox.setEnabled(True)
+
+            for img in data.attributes['visible_images']:
+                self.vis_img_name_model.append(img['name'])
+            self.cur_visible_image_idx = 0
         else:
             self.visbox.setEnabled(False)
+            self.cur_visible_image_idx = -1
 
     def redraw_integral_info(self):
         di = {}

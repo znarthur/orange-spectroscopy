@@ -384,3 +384,15 @@ class TestVisibleImage(WidgetTest):
         wait_for_image(w)
 
         self.assertTrue(w.visbox.isEnabled())
+
+    def test_first_visible_image_selected_in_combobox_by_default(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        self.assertEqual(len(w.vis_img_name_model),
+                         len(data.attributes["visible_images"]))
+        self.assertEqual(w.cur_visible_image_idx, 0)
+        self.assertEqual(w.vis_img_combo.currentIndex(), 0)
+        self.assertEqual(w.vis_img_combo.currentText(), "Image 01")
