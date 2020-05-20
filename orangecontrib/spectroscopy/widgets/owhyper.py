@@ -727,6 +727,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
     def hide_visible_image(self):
         self.plot.removeItem(self.vis_img)
 
+    def set_visible_image_opacity(self, opacity: int):
+        """Opacity is an alpha channel intensity integer from 0 to 255"""
+        self.vis_img.setOpacity(opacity / 255)
+
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
                       image_values, image_values_fixed_levels, state: TaskState):
@@ -860,6 +864,7 @@ class OWHyper(OWWidget):
 
     is_show_visible_image = Setting(False)
     cur_visible_image_idx = Setting(-1)
+    visible_image_opacity = Setting(120)
 
     lowlim = Setting(None)
     highlim = Setting(None)
@@ -979,14 +984,25 @@ class OWHyper(OWWidget):
             model=self.vis_img_name_model,
             callback=self.update_visible_image)
 
+        self.vis_img_opacity_slider = gui.hSlider(
+            self.visbox, self, 'visible_image_opacity', label='Opacity:',
+            minValue=0, maxValue=255, step=10, createLabel=False,
+            callback=lambda: self.imageplot.set_visible_image_opacity(
+                self.visible_image_opacity)
+        )
+
         enable_widgets_by_show_chkbox = [
-            self.vis_img_combo
+            self.vis_img_combo,
+            self.vis_img_opacity_slider
         ]
         for w in enable_widgets_by_show_chkbox:
             self.show_vis_img.stateChanged.connect(w.setEnabled)
 
         # emit signals to init connected entities
         self.show_vis_img.stateChanged.emit(self.is_show_visible_image)
+        self.vis_img_opacity_slider.valueChanged.emit(
+            self.visible_image_opacity
+        )
 
     def init_interface_data(self, data):
         same_domain = (self.data and data and

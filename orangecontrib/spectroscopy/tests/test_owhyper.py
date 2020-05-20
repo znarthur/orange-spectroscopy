@@ -402,9 +402,11 @@ class TestVisibleImage(WidgetTest):
         self.assertTrue(w.show_vis_img.isEnabled())
         self.assertFalse(w.show_vis_img.isChecked())
         self.assertFalse(w.vis_img_combo.isEnabled())
+        self.assertFalse(w.vis_img_opacity_slider.isEnabled())
 
         w.show_vis_img.setChecked(True)
         self.assertTrue(w.vis_img_combo.isEnabled())
+        self.assertTrue(w.vis_img_opacity_slider.isEnabled())
 
     def test_first_visible_image_selected_in_combobox_by_default(self):
         w = self.widget
@@ -469,3 +471,14 @@ class TestVisibleImage(WidgetTest):
             self.assert_same_visible_image(data.attributes["visible_images"][1],
                                            w.imageplot.vis_img,
                                            mock_rect)
+
+    def test_visible_image_opacity(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        with patch.object(w.imageplot.vis_img, 'setOpacity') as m:
+            w.vis_img_opacity_slider.setValue(20)
+            self.assertEqual(w.visible_image_opacity, 20)
+            m.assert_called_once_with(w.visible_image_opacity / 255)
