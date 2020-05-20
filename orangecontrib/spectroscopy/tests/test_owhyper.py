@@ -9,6 +9,7 @@ from PIL import Image
 
 from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
+from AnyQt.QtGui import QPainter
 import Orange
 from Orange.data import DiscreteVariable, Domain, Table
 from Orange.widgets.tests.base import WidgetTest
@@ -402,10 +403,12 @@ class TestVisibleImage(WidgetTest):
         self.assertTrue(w.show_vis_img.isEnabled())
         self.assertFalse(w.show_vis_img.isChecked())
         self.assertFalse(w.vis_img_combo.isEnabled())
+        self.assertFalse(w.vis_img_cmp_mode_combo.isEnabled())
         self.assertFalse(w.vis_img_opacity_slider.isEnabled())
 
         w.show_vis_img.setChecked(True)
         self.assertTrue(w.vis_img_combo.isEnabled())
+        self.assertTrue(w.vis_img_cmp_mode_combo.isEnabled())
         self.assertTrue(w.vis_img_opacity_slider.isEnabled())
 
     def test_first_visible_image_selected_in_combobox_by_default(self):
@@ -482,3 +485,25 @@ class TestVisibleImage(WidgetTest):
             w.vis_img_opacity_slider.setValue(20)
             self.assertEqual(w.visible_image_opacity, 20)
             m.assert_called_once_with(w.visible_image_opacity / 255)
+
+    def test_visible_image_composition_mode(self):
+        w = self.widget
+        self.assertEqual(w.vis_img_cmp_mode_combo.currentText(), 'Normal')
+
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        name_mode = {
+            'Normal': QPainter.CompositionMode_Source,
+            'Overlay': QPainter.CompositionMode_Overlay,
+            'Multiply': QPainter.CompositionMode_Multiply,
+            'Difference': QPainter.CompositionMode_Difference
+        }
+        for name, mode in name_mode.items():
+            with patch.object(w.imageplot.vis_img, 'setCompositionMode') as m:
+                w.vis_img_cmp_mode_combo.setCurrentText(name)
+                # since activated signal emitted only by visual interaction
+                # we need to trigger it by hand here
+                w.vis_img_cmp_mode_combo.activated[str].emit(name)
+                m.assert_called_once_with(mode)

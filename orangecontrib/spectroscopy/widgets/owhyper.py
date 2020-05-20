@@ -1,4 +1,5 @@
 import collections.abc
+from collections import OrderedDict
 from xml.sax.saxutils import escape
 import io
 
@@ -731,6 +732,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         """Opacity is an alpha channel intensity integer from 0 to 255"""
         self.vis_img.setOpacity(opacity / 255)
 
+    def set_visible_image_comp_mode(self, comp_mode: QPainter.CompositionMode):
+        self.vis_img.setCompositionMode(comp_mode)
+
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
                       image_values, image_values_fixed_levels, state: TaskState):
@@ -864,6 +868,7 @@ class OWHyper(OWWidget):
 
     is_show_visible_image = Setting(False)
     cur_visible_image_idx = Setting(-1)
+    cur_visible_image_cmp_mode = Setting('Normal')
     visible_image_opacity = Setting(120)
 
     lowlim = Setting(None)
@@ -984,6 +989,20 @@ class OWHyper(OWWidget):
             model=self.vis_img_name_model,
             callback=self.update_visible_image)
 
+        cmp_modes = OrderedDict([
+            ('Normal', QPainter.CompositionMode_Source),
+            ('Overlay', QPainter.CompositionMode_Overlay),
+            ('Multiply', QPainter.CompositionMode_Multiply),
+            ('Difference', QPainter.CompositionMode_Difference)
+        ])
+        self.vis_img_cmp_mode_combo = gui.comboBox(
+            self.visbox, self,
+            'cur_visible_image_cmp_mode', sendSelectedValue=True,
+            label='Composition mode:', model=PyListModel(cmp_modes.keys()),
+            callback=lambda: self.imageplot.set_visible_image_comp_mode(
+                cmp_modes[self.cur_visible_image_cmp_mode])
+        )
+
         self.vis_img_opacity_slider = gui.hSlider(
             self.visbox, self, 'visible_image_opacity', label='Opacity:',
             minValue=0, maxValue=255, step=10, createLabel=False,
@@ -993,6 +1012,7 @@ class OWHyper(OWWidget):
 
         enable_widgets_by_show_chkbox = [
             self.vis_img_combo,
+            self.vis_img_cmp_mode_combo,
             self.vis_img_opacity_slider
         ]
         for w in enable_widgets_by_show_chkbox:
@@ -1000,6 +1020,9 @@ class OWHyper(OWWidget):
 
         # emit signals to init connected entities
         self.show_vis_img.stateChanged.emit(self.is_show_visible_image)
+        self.vis_img_cmp_mode_combo.activated[str].emit(
+            self.cur_visible_image_cmp_mode
+        )
         self.vis_img_opacity_slider.valueChanged.emit(
             self.visible_image_opacity
         )
