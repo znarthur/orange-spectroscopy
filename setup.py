@@ -138,6 +138,7 @@ if __name__ == '__main__':
             'h5py',
             'extranormal3',
             'renishawWiRE>=0.1.8',
+            'pillow',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
