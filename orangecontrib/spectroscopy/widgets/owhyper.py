@@ -851,6 +851,7 @@ class OWHyper(OWWidget):
     value_type = Setting(0)
     attr_value = ContextSetting(None)
 
+    is_show_visible_image = Setting(False)
     cur_visible_image_idx = Setting(-1)
 
     lowlim = Setting(None)
@@ -960,11 +961,24 @@ class OWHyper(OWWidget):
     def setup_visible_image_controls(self):
         self.visbox = gui.widgetBox(self.controlArea, True)
 
+        self.show_vis_img = gui.checkBox(
+            self.visbox, self, 'is_show_visible_image',
+            label='Show visible image')
+
         self.vis_img_name_model = PyListModel()
         self.vis_img_combo = gui.comboBox(
             self.visbox, self, 'cur_visible_image_idx',
             model=self.vis_img_name_model,
             callback=self.update_visible_image)
+
+        enable_widgets_by_show_chkbox = [
+            self.vis_img_combo
+        ]
+        for w in enable_widgets_by_show_chkbox:
+            self.show_vis_img.stateChanged.connect(w.setEnabled)
+
+        # emit signals to init connected entities
+        self.show_vis_img.stateChanged.emit(self.is_show_visible_image)
 
     def init_interface_data(self, data):
         same_domain = (self.data and data and

@@ -394,6 +394,18 @@ class TestVisibleImage(WidgetTest):
 
         self.assertTrue(w.visbox.isEnabled())
 
+    def test_controls_enabled_by_show_chkbox(self):
+        w = self.widget
+        self.send_signal("Data", self.data_with_visible_images)
+        wait_for_image(w)
+
+        self.assertTrue(w.show_vis_img.isEnabled())
+        self.assertFalse(w.show_vis_img.isChecked())
+        self.assertFalse(w.vis_img_combo.isEnabled())
+
+        w.show_vis_img.setChecked(True)
+        self.assertTrue(w.vis_img_combo.isEnabled())
+
     def test_first_visible_image_selected_in_combobox_by_default(self):
         w = self.widget
         vis_img = w.imageplot.vis_img
