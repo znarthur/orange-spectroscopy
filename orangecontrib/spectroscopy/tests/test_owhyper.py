@@ -423,3 +423,49 @@ class TestVisibleImage(WidgetTest):
             self.assert_same_visible_image(data.attributes["visible_images"][0],
                                            w.imageplot.vis_img,
                                            mock_rect)
+
+    def test_visible_image_displayed(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+        w.show_vis_img.setChecked(True)
+        self.assertIn(w.imageplot.vis_img, w.imageplot.plot.items)
+        w.show_vis_img.setChecked(False)
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+    def test_hide_visible_image_after_no_image_loaded(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        w.show_vis_img.setChecked(True)
+        data = Orange.data.Table("agilent/4_noimage_agg256.dat")
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        self.assertFalse(w.visbox.isEnabled())
+        self.assertFalse(w.is_show_visible_image)
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+    def test_select_another_visible_image(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        w.show_vis_img.setChecked(True)
+        vis_img = w.imageplot.vis_img
+        with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
+            w.vis_img_combo.setCurrentIndex(1)
+            # since activated signal emitted only by visual interaction
+            # we need to trigger it by hand here.
+            w.vis_img_combo.activated.emit(1)
+
+            self.assert_same_visible_image(data.attributes["visible_images"][1],
+                                           w.imageplot.vis_img,
+                                           mock_rect)

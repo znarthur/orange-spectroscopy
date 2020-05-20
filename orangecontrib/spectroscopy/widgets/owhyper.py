@@ -720,6 +720,13 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.vis_img.setImage(img)
         self.vis_img.setRect(rect)
 
+    def show_visible_image(self):
+        if self.vis_img not in self.plot.items:
+            self.plot.addItem(self.vis_img)
+
+    def hide_visible_image(self):
+        self.plot.removeItem(self.vis_img)
+
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
                       image_values, image_values_fixed_levels, state: TaskState):
@@ -963,7 +970,8 @@ class OWHyper(OWWidget):
 
         self.show_vis_img = gui.checkBox(
             self.visbox, self, 'is_show_visible_image',
-            label='Show visible image')
+            label='Show visible image',
+            callback=self.toggle_visible_image)
 
         self.vis_img_name_model = PyListModel()
         self.vis_img_combo = gui.comboBox(
@@ -1021,6 +1029,7 @@ class OWHyper(OWWidget):
             self.cur_visible_image_idx = 0
         else:
             self.visbox.setEnabled(False)
+            self.show_vis_img.setChecked(False)
             self.cur_visible_image_idx = -1
 
     def redraw_integral_info(self):
@@ -1154,6 +1163,12 @@ class OWHyper(OWWidget):
         self.curveplot.shutdown()
         self.imageplot.shutdown()
         super().onDeleteWidget()
+
+    def toggle_visible_image(self):
+        if self.is_show_visible_image:
+            self.imageplot.show_visible_image()
+        else:
+            self.imageplot.hide_visible_image()
 
     def update_visible_image(self):
         idx = self.cur_visible_image_idx
