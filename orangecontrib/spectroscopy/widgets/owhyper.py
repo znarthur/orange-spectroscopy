@@ -1,5 +1,6 @@
 import collections.abc
 from xml.sax.saxutils import escape
+import io
 
 from AnyQt.QtWidgets import QWidget, QPushButton, \
     QGridLayout, QFormLayout, QAction, QVBoxLayout, QWidgetAction, QSplitter, \
@@ -16,6 +17,7 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import GraphicsWidget
 import colorcet
+from PIL import Image
 
 import Orange.data
 from Orange.data import Domain
@@ -509,6 +511,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.img = ImageItemNan()
         self.img.setOpts(axisOrder='row-major')
         self.plot.addItem(self.img)
+        self.vis_img = pg.ImageItem()
+        self.vis_img.setOpts(axisOrder='row-major')
         self.plot.vb.setAspectLocked()
         self.plot.scene().sigMouseMoved.connect(self.plot.vb.mouseMovedEvent)
 
@@ -711,6 +715,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
                        self.parent.image_values_fixed_levels())
         else:
             self.image_updated.emit()
+
+    def set_visible_image(self, img: np.ndarray, rect: QRectF):
+        self.vis_img.setImage(img)
+        self.vis_img.setRect(rect)
 
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
@@ -955,7 +963,8 @@ class OWHyper(OWWidget):
         self.vis_img_name_model = PyListModel()
         self.vis_img_combo = gui.comboBox(
             self.visbox, self, 'cur_visible_image_idx',
-            model=self.vis_img_name_model)
+            model=self.vis_img_name_model,
+            callback=self.update_visible_image)
 
     def init_interface_data(self, data):
         same_domain = (self.data and data and
@@ -1095,6 +1104,7 @@ class OWHyper(OWWidget):
         self._init_integral_boundaries()
         self.imageplot.update_view()
         self.output_image_selection()
+        self.update_visible_image()
 
     def _init_integral_boundaries(self):
         # requires data in curveplot
@@ -1130,6 +1140,21 @@ class OWHyper(OWWidget):
         self.curveplot.shutdown()
         self.imageplot.shutdown()
         super().onDeleteWidget()
+
+    def update_visible_image(self):
+        idx = self.cur_visible_image_idx
+        if idx >= 0:
+            img_info = self.data.attributes['visible_images'][idx]
+            img = Image.open(io.BytesIO(img_info['image_bytes']))
+            # image must be vertically flipped
+            # https://github.com/pyqtgraph/pyqtgraph/issues/315#issuecomment-214042453
+            # Behavior may change at pyqtgraph 1.0 version
+            img = np.array(img)[::-1]
+            rect = QRectF(img_info['pos_x'],
+                          img_info['pos_y'],
+                          img.shape[1] * img_info['pixel_size_x'],
+                          img.shape[0] * img_info['pixel_size_y'])
+            self.imageplot.set_visible_image(img, rect)
 
 
 if __name__ == "__main__":  # pragma: no cover

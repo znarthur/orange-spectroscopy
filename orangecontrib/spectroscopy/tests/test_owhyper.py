@@ -5,8 +5,9 @@ import io
 from base64 import b64decode
 
 import numpy as np
+from PIL import Image
 
-from AnyQt.QtCore import QPointF, Qt
+from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
 import Orange
 from Orange.data import DiscreteVariable, Domain, Table
@@ -371,6 +372,14 @@ class TestVisibleImage(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWHyper)  # type: OWHyper
 
+    def assert_same_visible_image(self, img_info, vis_img, mock_rect):
+        img = np.array(Image.open(io.BytesIO(img_info["image_bytes"])))[::-1]
+        rect = QRectF(img_info['pos_x'], img_info['pos_y'],
+                      img.shape[1] * img_info['pixel_size_x'],
+                      img.shape[0] * img_info['pixel_size_y'])
+        self.assertTrue((vis_img.image == img).all())
+        mock_rect.assert_called_with(rect)
+
     def test_no_visible_image(self):
         data = Orange.data.Table("agilent/4_noimage_agg256.dat")
         self.send_signal("Data", data)
@@ -387,12 +396,18 @@ class TestVisibleImage(WidgetTest):
 
     def test_first_visible_image_selected_in_combobox_by_default(self):
         w = self.widget
-        data = self.data_with_visible_images
-        self.send_signal("Data", data)
-        wait_for_image(w)
+        vis_img = w.imageplot.vis_img
+        with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
+            data = self.data_with_visible_images
+            self.send_signal("Data", data)
+            wait_for_image(w)
 
-        self.assertEqual(len(w.vis_img_name_model),
-                         len(data.attributes["visible_images"]))
-        self.assertEqual(w.cur_visible_image_idx, 0)
-        self.assertEqual(w.vis_img_combo.currentIndex(), 0)
-        self.assertEqual(w.vis_img_combo.currentText(), "Image 01")
+            self.assertEqual(len(w.vis_img_name_model),
+                             len(data.attributes["visible_images"]))
+            self.assertEqual(w.cur_visible_image_idx, 0)
+            self.assertEqual(w.vis_img_combo.currentIndex(), 0)
+            self.assertEqual(w.vis_img_combo.currentText(), "Image 01")
+
+            self.assert_same_visible_image(data.attributes["visible_images"][0],
+                                           w.imageplot.vis_img,
+                                           mock_rect)
