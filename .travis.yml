@@ -2,6 +2,11 @@ language: python
 
 dist: xenial
 
+addons:
+    apt:
+        packages:
+            - libxkbcommon-x11-0  # for PyQt 5.12
+
 matrix:
   include:
     - python: '3.6'
@@ -25,8 +30,9 @@ cache:
 install:
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel codecov
-    # 20180124 force PyQt 5.9.2 due to segfaults on new 5.10
-    - pip install pyqt5==5.9.2
+    - pip install pyqt5~=5.12.0 pyqtwebengine~=5.12.0
+    # scikit-learn 0.23 is incompatible with Orange<=3.25
+    - pip install scikit-learn~=0.22.0
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
     # opusFC is not installed by default - install for tests
     - pip install opusFC
