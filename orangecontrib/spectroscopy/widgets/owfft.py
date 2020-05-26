@@ -106,6 +106,7 @@ class OWFFT(OWWidget):
         self.data = None
         self.stored_phase = None
         self.spectra_table = None
+        self.reader = None
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
 
@@ -401,7 +402,31 @@ class OWFFT(OWWidget):
                 phase_corr=self.phase_corr,
                 peak_search=self.peak_search,
                 )
+                
+        if self.reader == 'NeaReaderGSF':
+            fft_single = irfft.ComplexFFT(
+                    dx=self.dx,
+                    apod_func=self.apod_func,
+                    zff=2**self.zff,
+                    phase_res=self.phase_resolution if self.phase_res_limit else None,
+                    phase_corr=self.phase_corr,
+                    peak_search=self.peak_search,
+                    )
+            full_data = self.data.X[::2] * np.exp(self.data.X[1::2]* 1j)
+            for row in full_data:
+                spectrum_out, phase_out, wavenumbers = fft_single(
+                    row, zpd=stored_zpd_fwd)
+                spectra.append(spectrum_out)
+                spectra.append(phase_out)
+            spectra = np.vstack(spectra)
 
+            if self.limit_output is True:
+                wavenumbers, spectra = self.limit_range(wavenumbers, spectra)
+            self.spectra_table = build_spec_table(wavenumbers, spectra,
+                                                  additional_table=self.data)
+            self.Outputs.spectra.send(self.spectra_table)
+            return
+            
         for row in ifg_data:
             if self.sweeps in [2, 3]:
                 # split double-sweep for forward/backward
@@ -458,32 +483,25 @@ class OWFFT(OWWidget):
         phases = np.vstack(phases)
 
         self.phases_table = build_spec_table(wavenumbers, phases,
-                                             additional_table=self.data)
+                                            additional_table=self.data)
         if not self.peak_search_enable:
             # All zpd values are equal by definition
             zpd_fwd = zpd_fwd[:1]
         self.phases_table = add_meta_to_table(self.phases_table,
-                                              ContinuousVariable.make("zpd_fwd"),
-                                              zpd_fwd)
+                                            ContinuousVariable.make("zpd_fwd"),
+                                            zpd_fwd)
         if zpd_back:
             if not self.peak_search_enable:
                 zpd_back = zpd_back[:1]
             self.phases_table = add_meta_to_table(self.phases_table,
-                                                  ContinuousVariable.make("zpd_back"),
-                                                  zpd_back)
+                                                ContinuousVariable.make("zpd_back"),
+                                                zpd_back)
 
         if self.limit_output is True:
-            limits = np.searchsorted(wavenumbers,
-                                     [self.out_limit1, self.out_limit2])
-            wavenumbers = wavenumbers[limits[0]:limits[1]]
-            # Handle 1D array if necessary
-            if spectra.ndim == 1:
-                spectra = spectra[None, limits[0]:limits[1]]
-            else:
-                spectra = spectra[:, limits[0]:limits[1]]
+            wavenumbers, spectra = self.limit_range(wavenumbers, spectra)
 
         self.spectra_table = build_spec_table(wavenumbers, spectra,
-                                              additional_table=self.data)
+                                            additional_table=self.data)
         self.Outputs.spectra.send(self.spectra_table)
         self.Outputs.phases.send(self.phases_table)
 
@@ -532,6 +550,34 @@ class OWFFT(OWWidget):
 
     def check_metadata(self):
         """ Look for laser wavenumber and sampling interval metadata """
+
+        try:
+            self.reader = self.data.attributes['Reader']
+        except KeyError:
+            self.reader = None
+
+        if self.reader == 'NeaReaderGSF': # TODO Avoid the magic word
+            self.infoc.setText("Using an automatic datapoint spacing\nApplying Complex Fourier Transform")
+            self.dx_HeNe = False
+            self.dx_HeNe_cb.setDisabled(True)
+            self.controls.auto_sweeps.setDisabled(True)
+            self.controls.peak_search.setEnabled(True)
+            self.controls.zpd1.setDisabled(True)
+            self.controls.zpd2.setDisabled(True)
+            self.controls.phase_corr.setDisabled(True)
+            self.controls.phase_res_limit.setDisabled(True)
+            self.controls.phase_resolution.setDisabled(True)
+
+            info = self.data.attributes
+            number_of_points = int(info['Pixel Area (X, Y, Z)'][3])
+            scan_size = float(info['Interferometer Center/Distance'][2].replace(',', '')) #Microns
+            scan_size = scan_size*1e-4 #Convert to cm
+            step_size = (scan_size * 2) / (number_of_points - 1)
+
+            self.dx = step_size
+            self.zff = 2 #Because is power of 2
+            return
+
         try:
             lwn, _ = self.data.get_column_view("Effective Laser Wavenumber")
         except ValueError:
@@ -557,10 +603,30 @@ class OWFFT(OWWidget):
 
         self.dx = (1 / lwn / 2 ) * udr
         self.infoc.setText("{0} cm<sup>-1</sup> laser, {1} sampling interval".format(lwn, udr))
+    
+    def limit_range(self, wavenumbers, spectra):
 
+        limits = np.searchsorted(wavenumbers,
+                                [self.out_limit1, self.out_limit2])
+        wavenumbers = wavenumbers[limits[0]:limits[1]]
+        # Handle 1D array if necessary
+        if spectra.ndim == 1:
+            spectra = spectra[None, limits[0]:limits[1]]
+        else:
+            spectra = spectra[:, limits[0]:limits[1]]
+
+        return wavenumbers, spectra
 
 # Simple main stub function in case being run outside Orange Canvas
 def main(argv=sys.argv):
+    from orangecontrib.spectroscopy.data import NeaReaderGSF #Used to run outside Orange Canvas
+    from Orange.data.io import FileFormat
+    from Orange.data import dataset_dirs
+
+    fn = 'NeaReaderGSF_test/NeaReaderGSF_test O2A raw.gsf'
+    absolute_filename = FileFormat.locate(fn, dataset_dirs)
+    data = NeaReaderGSF(absolute_filename).read()
+
     app = QApplication(list(argv))
     filename = "IFG_single.dpt"
 
@@ -569,6 +635,8 @@ def main(argv=sys.argv):
     ow.raise_()
 
     dataset = Orange.data.Table(filename)
+    dataset = data #ComplexFFT, this line can be commented
+
     ow.set_data(dataset)
     ow.handleNewSignals()
     app.exec_()
