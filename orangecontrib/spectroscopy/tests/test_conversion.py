@@ -149,7 +149,7 @@ class TestConversion(unittest.TestCase):
             # otherwise be silently handled in TestOnTestData
             _ = test.transform(train.domain)
             aucnow = AUC(TestOnTestData()(train, test, [learner]))
-            self.assertAlmostEqual(aucnow, aucorig, delta=0.02, msg="Preprocessor " + str(proc))
+            self.assertAlmostEqual(aucnow, aucorig, delta=0.03, msg="Preprocessor " + str(proc))
             test = Interpolate(points=getx(test) - 1.)(test)  # also do a shift
             _ = test.transform(train.domain)  # explicit call again
             aucnow = AUC(TestOnTestData()(train, test, [learner]))
