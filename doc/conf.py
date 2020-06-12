@@ -288,7 +288,7 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 def setup(app):
-    app.add_stylesheet('style.css')
+    app.add_css_file('style.css')
  
 # prevent smart quotes which introduce strange characters,
 # which are not valid utf-8
