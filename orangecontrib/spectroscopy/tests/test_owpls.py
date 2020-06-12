@@ -43,6 +43,20 @@ class TestPLS(TestCase):
         np.testing.assert_almost_equal(scikit_model.coef_,
                                        orange_model.coefficients)
 
+    def test_too_many_components(self):
+        # do not change
+        d = table(5, 5, 1)
+        model = PLSRegressionLearner(n_components=5)(d)
+        self.assertEqual(model.skl_model.n_components, 5)
+        # need to use less components
+        d = table(6, 5, 1)
+        model = PLSRegressionLearner(n_components=6)(d)
+        self.assertEqual(model.skl_model.n_components, 5)
+        # number of components only depends on the number of columns
+        d = table(5, 6, 1)
+        model = PLSRegressionLearner(n_components=6)(d)
+        self.assertEqual(model.skl_model.n_components, 6)
+
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
     def setUp(self):

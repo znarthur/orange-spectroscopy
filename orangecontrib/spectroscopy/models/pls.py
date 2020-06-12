@@ -21,23 +21,6 @@ class _FeatureScorerMixin(LearnerScorer):
         return np.abs(model.coefficients), model.domain.attributes
 
 
-class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
-    __wraps__ = skl_pls.PLSRegression
-    preprocessors = pls_pps
-
-    # this learner enforces a single class because multitarget is not
-    # explicitly allowed
-
-    def fit(self, X, Y, W=None):
-        model = super().fit(X, Y, W)
-        return PLSModel(model.skl_model)
-
-    def __init__(self, n_components=2, scale=True,
-                 max_iter=500, preprocessors=None):
-        super().__init__(preprocessors=preprocessors)
-        self.params = vars()
-
-
 class PLSModel(SklModel):
 
     @property
@@ -51,6 +34,27 @@ class PLSModel(SklModel):
 
     def __str__(self):
         return 'PLSModel {}'.format(self.skl_model)
+
+
+class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
+    __wraps__ = skl_pls.PLSRegression
+    __returns__ = PLSModel
+
+    preprocessors = pls_pps
+
+    # this learner enforces a single class because multitarget is not
+    # explicitly allowed
+
+    def fit(self, X, Y, W=None):
+        params = self.params.copy()
+        params["n_components"] = min(X.shape[1], params["n_components"])
+        clf = self.__wraps__(**params)
+        return self.__returns__(clf.fit(X, Y))
+
+    def __init__(self, n_components=2, scale=True,
+                 max_iter=500, preprocessors=None):
+        super().__init__(preprocessors=preprocessors)
+        self.params = vars()
 
 
 if __name__ == '__main__':
