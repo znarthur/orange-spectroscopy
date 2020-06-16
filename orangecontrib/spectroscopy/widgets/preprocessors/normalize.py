@@ -8,13 +8,14 @@ from Orange.widgets.data.utils.preprocess import blocked
 from Orange.widgets.gui import OWComponent
 from Orange.widgets.utils.itemmodels import DomainModel
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference
+from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference, NormalizePhaseReference
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange, SetXDoubleSpinBox, REFERENCE_DATA_PARAM
 
 NORMALIZE_BY_REFERENCE = 42
+PHASE_REFERENCE = 13
 
 
 class NormalizeEditor(BaseEditorOrange):
@@ -28,7 +29,8 @@ class NormalizeEditor(BaseEditorOrange):
         ("Area Normalization", Normalize.Area),
         ("Attribute Normalization", Normalize.Attribute),
         ("Standard Normal Variate (SNV)", Normalize.SNV),
-        ("Normalize by Reference", NORMALIZE_BY_REFERENCE)]
+        ("Normalize by Reference", NORMALIZE_BY_REFERENCE),
+        ("Normalize by Reference (Complex Phase)", PHASE_REFERENCE)]
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -197,12 +199,14 @@ class NormalizeEditor(BaseEditorOrange):
         int_method_index = params.get("int_method", 0)
         int_method = IntegrateEditor.Integrators_classes[int_method_index]
         attr = params.get("attr", None)
-        if method != NORMALIZE_BY_REFERENCE:
+        if method not in (NORMALIZE_BY_REFERENCE, PHASE_REFERENCE):
             return Normalize(method=method, lower=lower, upper=upper,
                              int_method=int_method, attr=attr)
         else:
             # avoids circular imports
             reference = params.get(REFERENCE_DATA_PARAM, None)
+            if method == PHASE_REFERENCE:
+                return NormalizePhaseReference(reference=reference)
             return NormalizeReference(reference=reference)
 
     def set_preview_data(self, data):

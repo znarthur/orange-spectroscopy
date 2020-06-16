@@ -12,7 +12,8 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
-    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException
+    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException, \
+    NormalizePhaseReference
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
@@ -375,6 +376,8 @@ class TestNormalizeReference(unittest.TestCase):
         reference = data[:1]
         p = NormalizeReference(reference=reference)(data)
         np.testing.assert_almost_equal(p, [[1, 1, 1], [2, 2, 2]])
+        s = NormalizePhaseReference(reference=reference)(data)
+        np.testing.assert_almost_equal(s, [[0, 0, 0], [2, 1, 3]])
 
     def test_reference_exceptions(self):
         with self.assertRaises(MissingReferenceException):
