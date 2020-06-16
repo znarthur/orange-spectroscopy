@@ -294,3 +294,8 @@ def setup(app):
 # which are not valid utf-8
 # sphinx htmlhelp outputs cp1252 instead of utf-8 on my (Marko's) computer
 smartquotes = False
+
+html_js_files = [
+    'https://polyfill.io/v3/polyfill.min.js?features=es6',
+    'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+]

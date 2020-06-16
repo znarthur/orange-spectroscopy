@@ -43,7 +43,7 @@ Preprocessing Methods
   - Min-Max normalization: divides each spectra with its Y<sub>max</sub> - Y<sub>min</sub> range
   - Area normalization: provides several methods, also allows the selection of a specific range for the calculation
   - Attribute normalization: normalize each spectrum with one of the available pre-calculated attributes
-  - Standard Normal Variate (SNV): $\tilde{X^{SNV}_i} = (X_i - \tilde{X_i}) / \sigma_i$
+  - Standard Normal Variate (SNV): \\(\tilde{X}^{SNV}_i = (X_i - \tilde{X}_i) / \sigma_i\\)
   - Normalize by Reference: divides each spectrum with the reference spectrum on the input
 - Integrate: compute integrals of selected area. Similar to the **Integrate Spectra** widget.
 - PCA denoising: denoise the data with PCA.
