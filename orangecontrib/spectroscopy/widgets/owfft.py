@@ -110,15 +110,22 @@ class OWFFT(OWWidget):
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
 
+        layout = QGridLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        gui.widgetBox(self.controlArea, orientation=layout)
+
         # GUI
         # An info box
-        infoBox = gui.widgetBox(self.controlArea, "Info")
+        infoBox = gui.widgetBox(None, "Info")
+        layout.addWidget(infoBox, 0, 0, 2, 1)
         self.infoa = gui.widgetLabel(infoBox, "No data on input.")
         self.infob = gui.widgetLabel(infoBox, "")
         self.infoc = gui.widgetLabel(infoBox, "")
+        gui.rubber(infoBox)
 
         # Input Data control area
-        self.dataBox = gui.widgetBox(self.controlArea, "Input Data")
+        self.dataBox = gui.widgetBox(None, "Input Data")
+        layout.addWidget(self.dataBox, 2, 0, 3, 1)
 
         gui.widgetLabel(self.dataBox, "Datapoint spacing (Δx):")
         grid = QGridLayout()
@@ -193,7 +200,8 @@ class OWFFT(OWWidget):
         self.dataBox.layout().addLayout(grid)
 
         # FFT Options control area
-        self.optionsBox = gui.widgetBox(self.controlArea, "FFT Options")
+        self.optionsBox = gui.widgetBox(None, "FFT Options")
+        layout.addWidget(self.optionsBox, 0, 1, 3, 1)
 
         box = gui.comboBox(
             self.optionsBox, self, "apod_func",
@@ -239,7 +247,8 @@ class OWFFT(OWWidget):
         self.optionsBox.layout().addLayout(grid)
 
         # Output Data control area
-        self.outputBox = gui.widgetBox(self.controlArea, "Output")
+        self.outputBox = gui.widgetBox(None, "Output")
+        layout.addWidget(self.outputBox, 3, 1, 2, 1)
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
