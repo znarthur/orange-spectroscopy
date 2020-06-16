@@ -5,29 +5,30 @@ Construct a data preprocessing pipeline.
 
 **Inputs**
 
-- Data: input data set
-- Reference: a reference data set used in some preprocessing methods
+- Data: required input data set
+- Reference: optional reference data set used in some preprocessing methods
 
 **Outputs**
 
 - Preprocessed Data: transformed data set
 - Preprocessor: preprocessing methods
 
-The **Preprocess Spectra** widget applied several preprocessing methods to spectral data. You select the preprocessing method from the list and press the triangle button on the right to apply it. The order of the preprocessing matters, so to change the order of the preprocessing, just drag and drop the method to its proper place.
+The **Preprocess Spectra** widget applies a series of preprocessing methods to spectral data. You can select the preprocessing method from the list and press the triangle button on the right to visualize the result. The order of the preprocessing matters, so to change the order of the preprocessing, just drag and drop the method to its proper place.
 
-The input data for the selected method are displayed in the top plot, while the preprocessed data are displayed in the bottom plot.
+The input data for the selected method is displayed in the top plot, while the preprocessed data is shown in the bottom plot.
 
 You can observe each preprocessing step by pressing the triangle button on the right. To apply all of then and observe the final result plot, press *Final preview*. To output the data, press *Commit*.
 
 The reference data set is processed along the input data: only the first preprocessor uses the reference as on the input. If the reference needs to stay fixed, split your preprocessing methods among multiple **Preprocess Spectra** widgets and connect references accordingly.
 
+Below is an example of the **Preprocess Spectra** widget in action with some explanation of the main features.
 ![](images/Preprocess-Spectra-stamped.png)
 
-1. Add a preprocessor.
-2. Preview plot with its editor menu like in the [Spectra](spectra.md) widget.
+1. Add a preprocessor from the dropdown menu.
+2. Preview plot with its editor menu like in the [Spectra](spectra.md) widget. The top plot shows the data before and the bottom after preprocessing.
 3. Preview a single preprocessor (the upper plot will show its input, the plot below its output).
-4. Apply all the steps and observe the final result of preprocessing. Change the number of spectra shown in the plot.
-5. Press *Commit* to output the preprocessed data.
+4. Observe the final result of preprocessing by clicking the _Final Preview_ button. Change the number of spectra shown in the plot.
+5. Press *Commit* to calculate and output the preprocessed data.
 
 Preprocessing Methods
 ---------------------
@@ -38,6 +39,12 @@ Preprocessing Methods
 - Savitzky-Golay Filter: apply Savitzky-Golay filter.
 - Baseline Correction: correct the baseline
 - Normalize Spectra: apply normalization.
+  - Vector normalization: calculates the L2 norm
+  - Min-Max normalization: divides each spectra with its Y<sub>max</sub> - Y<sub>min</sub> range
+  - Area normalization: provides several methods, also allows the selection of a specific range for the calculation
+  - Attribute normalization: normalize each spectrum with one of the available pre-calculated attributes
+  - Standard Normal Variate (SNV): \\(\tilde{X}^{SNV}_i = (X_i - \tilde{X}_i) / \sigma_i\\)
+  - Normalize by Reference: divides each spectrum with the reference spectrum on the input
 - Integrate: compute integrals of selected area. Similar to the **Integrate Spectra** widget.
 - PCA denoising: denoise the data with PCA.
 - Transmittance to Absorbance: convert from transmittance to absorbance spectra.
