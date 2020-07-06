@@ -566,10 +566,11 @@ class OWFFT(OWWidget):
             self.reader = None
 
         if self.reader == 'NeaReaderGSF': # TODO Avoid the magic word
-            self.infoc.setText("Using an automatic datapoint spacing\nApplying Complex Fourier Transform")
             self.dx_HeNe = False
             self.dx_HeNe_cb.setDisabled(True)
+            self.dx_edit.setDisabled(True)
             self.controls.auto_sweeps.setDisabled(True)
+            self.controls.sweeps.setDisabled(True)
             self.controls.peak_search.setEnabled(True)
             self.controls.zpd1.setDisabled(True)
             self.controls.zpd2.setDisabled(True)
@@ -585,6 +586,8 @@ class OWFFT(OWWidget):
 
             self.dx = step_size
             self.zff = 2 #Because is power of 2
+
+            self.infoc.setText(f"Using an automatic datapoint spacing (Δx).\nΔx:\t{self.dx:.8} cm\nApplying Complex Fourier Transform.")
             return
 
         try:
