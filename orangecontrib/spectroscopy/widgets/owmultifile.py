@@ -138,6 +138,7 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
     priority = 10000
     replaces = ["orangecontrib.infrared.widgets.owfiles.OWFiles",
                 "orangecontrib.infrared.widgets.owmultifile.OWMultifile"]
+    keywords = ["file", "files", "multiple"]
 
     class Outputs:
         data = Output("Data", Table,
