@@ -20,23 +20,6 @@ from orangecontrib.spectroscopy.preprocess import Interpolate, \
 from orangecontrib.spectroscopy.data import getx
 
 
-# remove the following workaround when the minimum supported version of
-# Orange is 3.22.0
-
-TestOnTestDataO = TestOnTestData
-
-
-class TestOnTestData:
-
-    def __call__(self, *args, **kwargs):
-        try:
-            return TestOnTestDataO()(*args, **kwargs)
-        except TypeError:
-            return TestOnTestDataO(*args, **kwargs)
-
-# end of workaround
-
-
 logreg = LogisticRegressionLearner(max_iter=1000)
 
 
