@@ -37,6 +37,9 @@ class TestOnTestData:
 # end of workaround
 
 
+logreg = LogisticRegressionLearner(max_iter=1000)
+
+
 def separate_learn_test(data):
     sf = ms.ShuffleSplit(n_splits=1, test_size=0.2, random_state=np.random.RandomState(0))
     (traini, testi), = sf.split(y=data.Y, X=data.X)
@@ -67,7 +70,7 @@ class TestConversion(unittest.TestCase):
 
     def test_predict_same_domain(self):
         train, test = separate_learn_test(self.collagen)
-        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [logreg]))
         self.assertGreater(auc, 0.9) # easy dataset
 
     def test_predict_different_domain(self):
@@ -76,24 +79,24 @@ class TestConversion(unittest.TestCase):
         try:
             from Orange.data.table import DomainTransformationError
             with self.assertRaises(DomainTransformationError):
-                LogisticRegressionLearner()(train)(test)
+                logreg(train)(test)
         except ImportError:  # until Orange 3.19
-            aucdestroyed = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+            aucdestroyed = AUC(TestOnTestData()(train, test, [logreg]))
             self.assertTrue(0.45 < aucdestroyed < 0.55)
 
     def test_predict_different_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)
-        aucorig = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        aucorig = AUC(TestOnTestData()(train, test, [logreg]))
         test = Interpolate(points=getx(test) - 1.)(test) # other test domain
         train = Interpolate(points=getx(train))(train)  # make train capable of interpolation
-        aucshift = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        aucshift = AUC(TestOnTestData()(train, test, [logreg]))
         self.assertAlmostEqual(aucorig, aucshift, delta=0.01)  # shift can decrease AUC slightly
         test = Cut(1000, 1700)(test)
-        auccut1 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auccut1 = AUC(TestOnTestData()(train, test, [logreg]))
         test = Cut(1100, 1600)(test)
-        auccut2 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auccut2 = AUC(TestOnTestData()(train, test, [logreg]))
         test = Cut(1200, 1500)(test)
-        auccut3 = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auccut3 = AUC(TestOnTestData()(train, test, [logreg]))
         # the more we cut the lower precision we get
         self.assertTrue(aucorig > auccut1 > auccut2 > auccut3)
 
@@ -113,15 +116,15 @@ class TestConversion(unittest.TestCase):
     def test_predict_savgov_same_domain(self):
         data = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(self.collagen)
         train, test = separate_learn_test(data)
-        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [logreg]))
         self.assertGreater(auc, 0.85)
 
     def test_predict_savgol_another_interpolate(self):
         train, test = separate_learn_test(self.collagen)
         train = SavitzkyGolayFiltering(window=9, polyorder=2, deriv=2)(train)
-        auc = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        auc = AUC(TestOnTestData()(train, test, [logreg]))
         train = Interpolate(points=getx(train))(train)
-        aucai = AUC(TestOnTestData()(train, test, [LogisticRegressionLearner()]))
+        aucai = AUC(TestOnTestData()(train, test, [logreg]))
         self.assertAlmostEqual(auc, aucai, delta=0.02)
 
     def test_slightly_different_domain(self):
@@ -130,7 +133,7 @@ class TestConversion(unittest.TestCase):
         # rows full of unknowns make LogisticRegression undefined
         # we can obtain them, for example, with EMSC, if one of the badspectra
         # is a spectrum from the data
-        learner = LogisticRegressionLearner(preprocessors=[_RemoveNaNRows()])
+        learner = LogisticRegressionLearner(max_iter=1000, preprocessors=[_RemoveNaNRows()])
 
         for proc in PREPROCESSORS:
             if hasattr(proc, "skip_add_zeros"):
