@@ -10,16 +10,16 @@ addons:
 matrix:
   include:
     - python: '3.6'
-      env: ORANGE="release"  RUN_PYLINT=true
+      env: ORANGE="release" RUN_PYLINT=true
 
     - python: '3.6'
-      env: ORANGE="3.24.0"
+      env: ORANGE="3.24.0" PIP_INSTALL="orange-canvas-core==0.1.10 orange-widget-base==4.3.0 scikit-learn~=0.22.0"
 
     - python: '3.6'
-      env: ORANGE="release"  UPLOAD_COVERAGE=true
+      env: ORANGE="release"  UPLOAD_COVERAGE=true PIP_INSTALL=""
 
     - python: '3.6'
-      env: ORANGE="master"
+      env: ORANGE="master" PIP_INSTALL=""
 
 cache:
     apt: true
@@ -31,8 +31,6 @@ install:
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel codecov
     - pip install pyqt5~=5.12.0 pyqtwebengine~=5.12.0
-    # scikit-learn 0.23 is incompatible with Orange<=3.25
-    - pip install scikit-learn~=0.22.0
     - source $TRAVIS_BUILD_DIR/.travis/install_orange.sh
     # opusFC is not installed by default - install for tests
     - pip install opusFC

@@ -1,3 +1,8 @@
+
+if [ ! -z "$PIP_INSTALL" ]; then
+    pip install $PIP_INSTALL
+fi
+
 if [ $ORANGE == "release" ]; then
     echo "Orange: Skipping separate Orange install"
     return 0
