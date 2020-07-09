@@ -708,12 +708,16 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         xat = data.domain[attr_x]
         yat = data.domain[attr_y]
 
-        ndom = Domain([xat, yat])
-        datam = data.transform(ndom)
+        def extract_col(data, var):
+            nd = Domain([var])
+            d = data.transform(nd)
+            return d.X[:, 0]
+
         progress_interrupt(0)
-        res.coorx = datam.X[:, 0]
-        res.coory = datam.X[:, 1]
-        res.data_points = datam.X
+
+        res.coorx = extract_col(data, xat)
+        res.coory = extract_col(data, yat)
+        res.data_points = np.hstack([res.coorx.reshape(-1, 1), res.coory.reshape(-1, 1)])
         res.lsx = lsx = values_to_linspace(res.coorx)
         res.lsy = lsy = values_to_linspace(res.coory)
         progress_interrupt(0)

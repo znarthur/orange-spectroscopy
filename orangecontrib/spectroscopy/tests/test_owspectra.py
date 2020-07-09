@@ -53,14 +53,11 @@ class TestOWSpectra(WidgetTest):
         cls.unknown_pts[5] = np.nan
         cls.unknown_pts[8:10] = np.nan
         cls.unknown_pts[15] = np.inf
-        # a data set with features with the same names
-        sfdomain = Domain([ContinuousVariable("1"), ContinuousVariable("1")])
-        cls.same_features = Table.from_numpy(sfdomain, X=[[0, 1]])
         # a data set with only infs
         cls.only_inf = iris1.copy()
         cls.only_inf.X *= np.Inf
         cls.strange_data = [iris1, iris0, empty, irisunknown, cls.unknown_last_instance,
-                            cls.same_features, cls.only_inf, cls.unknown_pts]
+                            cls.only_inf, cls.unknown_pts]
 
     def setUp(self):
         self.widget = self.create_widget(OWSpectra)  # OWSpectra

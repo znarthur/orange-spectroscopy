@@ -26,7 +26,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
             wait_for_preview(self.widget)
-            self.wait_until_finished()
+            self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -36,7 +36,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
             wait_for_preview(self.widget)
-            self.wait_until_finished()
+            self.wait_until_finished(timeout=10000)
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = data.transform(
@@ -49,7 +49,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
             wait_for_preview(self.widget)
-            self.wait_until_finished()
+            self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_ref(self):
         data = Orange.data.Table("peach_juice.dpt")
@@ -60,7 +60,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
             wait_for_preview(self.widget)
-            self.wait_until_finished()
+            self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_ref_multi(self):
         """Test that preprocessors can handle references with multiple instances"""
@@ -72,8 +72,8 @@ class TestAllPreprocessors(WidgetTest):
             self.send_signal("Reference", data)
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
-            wait_for_preview(self.widget)
-            self.wait_until_finished()
+            wait_for_preview(self.widget, timeout=10000)
+            self.wait_until_finished(timeout=10000)
 
 
 class TestOWPreprocess(WidgetTest):

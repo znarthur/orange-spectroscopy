@@ -65,7 +65,7 @@ class TestOWAverage(WidgetTest):
         time_var = Orange.data.TimeVariable.make(name="timetest")
         n_domain = Orange.data.Domain(c_domain.attributes,
                                       c_domain.class_vars,
-                                      [c_domain.attributes[0], str_var, time_var])
+                                      [Orange.data.ContinuousVariable("con"), str_var, time_var])
         collagen = self.collagen.transform(n_domain)
         collagen.metas[:, 0] = np.atleast_2d(collagen.X[:, 0])
         collagen.metas[:, 1] = ["string"] * len(collagen)

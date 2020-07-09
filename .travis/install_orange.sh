@@ -1,8 +1,7 @@
-# CommonMark changed their interface in 0.8.0. Because older
-# Orange is imcompatible with newer CommonMark, 
-# install the module manually so that it does not get installed.
-# Remove this when the minimum supported Orange is 3.16.
-pip install CommonMark==0.7.5
+
+if [ ! -z "$PIP_INSTALL" ]; then
+    pip install $PIP_INSTALL
+fi
 
 if [ $ORANGE == "release" ]; then
     echo "Orange: Skipping separate Orange install"
