@@ -1560,6 +1560,7 @@ class OWSpectra(OWWidget):
     priority = 10
     replaces = ["orangecontrib.infrared.widgets.owcurves.OWCurves",
                 "orangecontrib.infrared.widgets.owspectra.OWSpectra"]
+    keywords = ["curves", "lines", "spectrum"]
 
     settings_version = 2
     settingsHandler = DomainContextHandler()

@@ -807,6 +807,7 @@ class OWHyper(OWWidget):
     icon = "icons/hyper.svg"
     priority = 20
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
+    keywords = ["image", "spectral", "chemical", "imaging"]
 
     settings_version = 4
     settingsHandler = DomainContextHandler()
