@@ -290,11 +290,11 @@ class ImageColorSettingMixin:
         self._level_high_le.validator().setDefault(1)
         form.addRow("High limit:", self._level_high_le)
 
-        lowslider = gui.hSlider(
+        self._threshold_low_slider = lowslider = gui.hSlider(
             box, self, "threshold_low", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
-        highslider = gui.hSlider(
+        self._threshold_high_slider = highslider = gui.hSlider(
             box, self, "threshold_high", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
@@ -334,6 +334,12 @@ class ImageColorSettingMixin:
 
         self._level_low_le.setPlaceholderText(rounded_levels[0])
         self._level_high_le.setPlaceholderText(rounded_levels[1])
+
+        enabled_level_settings = self.fixed_levels is None
+        self._level_low_le.setEnabled(enabled_level_settings)
+        self._level_high_le.setEnabled(enabled_level_settings)
+        self._threshold_low_slider.setEnabled(enabled_level_settings)
+        self._threshold_high_slider.setEnabled(enabled_level_settings)
 
         if self.fixed_levels is not None:
             self.img.setLevels(self.fixed_levels)
