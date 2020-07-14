@@ -253,6 +253,9 @@ class ImageColorSettingMixin:
     show_legend = Setting(True)
     palette_index = Setting(0)
 
+    def __init__(self):
+        self.fixed_levels = None  # fixed level settings for categoric data
+
     def color_settings_box(self):
         box = gui.vBox(self)
         self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
@@ -311,14 +314,9 @@ class ImageColorSettingMixin:
         if not self.data:
             return
 
-        if not self.threshold_low < self.threshold_high:
-            # TODO this belongs here, not in the parent
-            self.parent.Warning.threshold_error()
-            return
-        else:
-            self.parent.Warning.threshold_error.clear()
-
-        if self.img.image is not None:
+        if self.fixed_levels is not None:
+            levels = list(self.fixed_levels)
+        elif self.img.image is not None:
             levels = get_levels(self.img.image)
         else:
             levels = [0, 255]
@@ -333,6 +331,17 @@ class ImageColorSettingMixin:
 
         self._level_low_le.setPlaceholderText(rounded_levels[0])
         self._level_high_le.setPlaceholderText(rounded_levels[1])
+
+        if self.fixed_levels is not None:
+            self.img.setLevels(self.fixed_levels)
+            return
+
+        if not self.threshold_low < self.threshold_high:
+            # TODO this belongs here, not in the parent
+            self.parent.Warning.threshold_error()
+            return
+        else:
+            self.parent.Warning.threshold_error.clear()
 
         ll = float(self.level_low) if self.level_low is not None else levels[0]
         lh = float(self.level_high) if self.level_high is not None else levels[1]
@@ -689,13 +698,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         if self.data and self.attr_x and self.attr_y:
             self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
-                       self.parent.integrate_fn())
+                       self.parent.image_values(),
+                       self.parent.image_values_fixed_levels())
         else:
             self.image_updated.emit()
 
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
-                      integrate_fn, state: TaskState):
+                      image_values, image_values_fixed_levels, state: TaskState):
 
         def progress_interrupt(i: float):
             if state.is_interruption_requested():
@@ -720,16 +730,17 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         res.data_points = np.hstack([res.coorx.reshape(-1, 1), res.coory.reshape(-1, 1)])
         res.lsx = lsx = values_to_linspace(res.coorx)
         res.lsy = lsy = values_to_linspace(res.coory)
+        res.image_values_fixed_levels = image_values_fixed_levels
         progress_interrupt(0)
 
         if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
             raise ImageTooBigException((lsx[-1], lsy[-1]))
 
-        # the code bellow does this, but part-wise:
-        # d = integrate_fn(data).X[:, 0]
+        # the code below does this, but part-wise:
+        # d = image_values(data).X[:, 0]
         parts = []
         for slice in split_to_size(len(data), 10000):
-            part = integrate_fn(data[slice]).X[:, 0]
+            part = image_values(data[slice]).X[:, 0]
             parts.append(part)
             progress_interrupt(0)
         d = np.concatenate(parts)
@@ -745,6 +756,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         lsx, lsy = self.lsx, self.lsy
 
         d = res.d
+
+        self.fixed_levels = res.image_values_fixed_levels
 
         self.data_points = res.data_points
 
@@ -954,7 +967,7 @@ class OWHyper(OWWidget):
 
     def redraw_integral_info(self):
         di = {}
-        integrate = self.integrate_fn()
+        integrate = self.image_values()
         if isinstance(integrate, Integrate) and np.any(self.curveplot.selection_group):
             # curveplot can have a subset of curves on the input> match IDs
             ind = np.flatnonzero(self.curveplot.selection_group)[0]
@@ -968,7 +981,7 @@ class OWHyper(OWWidget):
     def refresh_markings(self, di):
         refresh_integral_markings([{"draw": di}], self.markings_integral, self.curveplot)
 
-    def integrate_fn(self):
+    def image_values(self):
         if self.value_type == 0:  # integrals
             imethod = self.integration_methods[self.integration_method]
 
@@ -981,6 +994,12 @@ class OWHyper(OWWidget):
         else:
             return lambda data, attr=self.attr_value: \
                 data.transform(Domain([data.domain[attr]]))
+
+    def image_values_fixed_levels(self):
+        if self.value_type == 0:  # integrals
+            return None
+        else:
+            return 0, len(self.attr_value.values) - 1
 
     def redraw_data(self):
         self.redraw_integral_info()

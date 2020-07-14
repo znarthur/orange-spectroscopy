@@ -7,7 +7,7 @@ import numpy as np
 from AnyQt.QtCore import QPointF, Qt
 from AnyQt.QtTest import QSignalSpy
 import Orange
-from Orange.data import DiscreteVariable
+from Orange.data import DiscreteVariable, Domain, Table
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy.widgets import owhyper
@@ -253,6 +253,19 @@ class TestOWHyper(WidgetTest):
             self.widget.attr_value = "petal width"
             self.widget.imageplot.update_color_schema()
             np.testing.assert_equal(len(p.call_args[0][0]), 256)  # 256 for a continuous variable
+
+    def test_color_variable_levels(self):
+        class_values = ["a"], ["a", "b", "c"]
+        correct_levels = [0, 0], [0, 2]
+        for values, correct in zip(class_values, correct_levels):
+            domain = Domain([], DiscreteVariable("c", values=values))
+            data = Table.from_numpy(domain, X=[[]], Y=[[0]])
+            self.send_signal("Data", data)
+            self.widget.controls.value_type.buttons[1].click()
+            self.widget.attr_value = data.domain.class_var
+            self.widget.update_feature_value()
+            wait_for_image(self.widget)
+            np.testing.assert_equal(self.widget.imageplot.img.levels, correct)
 
     def test_single_update_view(self):
         with patch("orangecontrib.spectroscopy.widgets.owhyper.ImagePlot.update_view") as p:
