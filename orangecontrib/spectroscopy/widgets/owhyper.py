@@ -308,7 +308,10 @@ class ImageColorSettingMixin:
         return box
 
     def update_legend_visible(self):
-        self.legend.setVisible(self.show_legend)
+        if self.fixed_levels is not None:
+            self.legend.setVisible(False)
+        else:
+            self.legend.setVisible(self.show_legend)
 
     def update_levels(self):
         if not self.data:
@@ -776,6 +779,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.img.setImage(imdata, autoLevels=False)
         self.update_levels()
         self.update_color_schema()
+        self.update_legend_visible()
 
         # shift centres of the pixels so that the axes are useful
         shiftx = _shift(lsx)

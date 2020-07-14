@@ -272,6 +272,14 @@ class TestOWHyper(WidgetTest):
             self.send_signal("Data", self.iris)
             self.assertEqual(p.call_count, 1)
 
+    def test_correct_legend(self):
+        self.send_signal("Data", self.iris)
+        wait_for_image(self.widget)
+        self.assertTrue(self.widget.imageplot.legend.isVisible())
+        self.widget.controls.value_type.buttons[1].click()
+        wait_for_image(self.widget)
+        self.assertFalse(self.widget.imageplot.legend.isVisible())
+
     def test_migrate_selection(self):
         c = QPointF()  # some we set an attribute to
         setattr(c, "selection", [False, True, True, False])
