@@ -1,5 +1,6 @@
 import random
-from collections import Iterable
+from collections.abc import Iterable
+
 from decimal import Decimal
 import time
 
