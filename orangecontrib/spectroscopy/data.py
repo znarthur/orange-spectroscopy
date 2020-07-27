@@ -514,12 +514,15 @@ class WiREReaders(FileFormat, SpectralFileFormat):
     def read_spectra(self):
         wdf_file = WDFReader(self.filename)
 
-        if wdf_file.measurement_type == 1: # single point spectra
-            table = self.single_reader(wdf_file)
-        elif wdf_file.measurement_type == 2: # series scan
-            table = self.series_reader(wdf_file)
-        elif wdf_file.measurement_type == 3: # line scan
-            table = self.map_reader(wdf_file)
+        try:
+            if wdf_file.measurement_type == 1: # single point spectra
+                table = self.single_reader(wdf_file)
+            elif wdf_file.measurement_type == 2: # series scan
+                table = self.series_reader(wdf_file)
+            elif wdf_file.measurement_type == 3: # line scan
+                table = self.map_reader(wdf_file)
+        finally:
+            wdf_file.close()
 
         return table
 
