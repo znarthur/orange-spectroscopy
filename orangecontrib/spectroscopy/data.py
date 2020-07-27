@@ -8,7 +8,6 @@ import numpy as np
 import spectral.io.envi
 from scipy.interpolate import interp1d
 from scipy.io import matlab
-from renishawWiRE import WDFReader
 
 import Orange
 from Orange.data import \
@@ -512,6 +511,8 @@ class WiREReaders(FileFormat, SpectralFileFormat):
     DESCRIPTION = 'Renishaw WiRE WDF reader'
 
     def read_spectra(self):
+        # renishawWiRE is imported here so that its API changes would not block spectroscopy
+        from renishawWiRE import WDFReader  # pylint: disable=import-outside-toplevel
         wdf_file = WDFReader(self.filename)
 
         try:
