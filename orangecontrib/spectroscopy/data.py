@@ -127,38 +127,50 @@ class AsciiMapReader(FileFormat):
             np.savetxt(f, data.X, delimiter="\t", fmt="%g")
 
 
+def _metatable_maplocs(x_locs, y_locs):
+    """ Create an Orange table containing (x,y) map locations as metas. """
+    x_locs = np.asarray(x_locs)
+    y_locs = np.asarray(y_locs)
+    metas = np.vstack((x_locs, y_locs)).T
+
+    domain = Domain([], None,
+                    metas=[ContinuousVariable.make("map_x"),
+                           ContinuousVariable.make("map_y")]
+                    )
+    data = Table.from_numpy(domain, X=np.zeros((len(metas), 0)),
+                            metas=np.asarray(metas, dtype=object))
+    return data
+
+
 def _spectra_from_image(X, features, x_locs, y_locs):
     """
     Create a spectral format (returned by SpectralFileFormat.read_spectra)
-    from 3D image organized [ rows, columns, wavelengths ]
+    from a 3D image organized [ rows, columns, wavelengths ]
     """
     X = np.asarray(X)
     x_locs = np.asarray(x_locs)
     y_locs = np.asarray(y_locs)
 
     # each spectrum has its own row
-    if len(X.shape) == 3: # 2D map
-        spectra = X.reshape((X.shape[0]*X.shape[1], X.shape[2]))
+    spectra = X.reshape((X.shape[0]*X.shape[1], X.shape[2]))
 
-        # locations
-        y_loc = np.repeat(np.arange(X.shape[0]), X.shape[1])
-        x_loc = np.tile(np.arange(X.shape[1]), X.shape[0])
-        metas = np.array([x_locs[x_loc], y_locs[y_loc]]).T
+    # locations
+    y_loc = np.repeat(np.arange(X.shape[0]), X.shape[1])
+    x_loc = np.tile(np.arange(X.shape[1]), X.shape[0])
+    meta_table = _metatable_maplocs(x_locs[x_loc], y_locs[y_loc])
 
-    elif len(X.shape) == 2: # line scan
-        spectra = X
-
-        # locations
-        metas = np.vstack((x_locs, y_locs)).T
+    return features, spectra, meta_table
 
 
-    domain = Orange.data.Domain([], None,
-                                metas=[Orange.data.ContinuousVariable.make("map_x"),
-                                       Orange.data.ContinuousVariable.make("map_y")]
-                               )
-    data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)),
-                                        metas=np.asarray(metas, dtype=object))
-    return features, spectra, data
+def _spectra_from_image_2d(X, wn, x_locs, y_locs):
+    """
+    Create a spectral format (returned by SpectralFileFormat.read_spectra)
+    from a spectral image organized [ sample, wn ] and locations for each sample
+    """
+    X = np.asarray(X)
+    meta_table = _metatable_maplocs(x_locs, y_locs)
+
+    return wn, X, meta_table
 
 
 class MatlabReader(FileFormat):
@@ -556,7 +568,7 @@ class WiREReaders(FileFormat, SpectralFileFormat):
         x_locs = np.unique(wdf_file.xpos)
         y_locs = np.unique(wdf_file.ypos)
 
-        return _spectra_from_image(y_data, domvals, x_locs, y_locs)
+        return _spectra_from_image_2d(y_data, domvals, x_locs, y_locs)
 
 
 class SPCReader(FileFormat):
