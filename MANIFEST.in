@@ -5,6 +5,7 @@ recursive-include orangecontrib/spectroscopy/datasets agilent/*
 recursive-include orangecontrib/spectroscopy/datasets Hermes_HDF5/*
 recursive-include orangecontrib/spectroscopy/datasets emsc/*
 recursive-include orangecontrib/spectroscopy/datasets NeaReaderGSF_test/*
+recursive-include orangecontrib/spectroscopy/datasets renishaw_test_files/*
 
 global-exclude __pycache__
 
