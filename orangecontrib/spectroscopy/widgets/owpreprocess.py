@@ -1040,12 +1040,6 @@ PREPROCESSORS = [
         SavitzkyGolayFilteringEditor
     ),
     PreprocessAction(
-        "Spectrum subtraction", "orangecontrib.spectroscopy.sp_subtract", "Subtraction",
-        Description("Spectrum subtraction",
-                    icon_path("Discretize.svg")),
-        SpSubtractEditor
-    ),
-    PreprocessAction(
         "Baseline Correction", "orangecontrib.infrared.baseline", "Baseline Correction",
         Description("Baseline Correction",
                     icon_path("Discretize.svg")),
@@ -1082,6 +1076,12 @@ PREPROCESSORS = [
         Description("Shift Spectra",
                     icon_path("Discretize.svg")),
         CurveShiftEditor
+    ),
+    PreprocessAction(
+        "Spectrum subtraction", "orangecontrib.spectroscopy.sp_subtract", "Subtraction",
+        Description("Spectrum subtraction",
+                    icon_path("Discretize.svg")),
+        SpSubtractEditor
     ),
     PreprocessAction(
         "EMSC", "orangecontrib.spectroscopy.preprocess.emsc", "EMSC",
