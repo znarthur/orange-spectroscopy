@@ -12,8 +12,8 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
-    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException, \
-    NormalizePhaseReference, Despike, SpSubtract
+    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, \
+    PreprocessException, NormalizePhaseReference, Despike, SpSubtract
 from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
@@ -168,7 +168,7 @@ class TestSpSubtract(unittest.TestCase):
         reference = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
         f = SpSubtract(amount=2, reference=reference)
         fdata = f(data)
-        np.testing.assert_almost_equal(fdata.X, -data.X)
+        np.testing.assert_almost_equal(fdata.X, [[-1.0, -2.0, -3.0, -4.0]])
 
 
 class TestTransmittance(unittest.TestCase):
