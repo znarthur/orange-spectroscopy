@@ -798,3 +798,66 @@ class Despike(Preprocess):
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.from_table(domain, data)
+
+
+
+class SpSubtractFeature(SelectColumn):
+    pass
+
+
+class _SpSubtractCommon(CommonDomain):
+
+    def __init__(self, amount, reference, domain):
+        super().__init__(domain)
+        self.reference = reference
+        self.amount = amount
+
+    def interpolate_extend_to(self, interpolate, wavenumbers):
+        """
+        Interpolate data to given wavenumbers and extend the possibly
+        nan-edges with the nearest values.
+        """
+        # interpolate reference to the given wavenumbers
+        X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
+        # we know that X is not NaN. same handling of reference as of X
+        X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
+        return X
+
+    def transformed(self, data):
+        if self.reference is not None:
+            # Calculate from single-channel data
+            if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
+                ref_X = self.interpolate_extend_to(self.reference, getx(data))
+                result = data.X - self.amount * ref_X
+
+        # Replace infs from either np.true_divide or np.log10
+        # return replace_infs(result)  # TODO do we need this?
+        return result
+
+
+class SpSubtract(Preprocess):
+    """
+    Subtract reference spectrum with a multiplication factor
+
+    Set reference
+
+    Parameters
+    ----------
+    amount    : multiplier for reference to subtract from each spectrum (float)
+    reference : reference single-channel (Orange.data.Table)
+    """
+
+    def __init__(self, amount=0., reference=None):
+        if reference is not None and len(reference) != 1:
+            raise WrongReferenceException("Reference data should have length 1")
+        self.reference = reference
+        self.amount = amount
+
+    def __call__(self, data):
+        common = _SpSubtractCommon(self.amount, self.reference, data.domain)
+        atts = [a.copy(compute_value=SpSubtractFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
+
