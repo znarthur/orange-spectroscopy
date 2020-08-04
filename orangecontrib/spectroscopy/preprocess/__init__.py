@@ -809,6 +809,9 @@ class _SpSubtractCommon(CommonDomain):
 
     def __init__(self, amount, reference, domain):
         super().__init__(domain)
+        if reference is None:
+            raise MissingReferenceException()
+
         self.reference = reference
         self.amount = amount
 
