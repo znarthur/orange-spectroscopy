@@ -72,15 +72,30 @@ class TestDat(unittest.TestCase):
             np.testing.assert_equal(d1.X, d2.X)
 
 
+try:
+    no_visible_image = FileFormat.locate("opus/no_visible_images.0",
+                                         Orange.data.table.dataset_dirs)
+except OSError:
+    no_visible_image = False
+
+try:
+    one_visible_image = FileFormat.locate("opus/one_visible_image.0",
+                                          Orange.data.table.dataset_dirs)
+except OSError:
+    one_visible_image = False
+
+
 @unittest.skipIf(opusFC is None, "opusFC module not installed")
 class TestOpusReader(unittest.TestCase):
 
+    @unittest.skipIf(no_visible_image is False, "Missing opus/no_visible_images.0")
     def test_no_visible_image_read(self):
         d = Orange.data.Table("opus/no_visible_images.0")
 
         # visible_images is not a permanent key
         self.assertNotIn("visible_images", d.attributes)
 
+    @unittest.skipIf(one_visible_image is False, "Missing opus/one_visible_image.0")
     def test_one_visible_image_read(self):
         d = Orange.data.Table("opus/one_visible_image.0")
 
