@@ -128,6 +128,16 @@ def get_levels(img):
     return [mn, mx]
 
 
+class VisibleImageListModel(PyListModel):
+
+    def data(self, index, role=Qt.DisplayRole):
+        if self._is_index_valid(index):
+            img = self[index.row()]
+            if role == Qt.DisplayRole:
+                return img["name"]
+        return PyListModel.data(self, index, role)
+
+
 class ImageItemNan(pg.ImageItem):
     """ Simplified ImageItem that can show NaN color. """
 
@@ -866,9 +876,9 @@ class OWHyper(OWWidget):
     value_type = Setting(0)
     attr_value = ContextSetting(None)
 
-    is_show_visible_image = Setting(False)
-    cur_visible_image_idx = Setting(-1)
-    cur_visible_image_cmp_mode = Setting('Normal')
+    show_visible_image = Setting(False)
+    visible_image_name = Setting(None)
+    visible_image_composition = Setting('Normal')
     visible_image_opacity = Setting(120)
 
     lowlim = Setting(None)
@@ -944,6 +954,9 @@ class OWHyper(OWWidget):
         self.imageplot = ImagePlot(self)
         self.imageplot.selection_changed.connect(self.output_image_selection)
 
+        # do not save visible image (a complex structure as a setting;
+        # only save its name)
+        self.visible_image = None
         self.setup_visible_image_controls()
 
         self.curveplot = CurvePlotHyper(self, select=SELECTONE)
@@ -978,61 +991,57 @@ class OWHyper(OWWidget):
     def setup_visible_image_controls(self):
         self.visbox = gui.widgetBox(self.controlArea, True)
 
-        self.show_vis_img = gui.checkBox(
-            self.visbox, self, 'is_show_visible_image',
+        gui.checkBox(
+            self.visbox, self, 'show_visible_image',
             label='Show visible image',
-            callback=self.toggle_visible_image)
+            callback=lambda: (self.update_visible_image_interface(), self.update_visible_image()))
 
-        self.vis_img_name_model = PyListModel()
-        self.vis_img_combo = gui.comboBox(
-            self.visbox, self, 'cur_visible_image_idx',
-            model=self.vis_img_name_model,
+        self.visible_image_model = VisibleImageListModel()
+        gui.comboBox(
+            self.visbox, self, 'visible_image',
+            model=self.visible_image_model,
             callback=self.update_visible_image)
 
-        cmp_modes = OrderedDict([
+        self.visual_image_composition_modes = OrderedDict([
             ('Normal', QPainter.CompositionMode_Source),
             ('Overlay', QPainter.CompositionMode_Overlay),
             ('Multiply', QPainter.CompositionMode_Multiply),
             ('Difference', QPainter.CompositionMode_Difference)
         ])
-        self.vis_img_cmp_mode_combo = gui.comboBox(
-            self.visbox, self,
-            'cur_visible_image_cmp_mode', sendSelectedValue=True,
-            label='Composition mode:', model=PyListModel(cmp_modes.keys()),
-            callback=lambda: self.imageplot.set_visible_image_comp_mode(
-                cmp_modes[self.cur_visible_image_cmp_mode])
+        gui.comboBox(
+            self.visbox, self, 'visible_image_composition', label='Composition mode:',
+            model=PyListModel(self.visual_image_composition_modes.keys()),
+            callback=self.update_visible_image_composition_mode
         )
 
-        self.vis_img_opacity_slider = gui.hSlider(
+        gui.hSlider(
             self.visbox, self, 'visible_image_opacity', label='Opacity:',
             minValue=0, maxValue=255, step=10, createLabel=False,
-            callback=lambda: self.imageplot.set_visible_image_opacity(
-                self.visible_image_opacity)
+            callback=self.update_visible_image_opacity
         )
 
-        enable_widgets_by_show_chkbox = [
-            self.vis_img_combo,
-            self.vis_img_cmp_mode_combo,
-            self.vis_img_opacity_slider
-        ]
-        for w in enable_widgets_by_show_chkbox:
-            self.show_vis_img.stateChanged.connect(w.setEnabled)
+        self.update_visible_image_interface()
+        self.update_visible_image_composition_mode()
+        self.update_visible_image_opacity()
 
-        # emit signals to init connected entities
-        self.show_vis_img.stateChanged.emit(self.is_show_visible_image)
-        self.vis_img_cmp_mode_combo.activated[str].emit(
-            self.cur_visible_image_cmp_mode
-        )
-        self.vis_img_opacity_slider.valueChanged.emit(
-            self.visible_image_opacity
-        )
+    def update_visible_image_interface(self):
+        controlled = ['visible_image', 'visible_image_composition', 'visible_image_opacity']
+        for c in controlled:
+            getattr(self.controls, c).setEnabled(self.show_visible_image)
+
+    def update_visible_image_composition_mode(self):
+        self.imageplot.set_visible_image_comp_mode(
+            self.visual_image_composition_modes[self.visible_image_composition])
+
+    def update_visible_image_opacity(self):
+        self.imageplot.set_visible_image_opacity(self.visible_image_opacity)
 
     def init_interface_data(self, data):
         same_domain = (self.data and data and
                        data.domain == self.data.domain)
         if not same_domain:
             self.init_attr_values(data)
-        self.init_visible_image(data)
+        self.init_visible_images(data)
 
     def output_image_selection(self):
         if not self.data:
@@ -1058,18 +1067,28 @@ class OWHyper(OWWidget):
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
 
-    def init_visible_image(self, data):
-        self.vis_img_name_model.clear()
+    def init_visible_images(self, data):
+        self.visible_image_model.clear()
         if data is not None and 'visible_images' in data.attributes:
             self.visbox.setEnabled(True)
-
             for img in data.attributes['visible_images']:
-                self.vis_img_name_model.append(img['name'])
-            self.cur_visible_image_idx = 0
+                self.visible_image_model.append(img)
         else:
             self.visbox.setEnabled(False)
-            self.show_vis_img.setChecked(False)
-            self.cur_visible_image_idx = -1
+            self.show_visible_image = False
+        self.update_visible_image_interface()
+        self._choose_visible_image()
+        self.update_visible_image()
+
+    def _choose_visible_image(self):
+        # choose an image according to visible_image_name setting
+        if len(self.visible_image_model):
+            for img in self.visible_image_model:
+                if img["name"] == self.visible_image_name:
+                    self.visible_image = img
+                    break
+            else:
+                self.visible_image = self.visible_image_model[0]
 
     def redraw_integral_info(self):
         di = {}
@@ -1203,16 +1222,10 @@ class OWHyper(OWWidget):
         self.imageplot.shutdown()
         super().onDeleteWidget()
 
-    def toggle_visible_image(self):
-        if self.is_show_visible_image:
-            self.imageplot.show_visible_image()
-        else:
-            self.imageplot.hide_visible_image()
-
     def update_visible_image(self):
-        idx = self.cur_visible_image_idx
-        if idx >= 0:
-            img_info = self.data.attributes['visible_images'][idx]
+        img_info = self.visible_image
+        if self.show_visible_image and img_info is not None:
+            self.visible_image_name = img_info["name"]  # save visual image name
             img = Image.open(io.BytesIO(img_info['image_bytes']))
             # image must be vertically flipped
             # https://github.com/pyqtgraph/pyqtgraph/issues/315#issuecomment-214042453
@@ -1223,6 +1236,9 @@ class OWHyper(OWWidget):
                           img.shape[1] * img_info['pixel_size_x'],
                           img.shape[0] * img_info['pixel_size_y'])
             self.imageplot.set_visible_image(img, rect)
+            self.imageplot.show_visible_image()
+        else:
+            self.imageplot.hide_visible_image()
 
 
 if __name__ == "__main__":  # pragma: no cover

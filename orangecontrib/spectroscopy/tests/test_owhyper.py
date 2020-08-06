@@ -9,7 +9,6 @@ from PIL import Image
 
 from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
-from AnyQt.QtGui import QPainter
 import Orange
 from Orange.data import DiscreteVariable, Domain, Table
 from Orange.widgets.tests.base import WidgetTest
@@ -400,16 +399,17 @@ class TestVisibleImage(WidgetTest):
         self.send_signal("Data", self.data_with_visible_images)
         wait_for_image(w)
 
-        self.assertTrue(w.show_vis_img.isEnabled())
-        self.assertFalse(w.show_vis_img.isChecked())
-        self.assertFalse(w.vis_img_combo.isEnabled())
-        self.assertFalse(w.vis_img_cmp_mode_combo.isEnabled())
-        self.assertFalse(w.vis_img_opacity_slider.isEnabled())
+        self.assertTrue(w.controls.show_visible_image.isEnabled())
+        self.assertFalse(w.show_visible_image)
+        controls = [w.controls.visible_image,
+                    w.controls.visible_image_composition,
+                    w.controls.visible_image_opacity]
+        for control in controls:
+            self.assertFalse(control.isEnabled())
 
-        w.show_vis_img.setChecked(True)
-        self.assertTrue(w.vis_img_combo.isEnabled())
-        self.assertTrue(w.vis_img_cmp_mode_combo.isEnabled())
-        self.assertTrue(w.vis_img_opacity_slider.isEnabled())
+        w.controls.show_visible_image.setChecked(True)
+        for control in controls:
+            self.assertTrue(control.isEnabled())
 
     def test_first_visible_image_selected_in_combobox_by_default(self):
         w = self.widget
@@ -419,11 +419,12 @@ class TestVisibleImage(WidgetTest):
             self.send_signal("Data", data)
             wait_for_image(w)
 
-            self.assertEqual(len(w.vis_img_name_model),
+            w.controls.show_visible_image.setChecked(True)
+            self.assertEqual(len(w.visible_image_model),
                              len(data.attributes["visible_images"]))
-            self.assertEqual(w.cur_visible_image_idx, 0)
-            self.assertEqual(w.vis_img_combo.currentIndex(), 0)
-            self.assertEqual(w.vis_img_combo.currentText(), "Image 01")
+            self.assertEqual(w.visible_image, data.attributes["visible_images"][0])
+            self.assertEqual(w.controls.visible_image.currentIndex(), 0)
+            self.assertEqual(w.controls.visible_image.currentText(), "Image 01")
 
             self.assert_same_visible_image(data.attributes["visible_images"][0],
                                            w.imageplot.vis_img,
@@ -437,9 +438,9 @@ class TestVisibleImage(WidgetTest):
 
         self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
 
-        w.show_vis_img.setChecked(True)
+        w.controls.show_visible_image.setChecked(True)
         self.assertIn(w.imageplot.vis_img, w.imageplot.plot.items)
-        w.show_vis_img.setChecked(False)
+        w.controls.show_visible_image.setChecked(False)
         self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
 
     def test_hide_visible_image_after_no_image_loaded(self):
@@ -448,13 +449,13 @@ class TestVisibleImage(WidgetTest):
         self.send_signal("Data", data)
         wait_for_image(w)
 
-        w.show_vis_img.setChecked(True)
+        w.controls.show_visible_image.setChecked(True)
         data = Orange.data.Table("agilent/4_noimage_agg256.dat")
         self.send_signal("Data", data)
         wait_for_image(w)
 
         self.assertFalse(w.visbox.isEnabled())
-        self.assertFalse(w.is_show_visible_image)
+        self.assertFalse(w.show_visible_image)
         self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
 
     def test_select_another_visible_image(self):
@@ -463,13 +464,13 @@ class TestVisibleImage(WidgetTest):
         self.send_signal("Data", data)
         wait_for_image(w)
 
-        w.show_vis_img.setChecked(True)
+        w.controls.show_visible_image.setChecked(True)
         vis_img = w.imageplot.vis_img
         with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
-            w.vis_img_combo.setCurrentIndex(1)
+            w.controls.visible_image.setCurrentIndex(1)
             # since activated signal emitted only by visual interaction
             # we need to trigger it by hand here.
-            w.vis_img_combo.activated.emit(1)
+            w.controls.visible_image.activated.emit(1)
 
             self.assert_same_visible_image(data.attributes["visible_images"][1],
                                            w.imageplot.vis_img,
@@ -482,28 +483,24 @@ class TestVisibleImage(WidgetTest):
         wait_for_image(w)
 
         with patch.object(w.imageplot.vis_img, 'setOpacity') as m:
-            w.vis_img_opacity_slider.setValue(20)
+            w.controls.visible_image_opacity.setValue(20)
             self.assertEqual(w.visible_image_opacity, 20)
             m.assert_called_once_with(w.visible_image_opacity / 255)
 
     def test_visible_image_composition_mode(self):
         w = self.widget
-        self.assertEqual(w.vis_img_cmp_mode_combo.currentText(), 'Normal')
+        self.assertEqual(w.controls.visible_image_composition.currentText(), 'Normal')
 
         data = self.data_with_visible_images
         self.send_signal("Data", data)
         wait_for_image(w)
 
-        name_mode = {
-            'Normal': QPainter.CompositionMode_Source,
-            'Overlay': QPainter.CompositionMode_Overlay,
-            'Multiply': QPainter.CompositionMode_Multiply,
-            'Difference': QPainter.CompositionMode_Difference
-        }
-        for name, mode in name_mode.items():
+        for i in range(len(w.visual_image_composition_modes)):
             with patch.object(w.imageplot.vis_img, 'setCompositionMode') as m:
-                w.vis_img_cmp_mode_combo.setCurrentText(name)
+                w.controls.visible_image_composition.setCurrentIndex(i)
                 # since activated signal emitted only by visual interaction
                 # we need to trigger it by hand here
-                w.vis_img_cmp_mode_combo.activated[str].emit(name)
+                w.controls.visible_image_composition.activated.emit(i)
+                name = w.controls.visible_image_composition.currentText()
+                mode = w.visual_image_composition_modes[name]
                 m.assert_called_once_with(mode)
