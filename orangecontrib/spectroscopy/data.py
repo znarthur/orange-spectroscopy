@@ -775,14 +775,17 @@ class OPUSReader(FileFormat):
 
         visible_images = []
         for img in opusFC.getVisImages(self.filename):
-            visible_images.append({
-                'name': img['Title'],
-                'image_bytes': img['image'],
-                'pos_x': img['Pos. X'] * img['PixelSizeX'],
-                'pos_y': img['Pos. Y'] * img['PixelSizeY'],
-                'pixel_size_x': img['PixelSizeX'],
-                'pixel_size_y': img['PixelSizeY'],
-            })
+            try:
+                visible_images.append({
+                    'name': img['Title'],
+                    'image_bytes': img['image'],
+                    'pos_x': img['Pos. X'] * img['PixelSizeX'],
+                    'pos_y': img['Pos. Y'] * img['PixelSizeY'],
+                    'pixel_size_x': img['PixelSizeX'],
+                    'pixel_size_y': img['PixelSizeY'],
+                })
+            except KeyError:
+                pass
 
         domain = Orange.data.Domain(attrs, clses, metas)
 
