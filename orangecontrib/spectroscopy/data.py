@@ -773,6 +773,20 @@ class OPUSReader(FileFormat):
                 else:
                     meta_data = params
 
+        visible_images = []
+        for img in opusFC.getVisImages(self.filename):
+            try:
+                visible_images.append({
+                    'name': img['Title'],
+                    'image_bytes': img['image'],
+                    'pos_x': img['Pos. X'] * img['PixelSizeX'],
+                    'pos_y': img['Pos. Y'] * img['PixelSizeY'],
+                    'pixel_size_x': img['PixelSizeX'],
+                    'pixel_size_y': img['PixelSizeY'],
+                })
+            except KeyError:
+                pass
+
         domain = Orange.data.Domain(attrs, clses, metas)
 
         meta_data = np.atleast_2d(meta_data)
@@ -780,6 +794,9 @@ class OPUSReader(FileFormat):
         table = Orange.data.Table.from_numpy(domain,
                                              y_data.astype(float, order='C'),
                                              metas=meta_data)
+
+        if visible_images:
+            table.attributes['visible_images'] = visible_images
 
         return table
 

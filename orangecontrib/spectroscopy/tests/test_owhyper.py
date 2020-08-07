@@ -1,10 +1,13 @@
 import os
 import unittest
 from unittest.mock import patch
+import io
+from base64 import b64decode
 
 import numpy as np
+from PIL import Image
 
-from AnyQt.QtCore import QPointF, Qt
+from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
 import Orange
 from Orange.data import DiscreteVariable, Domain, Table
@@ -323,3 +326,182 @@ class TestOWHyper(WidgetTest):
                                          stored_settings={"context_settings": [c]})
         self.send_signal("Data", self.iris)
         self.assertIsInstance(self.widget.curveplot.feature_color, DiscreteVariable)
+
+
+class TestVisibleImage(WidgetTest):
+
+    @classmethod
+    def mock_visible_image_data(cls):
+        red_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAAA"
+                            "oAAAAKCAYAAACNMs+9AAAAFUlE"
+                            "QVR42mP8z8AARIQB46hC+ioEAG"
+                            "X8E/cKr6qsAAAAAElFTkSuQmCC")
+        black_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAA"
+                              "AoAAAAKCAQAAAAnOwc2AAAAEU"
+                              "lEQVR42mNk+M+AARiHsiAAcCI"
+                              "KAYwFoQ8AAAAASUVORK5CYII=")
+
+        return [
+            {
+                "name": "Image 01",
+                "image_bytes": red_img,
+                "pos_x": 100,
+                "pos_y": 100,
+                "pixel_size_x": 1.7,
+                "pixel_size_y": 2.3
+            },
+            {
+                "name": "Image 02",
+                "image_bytes": black_img,
+                "pos_x": 0.5,
+                "pos_y": 0.5,
+                "pixel_size_x": 1,
+                "pixel_size_y": 0.3
+            },
+        ]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.data_with_visible_images = Orange.data.Table(
+            "agilent/4_noimage_agg256.dat"
+        )
+        cls.data_with_visible_images.attributes["visible_images"] = \
+            cls.mock_visible_image_data()
+
+    def setUp(self):
+        self.widget = self.create_widget(OWHyper)  # type: OWHyper
+
+    def assert_same_visible_image(self, img_info, vis_img, mock_rect):
+        img = Image.open(io.BytesIO(img_info["image_bytes"])).convert('RGBA')
+        img = np.array(img)[::-1]
+        rect = QRectF(img_info['pos_x'], img_info['pos_y'],
+                      img.shape[1] * img_info['pixel_size_x'],
+                      img.shape[0] * img_info['pixel_size_y'])
+        self.assertTrue((vis_img.image == img).all())
+        mock_rect.assert_called_with(rect)
+
+    def test_no_visible_image(self):
+        data = Orange.data.Table("agilent/4_noimage_agg256.dat")
+        self.send_signal("Data", data)
+        wait_for_image(self.widget)
+
+        self.assertFalse(self.widget.visbox.isEnabled())
+
+    def test_controls_enabled_when_visible_image(self):
+        w = self.widget
+        self.send_signal("Data", self.data_with_visible_images)
+        wait_for_image(w)
+
+        self.assertTrue(w.visbox.isEnabled())
+
+    def test_controls_enabled_by_show_chkbox(self):
+        w = self.widget
+        self.send_signal("Data", self.data_with_visible_images)
+        wait_for_image(w)
+
+        self.assertTrue(w.controls.show_visible_image.isEnabled())
+        self.assertFalse(w.show_visible_image)
+        controls = [w.controls.visible_image,
+                    w.controls.visible_image_composition,
+                    w.controls.visible_image_opacity]
+        for control in controls:
+            self.assertFalse(control.isEnabled())
+
+        w.controls.show_visible_image.setChecked(True)
+        for control in controls:
+            self.assertTrue(control.isEnabled())
+
+    def test_first_visible_image_selected_in_combobox_by_default(self):
+        w = self.widget
+        vis_img = w.imageplot.vis_img
+        with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
+            data = self.data_with_visible_images
+            self.send_signal("Data", data)
+            wait_for_image(w)
+
+            w.controls.show_visible_image.setChecked(True)
+            self.assertEqual(len(w.visible_image_model),
+                             len(data.attributes["visible_images"]))
+            self.assertEqual(w.visible_image, data.attributes["visible_images"][0])
+            self.assertEqual(w.controls.visible_image.currentIndex(), 0)
+            self.assertEqual(w.controls.visible_image.currentText(), "Image 01")
+
+            self.assert_same_visible_image(data.attributes["visible_images"][0],
+                                           w.imageplot.vis_img,
+                                           mock_rect)
+
+    def test_visible_image_displayed(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+        w.controls.show_visible_image.setChecked(True)
+        self.assertIn(w.imageplot.vis_img, w.imageplot.plot.items)
+        w.controls.show_visible_image.setChecked(False)
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+    def test_hide_visible_image_after_no_image_loaded(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        w.controls.show_visible_image.setChecked(True)
+        data = Orange.data.Table("agilent/4_noimage_agg256.dat")
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        self.assertFalse(w.visbox.isEnabled())
+        self.assertFalse(w.show_visible_image)
+        self.assertNotIn(w.imageplot.vis_img, w.imageplot.plot.items)
+
+    def test_select_another_visible_image(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        w.controls.show_visible_image.setChecked(True)
+        vis_img = w.imageplot.vis_img
+        with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
+            w.controls.visible_image.setCurrentIndex(1)
+            # since activated signal emitted only by visual interaction
+            # we need to trigger it by hand here.
+            w.controls.visible_image.activated.emit(1)
+
+            self.assert_same_visible_image(data.attributes["visible_images"][1],
+                                           w.imageplot.vis_img,
+                                           mock_rect)
+
+    def test_visible_image_opacity(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        with patch.object(w.imageplot.vis_img, 'setOpacity') as m:
+            w.controls.visible_image_opacity.setValue(20)
+            self.assertEqual(w.visible_image_opacity, 20)
+            m.assert_called_once_with(w.visible_image_opacity / 255)
+
+    def test_visible_image_composition_mode(self):
+        w = self.widget
+        self.assertEqual(w.controls.visible_image_composition.currentText(), 'Normal')
+
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        for i in range(len(w.visual_image_composition_modes)):
+            with patch.object(w.imageplot.vis_img, 'setCompositionMode') as m:
+                w.controls.visible_image_composition.setCurrentIndex(i)
+                # since activated signal emitted only by visual interaction
+                # we need to trigger it by hand here
+                w.controls.visible_image_composition.activated.emit(i)
+                name = w.controls.visible_image_composition.currentText()
+                mode = w.visual_image_composition_modes[name]
+                m.assert_called_once_with(mode)
