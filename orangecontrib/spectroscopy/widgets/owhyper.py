@@ -1226,7 +1226,7 @@ class OWHyper(OWWidget):
         img_info = self.visible_image
         if self.show_visible_image and img_info is not None:
             self.visible_image_name = img_info["name"]  # save visual image name
-            img = Image.open(io.BytesIO(img_info['image_bytes']))
+            img = Image.open(io.BytesIO(img_info['image_bytes'])).convert('RGBA')
             # image must be vertically flipped
             # https://github.com/pyqtgraph/pyqtgraph/issues/315#issuecomment-214042453
             # Behavior may change at pyqtgraph 1.0 version

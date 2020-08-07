@@ -373,7 +373,8 @@ class TestVisibleImage(WidgetTest):
         self.widget = self.create_widget(OWHyper)  # type: OWHyper
 
     def assert_same_visible_image(self, img_info, vis_img, mock_rect):
-        img = np.array(Image.open(io.BytesIO(img_info["image_bytes"])))[::-1]
+        img = Image.open(io.BytesIO(img_info["image_bytes"])).convert('RGBA')
+        img = np.array(img)[::-1]
         rect = QRectF(img_info['pos_x'], img_info['pos_y'],
                       img.shape[1] * img_info['pixel_size_x'],
                       img.shape[0] * img_info['pixel_size_y'])
