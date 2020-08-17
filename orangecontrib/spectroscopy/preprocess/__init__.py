@@ -46,7 +46,7 @@ class _PCAReconstructCommon(CommonDomain):
             remove = np.ones(pca_space.shape[1])
             remove[self.components] = 0
             remove = np.extract(remove, np.arange(pca_space.shape[1]))
-            pca_space[:,remove] = 0
+            pca_space[:, remove] = 0
         return self.pca.proj.inverse_transform(pca_space)
 
 
@@ -717,6 +717,72 @@ class CurveShift(Preprocess):
     def __call__(self, data):
         common = _CurveShiftCommon(self.amount, data.domain)
         atts = [a.copy(compute_value=CurveShiftFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
+
+class DespikeFeature(SelectColumn):
+    pass
+
+class _DespikeCommon(CommonDomainOrderUnknowns):
+    def __init__(self, threshold, cutoff, dis, domain):
+        super().__init__(domain)
+        self.threshold = threshold
+        #threshold sets up a limit for the modified_z_scores test cutoff for spikes
+        self.cutoff = cutoff
+        #cutoff allows for spiked spectra to be determined from a large
+        #multispectral image
+        self.dis = dis
+        #dis sets the distance over which to interpolate spiked areas
+
+    def transformed(self, data, X):
+        def interpolatespikes(spikes, row):
+            for i in np.arange(len(spikes)):
+                if spikes[i] != 0:
+                    #need if statements to ensure no conflicts with edge points
+                    if (i+self.dis) >= len(spikes):
+                        w = np.arange(i-self.dis)
+                    else:
+                        w = np.arange(i - self.dis, i + self.dis)
+                    w2 = w[spikes[w] == 0]
+                    row_out[i] = np.mean(row[w2])
+            return out.append(row_out)
+        out = []
+        Series = np.array(data)
+        if Series.size > 0:
+            for row in Series:
+                Distance = np.diff(row, n=0)
+                #Spiked spectra are processed and non spiked are passed through
+                if np.any(Distance > self.cutoff):
+                    median1 = np.median(row)
+                    mad_int = np.median([np.abs(row - median1)])
+                    modified_z_scores = 0.6745 * (row - median1) / mad_int
+                    difference = (abs(np.array(modified_z_scores)) > self.threshold)
+                    row_out = row.copy()
+                    spikes = difference.reshape(len(difference))
+                    interpolatespikes(spikes, row)
+                else:
+                    out.append(row)
+            out = np.array(out)
+            if np.any(np.isnan(out)):
+                mask = np.isnan(out)
+                checkfornan = np.where(~mask, np.arange(mask.shape[1]), 0)
+                np.maximum.accumulate(checkfornan, axis=1, out=checkfornan)
+                out = out[np.arange(checkfornan.shape[0])[:, None], checkfornan]
+                #used to clear any nan values in array that may arise from the avg
+            return np.array(out)
+        else:
+            return data
+class Despike(Preprocess):
+    def __init__(self, threshold=7, cutoff=100, dis=5):
+        self.threshold = threshold
+        self.cutoff = cutoff
+        self.dis = dis
+    def __call__(self, data):
+        common = _DespikeCommon(self.threshold, self.cutoff,
+                                self.dis, data.domain)
+        atts = [a.copy(compute_value=DespikeFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)

@@ -13,7 +13,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
     WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException, \
-    NormalizePhaseReference
+    NormalizePhaseReference, Despike
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
@@ -32,7 +32,6 @@ def preprocessor_data(preproc):
     if isinstance(preproc, ME_EMSC):
         return SMALLER_COLLAGEN
     return SMALL_COLLAGEN
-
 
 # Preprocessors that work per sample and should return the same
 # result for a sample independent of the other samples
@@ -57,6 +56,8 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.Area, int_method=Integrate.PeakMax, lower=0, upper=10000),
     Normalize(method=Normalize.MinMax),
     CurveShift(1),
+    Despike(threshold=5, cutoff=60, dis=5),
+
 ]
 
 xas_norm_collagen = XASnormalization(edge=1630,
