@@ -121,6 +121,7 @@ if __name__ == '__main__':
         name="Orange-Spectroscopy",
         description='Extends Orange to handle spectral and hyperspectral analysis.',
         long_description=LONG_DESCRIPTION,
+        long_description_content_type='text/markdown',
         author='Canadian Light Source, Biolab UL, Soleil, Elettra',
         author_email='marko.toplak@gmail.com',
         version="0.5.5",
