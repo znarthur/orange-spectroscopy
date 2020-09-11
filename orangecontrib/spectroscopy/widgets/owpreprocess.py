@@ -59,6 +59,8 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, B
     REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.preprocessors.spikeremoval import SpikeRemovalEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.als import ALSEditor
+
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -1040,6 +1042,12 @@ PREPROCESSORS = [
         Description("Spike Removal",
                     icon_path("Discretize.svg")),
         SpikeRemovalEditor
+    ),
+    PreprocessAction(
+        "ALS Correction", "preprocessors.ALS", "ALS Correction",
+        Description("Asymmetric Least Squares Smoothing",
+                    icon_path("Discretize.svg")),
+        ALSEditor
     ),
     ]
 

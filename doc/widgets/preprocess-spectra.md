@@ -52,6 +52,7 @@ Preprocessing Methods
 - Shift spectra: shift things around.
 - EMSC: special Norweigan method.
 - Spike Removal: Removes spikes in spectra through a modified z-score. [More...](SpikeRemoval.md).
+- Asymmetric Least Squares Smoothing: Three ALS methods which can be used for basline subtraction[more...](als.md) 
 
 Example
 -------
