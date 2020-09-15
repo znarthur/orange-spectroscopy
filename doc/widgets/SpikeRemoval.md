@@ -8,8 +8,8 @@
 
 - Processed: Despiked dataset
 
-The **Spike Removal** tool enables you to remove anaomylous spiked data
-from ramen spectra. It acheives this in a two part method, First, since spiked data is 
+The **Spike Removal** tool enables you to remove anomalous spiked data
+from Raman spectra. It acheives this in a two part method, First, since spiked data is 
 generally significantly larger than the nearby data points it can sort through large
 spectral datasets to pick out spectra which are spiked. Following this, it uses a z-scores method 
 to set a limit for these spikes within their individual spectra in order to mark spikes
