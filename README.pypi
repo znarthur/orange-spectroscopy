@@ -4,3 +4,17 @@ Spectral Orange
 Orange add-on for spectral data analysis. Provides spectra and
 hyperspectra plotting, interpolation, preprocessing (cutting, smoothing,
 normalization), and integration. Supports common spectral file formats.
+See [documentation](https://orange-spectroscopy.readthedocs.io/).
+
+Features
+--------
+### Load and process data
+* Load the spectroscopy data
+* Preprocess and interpolate spectra
+* Integrate spectra
+* Average spectra
+* Performs Fast Fourier Transform
+
+### Visualisation
+* Visually explore series of spectra
+* Plots 2D map of hyperspectra
