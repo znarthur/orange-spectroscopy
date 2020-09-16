@@ -51,10 +51,7 @@ Preprocessing Methods
 - Absorbance to Transmittance: convert absorbance spectra to transmittance.
 - Shift spectra: shift things around.
 - EMSC: special Norweigan method.
-- Spike Removal: Removes spikes in spectra through a modified z-score.
-    - Cutoff sets minimum the distance between points of a spectra which to classify as a spike
-    - Threshold sets a value for the z-score cutoff withing a spectra
-    - distance sets up the number of normal points to interpolate over around spiked points
+- Spike Removal: Removes spikes in spectra through a modified z-score. [More...](SpikeRemoval.md).
 
 Example
 -------
