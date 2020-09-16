@@ -722,8 +722,10 @@ class CurveShift(Preprocess):
                                     data.domain.metas)
         return data.from_table(domain, data)
 
+
 class DespikeFeature(SelectColumn):
     pass
+
 
 class _DespikeCommon(CommonDomainOrderUnknowns):
     def __init__(self, threshold, cutoff, dis, domain):
@@ -774,11 +776,15 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
             return np.array(out)
         else:
             return data
+
+
 class Despike(Preprocess):
+
     def __init__(self, threshold=7, cutoff=100, dis=5):
         self.threshold = threshold
         self.cutoff = cutoff
         self.dis = dis
+
     def __call__(self, data):
         common = _DespikeCommon(self.threshold, self.cutoff,
                                 self.dis, data.domain)

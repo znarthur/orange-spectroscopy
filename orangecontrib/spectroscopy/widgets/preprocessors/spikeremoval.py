@@ -4,6 +4,7 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange
 from orangecontrib.spectroscopy.preprocess import Despike
 
+
 class SpikeRemovalEditor(BaseEditorOrange):
     """
     Spike Removal.
@@ -34,6 +35,7 @@ class SpikeRemovalEditor(BaseEditorOrange):
     def parameters(self):
         parameters = super().parameters()
         return parameters
+
     @staticmethod
     def createinstance(params):
         threshold = params.get("threshold", 7)

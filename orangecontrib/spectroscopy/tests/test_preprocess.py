@@ -57,7 +57,6 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.MinMax),
     CurveShift(1),
     Despike(threshold=5, cutoff=60, dis=5),
-
 ]
 
 xas_norm_collagen = XASnormalization(edge=1630,
