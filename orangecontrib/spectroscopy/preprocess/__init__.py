@@ -739,7 +739,8 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
         #dis sets the distance over which to interpolate spiked areas
 
     def transformed(self, data, X):
-        def interpolatespikes(spikes, row):
+        def interpolatespikes(spikes, row_out):
+            row_out = row_out.copy()
             for i in np.arange(len(spikes)):
                 if spikes[i] != 0:
                     #need if statements to ensure no conflicts with edge points
@@ -749,30 +750,30 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
                         w = np.arange(i - self.dis, i + self.dis)
                     w2 = w[spikes[w] == 0]
                     row_out[i] = np.mean(row[w2])
-            return out.append(row_out)
+            return row_out
         out = []
         Series = np.array(data)
         if Series.size > 0:
             for row in Series:
-                Distance = np.diff(row, n=0)
+                Distance = np.diff(row, n=1)
                 #Spiked spectra are processed and non spiked are passed through
                 if np.any(Distance > self.cutoff):
                     median1 = np.median(row)
                     mad_int = np.median([np.abs(row - median1)])
                     modified_z_scores = 0.6745 * (row - median1) / mad_int
                     difference = (abs(np.array(modified_z_scores)) > self.threshold)
-                    row_out = row.copy()
                     spikes = difference.reshape(len(difference))
-                    interpolatespikes(spikes, row)
+                    despiked = interpolatespikes(spikes, row)
+                    if np.any(np.isnan(despiked)):
+                        mask = np.isnan(despiked)
+                        checkfornan = np.where(~mask, np.arange(mask.shape[1]), 0)
+                        np.maximum.accumulate(checkfornan, axis=1, out=checkfornan)
+                        despiked = despiked[np.arange(checkfornan[0])[:, None],
+                                            checkfornan]
+                        # used to clear any nan values in array that may arise from the avg
+                    out.append(despiked)
                 else:
                     out.append(row)
-            out = np.array(out)
-            if np.any(np.isnan(out)):
-                mask = np.isnan(out)
-                checkfornan = np.where(~mask, np.arange(mask.shape[1]), 0)
-                np.maximum.accumulate(checkfornan, axis=1, out=checkfornan)
-                out = out[np.arange(checkfornan.shape[0])[:, None], checkfornan]
-                #used to clear any nan values in array that may arise from the avg
             return np.array(out)
         else:
             return data

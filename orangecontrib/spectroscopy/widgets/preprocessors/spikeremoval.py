@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QVBoxLayout
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange
+from orangecontrib.spectroscopy.widgets.gui import lineEditDecimalOrNone
 from orangecontrib.spectroscopy.preprocess import Despike
 
 
@@ -16,12 +17,23 @@ class SpikeRemovalEditor(BaseEditorOrange):
         self.threshold = 7
         self.cutoff = 100
         self.controlArea.setLayout(QVBoxLayout())
-        gui.spin(self.controlArea, self, "cutoff", label="Peak difference cutoff", minv=0,
-                 maxv=100000, controlWidth=50, callback=self.edited.emit)
-        gui.spin(self.controlArea, self, "threshold", label="Threshold", minv=0, maxv=100,
-                 controlWidth=50, callback=self.edited.emit)
-        gui.spin(self.controlArea, self, "dis", label=" distance to average", minv=0, maxv=1000,
-                 controlWidth=50, callback=self.edited.emit)
+        box = gui.widgetBox(self.controlArea)
+
+        self.cuttoffline = lineEditDecimalOrNone(None, master=self,
+                                                 bottom=0, top=100000, value='cutoff', default=100,
+                                                 callback=self.edited.emit)
+        gui.widgetLabel(box, label="Cutoff:", labelWidth=50)
+        box.layout().addWidget(self.cuttoffline)
+        self.thresholdline = lineEditDecimalOrNone(None, master=self, bottom=0,
+                                                   value='threshold', default=7,
+                                                   callback=self.edited.emit)
+        gui.widgetLabel(box, label='Threshold:', labelWidth=60)
+        box.layout().addWidget(self.thresholdline)
+        self.distancespin = gui.spin(None, self, "dis", label="distance to average",
+                                     minv=0, maxv=1000, callback=self.edited.emit)
+        gui.widgetLabel(box, label='Distance to Average:')
+        box.layout().addWidget(self.distancespin)
+
         self.preview_data = None
         self.user_changed = False
 
