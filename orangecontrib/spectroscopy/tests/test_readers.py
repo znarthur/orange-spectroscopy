@@ -13,6 +13,7 @@ from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumn
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
 from orangecontrib.spectroscopy.data import NeaReaderGSF
+from orangecontrib.spectroscopy.data import PTIRFileReader
 
 try:
     import opusFC
@@ -283,6 +284,44 @@ class TestAgilentReader(unittest.TestCase):
         # Metadata
         self.assertEqual(d.metas[0, 2], 1.57980039e+04)
         self.assertEqual(d.metas[0, 3], 4)
+
+
+class TestPTIRFileReader(unittest.TestCase):
+
+    def test_get_channels(self):
+        reader = initialize_reader(PTIRFileReader,
+                                   "photothermal/Nodax_Spectral_Array.ptir")
+        channel_map = reader.get_channels()
+        signal = b'//ZI/*/DEMODS/0/R'
+        label = b'OPTIR (mV)'
+        self.assertTrue(channel_map.keys().__contains__(signal))
+        self.assertEqual(channel_map[signal], label)
+
+    def test_array_read(self):
+        reader = initialize_reader(PTIRFileReader,
+                                   "photothermal/Nodax_Spectral_Array.ptir")
+        reader.data_signal = b'//ZI/*/DEMODS/0/R'
+        d = reader.read()
+        self.assertAlmostEqual(d[0][0], 0.21426094)
+        self.assertAlmostEqual(d[1][0], 1.6351842)
+        self.assertEqual(min(getx(d)), 801.0)
+        self.assertEqual(max(getx(d)), 1797.0)
+        self.assertAlmostEqual(d[0]["map_x"], 801.9500122070312)
+        self.assertAlmostEqual(d[0]["map_y"], -500.1499938964844)
+
+    def test_hyperspectral_read(self):
+        reader = initialize_reader(PTIRFileReader,
+                                   "photothermal/Hyper_Sample.ptir")
+        reader.data_signal = b'//ZI/*/DEMODS/0/R'
+        d = reader.read()
+        self.assertEqual(len(d), 35)
+        self.assertEqual(len(d.domain.attributes), 451)
+        self.assertAlmostEqual(d[0][0], 0.0137912575)
+        self.assertAlmostEqual(d[1][0], -0.08101661)
+        self.assertEqual(min(getx(d)), 900.0)
+        self.assertEqual(max(getx(d)), 1800.0)
+        self.assertAlmostEqual(d[0]["map_x"], -4088.96337890625)
+        self.assertAlmostEqual(d[0]["map_y"], -886.1981201171875)
 
 
 class TestGSF(unittest.TestCase):
