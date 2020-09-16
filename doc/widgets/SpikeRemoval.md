@@ -21,3 +21,13 @@ the tool to process multi spectra datasets and find spectra which
 have spikes
 3. Distance sets the distance over which to average the spiked region with nearby
 non spiked  
+
+**References**
+
+Python code
+
+https://towardsdatascience.com/removing-spikes-from-raman-spectra-8a9fdda0ac22
+
+R source 
+
+Whitaker, Darren A., and Kevin Hayes. “A simple algorithm for despiking Raman spectra.” Chemometrics and Intelligent Laboratory Systems 179 (2018): 82–84.
