@@ -1318,9 +1318,19 @@ class PTIRFileReader(FileFormat, SpectralFileFormat):
             raise IOError("Error reading channels from " + self.filename)
         return channel_map
 
+    @property
+    def sheets(self):
+        return [label.decode("utf-8") for label in self.get_channels().values()]
+
     def read_spectra(self):
-        if self.data_signal == '':
-            return
+        channels = self.get_channels()
+
+        for c, label in channels.items():
+            if label.decode("utf-8") == self.sheet:
+                self.data_signal = c
+                break
+        else:
+            self.data_signal = list(channels.keys())[0]
 
         import h5py
         hdf5_file = h5py.File(self.filename,'r')
