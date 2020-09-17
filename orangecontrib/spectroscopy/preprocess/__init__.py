@@ -743,11 +743,7 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
             row_out = row_out.copy()
             for i in np.arange(len(spikes)):
                 if spikes[i] != 0:
-                    #need if statements to ensure no conflicts with edge points
-                    if (i+self.dis) >= len(spikes):
-                        w = np.arange(i-self.dis)
-                    else:
-                        w = np.arange(i - self.dis, i + self.dis)
+                    w = np.arange(max(i - self.dis, 0), min(i + self.dis + 1, len(spikes)))
                     w2 = w[spikes[w] == 0]
                     row_out[i] = np.mean(row[w2])
             return row_out
