@@ -250,11 +250,17 @@ class TestOWHyper(WidgetTest):
         self.send_signal("Data", data)
         self.widget.controls.value_type.buttons[1].click()
         with patch("orangecontrib.spectroscopy.widgets.owhyper.ImageItemNan.setLookupTable") as p:
-            self.widget.attr_value = "iris"
+            # a discrete variable
+            self.widget.attr_value = data.domain["iris"]
             self.widget.imageplot.update_color_schema()
+            self.widget.update_feature_value()
+            wait_for_image(self.widget)
             np.testing.assert_equal(len(p.call_args[0][0]), 3)  # just 3 colors for 3 values
-            self.widget.attr_value = "petal width"
+            # a continuous variable
+            self.widget.attr_value = data.domain["petal width"]
             self.widget.imageplot.update_color_schema()
+            self.widget.update_feature_value()
+            wait_for_image(self.widget)
             np.testing.assert_equal(len(p.call_args[0][0]), 256)  # 256 for a continuous variable
 
     def test_color_variable_levels(self):

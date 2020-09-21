@@ -1121,10 +1121,9 @@ class OWHyper(OWWidget):
                 data.transform(Domain([data.domain[attr]]))
 
     def image_values_fixed_levels(self):
-        if self.value_type == 0:  # integrals
-            return None
-        else:
+        if self.value_type == 1 and isinstance(self.attr_value, DiscreteVariable):
             return 0, len(self.attr_value.values) - 1
+        return None
 
     def redraw_data(self):
         self.redraw_integral_info()
