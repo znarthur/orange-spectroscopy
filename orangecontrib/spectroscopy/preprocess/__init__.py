@@ -747,9 +747,14 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
                     w2 = w[spikes[w] == 0]
                     row_out[i] = np.mean(row[w2])
                     if np.any(np.isnan(row_out)):
-                        averaged = np.average((row_out[np.isnan(row_out) - (self.dis - 2)]) + (
-                            row_out[np.isnan(row_out) + (self.dis + 2)]))
-                        row_out[np.isnan(row_out)] = averaged
+                        for j in range(1, len(row_out)-self.dis):
+                            averaged = np.mean((row_out[np.isnan(row_out) - (self.dis-j)]) + (
+                                row_out[np.isnan(row_out) + self.dis+j]))
+                            row_out[np.isnan(row_out)] = averaged
+                            if np.any(row_out[np.isnan(row_out)]):
+                                continue
+                            else:
+                                break
             return row_out
 
         out = []
