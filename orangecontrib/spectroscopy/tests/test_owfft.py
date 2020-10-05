@@ -131,5 +131,5 @@ class TestOWFFT(WidgetTest):
         result_gsf = self.get_output(self.widget.Outputs.spectra)
 
         np.testing.assert_allclose(result_gsf.X.size, (4098)) #array
-        np.testing.assert_allclose(result_gsf.X[0, 429:432], (25.10095084, 25.13973286, 24.29236258)) #Amplitude
-        np.testing.assert_allclose(result_gsf.X[1, 429:432], (-0.19909249, -0.81488487, -1.42043501)) #Phase
+        np.testing.assert_allclose(result_gsf.X[0, 396:399], (23.67618359, 25.02051088, 25.82566789)) #Amplitude
+        np.testing.assert_allclose(result_gsf.X[1, 396:399], (2.61539453, 2.65495979, 2.72814989)) #Phase

@@ -1,7 +1,6 @@
 from enum import IntEnum
 
 import numpy as np
-import scipy.signal
 
 
 class ApodFunc(IntEnum):
@@ -173,32 +172,6 @@ def zero_fill(ifg, zff):
     # Pad array
     return _zero_fill_pad(ifg, zero_fill)
 
-def find_peak_zero_fill(ifg, type_peak, number_of_points):
-    if type_peak == 0: # MAXIMUM = 0
-        peak = max(ifg.real)
-    elif type_peak == 1: # MINIMUM = 1
-        peak = min(ifg.real)
-    else: #ABSOLUTE = 2
-        peak = max(abs(ifg.real))
-
-    if type_peak == 2:
-        index, = np.where(abs(ifg.real) == peak)
-    else:
-        index, = np.where(ifg.real == peak)
-
-    delta_center = int((number_of_points / 2 - index))
-    if delta_center < 0:
-        zeros = np.zeros((abs(delta_center)))
-        ifg = np.delete(ifg, np.s_[:abs(delta_center)])
-        ifg = np.concatenate((ifg, zeros))
-    elif delta_center > 0:
-        zeros = np.zeros((abs(delta_center)))
-        ifg = np.delete(ifg, np.s_[-abs(delta_center):])
-        ifg = np.concatenate((zeros, ifg))
-
-    return ifg
-
-
 class IRFFT():
     """
     Calculate FFT of a single interferogram sweep.
@@ -369,26 +342,20 @@ class MultiIRFFT(IRFFT):
 class ComplexFFT(IRFFT):
 
     def __call__(self, ifg, zpd=None, phase=None):
-        number_of_points = len(ifg)
-        Nzff = self.zff*number_of_points
-
         ifg -= np.mean(ifg)
-        ifg = find_peak_zero_fill(ifg, type_peak=self.peak_search,
-                                  number_of_points=number_of_points)
 
-        '''Options: boxcar, triang, blackman, hamming, hann, bartlett,
-        flattop, parzen, bohman, blackmanharris, nuttall, barthann '''
-        choosed_window = {
-            '0': 'boxcar', # Boxcar (None)
-            '1': 'blackman', # Blackman-Harris (3-term)
-            '2': 'blackmanharris', # Blackman-Harris (4-term)
-            '3': 'nuttall', # Blackman Nuttall (EP)
-        }
+        if zpd is not None:
+            self.zpd = zpd
+        else:
+            self.zpd = find_zpd(ifg, self.peak_search)
 
-        window = scipy.signal.get_window(choosed_window[str(self.apod_func)],
-                                         number_of_points, fftbins=True)
-        ifg = ifg * window
-        ifg = np.fft.fft(ifg, n=Nzff)
+        ifg = apodize(ifg, self.zpd, self.apod_func)
+        ifg = zero_fill(ifg, self.zff)
+        # Rotate the Complete IFG so that the centerburst is at edges.
+        ifg = np.hstack((ifg[self.zpd:], ifg[0:self.zpd]))
+        Nzff = ifg.shape[0]
+        ifg = np.fft.fft(ifg)
+        
         magnitude = np.abs(ifg)
         angle = np.angle(ifg)
         self.wavenumbers = np.fft.rfftfreq(Nzff, self.dx)
