@@ -1,7 +1,6 @@
 from enum import IntEnum
 
 import numpy as np
-import scipy.signal
 
 
 class ApodFunc(IntEnum):
@@ -343,9 +342,6 @@ class MultiIRFFT(IRFFT):
 class ComplexFFT(IRFFT):
 
     def __call__(self, ifg, zpd=None, phase=None):
-        number_of_points = len(ifg)
-        Nzff = self.zff*number_of_points
-
         ifg -= np.mean(ifg)
 
         if zpd is not None:
@@ -357,6 +353,7 @@ class ComplexFFT(IRFFT):
         ifg = zero_fill(ifg, self.zff)
         # Rotate the Complete IFG so that the centerburst is at edges.
         ifg = np.hstack((ifg[self.zpd:], ifg[0:self.zpd]))
+        Nzff = ifg.shape[0]
         ifg = np.fft.fft(ifg)
         
         magnitude = np.abs(ifg)
