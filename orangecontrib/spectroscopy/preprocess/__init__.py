@@ -739,38 +739,42 @@ class _DespikeCommon(CommonDomainOrderUnknowns):
         # dis sets the distance over which to interpolate spiked areas
 
     def transformed(self, data, X):
-        def interpolatespikes(spikes, row_out):
-            row_out = row_out.copy()
-            for i in np.arange(len(spikes)):
-                if spikes[i] != 0:
-                    w = np.arange(max(i - self.dis, 0), min(i + self.dis + 1, len(spikes)))
-                    w2 = w[spikes[w] == 0]
-                    row_out[i] = np.mean(row[w2])
-                    if np.any(np.isnan(row_out)):
-                        for j in range(1, len(row_out)-self.dis):
-                            averaged = np.mean((row_out[np.isnan(row_out) - (self.dis-j)]) + (
-                                row_out[np.isnan(row_out) + self.dis+j]))
-                            row_out[np.isnan(row_out)] = averaged
-                            if np.any(row_out[np.isnan(row_out)]):
-                                continue
-                            else:
-                                break
+        def interpolatespikes(spikes, row_in):
+            row_out = row_in.copy()
+            non_nan_nor_spike = None
+            for i in np.nonzero(spikes)[0]:
+                w = np.arange(max(i - self.dis, 0), min(i + self.dis + 1, len(spikes)))
+                w2 = w[spikes[w] == 0]
+                row_out[i] = np.nanmean(row_in[w2])
+                if np.isnan(row_out[i]):  # no valid points within distance, find closest value
+                    if non_nan_nor_spike is None:  # compute it only once
+                        non_nan_nor_spike = np.nonzero(~(np.isnan(row_in) | (spikes > 0)))[0]
+                    # find nearest non-nan indices
+                    valid_ind = []
+                    insertp = np.searchsorted(non_nan_nor_spike, i, side="left")
+                    if insertp > 0:
+                        valid_ind.append(non_nan_nor_spike[insertp-1])  # left non-nan
+                    if insertp < len(non_nan_nor_spike):
+                        valid_ind.append(non_nan_nor_spike[insertp])  # right non-nan
+                    valid_ind = np.array(valid_ind)
+                    diff_i = np.abs(valid_ind - i)
+                    # closest non-nan indices (or pair of indices)
+                    closest_ind = valid_ind[np.nonzero(diff_i == np.min(diff_i))[0]]
+                    row_out[i] = np.nanmean(row_in[closest_ind])
             return row_out
 
         out = []
-        Series = np.array(data)
+        Series = data
         if Series.size > 0:
             for row in Series:
-                Distance = np.diff(row, n=1)
+                Distance = np.abs(np.diff(row, n=1))
                 # Spiked spectra are processed and non spiked are passed through
                 if np.any(Distance > self.cutoff):
                     median1 = np.median(row)
-                    mad_int = np.median([np.abs(row - median1)])
+                    mad_int = np.median(np.abs(row - median1))
                     modified_z_scores = 0.6745 * (row - median1) / mad_int
-                    difference = (abs(np.array(modified_z_scores)) > self.threshold)
-                    spikes = difference.reshape(len(difference))
+                    spikes = (abs(modified_z_scores) > self.threshold)
                     despiked = interpolatespikes(spikes, row)
-                    # used to clear any nan values in array that may arise from the avg
                     out.append(despiked)
                 else:
                     out.append(row)
