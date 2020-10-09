@@ -51,6 +51,7 @@ Preprocessing Methods
 - Absorbance to Transmittance: convert absorbance spectra to transmittance.
 - Shift spectra: shift things around.
 - EMSC: special Norweigan method.
+- Spike Removal: Removes spikes in spectra through a modified z-score. [More...](SpikeRemoval.md).
 
 Example
 -------

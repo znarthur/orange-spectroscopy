@@ -58,6 +58,7 @@ from orangecontrib.spectroscopy.widgets.preprocessors.normalize import Normalize
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange, \
     REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
+from orangecontrib.spectroscopy.widgets.preprocessors.spikeremoval import SpikeRemovalEditor
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -1033,6 +1034,12 @@ PREPROCESSORS = [
         Description("Polynomial EXAFS extraction",
                     icon_path("Discretize.svg")),
         ExtractEXAFSEditor
+    ),
+    PreprocessAction(
+        "Spike Removal", "preprocessors.spikeremoval", "Spike Removal",
+        Description("Spike Removal",
+                    icon_path("Discretize.svg")),
+        SpikeRemovalEditor
     ),
     ]
 

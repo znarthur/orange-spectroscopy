@@ -19,7 +19,7 @@ from orangecontrib.spectroscopy.preprocess.integrate import Integrate
 from orangecontrib.spectroscopy.preprocess.emsc import EMSC
 from orangecontrib.spectroscopy.preprocess.transform import Absorbance, Transmittance, \
     CommonDomainRef
-from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain,\
+from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomain, \
     CommonDomainOrder, CommonDomainOrderUnknowns, nan_extend_edges_and_interpolate, \
     remove_whole_nan_ys, interp1d_with_unknowns_numpy, interp1d_with_unknowns_scipy, \
     interp1d_wo_unknowns_scipy, edge_baseline, MissingReferenceException, \
@@ -42,11 +42,11 @@ class _PCAReconstructCommon(CommonDomain):
     def transformed(self, data):
         pca_space = self.pca.transform(data.X)
         if self.components is not None:
-            #set unused components to zero
+            # set unused components to zero
             remove = np.ones(pca_space.shape[1])
             remove[self.components] = 0
             remove = np.extract(remove, np.arange(pca_space.shape[1]))
-            pca_space[:,remove] = 0
+            pca_space[:, remove] = 0
         return self.pca.proj.inverse_transform(pca_space)
 
 
@@ -120,11 +120,11 @@ class Cut(Preprocess):
         if not self.inverse:
             okattrs = [at for at, v in zip(data.domain.attributes, x)
                        if (self.lowlim is None or self.lowlim <= v) and
-                          (self.highlim is None or v <= self.highlim)]
+                       (self.highlim is None or v <= self.highlim)]
         else:
             okattrs = [at for at, v in zip(data.domain.attributes, x)
                        if (self.lowlim is not None and v <= self.lowlim) or
-                          (self.highlim is not None and self.highlim <= v)]
+                       (self.highlim is not None and self.highlim <= v)]
         domain = Orange.data.Domain(okattrs, data.domain.class_vars, metas=data.domain.metas)
         return data.from_table(domain, data)
 
@@ -151,6 +151,7 @@ class SavitzkyGolayFiltering(Preprocess):
     """
     Apply a Savitzky-Golay[1] Filter to the data using SciPy Library.
     """
+
     def __init__(self, window=5, polyorder=2, deriv=0):
         self.window = window
         self.polyorder = polyorder
@@ -209,7 +210,6 @@ class _RubberbandBaselineCommon(CommonDomainOrder):
 
 
 class RubberbandBaseline(Preprocess):
-
     PeakPositive, PeakNegative = 0, 1
     Subtract, View = 0, 1
 
@@ -252,7 +252,6 @@ class _LinearBaselineCommon(CommonDomainOrderUnknowns):
 
 
 class LinearBaseline(Preprocess):
-
     PeakPositive, PeakNegative = 0, 1
     Subtract, View = 0, 1
 
@@ -380,6 +379,7 @@ class NormalizeReference(Preprocess):
                                     data.domain.metas)
         return data.transform(domain)
 
+
 class _NormalizePhaseReferenceCommon(CommonDomainRef):
 
     def transformed(self, data):
@@ -388,6 +388,7 @@ class _NormalizePhaseReferenceCommon(CommonDomainRef):
             return replace_infs(np.angle(np.exp(data.X * 1j) / np.exp(ref_X * 1j)))
         else:
             return data
+
 
 class NormalizePhaseReference(NormalizeReference):
 
@@ -398,7 +399,6 @@ class NormalizePhaseReference(NormalizeReference):
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
         return data.transform(domain)
-
 
 
 def features_with_interpolation(points, kind="linear", domain=None, handle_nans=True, interpfn=None):
@@ -437,7 +437,7 @@ class _InterpolateCommon:
         if self.handle_nans:
             x, ys = remove_whole_nan_ys(x, ys)  # relatively fast
         if len(x) == 0:
-            return np.ones((len(data), len(self.points)))*np.nan
+            return np.ones((len(data), len(self.points))) * np.nan
         interpfn = self.interpfn
         if interpfn is None:
             if self.handle_nans and np.isnan(ys).any():
@@ -501,7 +501,7 @@ class InterpolateToDomain(Preprocess):
 
     def __call__(self, data):
         X = _InterpolateCommon(self.points, self.kind, None, handle_nans=self.handle_nans,
-                                    interpfn=self.interpfn)(data)
+                               interpfn=self.interpfn)(data)
         domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
                                     data.domain.metas)
         data = data.transform(domain)
@@ -524,7 +524,7 @@ class _XASnormalizationCommon(CommonDomainOrderUnknowns):
 
     def transformed(self, X, energies):
         if X.shape[0] == 0:
-            return np.zeros((0, X.shape[1]+1))
+            return np.zeros((0, X.shape[1] + 1))
 
         try:
             spectra, jump_vals = normal_xas.normalize_all(
@@ -562,7 +562,7 @@ class XASnormalization(Preprocess):
             name='edge_jump', compute_value=XASnormalizationFeature(len(newattrs), common)),)
 
         domain = Orange.data.Domain(
-                    newattrs, data.domain.class_vars, newmetas)
+            newattrs, data.domain.class_vars, newmetas)
 
         return data.from_table(domain, data)
 
@@ -717,6 +717,83 @@ class CurveShift(Preprocess):
     def __call__(self, data):
         common = _CurveShiftCommon(self.amount, data.domain)
         atts = [a.copy(compute_value=CurveShiftFeature(i, common))
+                for i, a in enumerate(data.domain.attributes)]
+        domain = Orange.data.Domain(atts, data.domain.class_vars,
+                                    data.domain.metas)
+        return data.from_table(domain, data)
+
+
+class DespikeFeature(SelectColumn):
+    pass
+
+
+class _DespikeCommon(CommonDomainOrderUnknowns):
+    def __init__(self, threshold, cutoff, dis, domain):
+        super().__init__(domain)
+        self.threshold = threshold
+        # threshold sets up a limit for the modified_z_scores test cutoff for spikes
+        self.cutoff = cutoff
+        # cutoff allows for spiked spectra to be determined from a large
+        # multispectral image
+        self.dis = dis
+        # dis sets the distance over which to interpolate spiked areas
+
+    def transformed(self, data, X):
+        def interpolatespikes(spikes, row_in):
+            row_out = row_in.copy()
+            non_nan_nor_spike = None
+            for i in np.nonzero(spikes)[0]:
+                w = np.arange(max(i - self.dis, 0), min(i + self.dis + 1, len(spikes)))
+                w2 = w[spikes[w] == 0]
+                row_out[i] = np.nanmean(row_in[w2])
+                if np.isnan(row_out[i]):  # no valid points within distance, find closest value
+                    if non_nan_nor_spike is None:  # compute it only once
+                        non_nan_nor_spike = np.nonzero(~(np.isnan(row_in) | (spikes > 0)))[0]
+                    # find nearest non-nan indices
+                    valid_ind = []
+                    insertp = np.searchsorted(non_nan_nor_spike, i, side="left")
+                    if insertp > 0:
+                        valid_ind.append(non_nan_nor_spike[insertp-1])  # left non-nan
+                    if insertp < len(non_nan_nor_spike):
+                        valid_ind.append(non_nan_nor_spike[insertp])  # right non-nan
+                    valid_ind = np.array(valid_ind)
+                    diff_i = np.abs(valid_ind - i)
+                    # closest non-nan indices (or pair of indices)
+                    closest_ind = valid_ind[np.nonzero(diff_i == np.min(diff_i))[0]]
+                    row_out[i] = np.nanmean(row_in[closest_ind])
+            return row_out
+
+        out = []
+        Series = data
+        if Series.size > 0:
+            for row in Series:
+                Distance = np.abs(np.diff(row, n=1))
+                # Spiked spectra are processed and non spiked are passed through
+                if np.any(Distance > self.cutoff):
+                    median1 = np.median(row)
+                    mad_int = np.median(np.abs(row - median1))
+                    modified_z_scores = 0.6745 * (row - median1) / mad_int
+                    spikes = (abs(modified_z_scores) > self.threshold)
+                    despiked = interpolatespikes(spikes, row)
+                    out.append(despiked)
+                else:
+                    out.append(row)
+            return np.array(out)
+        else:
+            return data
+
+
+class Despike(Preprocess):
+
+    def __init__(self, threshold=7, cutoff=100, dis=5):
+        self.threshold = threshold
+        self.cutoff = cutoff
+        self.dis = dis
+
+    def __call__(self, data):
+        common = _DespikeCommon(self.threshold, self.cutoff,
+                                self.dis, data.domain)
+        atts = [a.copy(compute_value=DespikeFeature(i, common))
                 for i, a in enumerate(data.domain.attributes)]
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
