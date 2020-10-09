@@ -23,15 +23,32 @@ class TestSpikeRemovalEditor(PreprocessorEditorTest):
         self.wait_until_finished()
         p = self.get_preprocessor()
         self.assertIsInstance(p, Despike)
+        self.assertEqual(p.dis, 5)
+        self.assertEqual(p.cutoff, 100)
+        self.assertEqual(p.threshold, 7)
 
     def test_basic(self):
-        self.editor.dis = 5
-        self.editor.cutoff = 100
-        self.editor.threshold = 7
+        self.editor.dis = 6
+        self.editor.cutoff = 101
+        self.editor.threshold = 8
+        self.editor.edited.emit()
         self.widget.unconditional_commit()
         self.wait_until_finished()
         p = self.get_preprocessor()
         self.process_events()
-        self.assertEqual(p.dis, 5)
+        self.assertEqual(p.dis, 6)
+        self.assertEqual(p.cutoff, 101)
+        self.assertEqual(p.threshold, 8)
+
+    def test_none(self):
+        self.editor.dis = 6
+        self.editor.cutoff = None
+        self.editor.threshold = None
+        self.editor.edited.emit()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
+        p = self.get_preprocessor()
+        self.process_events()
+        self.assertEqual(p.dis, 6)
         self.assertEqual(p.cutoff, 100)
         self.assertEqual(p.threshold, 7)
