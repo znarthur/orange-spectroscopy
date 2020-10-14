@@ -45,7 +45,10 @@ class AsciiColReader(FileFormat, SpectralFileFormat):
     DESCRIPTION = 'Spectra ASCII'
 
     def read_spectra(self):
-        tbl = np.loadtxt(self.filename, ndmin=2)
+        try:
+            tbl = np.loadtxt(self.filename, ndmin=2)
+        except ValueError:
+            tbl = np.loadtxt(self.filename, ndmin=2, delimiter=',')
         wavenumbers = tbl.T[0]  # first column is attribute name
         datavals = tbl.T[1:]
         return wavenumbers, datavals, None
