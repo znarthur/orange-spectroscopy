@@ -71,6 +71,12 @@ class TestDat(unittest.TestCase):
             d2 = Orange.data.Table(fn)
             np.testing.assert_equal(d1.X, d2.X)
 
+    def test_comma_delim(self):
+        with named_file("15,500\n30,650\n", suffix=".dpt") as fn:
+            d = Orange.data.Table(fn)
+            np.testing.assert_equal(d.X, [[500., 650.]])
+
+
 
 try:
     no_visible_image = FileFormat.locate("opus/no_visible_images.0",
