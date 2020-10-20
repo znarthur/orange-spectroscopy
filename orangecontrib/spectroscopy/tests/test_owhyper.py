@@ -364,6 +364,14 @@ class TestVisibleImage(WidgetTest):
                 "pixel_size_x": 1,
                 "pixel_size_y": 0.3
             },
+            {
+                "name": "Image 03",
+                "image_bytes": red_img,
+                "pos_x": 100,
+                "pos_y": 100,
+                "img_size_x": 17.0,
+                "img_size_y": 23.0
+            },
         ]
 
     @classmethod
@@ -511,3 +519,21 @@ class TestVisibleImage(WidgetTest):
                 name = w.controls.visible_image_composition.currentText()
                 mode = w.visual_image_composition_modes[name]
                 m.assert_called_once_with(mode)
+
+    def test_visible_image_img_size(self):
+        w = self.widget
+        data = self.data_with_visible_images
+        self.send_signal("Data", data)
+        wait_for_image(w)
+
+        w.controls.show_visible_image.setChecked(True)
+        vis_img = w.imageplot.vis_img
+        with patch.object(vis_img, 'setRect', wraps=vis_img.setRect) as mock_rect:
+            w.controls.visible_image.setCurrentIndex(2)
+            # since activated signal emitted only by visual interaction
+            # we need to trigger it by hand here.
+            w.controls.visible_image.activated.emit(2)
+
+            self.assert_same_visible_image(data.attributes["visible_images"][0],
+                                           w.imageplot.vis_img,
+                                           mock_rect)

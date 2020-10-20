@@ -1230,10 +1230,14 @@ class OWHyper(OWWidget):
             # https://github.com/pyqtgraph/pyqtgraph/issues/315#issuecomment-214042453
             # Behavior may change at pyqtgraph 1.0 version
             img = np.array(img)[::-1]
+            width = img_info['img_size_x'] if 'img_size_x' in img_info \
+                else img.shape[1] * img_info['pixel_size_x']
+            height = img_info['img_size_y'] if 'img_size_y' in img_info \
+                else img.shape[0] * img_info['pixel_size_y']
             rect = QRectF(img_info['pos_x'],
                           img_info['pos_y'],
-                          img.shape[1] * img_info['pixel_size_x'],
-                          img.shape[0] * img_info['pixel_size_y'])
+                          width,
+                          height)
             self.imageplot.set_visible_image(img, rect)
             self.imageplot.show_visible_image()
         else:
