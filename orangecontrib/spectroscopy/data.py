@@ -457,6 +457,7 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
         am = agilentMosaic(self.filename, dtype=np.float64)
         info = am.info
         X = am.data
+        visible_images = am.vis
 
         try:
             features = info['wavenumbers']
@@ -472,7 +473,11 @@ class agilentMosaicReader(FileFormat, SpectralFileFormat):
         x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
         y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
 
-        return _spectra_from_image(X, features, x_locs, y_locs)
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        if visible_images:
+            additional_table.attributes['visible_images'] = visible_images
+        return features, data, additional_table
 
 
 class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
