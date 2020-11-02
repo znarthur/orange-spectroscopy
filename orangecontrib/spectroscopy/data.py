@@ -1,3 +1,4 @@
+import io
 from collections import defaultdict
 from functools import reduce
 import numbers
@@ -786,7 +787,7 @@ class OPUSReader(FileFormat):
             try:
                 visible_images.append({
                     'name': img['Title'],
-                    'image_bytes': img['image'],
+                    'image_ref': io.BytesIO(img['image']),
                     'pos_x': img['Pos. X'] * img['PixelSizeX'],
                     'pos_y': img['Pos. Y'] * img['PixelSizeY'],
                     'pixel_size_x': img['PixelSizeX'],

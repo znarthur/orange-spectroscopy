@@ -338,19 +338,19 @@ class TestVisibleImage(WidgetTest):
 
     @classmethod
     def mock_visible_image_data(cls):
-        red_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAAA"
-                            "oAAAAKCAYAAACNMs+9AAAAFUlE"
-                            "QVR42mP8z8AARIQB46hC+ioEAG"
-                            "X8E/cKr6qsAAAAAElFTkSuQmCC")
-        black_img = b64decode("iVBORw0KGgoAAAANSUhEUgAAA"
-                              "AoAAAAKCAQAAAAnOwc2AAAAEU"
-                              "lEQVR42mNk+M+AARiHsiAAcCI"
-                              "KAYwFoQ8AAAAASUVORK5CYII=")
+        red_img = io.BytesIO(b64decode("iVBORw0KGgoAAAANSUhEUgAAAA"
+                                       "oAAAAKCAYAAACNMs+9AAAAFUlE"
+                                       "QVR42mP8z8AARIQB46hC+ioEAG"
+                                       "X8E/cKr6qsAAAAAElFTkSuQmCC"))
+        black_img = io.BytesIO(b64decode("iVBORw0KGgoAAAANSUhEUgAAA"
+                                         "AoAAAAKCAQAAAAnOwc2AAAAEU"
+                                         "lEQVR42mNk+M+AARiHsiAAcCI"
+                                         "KAYwFoQ8AAAAASUVORK5CYII="))
 
         return [
             {
                 "name": "Image 01",
-                "image_bytes": red_img,
+                "image_ref": red_img,
                 "pos_x": 100,
                 "pos_y": 100,
                 "pixel_size_x": 1.7,
@@ -358,7 +358,7 @@ class TestVisibleImage(WidgetTest):
             },
             {
                 "name": "Image 02",
-                "image_bytes": black_img,
+                "image_ref": black_img,
                 "pos_x": 0.5,
                 "pos_y": 0.5,
                 "pixel_size_x": 1,
@@ -366,7 +366,7 @@ class TestVisibleImage(WidgetTest):
             },
             {
                 "name": "Image 03",
-                "image_bytes": red_img,
+                "image_ref": red_img,
                 "pos_x": 100,
                 "pos_y": 100,
                 "img_size_x": 17.0,
@@ -387,7 +387,7 @@ class TestVisibleImage(WidgetTest):
         self.widget = self.create_widget(OWHyper)  # type: OWHyper
 
     def assert_same_visible_image(self, img_info, vis_img, mock_rect):
-        img = Image.open(io.BytesIO(img_info["image_bytes"])).convert('RGBA')
+        img = Image.open(img_info["image_ref"]).convert('RGBA')
         img = np.array(img)[::-1]
         rect = QRectF(img_info['pos_x'], img_info['pos_y'],
                       img.shape[1] * img_info['pixel_size_x'],
