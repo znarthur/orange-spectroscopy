@@ -111,7 +111,7 @@ class TestOpusReader(unittest.TestCase):
 
         img_info = d.attributes["visible_images"][0]
         # decompress bytes only in widgets to reduce memory footprint
-        self.assertEqual(type(img_info["image_bytes"]), bytes)
+        self.assertEqual(type(img_info["image_ref"].getvalue()), bytes)
         self.assertEqual(img_info["name"], "Image 01")
         self.assertAlmostEqual(img_info["pixel_size_x"], 0.90088498)
         self.assertAlmostEqual(img_info["pixel_size_y"], 0.89284902)
@@ -121,7 +121,7 @@ class TestOpusReader(unittest.TestCase):
                                20727.0 * img_info["pixel_size_y"])
 
         # test image
-        with BytesIO(img_info["image_bytes"]) as f:
+        with img_info["image_ref"] as f:
             img = Image.open(f)
             img = np.array(img)
             self.assertEqual(img.shape, (538, 666, 3))
