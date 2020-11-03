@@ -549,14 +549,12 @@ class WiREReaders(FileFormat, SpectralFileFormat):
         return table
 
     def single_reader(self, wdf_file):
-
         domvals = wdf_file.xdata # energies
         y_data = wdf_file.spectra # spectra
 
         return domvals, y_data, None
 
     def series_reader(self, wdf_file):
-
         domvals = wdf_file.xdata # energies
         y_data = wdf_file.spectra # spectra
         z_locs = wdf_file.zpos # depth info
@@ -570,14 +568,17 @@ class WiREReaders(FileFormat, SpectralFileFormat):
         return domvals, y_data, data
 
     def map_reader(self, wdf_file):
-
         domvals = wdf_file.xdata
-
-        y_data = wdf_file.spectra
-        x_locs = np.unique(wdf_file.xpos)
-        y_locs = np.unique(wdf_file.ypos)
-
-        return _spectra_from_image_2d(y_data, domvals, x_locs, y_locs)
+        X = wdf_file.spectra  # a (rows, cols, wn) array
+        if X.ndim == 2:  # line scan
+            spectra = X
+        elif X.ndim == 3:  # a map, X is as (rows, cols, wn) array
+            spectra = X.reshape((X.shape[0] * X.shape[1], X.shape[2]))
+        else:
+            raise NotImplementedError
+        x_locs = wdf_file.xpos
+        y_locs = wdf_file.ypos
+        return _spectra_from_image_2d(spectra, domvals, x_locs, y_locs)
 
 
 class SPCReader(FileFormat):
