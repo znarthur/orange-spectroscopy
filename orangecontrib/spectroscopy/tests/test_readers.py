@@ -188,14 +188,14 @@ class TestRenishawReader(unittest.TestCase):
         self.assertEqual(min(getx(d)), 1226.275269)
         self.assertEqual(max(getx(d)), 2787.514404)
 
-    # tested on 20200727, now disabled because data was too large for the repo
+    # tested on 20201103, now disabled because data was too large for the repo
     def disabled_test_depth_reader(self):
         d = Orange.data.Table("renishaw_test_files/depth.wdf")
         self.assertEqual(d.X[3][4], 1.8102257251739502)
         self.assertEqual(min(getx(d)), 1226.605347)
         self.assertEqual(max(getx(d)), 2787.782959)
 
-    # tested on 20200727, now disabled because data was too large for the repo
+    # tested on 20201103, now disabled because data was too large for the repo
     def disabled_test_map_reader(self):
         # this is a line map, but the 2D maps are the same structure
         d = Orange.data.Table("renishaw_test_files/line.wdf")
