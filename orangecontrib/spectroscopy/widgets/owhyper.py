@@ -864,7 +864,7 @@ class OWHyper(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
     keywords = ["image", "spectral", "chemical", "imaging"]
 
-    settings_version = 4
+    settings_version = 5
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
@@ -942,10 +942,11 @@ class OWHyper(OWWidget):
 
         self.box_values_feature = gui.indentedBox(rbox)
 
-        self.feature_value_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
+        self.feature_value_model = DomainModel(DomainModel.SEPARATED,
                                                valid_types=DomainModel.PRIMITIVE)
         self.feature_value = gui.comboBox(
             self.box_values_feature, self, "attr_value",
+            contentsLength=12, searchable=True,
             callback=self.update_feature_value, model=self.feature_value_model)
 
         splitter = QSplitter(self)
