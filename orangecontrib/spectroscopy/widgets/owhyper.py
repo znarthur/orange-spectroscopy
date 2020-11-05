@@ -865,7 +865,7 @@ class OWHyper(OWWidget):
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
     keywords = ["image", "spectral", "chemical", "imaging"]
 
-    settings_version = 4
+    settings_version = 5
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
