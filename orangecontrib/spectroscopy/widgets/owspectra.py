@@ -1562,6 +1562,8 @@ class OWSpectra(OWWidget):
                 "orangecontrib.infrared.widgets.owspectra.OWSpectra"]
     keywords = ["curves", "lines", "spectrum"]
 
+    want_control_area = False
+
     settings_version = 2
     settingsHandler = DomainContextHandler()
 
@@ -1577,7 +1579,6 @@ class OWSpectra(OWWidget):
 
     def __init__(self):
         super().__init__()
-        self.controlArea.hide()
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.curveplot.new_sampling.connect(self._showing_sample_info)
