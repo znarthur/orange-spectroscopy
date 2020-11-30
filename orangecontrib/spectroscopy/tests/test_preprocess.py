@@ -58,9 +58,9 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.MinMax),
     CurveShift(1),
     Despike(threshold=5, cutoff=60, dis=5),
-    ALSP(als_type=0, lam=100E+6, itermax=5, pals=0.5),
-    ARPLS(als_type=1, lam=100E+5, itermax=5, ratioarpls=0.5),
-    AIRPLS(als_type=2, lam=100, itermax=5, porderairpls=1),
+    ALSP(lam=100E+6, itermax=5, p=0.5),
+    ARPLS(lam=100E+5, itermax=5, ratio=0.5),
+    AIRPLS(lam=100, itermax=5, porder=1),
 ]
 
 xas_norm_collagen = XASnormalization(edge=1630,
