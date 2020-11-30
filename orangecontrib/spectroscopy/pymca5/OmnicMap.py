@@ -2,7 +2,7 @@
 #
 # The PyMca X-Ray Fluorescence Toolkit
 #
-# Copyright (c) 2004-2014 European Synchrotron Radiation Facility
+# Copyright (c) 2004-2019 European Synchrotron Radiation Facility
 #
 # This file is part of the PyMca X-ray Fluorescence Toolkit developed at
 # the ESRF by the Software group.
@@ -36,9 +36,12 @@ import re
 import struct
 import numpy
 import copy
-from . import DataObject #modified
+import logging
+from . import DataObject  # modified
 
-DEBUG = 0
+
+_logger = logging.getLogger(__name__)
+
 SOURCE_TYPE = "EdfFileStack"
 
 
@@ -59,12 +62,10 @@ class OmnicMap(DataObject.DataObject):
             It is expected to work with OMNIC versions 7.x and 8.x
         '''
         DataObject.DataObject.__init__(self)
-        if sys.platform == 'win32' or 1: #modified, "added or 1"
-            fid = open(filename, 'rb')
-        else:
-            fid = open(filename, 'r')
+        fid = open(filename, 'rb')
         data = fid.read()
         fid.close()
+        fid = None
 
         try:
             omnicInfo = self._getOmnicInfo(data)
@@ -79,10 +80,9 @@ class OmnicMap(DataObject.DataObject):
         s = data[firstByte:(firstByte + 100 - 16)]
         if sys.version >= '3.0':
             s = str(s)
-        if DEBUG:
-            print("firstByte = %d" % firstByte)
-            print("s1 = %s " % s)
-        exp = re.compile('(-?[0-9]+\.?[0-9]*)')
+        _logger.debug("firstByte = %d", firstByte)
+        _logger.debug("s1 = %s ", s)
+        exp = re.compile(r'(-?[0-9]+\.?[0-9]*)')
         tmpValues = exp.findall(s)
         spectrumIndex = int(tmpValues[0])
         self.nSpectra = int(tmpValues[1])
@@ -92,20 +92,17 @@ class OmnicMap(DataObject.DataObject):
         else:
             # I have to calculate them from the scan
             xPosition, yPosition = self.getPositionFromIndexAndInfo(0, omnicInfo)
-        if DEBUG:
-            print("spectrumIndex, nSpectra, xPosition, yPosition = %d %d %f %f" %\
-                    (spectrumIndex, self.nSpectra, xPosition, yPosition))
+        _logger.debug("spectrumIndex, nSpectra, xPosition, yPosition = %d %d %f %f",
+                      spectrumIndex, self.nSpectra, xPosition, yPosition)
         if sys.version < '3.0':
             chain = "Spectrum"
         else:
             chain = bytes("Spectrum", 'utf-8')
         secondByte = data[(firstByte + 1):].index(chain)
         secondByte += firstByte + 1
-        if DEBUG:
-            print("secondByte = ", secondByte)
+        _logger.debug("secondByte = %s", secondByte)
         self.nChannels = int((secondByte - firstByte - 100) / 4)
-        if DEBUG:
-            print("nChannels = %d" % self.nChannels)
+        _logger.debug("nChannels = %d", self.nChannels)
         self.firstSpectrumOffset = firstByte - 16
 
         #fill the header
@@ -113,6 +110,9 @@ class OmnicMap(DataObject.DataObject):
         oldXPosition = xPosition
         oldYPosition = yPosition
         self.nRows = 0
+        xPositions = numpy.zeros(self.nSpectra)
+        yPositions = numpy.zeros(self.nSpectra)
+        calculating = True
         for i in range(self.nSpectra):
             offset = int(firstByte + i * (100 + self.nChannels * 4))
             if sys.version < '3.0':
@@ -126,18 +126,30 @@ class OmnicMap(DataObject.DataObject):
                 yPosition = float(tmpValues[3])
             else:
                 #I have to calculate them from the scan
-                xPosition, yPosition = self.getPositionFromIndexAndInfo(i, omnicInfo)
-            if (abs(yPosition - oldYPosition) > 1.0e-6) and\
-               (abs(xPosition - oldXPosition) < 1.0e-6):
-                break
-            self.nRows = self.nRows + 1
-        if DEBUG:
-            print("DIMENSIONS X = %f Y=%d" %\
-                  ((self.nSpectra * 1.0) / self.nRows, self.nRows))
+                xPosition, yPosition = self.getPositionFromIndexAndInfo(i,
+                                                                    omnicInfo)
+            xPositions[i] = xPosition
+            yPositions[i] = yPosition
+            if calculating:
+                if (abs(yPosition - oldYPosition) > 1.0e-6) and\
+                   (abs(xPosition - oldXPosition) < 1.0e-6):
+                    calculating = False
+                    continue
+                self.nRows += 1
+
+        _logger.debug("DIMENSIONS X = %f Y=%d",
+                      self.nSpectra * 1.0 / self.nRows, self.nRows)
 
         #arrange as an EDF Stack
         self.info = {}
         self.__nFiles = int(self.nSpectra / self.nRows)
+        try:
+            deltaX = (xPositions[-1] - xPositions[0]) / (self.nRows - 1)
+            deltaY = (yPositions[-1] - yPositions[0]) / (self.__nFiles - 1)
+        except:
+            deltaX = None
+            deltaY = None
+            _logger.warning("Cannot calculate scales")
         self.data = numpy.zeros((self.__nFiles, self.nRows, self.nChannels),
                                  dtype=numpy.float32)
 
@@ -173,6 +185,11 @@ class OmnicMap(DataObject.DataObject):
         else:
             self.info["McaCalib"] = [0.0, 1.0, 0.0]
         self.info['OmnicInfo'] = omnicInfo
+        if deltaX and deltaY:
+            if (deltaX > 0.0) and (deltaY > 0.0):
+                self.info["xScale"] = [oldXPosition, deltaX]
+                self.info["yScale"] = [oldYPosition, deltaY]
+        self.info["positioners"] = {"X":xPositions, "Y":yPositions}
 
     def _getOmnicInfo(self, data):
         '''
@@ -182,7 +199,7 @@ class OmnicMap(DataObject.DataObject):
 
         Returns:
         --------
-        A dictionnary with acquisition information
+        A dictionary with acquisition information
         '''
         #additional information
         fmt = "I"  # unsigned long in 32-bit
@@ -214,9 +231,8 @@ class OmnicMap(DataObject.DataObject):
         ddict['Laser frequency'] = vFloats[16]
         ddict['Data spacing'] = (lastX - firstX) / (ddict['Number of points'] - 1.0)
         ddict['Background gain'] = vFloats[10]
-        if DEBUG:
-            for key in ddict.keys():
-                print(key, ddict[key])
+        for key in ddict.keys():
+            _logger.debug("%s: %s", key, ddict[key])
         ddict.update(self.getMapInformation(data))
         return ddict
 
@@ -229,7 +245,7 @@ class OmnicMap(DataObject.DataObject):
 
         Returns:
         --------
-            Dictionnary with map gemoetrical acquisition parameters
+            Dictionary with map gemoetrical acquisition parameters
         '''
         #look for the chain 'Position'
         if sys.version < '3.0':
@@ -257,14 +273,13 @@ class OmnicMap(DataObject.DataObject):
             ddict['Mapping stage X step size'] = deltaX
             ddict['Mapping stage Y step size'] = deltaY
             ddict['Number of spectra'] = abs((1 + ((y1 - y0) / deltaY)) * (1 + ((x1 - x0) / deltaX)))
-        if DEBUG:
-            for key in ddict.keys():
-                print(key, ddict[key])
+        for key in ddict.keys():
+            _logger.debug("%s: %s", key, ddict[key])
         return ddict
 
     def getOmnicInfo(self):
         """
-        Returns a dictionnary with the parsed OMNIC information
+        Returns a dictionary with the parsed OMNIC information
         """
         return copy.deepcopy(self.info['OmnicInfo'])
 
@@ -276,7 +291,7 @@ class OmnicMap(DataObject.DataObject):
         -----------
         index : int
             Index of spectrum
-        info : Dictionnary
+        info : Dictionary
             Information recovered with _getOmnicInfo
         Returns:
         --------
@@ -302,7 +317,7 @@ class OmnicMap(DataObject.DataObject):
 if __name__ == "__main__":
     filename = None
     if len(sys.argv) > 2:
-        DEBUG = int(sys.argv[2])
+        _logger.setLevel(logging.DEBUG)
     if len(sys.argv) > 1:
         filename = sys.argv[1]
     elif os.path.exists("SambaPhg_IR.map"):
