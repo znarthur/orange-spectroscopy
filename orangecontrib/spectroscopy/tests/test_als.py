@@ -31,5 +31,4 @@ class Testals(unittest.TestCase):
         process = method(data)
         check = Table.from_numpy(None, [[-1.15248, -0.155994, 7.83538, 2.82675],
                                         [-0.499999, 1.5, 5.5, 0.499999]])
-
         np.testing.assert_almost_equal(np.array(check), np.array(process), 2)
