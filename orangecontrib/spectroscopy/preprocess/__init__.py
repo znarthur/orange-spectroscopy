@@ -805,26 +805,11 @@ class SpSubtractFeature(SelectColumn):
     pass
 
 
-class _SpSubtractCommon(CommonDomain):
+class _SpSubtractCommon(CommonDomainRef):
 
     def __init__(self, amount, reference, domain):
-        super().__init__(domain)
-        if reference is None:
-            raise MissingReferenceException()
-
-        self.reference = reference
+        super().__init__(reference, domain)
         self.amount = amount
-
-    def interpolate_extend_to(self, interpolate, wavenumbers):
-        """
-        Interpolate data to given wavenumbers and extend the possibly
-        nan-edges with the nearest values.
-        """
-        # interpolate reference to the given wavenumbers
-        X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
-        # we know that X is not NaN. same handling of reference as of X
-        X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
-        return X
 
     def transformed(self, data):
         if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
@@ -848,7 +833,7 @@ class SpSubtract(Preprocess):
     """
 
     def __init__(self, amount=0., reference=None):
-        if reference is not None and len(reference) != 1:
+        if reference is None or len(reference) != 1:
             raise WrongReferenceException("Reference data should have length 1")
         self.reference = reference
         self.amount = amount
