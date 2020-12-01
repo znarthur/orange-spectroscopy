@@ -170,7 +170,7 @@ class TestSpSubtract(unittest.TestCase):
     def test_simple(self):
         data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
         reference = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
-        f = SpSubtract(amount=2, reference=reference)
+        f = SpSubtract(reference, amount=2)
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X, [[-1.0, -2.0, -3.0, -4.0]])
 

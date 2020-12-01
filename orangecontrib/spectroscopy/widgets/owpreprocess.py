@@ -413,7 +413,7 @@ class SpSubtractEditor(BaseEditorOrange):
             self.reference_info.setText("Reference: None")
             self.reference_curve.hide()
         else:
-            rinfo = "1st of {0:d} spectra".format(len(self.reference)) \
+            rinfo = "{0:d} spectra".format(len(self.reference)) \
                 if len(self.reference) > 1 else "1 spectrum"
             self.reference_info.setText("Reference: " + rinfo)
             X_ref = self.reference.X[0]
@@ -427,11 +427,7 @@ class SpSubtractEditor(BaseEditorOrange):
         params = dict(params)
         amount = float(params.get("amount", 0.))
         reference = params.get(REFERENCE_DATA_PARAM, None)
-        if reference:
-            reference = reference[:1]
-
-        # return transform(reference=reference) # what is the difference?
-        return SpSubtract(amount=amount, reference=reference)
+        return SpSubtract(reference, amount=amount)
 
 
 class SavitzkyGolayFilteringEditor(BaseEditorOrange):

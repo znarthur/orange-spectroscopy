@@ -832,7 +832,7 @@ class SpSubtract(Preprocess):
     reference : reference single-channel (Orange.data.Table)
     """
 
-    def __init__(self, amount=0., reference=None):
+    def __init__(self, reference, amount=0.):
         if reference is None or len(reference) != 1:
             raise WrongReferenceException("Reference data should have length 1")
         self.reference = reference
