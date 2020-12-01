@@ -12,8 +12,8 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Integrate, Interpolate, Cut, SavitzkyGolayFiltering, \
     GaussianSmoothing, PCADenoising, RubberbandBaseline, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
-    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException, \
-    NormalizePhaseReference, Despike
+    WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, \
+    PreprocessException, NormalizePhaseReference, Despike, SpSubtract
 from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
@@ -149,6 +149,10 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
 PREPROCESSORS_INDEPENDENT_SAMPLES += \
     list(add_edge_case_data_parameter(NormalizeReference, "reference", SMALL_COLLAGEN[:1]))
 
+PREPROCESSORS_INDEPENDENT_SAMPLES += \
+    list(add_edge_case_data_parameter(SpSubtract, "reference", SMALL_COLLAGEN[:1], amount=0.1))
+
+
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
 PREPROCESSORS_GROUPS_OF_SAMPLES = [
@@ -159,6 +163,16 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
     add_edge_case_data_parameter(ME_EMSC, "reference", SMALLER_COLLAGEN[0:1], max_iter=4))
 
 PREPROCESSORS = PREPROCESSORS_INDEPENDENT_SAMPLES + PREPROCESSORS_GROUPS_OF_SAMPLES
+
+
+class TestSpSubtract(unittest.TestCase):
+
+    def test_simple(self):
+        data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        reference = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        f = SpSubtract(reference, amount=2)
+        fdata = f(data)
+        np.testing.assert_almost_equal(fdata.X, [[-1.0, -2.0, -3.0, -4.0]])
 
 
 class TestTransmittance(unittest.TestCase):
