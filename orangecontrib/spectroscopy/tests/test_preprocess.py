@@ -14,6 +14,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     Normalize, LinearBaseline, CurveShift, EMSC, MissingReferenceException, \
     WrongReferenceException, NormalizeReference, XASnormalization, ExtractEXAFS, PreprocessException, \
     NormalizePhaseReference, Despike
+from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
@@ -57,6 +58,9 @@ PREPROCESSORS_INDEPENDENT_SAMPLES = [
     Normalize(method=Normalize.MinMax),
     CurveShift(1),
     Despike(threshold=5, cutoff=60, dis=5),
+    ALSP(lam=100E+6, itermax=5, p=0.5),
+    ARPLS(lam=100E+5, itermax=5, ratio=0.5),
+    AIRPLS(lam=100, itermax=5, porder=1),
 ]
 
 xas_norm_collagen = XASnormalization(edge=1630,
