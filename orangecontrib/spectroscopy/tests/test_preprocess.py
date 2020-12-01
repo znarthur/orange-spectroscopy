@@ -149,6 +149,10 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
 PREPROCESSORS_INDEPENDENT_SAMPLES += \
     list(add_edge_case_data_parameter(NormalizeReference, "reference", SMALL_COLLAGEN[:1]))
 
+PREPROCESSORS_INDEPENDENT_SAMPLES += \
+    list(add_edge_case_data_parameter(SpSubtract, "reference", SMALL_COLLAGEN[:1], amount=0.1))
+
+
 # Preprocessors that use groups of input samples to infer
 # internal parameters.
 PREPROCESSORS_GROUPS_OF_SAMPLES = [

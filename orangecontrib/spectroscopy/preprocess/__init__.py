@@ -827,15 +827,12 @@ class _SpSubtractCommon(CommonDomain):
         return X
 
     def transformed(self, data):
-        if self.reference is not None:
-            # Calculate from single-channel data
-            if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
-                ref_X = self.interpolate_extend_to(self.reference, getx(data))
-                result = data.X - self.amount * ref_X
-
-        # Replace infs from either np.true_divide or np.log10
-        # return replace_infs(result)  # TODO do we need this?
-        return result
+        if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
+            ref_X = self.interpolate_extend_to(self.reference, getx(data))
+            result = data.X - self.amount * ref_X
+            return result
+        else:
+            return data
 
 
 class SpSubtract(Preprocess):
