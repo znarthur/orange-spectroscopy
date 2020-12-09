@@ -7,6 +7,8 @@ dist
 *.o
 *.py[doc]
 MANIFEST
+.tox
+.eggs
 
 # Cython generated files
 __pycache__
