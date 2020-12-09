@@ -14,7 +14,6 @@ CACHE_DIR="$GIT_REPO/.pylint_cache"
 UNCOMMITED_PATCH="$TMP_REPO/uncommited.patch"
 SCRIPT=$(basename "$0")
 PYLINT="$(command -v pylint 2>/dev/null || true)"
-PYLINT3="$(command -v pylint3 2>/dev/null || true)"
 RADON="$(command -v radon 2>/dev/null || true)"
 PYLINT_ARGS="--output-format=parseable"
 RADON_ARGS='cc --min C --no-assert --show-closures --show-complexity --average'
@@ -49,10 +48,6 @@ Given the commit tree:
 }
 
 case $ARG1 in -h|--help) print_help ; esac
-
-if [ ! "$PYLINT" ]; then
-    PYLINT=$PYLINT3
-fi
 
 if [ ! "$PYLINT$RADON" ]; then
     echo 'Error: pylint and/or radon required'
@@ -94,7 +89,7 @@ if [ "$ARG1"  ]; then
     PREVIOUS_COMMIT=$(git merge-base HEAD "$ARG1")
 else
     PREVIOUS_COMMIT=$(git show --pretty=raw HEAD |
-                      awk '/^parent /{ print $2 }' | head -n 1)
+                      awk '/^parent /{ print $2; exit }')
 fi
 
 echo
