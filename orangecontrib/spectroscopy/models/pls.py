@@ -47,7 +47,9 @@ class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
 
     def fit(self, X, Y, W=None):
         params = self.params.copy()
-        params["n_components"] = min(X.shape[1], params["n_components"])
+        params["n_components"] = min(X.shape[1] - 1,
+                                     X.shape[0] - 1,
+                                     params["n_components"])
         clf = self.__wraps__(**params)
         return self.__returns__(clf.fit(X, Y))
 
