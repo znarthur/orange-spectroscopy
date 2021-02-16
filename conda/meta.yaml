@@ -34,6 +34,7 @@ requirements:
     - extranormal3 >=0.0.3
     - renishawWiRE >=0.1.8
     - pillow
+    - lmfit
 
 test:
   imports:

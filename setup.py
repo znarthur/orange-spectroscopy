@@ -135,6 +135,7 @@ if __name__ == '__main__':
             'extranormal3',
             'renishawWiRE>=0.1.8',
             'pillow',
+            'lmfit',
         ],
         entry_points=ENTRY_POINTS,
         keywords=KEYWORDS,
