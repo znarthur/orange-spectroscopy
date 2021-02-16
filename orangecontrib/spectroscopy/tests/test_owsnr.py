@@ -72,4 +72,3 @@ class TestOWSNR(WidgetTest):
         np.testing.assert_allclose(out.X[0, :3], ref, rtol=1e-05, atol=1e-05)
         np.testing.assert_equal(out.metas[:3, :2], [[0, 0], [1, 0], [2, 0]])
         np.testing.assert_equal(out.metas[-3:, :2], [[2, 4], [3, 4], [4, 4]])
-        print(out.metas)
