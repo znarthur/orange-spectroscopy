@@ -44,18 +44,18 @@ class TestPLS(TestCase):
                                        orange_model.coefficients)
 
     def test_too_many_components(self):
-        # do not change
+        # do not change n_components
         d = table(5, 5, 1)
-        model = PLSRegressionLearner(n_components=5)(d)
-        self.assertEqual(model.skl_model.n_components, 5)
-        # need to use less components
+        model = PLSRegressionLearner(n_components=4)(d)
+        self.assertEqual(model.skl_model.n_components, 4)
+        # need to use fewer components; column limited
         d = table(6, 5, 1)
         model = PLSRegressionLearner(n_components=6)(d)
-        self.assertEqual(model.skl_model.n_components, 5)
-        # number of components only depends on the number of columns
+        self.assertEqual(model.skl_model.n_components, 4)
+        # need to use fewer components; row limited
         d = table(5, 6, 1)
         model = PLSRegressionLearner(n_components=6)(d)
-        self.assertEqual(model.skl_model.n_components, 6)
+        self.assertEqual(model.skl_model.n_components, 4)
 
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
