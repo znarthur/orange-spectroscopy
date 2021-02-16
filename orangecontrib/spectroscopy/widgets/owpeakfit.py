@@ -6,6 +6,7 @@ import lmfit
 import numpy as np
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description
 from Orange.widgets.data.utils.preprocess import blocked, DescriptionRole, ParametersRole
+from Orange.widgets.utils.concurrent import TaskState
 from PyQt5.QtWidgets import QFormLayout, QSizePolicy
 from orangewidget.widget import Msg
 from scipy import integrate
@@ -21,7 +22,7 @@ from Orange.widgets.utils.signals import Input, Output
 from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owintegrate import IntegrateOneEditor
-from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, InterruptException
+from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, InterruptException, PreviewRunner
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, SetXDoubleSpinBox
 
 
@@ -421,6 +422,58 @@ def prepare_params(item, model):
     return params
 
 
+class PeakPreviewRunner(PreviewRunner):
+
+    def show_preview(self, show_info_anyway=False):
+        """ Shows preview and also passes preview data to the widgets """
+        master = self.master
+        self.preview_pos = master.flow_view.preview_n()
+        self.last_partial = None
+        self.show_info_anyway = show_info_anyway
+        self.preview_data = None
+        self.after_data = None
+        pp_def = [master.preprocessormodel.item(i)
+                  for i in range(master.preprocessormodel.rowCount())]
+        if master.data is not None:
+            data = master.sample_data(master.data)
+            self.start(self.run_preview, data, pp_def)
+        else:
+            master.curveplot.set_data(None)
+            master.curveplot_after.set_data(None)
+
+    @staticmethod
+    def run_preview(data: Table,
+                    m_def, state: TaskState):
+
+        def progress_interrupt(i: float):
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        n = len(m_def)
+        orig_data = data
+        mlist = []
+        parameters = {}
+        for i in range(n):
+            progress_interrupt(0)
+            # state.set_partial_result((i, data, reference))
+            item = m_def[i]
+            m = create_model(item, i)
+            p = prepare_params(item, m)
+            mlist.append(m)
+            parameters.update(p)
+            progress_interrupt(0)
+        progress_interrupt(0)
+        # state.set_partial_result((n, data, None))
+        model = None
+        if mlist:
+            model = reduce(lambda x, y: x+y, mlist)
+
+        if data is not None and model is not None:
+            data = fit_peaks(data, model, parameters)
+
+        return orig_data, data
+
+
 class OWPeakFit(SpectralPreprocess):
     name = "Peak Fit"
     description = "Fit peaks to spectral region"
@@ -439,6 +492,7 @@ class OWPeakFit(SpectralPreprocess):
     def __init__(self):
         super().__init__()
 
+        self.preview_runner = PeakPreviewRunner(self)
         # GUI
         # box = gui.widgetBox(self.controlArea, "Options")
 
