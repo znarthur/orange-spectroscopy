@@ -15,8 +15,8 @@ def table(rows, attr, vars):
     attr_vars = [ContinuousVariable(name="Feature %i" % i) for i in range(attr)]
     class_vars = [ContinuousVariable(name="Class %i" % i) for i in range(vars)]
     domain = Domain(attr_vars, class_vars, [])
-    X = np.ones((rows, attr))
-    Y = np.ones((rows, vars))
+    X = np.random.RandomState(0).random((rows, attr))
+    Y = np.random.RandomState(1).random((rows, vars))
     return Table.from_numpy(domain, X=X, Y=Y)
 
 
