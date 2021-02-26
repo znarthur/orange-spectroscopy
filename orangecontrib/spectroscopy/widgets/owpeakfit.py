@@ -20,9 +20,12 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.signals import Input, Output
 
 from orangecontrib.spectroscopy.data import getx, build_spec_table
+from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
+from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owintegrate import IntegrateOneEditor
 from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, InterruptException, PreviewRunner
+from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, SetXDoubleSpinBox
 
 
@@ -499,11 +502,32 @@ class OWPeakFit(SpectralPreprocess):
     preview_on_image = True
 
     def __init__(self):
+        self.markings_list = []
         super().__init__()
-
         self.preview_runner = PeakPreviewRunner(self)
+        self.curveplot.selection_type = SELECTONE
+        # self.curveplot.select_at_least_1 = True
+        self.curveplot.selection_changed.connect(self.redraw_integral)
+        self.preview_runner.preview_updated.connect(self.redraw_integral)
         # GUI
         # box = gui.widgetBox(self.controlArea, "Options")
+
+    def redraw_integral(self):
+        dis = []
+        if self.curveplot.data:
+            x = getx(self.curveplot.data)
+            previews = self.flow_view.preview_n()
+            for i in range(self.preprocessormodel.rowCount()):
+                if i in previews:
+                    item = self.preprocessormodel.item(i)
+                    m = create_model(item, i)
+                    p = prepare_params(item, m)
+                    # Show initial fit values for now
+                    init = m.eval(p, x=x)
+                    di = [("curve", (x, np.atleast_2d(init), INTEGRATE_DRAW_CURVE_PENARGS))]
+                    color = self.flow_view.preview_color(i)
+                    dis.append({"draw": di, "color": color})
+        refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
     def create_outputs(self):
         m_def = [self.preprocessormodel.item(i) for i in range(self.preprocessormodel.rowCount())]
