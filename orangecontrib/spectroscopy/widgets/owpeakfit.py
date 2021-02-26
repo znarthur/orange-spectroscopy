@@ -405,14 +405,24 @@ class PeakModelEditor(ModelEditor):
                 )
 
 
+class GaussianModelEditor(PeakModelEditor):
+    model = lmfit.models.GaussianModel
+    prefix_generic = "g"
+
+
+class LorentzianModelEditor(PeakModelEditor):
+    model = lmfit.models.LorentzianModel
+    prefix_generic = "l"
+
+
 class VoigtModelEditor(PeakModelEditor):
     model = lmfit.models.VoigtModel
     prefix_generic = "v"
 
 
-
-
 PREPROCESSORS = [
+    PreprocessAction("Gaussian", GaussianModelEditor, "Gaussian", Description("Gaussian"), GaussianModelEditor),
+    PreprocessAction("Lorentzian", LorentzianModelEditor, "Lorentzian", Description("Lorentzian"), LorentzianModelEditor),
     PreprocessAction("Voigt", VoigtModelEditor, "Voigt", Description("Voigt"), VoigtModelEditor)
 ]
 
