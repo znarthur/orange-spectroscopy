@@ -471,6 +471,14 @@ class PeakPreviewRunner(PreviewRunner):
             if state.is_interruption_requested():
                 raise InterruptException
 
+        # Protects against running the task in succession many times, as would
+        # happen when adding a preprocessor (there, commit() is called twice).
+        # Wait 500 ms before processing - if a new task is started in meanwhile,
+        # allow that is easily` cancelled.
+        for i in range(10):
+            time.sleep(0.050)
+            progress_interrupt(0)
+
         n = len(m_def)
         orig_data = data
         mlist = []
