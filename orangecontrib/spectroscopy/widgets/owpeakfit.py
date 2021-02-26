@@ -311,8 +311,9 @@ class ModelEditor(BaseEditorOrange):
         self.__editors = {}
         self.__lines = {}
 
-        for name, longname in self.model_parameters():
-            v = 0.
+        for name, longname, v in self.model_parameters():
+            if v is None:
+                v = 0.
             self.__values[name] = v
 
             e = SetXDoubleSpinBox(decimals=4, minimum=minf, maximum=maxf,
@@ -355,8 +356,8 @@ class ModelEditor(BaseEditorOrange):
     def setParameters(self, params):
         if params:  # parameters were set manually set
             self.user_changed = True
-        for name, _ in self.model_parameters():
-            self.set_value(name, params.get(name, 0.), user=False)
+        for name, _, default in self.model_parameters():
+            self.set_value(name, params.get(name, default), user=False)
 
     def parameters(self):
         return self.__values
@@ -383,14 +384,21 @@ class ModelEditor(BaseEditorOrange):
                         self.parent_widget.Warning.preprocessor()
                         self.Warning.out_of_range()
 
+    @staticmethod
+    def model_parameters():
+        """
+        Returns a tuple of tuple(parameter, display name, default value)
+        """
+        raise NotImplementedError
+
 
 class PeakModelEditor(ModelEditor):
 
     @staticmethod
     def model_parameters():
-        return (('center', "Center"),
-                ('amplitude', "Amplitude"),
-                ('sigma', "Sigma"),
+        return (('center', "Center", 0.),
+                ('amplitude', "Amplitude", 1.),
+                ('sigma', "Sigma", 1.),
                 )
 
 
