@@ -10,9 +10,10 @@ from orangecontrib.spectroscopy.preprocess import Cut
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks_orig, fit_peaks, PREPROCESSORS, \
-    ModelEditor
+    ModelEditor, VoigtModelEditor, create_model, prepare_params, unique_prefix
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
+
 
 class TestOWPeakFit(WidgetTest):
 
@@ -65,9 +66,48 @@ class TestPeakFit(unittest.TestCase):
         np.testing.assert_array_equal(out_orig.X, out.X)
 
 
-class TestModelEditor(PreprocessorEditorTest):
+class TestBuildModel(unittest.TestCase):
+
+    def test_model_from_editor(self):
+        self.editor = VoigtModelEditor()
+        self.editor.set_value('center', 1655)
+        m = self.editor.createinstance(prefix=unique_prefix(self.editor, 0))
+        self.assertIsInstance(m, self.editor.model)
+        editor_params = self.editor.parameters()
+        params = m.make_params(**editor_params)
+        self.assertEqual(params['v0_center'], 1655)
+
+
+class ModelEditorTest(PreprocessorEditorTest):
+    EDITOR = None
 
     def setUp(self):
-        self.widget = self.create_widget(OWPeakFit)
-        self.editor = self.add_editor(ModelEditor, self.widget)
-        self.data = COLLAGEN
+        if self.EDITOR is not None:
+            self.widget = self.create_widget(OWPeakFit)
+            self.editor = self.add_editor(self.EDITOR, self.widget)
+            self.data = COLLAGEN
+            self.send_signal(self.widget.Inputs.data, self.data)
+
+    def get_model_single(self):
+        m_def = self.widget.preprocessormodel.item(0)
+        return create_model(m_def, 0)
+
+    def get_params_single(self, model):
+        m_def = self.widget.preprocessormodel.item(0)
+        return prepare_params(m_def, model)
+
+
+class TestVoigtEditor(ModelEditorTest):
+    EDITOR = VoigtModelEditor
+
+    def test_no_interaction(self):
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
+        m = self.get_model_single()
+        self.assertIsInstance(m, self.EDITOR.model)
+
+    def test_create_model(self):
+        m = self.get_model_single()
+        params = self.get_params_single(m)
+        for p in self.editor.parameters():
+            self.assertIn(f"{m.prefix}{p}", params)

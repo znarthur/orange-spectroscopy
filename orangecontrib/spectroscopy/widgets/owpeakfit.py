@@ -294,6 +294,7 @@ def fit_peaks(data, model, params):
 
 
 class ModelEditor(BaseEditorOrange):
+    # Adapted from IntegrateOneEditor
 
     class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("Limit out of range.")
@@ -310,7 +311,7 @@ class ModelEditor(BaseEditorOrange):
         self.__editors = {}
         self.__lines = {}
 
-        for name, longname in self.parameters():
+        for name, longname in self.model_parameters():
             v = 0.
             self.__values[name] = v
 
@@ -354,7 +355,7 @@ class ModelEditor(BaseEditorOrange):
     def setParameters(self, params):
         if params:  # parameters were set manually set
             self.user_changed = True
-        for name, _ in self.parameters():
+        for name, _ in self.model_parameters():
             self.set_value(name, params.get(name, 0.), user=False)
 
     def parameters(self):
@@ -364,7 +365,7 @@ class ModelEditor(BaseEditorOrange):
     def createinstance(cls, prefix):
         # params = dict(params)
         # values = []
-        # for ind, (name, _) in enumerate(cls.parameters()):
+        # for ind, (name, _) in enumerate(cls.model_parameters()):
         #     values.append(params.get(name, 0.))
         return cls.model(prefix=prefix)
 
@@ -376,7 +377,7 @@ class ModelEditor(BaseEditorOrange):
                 minx = np.min(xs)
                 maxx = np.max(xs)
                 limits = [self.__values.get(name, 0.)
-                          for ind, (name, _) in enumerate(self.parameters())]
+                          for ind, (name, _) in enumerate(self.model_parameters())]
                 for v in limits:
                     if v < minx or v > maxx:
                         self.parent_widget.Warning.preprocessor()
@@ -386,7 +387,7 @@ class ModelEditor(BaseEditorOrange):
 class PeakModelEditor(ModelEditor):
 
     @staticmethod
-    def parameters():
+    def model_parameters():
         return (('center', "Center"),
                 ('amplitude', "Amplitude"),
                 ('sigma', "Sigma"),
@@ -452,7 +453,7 @@ class PeakPreviewRunner(PreviewRunner):
         n = len(m_def)
         orig_data = data
         mlist = []
-        parameters = {}
+        parameters = Parameters()
         for i in range(n):
             progress_interrupt(0)
             # state.set_partial_result((i, data, reference))
@@ -518,7 +519,7 @@ class OWPeakFit(SpectralPreprocess):
 
         n = len(m_def)
         mlist = []
-        parameters = {}
+        parameters = Parameters()
         for i in range(n):
             progress_interrupt(0)
             item = m_def[i]
