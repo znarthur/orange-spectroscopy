@@ -10,6 +10,7 @@ from lmfit import Parameters
 from orangecontrib.spectroscopy.preprocess import Cut
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
+from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks_orig, fit_peaks, PREPROCESSORS, \
     ModelEditor, VoigtModelEditor, create_model, prepare_params, unique_prefix
 
@@ -122,6 +123,17 @@ class TestVoigtEditor(ModelEditorTest):
         params = self.get_params_single(m)
         c_p = f'{m.prefix}center'
         self.assertEqual(1655, params[c_p].value)
+
+    def test_only_spec_lines(self):
+        self.editor.activateOptions()
+        model_lines = self.editor.model_lines()
+        lines = [l.label.toPlainText().strip() for l in self.widget.curveplot.markings
+                 if isinstance(l, MovableVline)]
+        for ml in model_lines:
+            self.assertIn(ml, lines)
+        no_lines = [p[0] for p in self.editor.model_parameters() if p[0] not in model_lines]
+        for nl in no_lines:
+            self.assertNotIn(nl, lines)
 
 
 class TestVoigtEditorMulti(PreprocessorEditorTest):

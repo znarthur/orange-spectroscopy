@@ -330,9 +330,10 @@ class ModelEditor(BaseEditorOrange):
             self.__editors[name] = e
             layout.addRow(name, e)
 
-            l = MovableVline(position=v, label=name)
-            l.sigMoved.connect(cf)
-            self.__lines[name] = l
+            if name in self.model_lines():
+                l = MovableVline(position=v, label=name)
+                l.sigMoved.connect(cf)
+                self.__lines[name] = l
 
         self.focusIn = self.activateOptions
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
@@ -353,7 +354,9 @@ class ModelEditor(BaseEditorOrange):
             self.__values[name] = v
             with blocked(self.__editors[name]):
                 self.__editors[name].setValue(v)
-                self.__lines[name].setValue(v)
+                l = self.__lines.get(name, None)
+                if l is not None:
+                    l.setValue(v)
             self.changed.emit()
 
     def setParameters(self, params):
@@ -394,6 +397,13 @@ class ModelEditor(BaseEditorOrange):
         """
         raise NotImplementedError
 
+    @staticmethod
+    def model_lines():
+        """
+        Returns a tuple of model_parameter names that should have visualized selection lines
+        """
+        raise NotImplementedError
+
 
 class PeakModelEditor(ModelEditor):
 
@@ -403,6 +413,10 @@ class PeakModelEditor(ModelEditor):
                 ('amplitude', "Amplitude", 1.),
                 ('sigma', "Sigma", 1.),
                 )
+
+    @staticmethod
+    def model_lines():
+        return 'center',
 
 
 class GaussianModelEditor(PeakModelEditor):
