@@ -20,7 +20,8 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.signals import Input, Output
 
 from orangecontrib.spectroscopy.data import getx, build_spec_table
-from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS
+from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS, \
+    INTEGRATE_DRAW_BASELINE_PENARGS
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
 from orangecontrib.spectroscopy.widgets.owintegrate import IntegrateOneEditor
@@ -460,6 +461,29 @@ def prepare_params(item, model):
 
 class PeakPreviewRunner(PreviewRunner):
 
+    def __init__(self, master):
+        super().__init__(master=master)
+        self.preview_model_result = None
+
+    def on_done(self, result):
+        orig_data, after_data, model_result = result
+        final_preview = self.preview_pos is None
+        if final_preview:
+            self.preview_data = orig_data
+            self.after_data = after_data
+
+        if self.preview_data is None:  # happens in OWIntegrate
+            self.preview_data = orig_data
+
+        self.preview_model_result = model_result
+
+        self.master.curveplot.set_data(self.preview_data)
+        self.master.curveplot_after.set_data(self.after_data)
+
+        self.show_image_info(final_preview)
+
+        self.preview_updated.emit()
+
     def show_preview(self, show_info_anyway=False):
         """ Shows preview and also passes preview data to the widgets """
         master = self.master
@@ -512,10 +536,15 @@ class PeakPreviewRunner(PreviewRunner):
         if mlist:
             model = reduce(lambda x, y: x+y, mlist)
 
+        model_result = {}
+        x = getx(data)
         if data is not None and model is not None:
-            data = fit_peaks(data, model, parameters)
+            for row in data:
+                progress_interrupt(0)
+                model_result[row.id] = model.fit(row.x, parameters, x=x)
+                progress_interrupt(0)
 
-        return orig_data, data
+        return orig_data, data, model_result
 
 
 class OWPeakFit(SpectralPreprocess):
@@ -538,7 +567,7 @@ class OWPeakFit(SpectralPreprocess):
         super().__init__()
         self.preview_runner = PeakPreviewRunner(self)
         self.curveplot.selection_type = SELECTONE
-        # self.curveplot.select_at_least_1 = True
+        self.curveplot.select_at_least_1 = True
         self.curveplot.selection_changed.connect(self.redraw_integral)
         self.preview_runner.preview_updated.connect(self.redraw_integral)
         # GUI
@@ -555,10 +584,33 @@ class OWPeakFit(SpectralPreprocess):
                     m = create_model(item, i)
                     p = prepare_params(item, m)
                     # Show initial fit values for now
-                    init = m.eval(p, x=x)
-                    di = [("curve", (x, np.atleast_2d(init), INTEGRATE_DRAW_CURVE_PENARGS))]
+                    init = np.atleast_2d(m.eval(p, x=x))
+                    di = [("curve", (x, init, INTEGRATE_DRAW_BASELINE_PENARGS))]
                     color = self.flow_view.preview_color(i)
                     dis.append({"draw": di, "color": color})
+        result = None
+        if np.any(self.curveplot.selection_group) and self.curveplot.data and self.preview_runner.preview_model_result:
+            # select result
+            ind = np.flatnonzero(self.curveplot.selection_group)[0]
+            row_id = self.curveplot.data[ind].id
+            result = self.preview_runner.preview_model_result.get(row_id, None)
+        if result is not None:
+            # show total fit
+            eval = np.atleast_2d(result.eval(x=x))
+            di = [("curve", (x, eval, INTEGRATE_DRAW_CURVE_PENARGS))]
+            dis.append({"draw": di, "color": 'red'})
+            # show components
+            eval_comps = result.eval_components(x=x)
+            for i in range(self.preprocessormodel.rowCount()):
+                item = self.preprocessormodel.item(i)
+                prefix = unique_prefix(item.data(DescriptionRole).viewclass, i)
+                comp = eval_comps.get(prefix, None)
+                if comp is not None:
+                    comp = np.atleast_2d(comp)
+                    di = [("curve", (x, comp, INTEGRATE_DRAW_CURVE_PENARGS))]
+                    color = self.flow_view.preview_color(i)
+                    dis.append({"draw": di, "color": color})
+
         refresh_integral_markings(dis, self.markings_list, self.curveplot)
 
     def create_outputs(self):
