@@ -13,7 +13,7 @@ from scipy.io import matlab
 import Orange
 from Orange.data import \
     ContinuousVariable, StringVariable, TimeVariable, Domain, Table
-from Orange.data.io import FileFormat
+from Orange.data.io import FileFormat, CSVReader
 import Orange.data.io
 
 from .pymca5 import OmnicMap
@@ -42,14 +42,22 @@ class SpectralFileFormat:
 class AsciiColReader(FileFormat, SpectralFileFormat):
     """ Reader for files with multiple columns of numbers. The first column
     contains the wavelengths, the others contain the spectra. """
-    EXTENSIONS = ('.dat', '.dpt', '.xy',)
+    EXTENSIONS = ('.dat', '.dpt', '.xy', '.csv')
     DESCRIPTION = 'Spectra ASCII'
 
+    PRIORITY = CSVReader.PRIORITY + 1
+
     def read_spectra(self):
-        try:
-            tbl = np.loadtxt(self.filename, ndmin=2)
-        except ValueError:
-            tbl = np.loadtxt(self.filename, ndmin=2, delimiter=',')
+        tbl = None
+        delimiters = [None, ";", ":", ","]
+        for d in delimiters:
+            try:
+                tbl = np.loadtxt(self.filename, ndmin=2, delimiter=d)
+                break
+            except ValueError:
+                pass
+        if tbl is None:
+            raise ValueError('File should be delimited by <whitespace>, ";", ":", or ",".')
         wavenumbers = tbl.T[0]  # first column is attribute name
         datavals = tbl.T[1:]
         return wavenumbers, datavals, None
