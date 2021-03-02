@@ -4,27 +4,23 @@ from functools import reduce
 
 import lmfit
 import numpy as np
-from Orange.widgets.data.owpreprocess import PreprocessAction, Description
+from Orange.data import Table
+from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
 from Orange.widgets.data.utils.preprocess import blocked, DescriptionRole, ParametersRole
+from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.concurrent import TaskState
+from Orange.widgets.utils.signals import Output
 from PyQt5.QtWidgets import QFormLayout, QSizePolicy
-from orangewidget.widget import Msg
-from scipy import integrate
-
 from lmfit import Parameters
 from lmfit.models import LinearModel, GaussianModel, LorentzianModel, VoigtModel
-
-from Orange.data import Table
-from Orange.widgets import widget, gui
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
-from Orange.widgets.utils.signals import Input, Output
+from orangewidget.widget import Msg
+from scipy import integrate
 
 from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS, \
     INTEGRATE_DRAW_BASELINE_PENARGS
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
-from orangecontrib.spectroscopy.widgets.owintegrate import IntegrateOneEditor
 from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, InterruptException, PreviewRunner
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, SetXDoubleSpinBox
@@ -407,6 +403,8 @@ class ModelEditor(BaseEditorOrange):
 
 
 class PeakModelEditor(ModelEditor):
+    category = "Peak"
+    icon = "Normalize.svg"
 
     @staticmethod
     def model_parameters():
@@ -421,16 +419,19 @@ class PeakModelEditor(ModelEditor):
 
 
 class GaussianModelEditor(PeakModelEditor):
+    name = "Gaussian"
     model = lmfit.models.GaussianModel
     prefix_generic = "g"
 
 
 class LorentzianModelEditor(PeakModelEditor):
+    name = "Lorentzian"
     model = lmfit.models.LorentzianModel
     prefix_generic = "l"
 
 
 class SplitLorentzianModelEditor(PeakModelEditor):
+    name = "Split Lorentzian"
     model = lmfit.models.SplitLorentzianModel
     prefix_generic = "sl"
 
@@ -440,6 +441,7 @@ class SplitLorentzianModelEditor(PeakModelEditor):
 
 
 class VoigtModelEditor(PeakModelEditor):
+    name = "Voigt"
     model = lmfit.models.VoigtModel
     prefix_generic = "v"
 
@@ -450,6 +452,7 @@ class VoigtModelEditor(PeakModelEditor):
 
 
 class PseudoVoigtModelEditor(PeakModelEditor):
+    name = "pseudo-Voigt"
     model = lmfit.models.PseudoVoigtModel
     prefix_generic = "pv"
 
@@ -460,6 +463,7 @@ class PseudoVoigtModelEditor(PeakModelEditor):
 
 
 class MoffatModelEditor(PeakModelEditor):
+    name = "Moffat"
     model = lmfit.models.MoffatModel
     prefix_generic = "m"
 
@@ -469,6 +473,7 @@ class MoffatModelEditor(PeakModelEditor):
 
 
 class Pearson7ModelEditor(PeakModelEditor):
+    name = "Pearson VII"
     model = lmfit.models.Pearson7Model
     prefix_generic = "ps"
 
@@ -478,11 +483,13 @@ class Pearson7ModelEditor(PeakModelEditor):
 
 
 class StudentsTModelEditor(PeakModelEditor):
+    name = "Student's t"
     model = lmfit.models.StudentsTModel
     prefix_generic = "st"
 
 
 class BreitWignerModelEditor(PeakModelEditor):
+    name = "Breit-Wigner-Fano"
     model = lmfit.models.BreitWignerModel
     prefix_generic = "bwf"
 
@@ -493,16 +500,21 @@ class BreitWignerModelEditor(PeakModelEditor):
 
 class LognormalModelEditor(PeakModelEditor):
     # TODO init_eval doesn't give anything peak-like
+    name = "Log-normal"
     model = lmfit.models.LognormalModel
     prefix_generic = "ln"
 
 
 class DampedOscillatorModelEditor(PeakModelEditor):
+    name = "Damped Harmonic Oscillator Amplitude"
+    description = "Damped Harm. Osc. Amplitude"
     model = lmfit.models.DampedOscillatorModel
     prefix_generic = "do"
 
 
 class DampedHarmonicOscillatorModelEditor(PeakModelEditor):
+    name = "Damped Harmonic Oscillator (DAVE)"
+    description = "Damped Harm. Osc. (DAVE)"
     model = lmfit.models.DampedHarmonicOscillatorModel
     prefix_generic = "dod"
 
@@ -513,6 +525,7 @@ class DampedHarmonicOscillatorModelEditor(PeakModelEditor):
 
 class ExponentialGaussianModelEditor(PeakModelEditor):
     # TODO by default generates NaNs and raises a ValueError
+    name = "Exponential Gaussian"
     model = lmfit.models.ExponentialGaussianModel
     prefix_generic = "eg"
 
@@ -522,6 +535,7 @@ class ExponentialGaussianModelEditor(PeakModelEditor):
 
 
 class SkewedGaussianModelEditor(PeakModelEditor):
+    name = "Skewed Gaussian"
     model = lmfit.models.SkewedGaussianModel
     prefix_generic = "sg"
 
@@ -531,6 +545,7 @@ class SkewedGaussianModelEditor(PeakModelEditor):
 
 
 class SkewedVoigtModelEditor(PeakModelEditor):
+    name = "Skewed Voigt"
     model = lmfit.models.SkewedVoigtModel
     prefix_generic = "sv"
 
@@ -541,6 +556,7 @@ class SkewedVoigtModelEditor(PeakModelEditor):
 
 
 class ThermalDistributionModelEditor(PeakModelEditor):
+    name = "Thermal Distribution"
     model = lmfit.models.ThermalDistributionModel
     prefix_generic = "td"
 
@@ -551,6 +567,7 @@ class ThermalDistributionModelEditor(PeakModelEditor):
 
 
 class DoniachModelEditor(PeakModelEditor):
+    name = "Doniach Sunjic"
     model = lmfit.models.DoniachModel
     prefix_generic = "d"
 
@@ -560,6 +577,8 @@ class DoniachModelEditor(PeakModelEditor):
 
 
 class BaselineModelEditor(ModelEditor):
+    category = "Baseline"
+    icon = "Continuize.svg"
 
     @staticmethod
     def model_lines():
@@ -568,6 +587,7 @@ class BaselineModelEditor(ModelEditor):
 
 class ConstantModelEditor(BaselineModelEditor):
     # TODO eval returns single-value of constant instead of data.shape array of the constant
+    name = "Constant"
     model = lmfit.models.ConstantModel
     prefix_generic = "const"
 
@@ -577,6 +597,7 @@ class ConstantModelEditor(BaselineModelEditor):
 
 
 class LinearModelEditor(BaselineModelEditor):
+    name = "Linear"
     model = lmfit.models.LinearModel
     prefix_generic = "lin"
 
@@ -588,6 +609,7 @@ class LinearModelEditor(BaselineModelEditor):
 
 
 class QuadraticModelEditor(BaselineModelEditor):
+    name = "Quadratic"
     model = lmfit.models.QuadraticModel
     prefix_generic = "quad"
 
@@ -601,32 +623,41 @@ class QuadraticModelEditor(BaselineModelEditor):
 
 class PolynomialModelEditor(BaselineModelEditor):
     # TODO kwarg "degree" required, sets number of parameters
+    name = "Polynomial"
     model = lmfit.models.PolynomialModel
     prefix_generic = "poly"
 
 
 PREPROCESSORS = [
-    PreprocessAction("Gaussian", GaussianModelEditor, "Gaussian", Description("Gaussian"), GaussianModelEditor),
-    PreprocessAction("Lorentzian", LorentzianModelEditor, "Lorentzian", Description("Lorentzian"), LorentzianModelEditor),
-    PreprocessAction("Split Lorentzian", SplitLorentzianModelEditor, "Split Lorentzian", Description("Split Lorentzian"), SplitLorentzianModelEditor),
-    PreprocessAction("Voigt", VoigtModelEditor, "Voigt", Description("Voigt"), VoigtModelEditor),
-    PreprocessAction("pseudo-Voigt", PseudoVoigtModelEditor, "pseudo-Voigt", Description("pseudo-Voigt"), PseudoVoigtModelEditor),
-    PreprocessAction("Moffat", MoffatModelEditor, "Moffat", Description("Moffat"), MoffatModelEditor),
-    PreprocessAction("Pearson VII", Pearson7ModelEditor, "Pearson VII", Description("Pearson VII"), Pearson7ModelEditor),
-    PreprocessAction("Student's t", StudentsTModelEditor, "Student's t", Description("Student's t"), StudentsTModelEditor),
-    PreprocessAction("Breit-Wigner-Fano", BreitWignerModelEditor, "Breit-Wigner-Fano", Description("Breit-Wigner-Fano"), BreitWignerModelEditor),
-    PreprocessAction("Log-normal", LognormalModelEditor, "Log-normal", Description("Log-normal"), LognormalModelEditor),
-    PreprocessAction("Damped Harmonic Oscillator Amplitude", DampedOscillatorModelEditor, "Damped Harmonic Oscillator Amplitude", Description("Damped Harm. Osc. Amplitude"), DampedOscillatorModelEditor),
-    PreprocessAction("Damped Harmonic Oscillator (DAVE)", DampedHarmonicOscillatorModelEditor, "Damped Harmonic Oscillator (DAVE)", Description("Damped Harm. Osc. (DAVE)"), DampedHarmonicOscillatorModelEditor),
-    PreprocessAction("Exponential Gaussian", ExponentialGaussianModelEditor, "Exponential Gaussian", Description("Exponential Gaussian"), ExponentialGaussianModelEditor),
-    PreprocessAction("Skewed Gaussian", SkewedGaussianModelEditor, "Skewed Gaussian", Description("Skewed Gaussian"), SkewedGaussianModelEditor),
-    PreprocessAction("Skewed Voigt", SkewedVoigtModelEditor, "Skewed Voigt", Description("Skewed Voigt"), SkewedVoigtModelEditor),
-    PreprocessAction("Thermal Distribution", ThermalDistributionModelEditor, "Thermal Distribution", Description("Thermal Distribution"), ThermalDistributionModelEditor),
-    PreprocessAction("Doniach Sunjic", DoniachModelEditor, "Doniach Sunjic", Description("Doniach Sunjic"), DoniachModelEditor),
-    # PreprocessAction("Constant", ConstantModelEditor, "Constant", Description("Constant"), ConstantModelEditor),
-    PreprocessAction("Linear", LinearModelEditor, "Linear", Description("Linear"), LinearModelEditor),
-    PreprocessAction("Quadratic", QuadraticModelEditor, "Quadratic", Description("Quadratic"), QuadraticModelEditor),
-    # PreprocessAction("Polynomial", PolynomialModelEditor, "Polynomial", Description("Polynomial"), PolynomialModelEditor),
+    PreprocessAction(
+        name=e.name,
+        qualname=f"orangecontrib.spectroscopy.widgets.owwidget.{e.prefix_generic}",
+        category=e.category,
+        description=Description(getattr(e, 'description', e.name), icon_path(e.icon)),
+        viewclass=e,
+    ) for e in [
+        GaussianModelEditor,
+        LorentzianModelEditor,
+        SplitLorentzianModelEditor,
+        VoigtModelEditor,
+        PseudoVoigtModelEditor,
+        MoffatModelEditor,
+        Pearson7ModelEditor,
+        StudentsTModelEditor,
+        BreitWignerModelEditor,
+        LognormalModelEditor,
+        DampedOscillatorModelEditor,
+        DampedHarmonicOscillatorModelEditor,
+        ExponentialGaussianModelEditor,
+        SkewedGaussianModelEditor,
+        SkewedVoigtModelEditor,
+        ThermalDistributionModelEditor,
+        DoniachModelEditor,
+        # ConstantModelEditor,
+        LinearModelEditor,
+        QuadraticModelEditor,
+        # PolynomialModelEditor,
+    ]
 ]
 
 
