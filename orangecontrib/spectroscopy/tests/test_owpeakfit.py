@@ -7,12 +7,13 @@ import lmfit
 from Orange.widgets.tests.base import WidgetTest
 from lmfit import Parameters
 
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
-from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks_orig, fit_peaks, PREPROCESSORS, \
-    ModelEditor, VoigtModelEditor, create_model, prepare_params, unique_prefix
+from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
+    VoigtModelEditor, create_model, prepare_params, unique_prefix
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
 
@@ -41,18 +42,13 @@ class TestPeakFit(unittest.TestCase):
     def setUp(self):
         self.data = COLLAGEN
 
-    def test_fit_peaks_orig(self):
-        out = fit_peaks_orig(self.data)
-        assert len(out) == len(self.data)
-
     def test_fit_peaks(self):
         model = lmfit.models.VoigtModel(prefix="v1_")
         params = model.make_params(center=1655)
         out = fit_peaks(self.data, model, params)
         assert len(out) == len(self.data)
 
-    def test_same_output(self):
-        out_orig = fit_peaks_orig(self.data)
+    def test_table_output(self):
         pcs = [1400, 1457, 1547, 1655]
         mlist = [lmfit.models.VoigtModel(prefix=f"v{i}_") for i in range(len(pcs))]
         model = reduce(lambda x, y: x + y, mlist)
@@ -63,9 +59,16 @@ class TestPeakFit(unittest.TestCase):
             params[p + "center"].set(value=center, min=center-dx, max=center+dx)
             params[p + "sigma"].set(max=50)
             params[p + "amplitude"].set(min=0.0001)
-        out = fit_peaks(self.data, model, params)
-        self.assertEqual(out_orig.domain.attributes, out.domain.attributes)
-        np.testing.assert_array_equal(out_orig.X, out.X)
+        out_result = model.fit(self.data.X[0], params, x=getx(self.data))
+        out_table = fit_peaks(self.data, model, params)
+        out_row = out_table[0]
+        # TODO check area calculation
+        self.assertEqual(out_row.x[1], out_result.best_values["v0_center"])
+        self.assertEqual(out_row.x[2], out_result.best_values["v0_sigma"])
+        self.assertEqual(out_row.x[3], out_result.best_values["v0_amplitude"])
+        self.assertEqual(out_row.x[-1], out_result.redchi)
+        self.assertEqual(out_row.id, self.data.ids[0])
+
 
 
 class TestBuildModel(unittest.TestCase):
