@@ -430,15 +430,203 @@ class LorentzianModelEditor(PeakModelEditor):
     prefix_generic = "l"
 
 
+class SplitLorentzianModelEditor(PeakModelEditor):
+    model = lmfit.models.SplitLorentzianModel
+    prefix_generic = "sl"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('sigma_r', "Sigma Right", 1.),)
+
+
 class VoigtModelEditor(PeakModelEditor):
     model = lmfit.models.VoigtModel
     prefix_generic = "v"
+
+    # TODO by default, gamma is constrained to sigma. This is not yet exposed by the GUI
+    # @classmethod
+    # def model_parameters(cls):
+    #     return super().model_parameters() + (('gamma', "Gamma", TODO ))
+
+
+class PseudoVoigtModelEditor(PeakModelEditor):
+    model = lmfit.models.PseudoVoigtModel
+    prefix_generic = "pv"
+
+    # TODO Review if sigma should be exposed (it is somewhat constrained)
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('fraction', "Fraction Lorentzian", 0.5),)
+
+
+class MoffatModelEditor(PeakModelEditor):
+    model = lmfit.models.MoffatModel
+    prefix_generic = "m"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('beta', "Beta", 1.0),)
+
+
+class Pearson7ModelEditor(PeakModelEditor):
+    model = lmfit.models.Pearson7Model
+    prefix_generic = "ps"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('exponent', "Exponent", 1.5),)
+
+
+class StudentsTModelEditor(PeakModelEditor):
+    model = lmfit.models.StudentsTModel
+    prefix_generic = "st"
+
+
+class BreitWignerModelEditor(PeakModelEditor):
+    model = lmfit.models.BreitWignerModel
+    prefix_generic = "bwf"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('q', "q", 1.0),)
+
+
+class LognormalModelEditor(PeakModelEditor):
+    # TODO init_eval doesn't give anything peak-like
+    model = lmfit.models.LognormalModel
+    prefix_generic = "ln"
+
+
+class DampedOscillatorModelEditor(PeakModelEditor):
+    model = lmfit.models.DampedOscillatorModel
+    prefix_generic = "do"
+
+
+class DampedHarmonicOscillatorModelEditor(PeakModelEditor):
+    model = lmfit.models.DampedHarmonicOscillatorModel
+    prefix_generic = "dod"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('gamma', "Gamma", 1.0),)
+
+
+class ExponentialGaussianModelEditor(PeakModelEditor):
+    # TODO by default generates NaNs and raises a ValueError
+    model = lmfit.models.ExponentialGaussianModel
+    prefix_generic = "eg"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('gamma', "Gamma", 1.0),)
+
+
+class SkewedGaussianModelEditor(PeakModelEditor):
+    model = lmfit.models.SkewedGaussianModel
+    prefix_generic = "sg"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('gamma', "Gamma", 0.0),)
+
+
+class SkewedVoigtModelEditor(PeakModelEditor):
+    model = lmfit.models.SkewedVoigtModel
+    prefix_generic = "sv"
+
+    # TODO as with VoigtModel, gamma is constrained to sigma by default, not exposed
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('gamma', "Gamma", 1.0), ('skew', "Skew", 0.0))
+
+
+class ThermalDistributionModelEditor(PeakModelEditor):
+    model = lmfit.models.ThermalDistributionModel
+    prefix_generic = "td"
+
+    @classmethod
+    def model_parameters(cls):
+        # TODO kwarg "form" can be used to select between bose / maxwell / fermi
+        return super().model_parameters()[:2] + (('kt', "kt", 1.0),)
+
+
+class DoniachModelEditor(PeakModelEditor):
+    model = lmfit.models.DoniachModel
+    prefix_generic = "d"
+
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + (('gamma', "Gamma", 0.0),)
+
+
+class BaselineModelEditor(ModelEditor):
+
+    @staticmethod
+    def model_lines():
+        return tuple()
+
+
+class ConstantModelEditor(BaselineModelEditor):
+    # TODO eval returns single-value of constant instead of data.shape array of the constant
+    model = lmfit.models.ConstantModel
+    prefix_generic = "const"
+
+    @staticmethod
+    def model_parameters():
+        return (('c', "Constant", 0.0),)
+
+
+class LinearModelEditor(BaselineModelEditor):
+    model = lmfit.models.LinearModel
+    prefix_generic = "lin"
+
+    @staticmethod
+    def model_parameters():
+        return (('intercept', "Intercept", 0.0),
+                ('slope', "Slope", 1.0)
+                )
+
+
+class QuadraticModelEditor(BaselineModelEditor):
+    model = lmfit.models.QuadraticModel
+    prefix_generic = "quad"
+
+    @staticmethod
+    def model_parameters():
+        return (('a', "a", 0.0),
+                ('b', "b", 0.0),
+                ('c', "c", 0.0),
+                )
+
+
+class PolynomialModelEditor(BaselineModelEditor):
+    # TODO kwarg "degree" required, sets number of parameters
+    model = lmfit.models.PolynomialModel
+    prefix_generic = "poly"
 
 
 PREPROCESSORS = [
     PreprocessAction("Gaussian", GaussianModelEditor, "Gaussian", Description("Gaussian"), GaussianModelEditor),
     PreprocessAction("Lorentzian", LorentzianModelEditor, "Lorentzian", Description("Lorentzian"), LorentzianModelEditor),
-    PreprocessAction("Voigt", VoigtModelEditor, "Voigt", Description("Voigt"), VoigtModelEditor)
+    PreprocessAction("Split Lorentzian", SplitLorentzianModelEditor, "Split Lorentzian", Description("Split Lorentzian"), SplitLorentzianModelEditor),
+    PreprocessAction("Voigt", VoigtModelEditor, "Voigt", Description("Voigt"), VoigtModelEditor),
+    PreprocessAction("pseudo-Voigt", PseudoVoigtModelEditor, "pseudo-Voigt", Description("pseudo-Voigt"), PseudoVoigtModelEditor),
+    PreprocessAction("Moffat", MoffatModelEditor, "Moffat", Description("Moffat"), MoffatModelEditor),
+    PreprocessAction("Pearson VII", Pearson7ModelEditor, "Pearson VII", Description("Pearson VII"), Pearson7ModelEditor),
+    PreprocessAction("Student's t", StudentsTModelEditor, "Student's t", Description("Student's t"), StudentsTModelEditor),
+    PreprocessAction("Breit-Wigner-Fano", BreitWignerModelEditor, "Breit-Wigner-Fano", Description("Breit-Wigner-Fano"), BreitWignerModelEditor),
+    PreprocessAction("Log-normal", LognormalModelEditor, "Log-normal", Description("Log-normal"), LognormalModelEditor),
+    PreprocessAction("Damped Harmonic Oscillator Amplitude", DampedOscillatorModelEditor, "Damped Harmonic Oscillator Amplitude", Description("Damped Harm. Osc. Amplitude"), DampedOscillatorModelEditor),
+    PreprocessAction("Damped Harmonic Oscillator (DAVE)", DampedHarmonicOscillatorModelEditor, "Damped Harmonic Oscillator (DAVE)", Description("Damped Harm. Osc. (DAVE)"), DampedHarmonicOscillatorModelEditor),
+    PreprocessAction("Exponential Gaussian", ExponentialGaussianModelEditor, "Exponential Gaussian", Description("Exponential Gaussian"), ExponentialGaussianModelEditor),
+    PreprocessAction("Skewed Gaussian", SkewedGaussianModelEditor, "Skewed Gaussian", Description("Skewed Gaussian"), SkewedGaussianModelEditor),
+    PreprocessAction("Skewed Voigt", SkewedVoigtModelEditor, "Skewed Voigt", Description("Skewed Voigt"), SkewedVoigtModelEditor),
+    PreprocessAction("Thermal Distribution", ThermalDistributionModelEditor, "Thermal Distribution", Description("Thermal Distribution"), ThermalDistributionModelEditor),
+    PreprocessAction("Doniach Sunjic", DoniachModelEditor, "Doniach Sunjic", Description("Doniach Sunjic"), DoniachModelEditor),
+    # PreprocessAction("Constant", ConstantModelEditor, "Constant", Description("Constant"), ConstantModelEditor),
+    PreprocessAction("Linear", LinearModelEditor, "Linear", Description("Linear"), LinearModelEditor),
+    PreprocessAction("Quadratic", QuadraticModelEditor, "Quadratic", Description("Quadratic"), QuadraticModelEditor),
+    # PreprocessAction("Polynomial", PolynomialModelEditor, "Polynomial", Description("Polynomial"), PolynomialModelEditor),
 ]
 
 
@@ -554,7 +742,7 @@ class OWPeakFit(SpectralPreprocess):
     priority = 1020
 
     PREPROCESSORS = PREPROCESSORS
-    BUTTON_ADD_LABEL = "Add peak..."
+    BUTTON_ADD_LABEL = "Add model..."
 
     class Outputs:
         fit = Output("Fit Parameters", Table, default=True)

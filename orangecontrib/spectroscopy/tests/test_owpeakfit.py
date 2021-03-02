@@ -84,11 +84,15 @@ class ModelEditorTest(PreprocessorEditorTest):
     EDITOR = None
 
     def setUp(self):
+        self.widget = self.create_widget(OWPeakFit)
         if self.EDITOR is not None:
-            self.widget = self.create_widget(OWPeakFit)
             self.editor = self.add_editor(self.EDITOR, self.widget)
             self.data = COLLAGEN
             self.send_signal(self.widget.Inputs.data, self.data)
+        else:
+            # Test adding all the editors
+            for p in self.widget.PREPROCESSORS:
+                self.add_editor(p.viewclass, self.widget)
 
     def get_model_single(self):
         m_def = self.widget.preprocessormodel.item(0)
