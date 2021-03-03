@@ -7,14 +7,23 @@
     "doc": "widgets/spectra.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/spectra.svg",
     "background": "light-blue",
-    "keywords": []
+    "keywords": [
+     "curves",
+     "lines",
+     "spectrum"
+    ]
    },
    {
     "text": "HyperSpectra",
     "doc": "widgets/hyperspectra.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/hyper.svg",
     "background": "light-blue",
-    "keywords": []
+    "keywords": [
+     "image",
+     "spectral",
+     "chemical",
+     "imaging"
+    ]
    },
    {
     "text": "Spectral Series",
@@ -49,7 +58,11 @@
     "doc": "widgets/multifile.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/multifile.svg",
     "background": "light-blue",
-    "keywords": []
+    "keywords": [
+     "file",
+     "files",
+     "multiple"
+    ]
    },
    {
     "text": "Tile File",
@@ -80,9 +93,25 @@
     "keywords": []
    },
    {
+    "text": "PLS",
+    "doc": null,
+    "icon": "../orangecontrib/spectroscopy/widgets/icons/PLS.svg",
+    "background": "light-blue",
+    "keywords": [
+     "partial least squares"
+    ]
+   },
+   {
     "text": "Reshape Map",
     "doc": "widgets/reshape-map.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/reshape.svg",
+    "background": "light-blue",
+    "keywords": []
+   },
+   {
+    "text": "SNR",
+    "doc": null,
+    "icon": "../orangecontrib/spectroscopy/widgets/icons/snr.svg",
     "background": "light-blue",
     "keywords": []
    },
