@@ -29,12 +29,8 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOra
 def fit_peaks(data, model, params):
     number_of_spectra = len(data)
     number_of_peaks = len(model.components)
-    ###result values storages
-    result_comp = np.zeros((number_of_spectra, number_of_peaks))
-    result_center = np.zeros((number_of_spectra, number_of_peaks))
-    result_sigma = np.zeros((number_of_spectra, number_of_peaks))
-    result_amplitude = np.zeros((number_of_spectra, number_of_peaks))
-    result_chi = np.zeros(number_of_spectra)
+    number_of_params = len(model.param_names)
+    output = np.zeros((number_of_spectra, number_of_peaks + number_of_params + 1))
 
     x = getx(data)
     for row in data:
@@ -45,39 +41,26 @@ def fit_peaks(data, model, params):
 
         ###generate results
         # calculate total area
-        areas = []
-        for v in comps.values():
-            area = integrate.trapz(v)
-            areas.append(area)
-        total_area = sum(areas)
-        # calculate # area for individual peaks
-        for j, area in enumerate(areas):
-            result_comp[i, j] = area / total_area * 100
+        total_area = integrate.trapz(out.best_fit)
 
         # add peak values to output storage
-        for j, comp in enumerate(model.components):
-            prefix = comp.prefix
-            result_center[i, j] = best_values[prefix + 'center']
-            result_sigma[i, j] = best_values[prefix + 'sigma']
-            result_amplitude[i, j] = best_values[prefix + 'amplitude']
-        result_chi[i] = out.redchi
+        col = 0
+        for comp in model.components:
+            output[i, col] = integrate.trapz(comps[comp.prefix]) / total_area * 100
+            col += 1
+            for param in comp.param_names:
+                output[i, col] = best_values[param]
+                col += 1
+        output[i, -1] = out.redchi
 
     # output the results to out_data as orange.data.table
     features = []
     for comp in model.components:
         prefix = comp.prefix.rstrip("_")
         features.append(ContinuousVariable(name=f"{prefix} area"))
-        features.append(ContinuousVariable(name=f"{prefix} center"))
-        features.append(ContinuousVariable(name=f"{prefix} sigma"))
-        features.append(ContinuousVariable(name=f"{prefix} amplitude"))
-    features.append(ContinuousVariable(name="reduced chi result"))
-
-    output = np.zeros((number_of_spectra, number_of_peaks * 4 + 1))
-    output[:, 0:-1:4] = result_comp
-    output[:, 1:-1:4] = result_center
-    output[:, 2:-1:4] = result_sigma
-    output[:, 3:-1:4] = result_amplitude
-    output[:, -1] = result_chi
+        for param in comp.param_names:
+            features.append(ContinuousVariable(name=param.replace("_", " ")))
+    features.append(ContinuousVariable(name="Reduced chi-square"))
 
     domain = Domain(features)
     return Table.from_numpy(domain, X=output, ids=data.ids)

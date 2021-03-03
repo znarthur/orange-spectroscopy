@@ -35,6 +35,8 @@ class TestOWPeakFit(WidgetTest):
             self.widget.add_preprocessor(p)
             wait_for_preview(self.widget)
             self.widget.unconditional_commit()
+            out = self.get_output(self.widget.Outputs.fit)
+            self.assertEqual(len(p.viewclass.model_parameters()) + 2, len(out.domain.attributes))
 
 
 class TestPeakFit(unittest.TestCase):
@@ -62,13 +64,15 @@ class TestPeakFit(unittest.TestCase):
         out_result = model.fit(self.data.X[0], params, x=getx(self.data))
         out_table = fit_peaks(self.data, model, params)
         out_row = out_table[0]
-        # TODO check area calculation
-        self.assertEqual(out_row.x[1], out_result.best_values["v0_center"])
-        self.assertEqual(out_row.x[2], out_result.best_values["v0_sigma"])
-        self.assertEqual(out_row.x[3], out_result.best_values["v0_amplitude"])
-        self.assertEqual(out_row.x[-1], out_result.redchi)
+        self.assertEqual(out_row.x.shape[0], len(pcs) + len(pcs) * len(mlist[0].param_names) + 1)
+        attrs = [a.name for a in out_table.domain.attributes[:4]]
+        self.assertEqual(attrs, ["v0 area", "v0 amplitude", "v0 center", "v0 sigma"])
+        self.assertNotEqual(0, out_row["v0 area"].value)          # TODO check area calculation
+        self.assertEqual(out_result.best_values["v0_amplitude"], out_row["v0 amplitude"].value)
+        self.assertEqual(out_result.best_values["v0_center"], out_row["v0 center"].value)
+        self.assertEqual(out_result.best_values["v0_sigma"], out_row["v0 sigma"].value)
+        self.assertEqual(out_result.redchi, out_row["Reduced chi-square"].value)
         self.assertEqual(out_row.id, self.data.ids[0])
-
 
 
 class TestBuildModel(unittest.TestCase):
