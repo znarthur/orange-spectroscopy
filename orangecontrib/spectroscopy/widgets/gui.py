@@ -190,7 +190,7 @@ class LineEdit(LineEditMarkFinished):
 
     def focusInEvent(self, *e):
         self.focusIn.emit()
-        return QWidget.focusInEvent(self, *e)
+        return super().focusInEvent(*e)
 
     def sizeHint(self):
         sh = super().sizeHint()
