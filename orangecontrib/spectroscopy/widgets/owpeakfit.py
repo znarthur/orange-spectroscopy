@@ -12,11 +12,10 @@ from Orange.widgets.utils.concurrent import TaskState
 from Orange.widgets.utils.signals import Output
 from PyQt5.QtWidgets import QFormLayout, QSizePolicy
 from lmfit import Parameters
-from lmfit.models import LinearModel, GaussianModel, LorentzianModel, VoigtModel
 from orangewidget.widget import Msg
 from scipy import integrate
 
-from orangecontrib.spectroscopy.data import getx, build_spec_table
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS, \
     INTEGRATE_DRAW_BASELINE_PENARGS
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
@@ -26,35 +25,39 @@ from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, SetXDoubleSpinBox
 
 
-def fit_peaks(data, model, params):
+def init_output_array(data, model, params):
+    """Returns nd.array with correct shape for best fit results"""
     number_of_spectra = len(data)
     number_of_peaks = len(model.components)
     var_params = [name for name, par in params.items() if par.vary]
     number_of_params = len(var_params)
-    output = np.zeros((number_of_spectra, number_of_peaks + number_of_params + 1))
+    return np.zeros((number_of_spectra, number_of_peaks + number_of_params + 1))
 
-    x = getx(data)
-    for row in data:
-        i = row.row_index
-        out = model.fit(row.x, params, x=x)
-        comps = out.eval_components(x=x)
-        best_values = out.best_values
 
-        ###generate results
-        # calculate total area
-        total_area = integrate.trapz(out.best_fit)
+def add_result_to_output_array(output, i, model_result, x):
+    """Add values from ModelResult to output array"""
+    out = model_result
+    comps = out.eval_components(x=x)
+    best_values = out.best_values
 
-        # add peak values to output storage
-        col = 0
-        for comp in out.components:
-            output[i, col] = integrate.trapz(comps[comp.prefix]) / total_area * 100
+    ###generate results
+    # calculate total area
+    total_area = integrate.trapz(out.best_fit)
+
+    # add peak values to output storage
+    col = 0
+    for comp in out.components:
+        output[i, col] = integrate.trapz(comps[comp.prefix]) / total_area * 100
+        col += 1
+        for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
+            output[i, col] = best_values[param]
             col += 1
-            for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
-                output[i, col] = best_values[param]
-                col += 1
-        output[i, -1] = out.redchi
+    output[i, -1] = out.redchi
 
-    # output the results to out_data as orange.data.table
+
+def fit_results_table(output, model_result, ids):
+    """Return best fit parameters as Orange.data.Table"""
+    out = model_result
     features = []
     for comp in out.components:
         prefix = comp.prefix.rstrip("_")
@@ -64,7 +67,30 @@ def fit_peaks(data, model, params):
     features.append(ContinuousVariable(name="Reduced chi-square"))
 
     domain = Domain(features)
-    return Table.from_numpy(domain, X=output, ids=data.ids)
+    return Table.from_numpy(domain, X=output, ids=ids)
+
+
+def fit_peaks(data, model, params):
+    """
+    Calculate fits for all rows in a data table for a given model and parameters
+    and return a table of best fit parameters.
+
+    Args:
+        data (Orange.data.Table): Table with data to be fit in features
+        model (lmfit.model.Model): lmfit Model/CompositeModel to fit with
+        params (lmfit.parameter.Parameters): Parameters for fit
+
+    Returns:
+        results_table (Orange.data.Table): Table with best fit parameters as features
+    """
+    output = init_output_array(data, model, params)
+    x = getx(data)
+    for row in data:
+        i = row.row_index
+        out = model.fit(row.x, params, x=x)
+        add_result_to_output_array(output, i, out, x)
+
+    return fit_results_table(output, out, data.ids)
 
 
 class ModelEditor(BaseEditorOrange):
