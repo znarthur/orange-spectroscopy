@@ -578,7 +578,8 @@ class OWPeakFit(SpectralPreprocess):
     BUTTON_ADD_LABEL = "Add model..."
 
     class Outputs:
-        fit = Output("Fit Parameters", Table, default=True)
+        fit_params = Output("Fit Parameters", Table, default=True)
+        fits = Output("Fits", Table)
         annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Table)
 
     preview_on_image = True
@@ -656,24 +657,31 @@ class OWPeakFit(SpectralPreprocess):
 
         model, parameters = create_composite_model(m_def)
 
+        data_fits = None
         if data is not None and model is not None:
+            orig_data = data
             output = init_output_array(data, model, parameters)
             x = getx(data)
             n = len(data)
+            fits = []
             for row in data:
                 i = row.row_index
                 out = model.fit(row.x, parameters, x=x)
                 add_result_to_output_array(output, i, out, x)
+                fits.append(out.eval(x=x))
                 progress_interrupt(i / n * 100)
-            data = fit_results_table(output, out, data.ids)
+            data = fit_results_table(output, out, orig_data.ids)
+            data_fits = Table.from_numpy(orig_data.domain, X=np.vstack(fits), Y=orig_data.Y,
+                                         metas=orig_data.metas, ids=orig_data.ids)
 
         progress_interrupt(100)
 
-        return data, None
+        return data, data_fits, None
 
     def on_done(self, results):
-        fit, annotated_data = results
-        self.Outputs.fit.send(fit)
+        fit_params, fits, annotated_data = results
+        self.Outputs.fit_params.send(fit_params)
+        self.Outputs.fits.send(fits)
         self.Outputs.annotated_data.send(annotated_data)
 
 

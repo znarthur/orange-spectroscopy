@@ -41,8 +41,10 @@ class TestOWPeakFit(WidgetTest):
             wait_for_preview(self.widget)
             self.widget.unconditional_commit()
             self.wait_until_finished()
-            out = self.get_output(self.widget.Outputs.fit)
+            out = self.get_output(self.widget.Outputs.fit_params)
             self.assertEqual(len(p.viewclass.model_parameters()) + 2, len(out.domain.attributes))
+            fit = self.get_output(self.widget.Outputs.fits)
+            self.assertEqual(len(fit), len(self.data))
 
 
 class TestPeakFit(unittest.TestCase):
@@ -206,7 +208,7 @@ class TestVoigtEditorMulti(PreprocessorEditorTest):
 
         self.widget.unconditional_commit()
         self.wait_until_finished(timeout=10000)
-        out = self.get_output(self.widget.Outputs.fit)
+        out = self.get_output(self.widget.Outputs.fit_params)
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
         np.testing.assert_array_equal(out_fit.X, out.X)
