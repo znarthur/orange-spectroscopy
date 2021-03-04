@@ -1717,6 +1717,14 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
         sh = self.flow_view.minimumSizeHint()
         self.scroll_area.setMinimumWidth(max(sh.width() + 50, 200))
 
+        # call updateGeometry on the controlArea's scroll area, to expand/squeeze
+        # it with widget-base 4.12.0 if a big preprocessor widget is added
+        parent = self.controlArea
+        while parent is not None and not isinstance(parent, gui.VerticalScrollArea):
+            parent = parent.parentWidget()
+        if parent is not None:
+            parent.updateGeometry()
+
     def sizeHint(self):
         sh = super().sizeHint()
         return sh.expandedTo(QSize(sh.width(), 500))
