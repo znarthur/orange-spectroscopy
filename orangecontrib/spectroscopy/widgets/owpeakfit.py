@@ -668,7 +668,15 @@ class OWPeakFit(SpectralPreprocess):
             model = reduce(lambda x, y: x+y, mlist)
 
         if data is not None and model is not None:
-            data = fit_peaks(data, model, parameters)
+            output = init_output_array(data, model, parameters)
+            x = getx(data)
+            n = len(data)
+            for row in data:
+                i = row.row_index
+                out = model.fit(row.x, parameters, x=x)
+                add_result_to_output_array(output, i, out, x)
+                progress_interrupt(i / n * 100)
+            data = fit_results_table(output, out, data.ids)
 
         progress_interrupt(100)
 
