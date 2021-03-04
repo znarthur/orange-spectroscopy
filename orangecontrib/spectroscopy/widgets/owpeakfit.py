@@ -29,7 +29,8 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOra
 def fit_peaks(data, model, params):
     number_of_spectra = len(data)
     number_of_peaks = len(model.components)
-    number_of_params = len(model.param_names)
+    var_params = [name for name, par in params.items() if par.vary]
+    number_of_params = len(var_params)
     output = np.zeros((number_of_spectra, number_of_peaks + number_of_params + 1))
 
     x = getx(data)
@@ -45,20 +46,20 @@ def fit_peaks(data, model, params):
 
         # add peak values to output storage
         col = 0
-        for comp in model.components:
+        for comp in out.components:
             output[i, col] = integrate.trapz(comps[comp.prefix]) / total_area * 100
             col += 1
-            for param in comp.param_names:
+            for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
                 output[i, col] = best_values[param]
                 col += 1
         output[i, -1] = out.redchi
 
     # output the results to out_data as orange.data.table
     features = []
-    for comp in model.components:
+    for comp in out.components:
         prefix = comp.prefix.rstrip("_")
         features.append(ContinuousVariable(name=f"{prefix} area"))
-        for param in comp.param_names:
+        for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
             features.append(ContinuousVariable(name=param.replace("_", " ")))
     features.append(ContinuousVariable(name="Reduced chi-square"))
 
@@ -325,7 +326,7 @@ class SkewedVoigtModelEditor(PeakModelEditor):
     # TODO as with VoigtModel, gamma is constrained to sigma by default, not exposed
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('gamma', "Gamma", 1.0), ('skew', "Skew", 0.0))
+        return super().model_parameters() + (('skew', "Skew", 0.0),)
 
 
 class ThermalDistributionModelEditor(PeakModelEditor):
