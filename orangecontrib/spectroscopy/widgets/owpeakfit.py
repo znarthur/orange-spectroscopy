@@ -478,6 +478,24 @@ def prepare_params(item, model):
     return params
 
 
+def create_composite_model(m_def):
+    n = len(m_def)
+    m_list = []
+    parameters = Parameters()
+    for i in range(n):
+        item = m_def[i]
+        m = create_model(item, i)
+        p = prepare_params(item, m)
+        m_list.append(m)
+        parameters.update(p)
+
+    model = None
+    if m_list:
+        model = reduce(lambda x, y: x + y, m_list)
+
+    return model, parameters
+
+
 class PeakPreviewRunner(PreviewRunner):
 
     def __init__(self, master):
@@ -536,24 +554,9 @@ class PeakPreviewRunner(PreviewRunner):
             time.sleep(0.050)
             progress_interrupt(0)
 
-        n = len(m_def)
         orig_data = data
-        mlist = []
-        parameters = Parameters()
-        for i in range(n):
-            progress_interrupt(0)
-            # state.set_partial_result((i, data, reference))
-            item = m_def[i]
-            m = create_model(item, i)
-            p = prepare_params(item, m)
-            mlist.append(m)
-            parameters.update(p)
-            progress_interrupt(0)
-        progress_interrupt(0)
-        # state.set_partial_result((n, data, None))
-        model = None
-        if mlist:
-            model = reduce(lambda x, y: x+y, mlist)
+
+        model, parameters = create_composite_model(m_def)
 
         model_result = {}
         x = getx(data)
@@ -561,7 +564,6 @@ class PeakPreviewRunner(PreviewRunner):
             for row in data:
                 progress_interrupt(0)
                 model_result[row.id] = model.fit(row.x, parameters, x=x)
-                progress_interrupt(0)
 
         return orig_data, data, model_result
 
@@ -652,20 +654,7 @@ class OWPeakFit(SpectralPreprocess):
             time.sleep(0.005)
             progress_interrupt(0)
 
-        n = len(m_def)
-        mlist = []
-        parameters = Parameters()
-        for i in range(n):
-            progress_interrupt(0)
-            item = m_def[i]
-            m = create_model(item, i)
-            p = prepare_params(item, m)
-            mlist.append(m)
-            parameters.update(p)
-
-        model = None
-        if mlist:
-            model = reduce(lambda x, y: x+y, mlist)
+        model, parameters = create_composite_model(m_def)
 
         if data is not None and model is not None:
             output = init_output_array(data, model, parameters)
