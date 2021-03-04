@@ -43,8 +43,36 @@ class TestOWPeakFit(WidgetTest):
             self.wait_until_finished()
             out = self.get_output(self.widget.Outputs.fit_params)
             self.assertEqual(len(p.viewclass.model_parameters()) + 2, len(out.domain.attributes))
-            fit = self.get_output(self.widget.Outputs.fits)
-            self.assertEqual(len(fit), len(self.data))
+
+    def test_outputs(self):
+        self.widget = self.create_widget(OWPeakFit)
+        self.send_signal("Data", self.data)
+        self.widget.add_preprocessor(PREPROCESSORS[0])
+        wait_for_preview(self.widget)
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
+        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        fits = self.get_output(self.widget.Outputs.fits)
+        data = self.get_output(self.widget.Outputs.annotated_data)
+        # fit_params
+        self.assertEqual(len(fit_params), len(self.data))
+        np.testing.assert_array_equal(fit_params.Y, self.data.Y)
+        np.testing.assert_array_equal(fit_params.metas, self.data.metas)
+        # fits
+        self.assertEqual(len(fits), len(self.data))
+        self.assert_domain_equal(fits.domain, self.data.domain)
+        np.testing.assert_array_equal(fits.Y, self.data.Y)
+        np.testing.assert_array_equal(fits.metas, self.data.metas)
+        # annotated data
+        self.assertEqual(len(data), len(self.data))
+        np.testing.assert_array_equal(data.X, self.data.X)
+        np.testing.assert_array_equal(data.Y, self.data.Y)
+        # area is Nan and float(nan) != float(nan)
+        # TODO check area calculation to confirm nan is the output we want here
+        join_metas = np.asarray(np.hstack((self.data.metas, fit_params.X)), dtype=object)
+        np.testing.assert_array_equal(data.metas[:, 1:], join_metas[:, 1:])
+
+
 
 
 class TestPeakFit(unittest.TestCase):

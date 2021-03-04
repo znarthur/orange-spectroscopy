@@ -55,7 +55,7 @@ def add_result_to_output_array(output, i, model_result, x):
     output[i, -1] = out.redchi
 
 
-def fit_results_table(output, model_result, ids):
+def fit_results_table(output, model_result, orig_data):
     """Return best fit parameters as Orange.data.Table"""
     out = model_result
     features = []
@@ -66,8 +66,11 @@ def fit_results_table(output, model_result, ids):
             features.append(ContinuousVariable(name=param.replace("_", " ")))
     features.append(ContinuousVariable(name="Reduced chi-square"))
 
-    domain = Domain(features)
-    return Table.from_numpy(domain, X=output, ids=ids)
+    domain = Domain(features,
+                    orig_data.domain.class_vars,
+                    orig_data.domain.metas)
+    return Table.from_numpy(domain, X=output, Y=orig_data.Y,
+                            metas=orig_data.metas, ids=orig_data.ids)
 
 
 def fit_peaks(data, model, params):
@@ -90,7 +93,7 @@ def fit_peaks(data, model, params):
         out = model.fit(row.x, params, x=x)
         add_result_to_output_array(output, i, out, x)
 
-    return fit_results_table(output, out, data.ids)
+    return fit_results_table(output, out, data)
 
 
 class ModelEditor(BaseEditorOrange):
@@ -657,7 +660,7 @@ class OWPeakFit(SpectralPreprocess):
 
         model, parameters = create_composite_model(m_def)
 
-        data_fits = None
+        data_fits = data_anno = None
         if data is not None and model is not None:
             orig_data = data
             output = init_output_array(data, model, parameters)
@@ -670,13 +673,20 @@ class OWPeakFit(SpectralPreprocess):
                 add_result_to_output_array(output, i, out, x)
                 fits.append(out.eval(x=x))
                 progress_interrupt(i / n * 100)
-            data = fit_results_table(output, out, orig_data.ids)
+            data = fit_results_table(output, out, orig_data)
             data_fits = Table.from_numpy(orig_data.domain, X=np.vstack(fits), Y=orig_data.Y,
                                          metas=orig_data.metas, ids=orig_data.ids)
+            dom_anno = Domain(orig_data.domain.attributes,
+                              orig_data.domain.class_vars,
+                              orig_data.domain.metas + data.domain.attributes,
+                              )
+            data_anno = Table.from_numpy(dom_anno, orig_data.X, orig_data.Y,
+                                         np.hstack((orig_data.metas, data.X)),
+                                         ids=orig_data.ids)
 
         progress_interrupt(100)
 
-        return data, data_fits, None
+        return data, data_fits, data_anno
 
     def on_done(self, results):
         fit_params, fits, annotated_data = results
