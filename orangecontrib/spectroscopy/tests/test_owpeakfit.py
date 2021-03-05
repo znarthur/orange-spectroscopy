@@ -4,6 +4,7 @@ from functools import reduce
 import numpy as np
 import Orange
 import lmfit
+from Orange.widgets.data.utils.preprocess import DescriptionRole
 from Orange.widgets.tests.base import WidgetTest
 from lmfit import Parameters
 
@@ -14,7 +15,7 @@ from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEdito
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, PseudoVoigtModelEditor, \
-    ExponentialGaussianModelEditor
+    ExponentialGaussianModelEditor, create_composite_model, pack_model_editor
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
 
@@ -76,7 +77,16 @@ class TestOWPeakFit(WidgetTest):
         join_metas = np.asarray(np.hstack((self.data.metas, fit_params.X)), dtype=object)
         np.testing.assert_array_equal(data.metas[:, 1:], join_metas[:, 1:])
 
-
+    def test_saving_models(self):
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual([], settings['storedsettings']['preprocessors'])
+        self.widget.add_preprocessor(PREPROCESSORS[0])
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.assertEqual(PREPROCESSORS[0].qualname,
+                         settings['storedsettings']['preprocessors'][0][0])
+        self.widget = self.create_widget(OWPeakFit, stored_settings=settings)
+        vc = self.widget.preprocessormodel.item(0).data(DescriptionRole).viewclass
+        self.assertEqual(PREPROCESSORS[0].viewclass, vc)
 
 
 class TestPeakFit(unittest.TestCase):
@@ -127,7 +137,7 @@ class TestBuildModel(unittest.TestCase):
         self.assertEqual(params['v0_center'], 1655)
 
 
-class ModelEditorTest(PreprocessorEditorTest):
+class ModelEditorTest(WidgetTest):
     EDITOR = None
 
     def setUp(self):
@@ -140,6 +150,15 @@ class ModelEditorTest(PreprocessorEditorTest):
             # Test adding all the editors
             for p in self.widget.PREPROCESSORS:
                 self.add_editor(p.viewclass, self.widget)
+
+    def wait_for_preview(self):
+        wait_for_preview(self.widget)
+
+    def add_editor(self, cls, widget):  # type: (Type[T], object) -> T
+        widget.add_preprocessor(pack_model_editor(cls))
+        editor = widget.flow_view.widgets()[-1]
+        self.process_events()
+        return editor
 
     def get_model_single(self):
         m_def = self.widget.preprocessormodel.item(0)
@@ -187,7 +206,7 @@ class TestVoigtEditor(ModelEditorTest):
             self.assertNotIn(nl, lines)
 
 
-class TestVoigtEditorMulti(PreprocessorEditorTest):
+class TestVoigtEditorMulti(ModelEditorTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWPeakFit)
@@ -219,16 +238,7 @@ class TestVoigtEditorMulti(PreprocessorEditorTest):
         model, params = self.matched_models()
         m_def = [self.widget.preprocessormodel.item(i)
                  for i in range(self.widget.preprocessormodel.rowCount())]
-        n = len(m_def)
-        ed_m_list = []
-        ed_params = Parameters()
-        for i in range(n):
-            item = m_def[i]
-            m = create_model(item, i)
-            p = prepare_params(item, m)
-            ed_m_list.append(m)
-            ed_params.update(p)
-        ed_model = reduce(lambda x, y: x+y, ed_m_list)
+        ed_model, ed_params = create_composite_model(m_def)
 
         self.assertEqual(model.name, ed_model.name)
         self.assertEqual(set(params), set(ed_params))
@@ -244,3 +254,14 @@ class TestVoigtEditorMulti(PreprocessorEditorTest):
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
         np.testing.assert_array_equal(out_fit.X, out.X)
+
+    def test_saving_model_params(self):
+        model, params = self.matched_models()
+        settings = self.widget.settingsHandler.pack_data(self.widget)
+        self.widget = self.create_widget(OWPeakFit, stored_settings=settings)
+        m_def = [self.widget.preprocessormodel.item(i)
+                 for i in range(self.widget.preprocessormodel.rowCount())]
+        sv_model, sv_params = create_composite_model(m_def)
+
+        self.assertEqual(model.name, sv_model.name)
+        self.assertEqual(set(params), set(sv_params))

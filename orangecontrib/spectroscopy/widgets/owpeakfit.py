@@ -440,35 +440,38 @@ class PolynomialModelEditor(BaselineModelEditor):
     prefix_generic = "poly"
 
 
-PREPROCESSORS = [
-    PreprocessAction(
-        name=e.name,
-        qualname=f"orangecontrib.spectroscopy.widgets.owwidget.{e.prefix_generic}",
-        category=e.category,
-        description=Description(getattr(e, 'description', e.name), icon_path(e.icon)),
-        viewclass=e,
-    ) for e in [
-        GaussianModelEditor,
-        LorentzianModelEditor,
-        SplitLorentzianModelEditor,
-        VoigtModelEditor,
-        PseudoVoigtModelEditor,
-        MoffatModelEditor,
-        Pearson7ModelEditor,
-        StudentsTModelEditor,
-        BreitWignerModelEditor,
-        LognormalModelEditor,
-        DampedOscillatorModelEditor,
-        DampedHarmonicOscillatorModelEditor,
-        ExponentialGaussianModelEditor,
-        SkewedGaussianModelEditor,
-        SkewedVoigtModelEditor,
-        ThermalDistributionModelEditor,
-        DoniachModelEditor,
-        # ConstantModelEditor,
-        LinearModelEditor,
-        QuadraticModelEditor,
-        # PolynomialModelEditor,
+def pack_model_editor(editor):
+    return PreprocessAction(
+        name=editor.name,
+        qualname=f"orangecontrib.spectroscopy.widgets.owwidget.{editor.prefix_generic}",
+        category=editor.category,
+        description=Description(getattr(editor, 'description', editor.name), icon_path(editor.icon)),
+        viewclass=editor,
+    )
+
+
+PREPROCESSORS = [pack_model_editor(e) for e in [
+    GaussianModelEditor,
+    LorentzianModelEditor,
+    SplitLorentzianModelEditor,
+    VoigtModelEditor,
+    PseudoVoigtModelEditor,
+    MoffatModelEditor,
+    Pearson7ModelEditor,
+    StudentsTModelEditor,
+    BreitWignerModelEditor,
+    LognormalModelEditor,
+    DampedOscillatorModelEditor,
+    DampedHarmonicOscillatorModelEditor,
+    ExponentialGaussianModelEditor,
+    SkewedGaussianModelEditor,
+    SkewedVoigtModelEditor,
+    ThermalDistributionModelEditor,
+    DoniachModelEditor,
+    # ConstantModelEditor,
+    LinearModelEditor,
+    QuadraticModelEditor,
+    # PolynomialModelEditor,
     ]
 ]
 
