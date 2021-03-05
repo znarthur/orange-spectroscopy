@@ -100,7 +100,7 @@ class ModelEditor(BaseEditorOrange):
     # Adapted from IntegrateOneEditor
 
     class Warning(BaseEditorOrange.Warning):
-        out_of_range = Msg("Limit out of range.")
+        out_of_range = Msg("{} out of range.")
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -183,12 +183,13 @@ class ModelEditor(BaseEditorOrange):
             if len(xs):
                 minx = np.min(xs)
                 maxx = np.max(xs)
-                limits = [self.__values.get(name, 0.)
-                          for ind, (name, _) in enumerate(self.model_parameters())]
-                for v in limits:
+                limits = [(name, self.__values.get(name, default))
+                          for name, _, default in self.model_parameters()
+                          if name in self.model_lines()]
+                for name, v in limits:
                     if v < minx or v > maxx:
                         self.parent_widget.Warning.preprocessor()
-                        self.Warning.out_of_range()
+                        self.Warning.out_of_range(name)
 
     @staticmethod
     def model_parameters():
@@ -219,6 +220,14 @@ class PeakModelEditor(ModelEditor):
     @staticmethod
     def model_lines():
         return 'center',
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_value('center', x[int(len(x)/2)])
+                self.edited.emit()
+        super().set_preview_data(data)
 
 
 class GaussianModelEditor(PeakModelEditor):
@@ -536,6 +545,9 @@ class PeakPreviewRunner(PreviewRunner):
                   for i in range(master.preprocessormodel.rowCount())]
         if master.data is not None:
             data = master.sample_data(master.data)
+            # Pass preview data to widgets here as we don't use on_partial_result()
+            for w in self.master.flow_view.widgets():
+                w.set_preview_data(data)
             self.start(self.run_preview, data, pp_def)
         else:
             master.curveplot.set_data(None)

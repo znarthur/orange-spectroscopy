@@ -13,13 +13,17 @@ from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_previe
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
-    VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor
+    VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, PseudoVoigtModelEditor, \
+    ExponentialGaussianModelEditor
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
 
 # Peak models which don't converge with defaults on COLLAGEN in reasonable time
-# TODO could be removed once max iterations implemented?
-PREPROCESSORS_NO_CONVERGE = [p for p in PREPROCESSORS if p.viewclass in (StudentsTModelEditor,)]
+# TODO could be removed once max iterations implemented? or bounds are implemented
+PREPROCESSORS_NO_CONVERGE = [p for p in PREPROCESSORS if p.viewclass in (StudentsTModelEditor,
+                                                                         PseudoVoigtModelEditor,
+                                                                         ExponentialGaussianModelEditor,
+                                                                         )]
 PREPROCESSORS_CONVERGE = [p for p in PREPROCESSORS if p not in PREPROCESSORS_NO_CONVERGE]
 
 
