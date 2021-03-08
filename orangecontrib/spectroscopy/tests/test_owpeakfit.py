@@ -6,7 +6,7 @@ import Orange
 import lmfit
 from Orange.widgets.data.utils.preprocess import DescriptionRole
 from Orange.widgets.tests.base import WidgetTest
-from lmfit import Parameters
+from lmfit import Parameters, Parameter
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut
@@ -129,7 +129,11 @@ class TestBuildModel(unittest.TestCase):
 
     def test_model_from_editor(self):
         self.editor = VoigtModelEditor()
-        self.editor.set_value('center', 1655)
+        p_center = self.editor.parameters()['center']
+        p_center.set(value=1655)
+        self.editor.set_param('center', p_center)
+        self.editor.edited.emit()
+
         m = self.editor.createinstance(prefix=unique_prefix(self.editor, 0))
         self.assertIsInstance(m, self.editor.model)
         editor_params = self.editor.parameters()
@@ -185,9 +189,23 @@ class TestVoigtEditor(ModelEditorTest):
         for p in self.editor.parameters():
             self.assertIn(f"{m.prefix}{p}", params)
 
+    def test_set_param(self):
+        e = self.editor
+        p = Parameter(name="center", value=1623, min=1603, max=1643)
+        e.set_param('center', p)
+        e.edited.emit()
+        p_set = e.parameters()['center']
+        self.assertIsInstance(p_set, Parameter)
+        self.assertEqual(p_set.value, 1623)
+        self.assertEqual(p_set.min, 1603)
+        self.assertEqual(p_set.max, 1643)
+        self.assertEqual(p_set.vary, True)
+
     def test_set_center(self):
         e = self.editor
-        e.set_value('center', 1655)
+        p_center = e.parameters()['center']
+        p_center.set(value=1655)
+        e.set_param('center', p_center)
         e.edited.emit()
         m = self.get_model_single()
         params = self.get_params_single(m)
@@ -222,15 +240,16 @@ class TestVoigtEditorMulti(ModelEditorTest):
         for i, center in enumerate(pcs):
             p = f"v{i}_"
             dx = 20
-            # params[p + "center"].set(value=center, min=center - dx, max=center + dx)
-            params[p + "center"].set(value=center)
-            # params[p + "sigma"].set(max=50)
-            # params[p + "amplitude"].set(min=0.0001)
-            # Set editor to same value
+            params[p + "center"].set(value=center, min=center - dx, max=center + dx)
+            params[p + "sigma"].set(max=50)
+            params[p + "amplitude"].set(min=0.0001)
+            # Set editor to same values
             e = self.editors[i]
-            e.set_value("center", center)
-            # TODO min/max/dx not possible yet from editor
-            # e.set_value("sigma", max=50)
+            e_params = e.parameters()
+            e_params['center'].set(value=center, min=center - dx, max=center + dx)
+            e_params['sigma'].set(max=50)
+            e_params['amplitude'].set(min=0.0001)
+            e.setParameters(e_params)
             e.edited.emit()
         return model, params
 
@@ -242,6 +261,8 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
         self.assertEqual(model.name, ed_model.name)
         self.assertEqual(set(params), set(ed_params))
+        for k, v in params.items():
+            self.assertEqual(v, ed_params[k])
 
     def test_same_output(self):
         model, params = self.matched_models()
