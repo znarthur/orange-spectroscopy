@@ -1,5 +1,6 @@
 import numpy as np
 import pyqtgraph as pg
+import bottleneck as bn
 
 from scipy.ndimage import sobel
 from scipy.ndimage.interpolation import shift
@@ -25,6 +26,7 @@ from orangecontrib.spectroscopy.utils.skimage.register_translation import regist
 # instead of from skimage.feature import register_translation
 
 # stack alignment code originally from: https://github.com/jpacold/STXM_live
+
 
 class RegisterTranslation:
 
@@ -77,8 +79,8 @@ def alignstack(raw, shiftfn, ref_frame_num=0, filterfn=lambda x: x):
 
 def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False, ref_frame_num=0):
     hypercube, lsx, lsy = get_hypercube(data, xat, yat)
-    if np.any(np.isnan(hypercube)):
-        raise NanInsideHypercube(np.sum(np.isnan(hypercube)))
+    if bn.anynan(hypercube):
+        raise NanInsideHypercube(True)
 
     calculate_shift = RegisterTranslation(upsample_factor=upsample_factor)
     filterfn = sobel if use_sobel else lambda x: x
@@ -104,7 +106,7 @@ def process_stack(data, xat, yat, upsample_factor=100, use_sobel=False, ref_fram
                                                          np.linspace(*lsy)[slicey]))
 
 
-class   OWStackAlign(OWWidget):
+class OWStackAlign(OWWidget):
     # Widget's name as displayed in the canvas
     name = "Align Stack"
 
