@@ -410,8 +410,8 @@ class TestSpc(unittest.TestCase):
     def test_multiple_x(self):
         data = Orange.data.Table("m_xyxy.spc")
         self.assertEqual(len(data), 512)
-        self.assertAlmostEqual(float(data.domain[0].name), 8401.800003)
-        self.assertAlmostEqual(float(data.domain[len(data.domain)-1].name), 137768.800049)
+        self.assertAlmostEqual(float(data.domain.attributes[0].name), 8401.800003)
+        self.assertAlmostEqual(float(data.domain.attributes[-1].name), 137768.800049)
 
 
 class TestMatlab(unittest.TestCase):
