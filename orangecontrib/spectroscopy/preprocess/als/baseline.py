@@ -172,7 +172,8 @@ def WhittakerSmooth(x, w, lam, differences=1):
     output:
         the fitted background vector
     '''
-    X = np.matrix(x)
+    # X = np.matrix(x)  # replaced with the line below to avoid  np.matrix
+    X = np.asarray(x)
     m = X.size
 #    D = csc_matrix(np.diff(np.eye(m), differences))
     D = sparse.eye(m, format='csc')
@@ -180,7 +181,8 @@ def WhittakerSmooth(x, w, lam, differences=1):
         D = D[1:] - D[:-1]  # numpy.diff() does not work with sparse matrix. This is a workaround.
     W = sparse.diags(w, 0, shape=(m, m))
     A = sparse.csc_matrix(W + (lam * D.T * D))
-    B = sparse.csc_matrix(W * X.T)
+    # B = sparse.csc_matrix(W * X.T)  # replaced with the line below to avoid np.matrix
+    B = sparse.csc_matrix(W.dot(X.T)).T
     background = spsolve(A, B)
     return np.array(background)
 

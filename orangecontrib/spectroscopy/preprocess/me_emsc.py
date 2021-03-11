@@ -4,11 +4,7 @@ from sklearn.decomposition import TruncatedSVD
 
 import Orange
 from Orange.preprocess.preprocess import Preprocess
-
-try:  # get_unique_names was introduced in Orange 3.20
-    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
-except ImportError:
-    from Orange.data.util import get_unique_names
+from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx, spectra_mean
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \

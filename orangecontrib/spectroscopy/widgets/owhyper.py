@@ -249,6 +249,7 @@ def color_palette_model(palettes, iconsize=QSize(64, 16)):
     model = QStandardItemModel()
     for name, palette in palettes:
         _, colors = max(palette.items())
+        colors = np.round(colors).astype(np.int)
         colors = [QColor(*c) for c in colors]
         item = QStandardItem(name)
         item.setIcon(QIcon(palette_pixmap(colors, iconsize)))
@@ -457,6 +458,7 @@ class ImageColorLegend(GraphicsWidget):
         # a Nx3 array containing colors
         self.colors = colors
         if self.colors is not None:
+            self.colors = np.round(self.colors).astype(np.int)
             positions = np.linspace(0, 1, len(self.colors))
             stops = []
             for p, c in zip(positions, self.colors):

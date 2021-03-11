@@ -82,7 +82,7 @@ def axes_to_ndim_linspace(datam, attrs):
         ls.append(lsa)
         indices.append(index_values(coor, lsa))
 
-    return ls, indices
+    return ls, tuple(indices)
 
 
 def get_ndim_hyperspec(data, attrs):

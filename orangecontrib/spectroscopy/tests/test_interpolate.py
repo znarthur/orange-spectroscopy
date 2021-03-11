@@ -59,7 +59,6 @@ class TestInterpolate(unittest.TestCase):
         p1 = rs.permutation(range(len(data.domain.attributes)))
         interpolated = Interpolate(p1)(data)
         np.testing.assert_allclose(interpolated.X, oldX[:, p1])
-        Orange.data.domain.Variable._clear_all_caches()
 
     def test_out_of_band(self):
         data = Orange.data.Table("iris")
