@@ -61,6 +61,7 @@ def index_values_nan(vals, linspace):
     positions = location_values(vals, linspace)
     return np.round(positions).astype(int), np.isnan(positions)
 
+
 class NanInsideHypercube(Exception):
     pass
 
