@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 
 from scipy.interpolate import interp1d
@@ -183,7 +184,7 @@ class _RubberbandBaselineCommon(CommonDomainOrder):
         for rowi, row in enumerate(X):
             # remove NaNs which ConvexHull can not handle
             source = np.column_stack((x, row))
-            source = source[~np.isnan(source).any(axis=1)]
+            source = source[~bottleneck.anynan(source, axis=1)]
             try:
                 v = ConvexHull(source).vertices
             except (QhullError, ValueError):
@@ -312,7 +313,8 @@ class _NormalizeCommon(CommonDomain):
             data.X /= norm_data.X
             replace_infs(data.X)
         elif self.method == Normalize.SNV:
-            data.X = (data.X - np.nanmean(data.X, axis=1, keepdims=True)) / np.nanstd(data.X, axis=1, keepdims=True)
+            data.X = (data.X - bottleneck.nanmean(data.X, axis=1).reshape(-1, 1)) / \
+                     bottleneck.nanstd(data.X, axis=1).reshape(-1, 1)
             replace_infs(data.X)
         elif self.method == Normalize.Attribute:
             if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
@@ -324,9 +326,9 @@ class _NormalizeCommon(CommonDomain):
             else:  # invalid attribute for normalization
                 data.X *= float("nan")
         elif self.method == Normalize.MinMax:
-            min = np.nanmin(data.X, axis=1, keepdims=True)
-            max = np.nanmax(data.X, axis=1, keepdims=True)
-            data.X = (data.X) / (max - min)
+            min = bottleneck.nanmin(data.X, axis=1).reshape(-1, 1)
+            max = bottleneck.nanmax(data.X, axis=1).reshape(-1, 1)
+            data.X = data.X / (max - min)
             replace_infs(data.X)
         return data.X
 
@@ -440,7 +442,7 @@ class _InterpolateCommon:
             return np.ones((len(data), len(self.points))) * np.nan
         interpfn = self.interpfn
         if interpfn is None:
-            if self.handle_nans and np.isnan(ys).any():
+            if self.handle_nans and bottleneck.anynan(ys):
                 if self.kind == "linear":
                     interpfn = interp1d_with_unknowns_numpy
                 else:
@@ -618,7 +620,7 @@ class _ExtractEXAFSCommon(CommonDomain):
         # Replace remaining NaNs (where whole rows were NaN) with
         # with some values so that the function does not crash.
         # Results are going to be discarded later.
-        nan_rows = np.isnan(X).all(axis=1)
+        nan_rows = bottleneck.allnan(X, axis=1)
         X[nan_rows] = 1.
 
         # do the transformation

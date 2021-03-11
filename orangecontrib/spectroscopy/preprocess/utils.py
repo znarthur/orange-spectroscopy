@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 from Orange.data.util import SharedComputeValue
 from scipy.interpolate import interp1d
@@ -141,7 +142,7 @@ def nan_extend_edges_and_interpolate(xs, X):
     so that they do not propagate.
     """
     nans = None
-    if np.any(np.isnan(X)):
+    if bottleneck.anynan(X):
         nans = np.isnan(X)
         X = X.copy()
         xs, xsind, mon, X = transform_to_sorted_wavenumbers(xs, X)
@@ -184,7 +185,7 @@ def fill_edges(mat):
 
 def remove_whole_nan_ys(x, ys):
     """Remove whole NaN columns of ys with corresponding x coordinates."""
-    whole_nan_columns = np.isnan(ys).all(axis=0)
+    whole_nan_columns = bottleneck.allnan(ys, axis=0)
     if np.any(whole_nan_columns):
         x = x[~whole_nan_columns]
         ys = ys[:, ~whole_nan_columns]

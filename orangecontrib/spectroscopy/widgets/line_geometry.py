@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 
 
@@ -127,9 +128,9 @@ def distance_curves(x, ys, q1):
     xp = rolling_window(x, 2)
     ysp = rolling_window(ys, 2)
 
-    r = np.nanmin(distance_line_segment(xp[:, 0], ysp[:, :, 0],
-                              xp[:, 1], ysp[:, :, 1],
-                              q1[0], q1[1]), axis=1)
+    r = bottleneck.nanmin(distance_line_segment(xp[:, 0], ysp[:, :, 0],
+                                                xp[:, 1], ysp[:, :, 1],
+                                                q1[0], q1[1]), axis=1)
 
     return r
 

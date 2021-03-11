@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 
 import Orange.data
@@ -78,7 +79,7 @@ class OWAverage(OWWidget):
         """
         if len(table) == 0:
             return table
-        mean = np.nanmean(table.X, axis=0, keepdims=True)
+        mean = bottleneck.nanmean(table.X, axis=0).reshape(1, -1)
         avg_table = Orange.data.Table.from_numpy(table.domain,
                                                  X=mean,
                                                  Y=np.atleast_2d(table.Y[0].copy()),

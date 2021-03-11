@@ -35,6 +35,7 @@ requirements:
     - renishawWiRE >=0.1.8
     - pillow
     - lmfit
+    - bottleneck
 
 test:
   imports:
