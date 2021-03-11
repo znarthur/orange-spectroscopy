@@ -8,6 +8,7 @@ from Orange.classification import LogisticRegressionLearner
 from Orange.data import ContinuousVariable
 from Orange.evaluation.testing import TestOnTestData
 from Orange.evaluation.scoring import AUC
+from Orange.data.table import DomainTransformationError
 
 from orangecontrib.spectroscopy.tests.test_preprocess import \
     PREPROCESSORS_INDEPENDENT_SAMPLES, \
@@ -59,13 +60,8 @@ class TestConversion(unittest.TestCase):
     def test_predict_different_domain(self):
         train, test = separate_learn_test(self.collagen)
         test = Interpolate(points=getx(test) - 1)(test) # other test domain
-        try:
-            from Orange.data.table import DomainTransformationError
-            with self.assertRaises(DomainTransformationError):
-                logreg(train)(test)
-        except ImportError:  # until Orange 3.19
-            aucdestroyed = AUC(TestOnTestData()(train, test, [logreg]))
-            self.assertTrue(0.45 < aucdestroyed < 0.55)
+        with self.assertRaises(DomainTransformationError):
+            logreg(train)(test)
 
     def test_predict_different_domain_interpolation(self):
         train, test = separate_learn_test(self.collagen)

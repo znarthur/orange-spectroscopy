@@ -4,11 +4,7 @@ import numpy as np
 import Orange.data
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
-
-try:  # get_unique_names was introduced in Orange 3.20
-    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
-except ImportError:
-    from Orange.data.util import get_unique_names
+from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntOrNone
 

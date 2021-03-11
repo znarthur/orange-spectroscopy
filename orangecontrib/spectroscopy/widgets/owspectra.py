@@ -32,12 +32,7 @@ from Orange.widgets.utils import saveplot
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
-
-try:
-    # since Orange 3.17
-    from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate
-except ImportError:
-    from Orange.widgets.visualize.owscatterplotgraph import HelpEventDelegate
+from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate
 
 
 from orangecontrib.spectroscopy.data import getx
