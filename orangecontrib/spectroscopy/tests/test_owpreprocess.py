@@ -13,13 +13,15 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOra
     REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
+
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)
+SMALLER_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 300, 4)
 
 
 class TestAllPreprocessors(WidgetTest):
 
     def test_allpreproc_indv(self):
-        data = Orange.data.Table("peach_juice.dpt")
+        data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
@@ -29,16 +31,15 @@ class TestAllPreprocessors(WidgetTest):
             self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_empty(self):
-        data = Orange.data.Table("peach_juice.dpt")[:0]
+        data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data)
+            self.send_signal("Data", data[:0])
             self.widget.add_preprocessor(p)
             self.widget.unconditional_commit()
             wait_for_preview(self.widget)
             self.wait_until_finished(timeout=10000)
         # no attributes
-        data = Orange.data.Table("peach_juice.dpt")
         data = data.transform(
             Orange.data.Domain([],
                                class_vars=data.domain.class_vars,
@@ -52,7 +53,7 @@ class TestAllPreprocessors(WidgetTest):
             self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_ref(self):
-        data = Orange.data.Table("peach_juice.dpt")
+        data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
@@ -65,7 +66,7 @@ class TestAllPreprocessors(WidgetTest):
     def test_allpreproc_indv_ref_multi(self):
         """Test that preprocessors can handle references with multiple instances"""
         # len(data) must be > maximum preview size (10) to ensure test failure
-        data = SMALL_COLLAGEN
+        data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
