@@ -1,14 +1,11 @@
 from collections.abc import Iterable
 
-import Orange
+import bottleneck
 import numpy as np
-from Orange.data.util import SharedComputeValue
-from Orange.preprocess.preprocess import Preprocess
 
-try:  # get_unique_names was introduced in Orange 3.20
-    from Orange.widgets.utils.annotated_data import get_next_name as get_unique_names
-except ImportError:
-    from Orange.data.util import get_unique_names
+import Orange
+from Orange.data.util import SharedComputeValue, get_unique_names
+from Orange.preprocess.preprocess import Preprocess
 
 from AnyQt.QtCore import Qt
 
@@ -126,11 +123,11 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
         y_s = y_s - self.compute_baseline(x_s, y_s)
         if len(x_s) == 0:
             return np.zeros((y_s.shape[0],)) * np.nan
-        return np.nanmax(y_s, axis=1)
+        return bottleneck.nanmax(y_s, axis=1)
 
     def compute_draw_info(self, x, ys):
         bs = self.compute_baseline(x, ys)
-        im = np.nanargmax(ys-bs, axis=1)
+        im = bottleneck.nanargmax(ys-bs, axis=1)
         lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
         return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
                 ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
@@ -168,14 +165,14 @@ class IntegrateFeaturePeakXEdgeBaseline(IntegrateFeature):
         whole_nan_rows = np.isnan(y_s).all(axis=1)
         y_s[whole_nan_rows] = 0
         # select positions
-        pos = x_s[np.nanargmax(y_s, axis=1)]
+        pos = x_s[bottleneck.nanargmax(y_s, axis=1)]
         # set unknown results
         pos[whole_nan_rows] = np.nan
         return pos
 
     def compute_draw_info(self, x, ys):
         bs = self.compute_baseline(x, ys)
-        im = np.nanargmax(ys-bs, axis=1)
+        im = bottleneck.nanargmax(ys-bs, axis=1)
         lines = (x[im], bs[np.arange(bs.shape[0]), im]), (x[im], ys[np.arange(ys.shape[0]), im])
         return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
                 ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
@@ -211,12 +208,12 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
     def compute_integral(self, x_s, y_s):
         if len(x_s) == 0:
             return np.zeros((y_s.shape[0],)) * np.nan
-        closer = np.nanargmin(abs(x_s - self.limits[0]))
+        closer = bottleneck.nanargmin(abs(x_s - self.limits[0]))
         return y_s[:, closer]
 
     def compute_draw_info(self, x, ys):
         bs = self.compute_baseline(x, ys)
-        im = np.array([np.nanargmin(abs(x - self.limits[0]))])
+        im = np.array([bottleneck.nanargmin(abs(x - self.limits[0]))])
         dx = [self.limits[0], self.limits[0]]
         dys = np.hstack((bs[:, im], ys[:, im]))
         return [("curve", (dx, dys, INTEGRATE_DRAW_EDGE_PENARGS)),  # line to value

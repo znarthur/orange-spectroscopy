@@ -5,6 +5,7 @@ import numbers
 import struct
 from html.parser import HTMLParser
 
+import bottleneck
 import numpy as np
 import spectral.io.envi
 from scipy.interpolate import interp1d
@@ -1140,7 +1141,7 @@ class DatMetaReader(FileFormat):
 
 
 def spectra_mean(X):
-    return np.nanmean(X, axis=0, dtype=np.float64)
+    return bottleneck.nanmean(X, axis=0)
 
 
 def reader_gsf(file_path):

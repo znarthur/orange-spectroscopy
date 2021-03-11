@@ -13,6 +13,7 @@ from AnyQt.QtTest import QTest
 
 from AnyQt.QtCore import pyqtSignal as Signal
 
+import bottleneck
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import GraphicsWidget
@@ -120,7 +121,7 @@ def get_levels(img):
     """ Compute levels. Account for NaN values. """
     while img.size > 2 ** 16:
         img = img[::2, ::2]
-    mn, mx = np.nanmin(img), np.nanmax(img)
+    mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
     if mn == mx:
         mn = 0
         mx = 255

@@ -136,6 +136,7 @@ if __name__ == '__main__':
             'renishawWiRE>=0.1.8',
             'pillow',
             'lmfit',
+            'bottleneck',
         ],
         extras_require={
             'test': ['coverage']

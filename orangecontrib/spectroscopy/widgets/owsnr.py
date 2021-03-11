@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 
 import Orange.data
@@ -93,13 +94,13 @@ class OWSNR(OWWidget):
         if len(array) == 0:
             return array
         if self.out_choiced == 0: #snr
-            return self.make_table(np.nanmean(array, axis=0,
-                                              keepdims=True) / np.std(array, axis=0,
-                                                                      keepdims=True), self.data)
+            return self.make_table(
+                (bottleneck.nanmean(array, axis=0) /
+                 bottleneck.nanstd(array, axis=0)).reshape(1, -1), self.data)
         elif self.out_choiced == 1: #avg
-            return self.make_table(np.nanmean(array, axis=0, keepdims=True), self.data)
+            return self.make_table(bottleneck.nanmean(array, axis=0).reshape(1, -1), self.data)
         else: # std
-            return self.make_table(np.std(array, axis=0, keepdims=True), self.data)
+            return self.make_table(bottleneck.nanstd(array, axis=0).reshape(1, -1), self.data)
 
 
     @staticmethod

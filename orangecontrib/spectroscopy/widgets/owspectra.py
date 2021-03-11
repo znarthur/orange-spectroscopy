@@ -13,6 +13,7 @@ from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
 from AnyQt.QtCore import Qt, QRectF, QPointF, QObject
 from AnyQt.QtCore import pyqtSignal
 
+import bottleneck
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
@@ -286,11 +287,11 @@ class ShowAverage(QObject, ConcurrentMixin):
                     part_selection = indices & subset_indices
                 if np.any(part_selection):
                     std = apply_columns_numpy(data.X,
-                                              lambda x: np.nanstd(x, axis=0),
+                                              lambda x: bottleneck.nanstd(x, axis=0),
                                               part_selection,
                                               callback=progress_interrupt)
                     mean = apply_columns_numpy(data.X,
-                                               lambda x: np.nanmean(x, axis=0),
+                                               lambda x: bottleneck.nanmean(x, axis=0),
                                                part_selection,
                                                callback=progress_interrupt)
                     std = std[data_xsind]
@@ -1333,8 +1334,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.add_curve(x, y, ignore_bounds=True)
 
         if x.size and ys.size:
-            bounding_rect = QGraphicsRectItem(QRectF(QPointF(np.nanmin(x), np.nanmin(ys)),
-                                                     QPointF(np.nanmax(x), np.nanmax(ys))))
+            bounding_rect = QGraphicsRectItem(QRectF(
+                QPointF(bottleneck.nanmin(x), bottleneck.nanmin(ys)),
+                QPointF(bottleneck.nanmax(x), bottleneck.nanmax(ys))))
             bounding_rect.setPen(QPen(Qt.NoPen))  # prevents border of 1
             self.curves_cont.add_bounds(bounding_rect)
 

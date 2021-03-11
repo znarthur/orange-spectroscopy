@@ -1,3 +1,4 @@
+import bottleneck
 import numpy as np
 
 from Orange.data import Domain, Table
@@ -32,7 +33,7 @@ def bin_mean(data, bin_shape, n_attrs):
     except ValueError as e:
         raise InvalidBlockShape(str(e))
     flatten_view = view.reshape(view.shape[0], view.shape[1], -1, n_attrs)
-    mean_view = np.nanmean(flatten_view, axis=2)
+    mean_view = bottleneck.nanmean(flatten_view, axis=2)
     return mean_view
 
 
