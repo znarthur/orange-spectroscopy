@@ -1623,9 +1623,10 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
             elif val[0] == '"':
                 d[name] = val[1:-1]
             else:
-                v = [val]
-                while (val := self._lex.get_token()) != ';':
+                v = []
+                while val != ';':
                     v.append(val)
+                    val = self._lex.get_token()
                 self._lex.push_token(';')
                 v = ''.join(v)
                 try:
