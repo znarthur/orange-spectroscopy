@@ -4,6 +4,7 @@ from functools import reduce
 import numbers
 import struct
 from html.parser import HTMLParser
+import shlex
 
 import bottleneck
 import numpy as np
@@ -1572,16 +1573,16 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
         d = []
         while True:
             val = self._lex.get_token()
-            assert(val);
+            assert val
             if val == ')':
                 self._lex.push_token(')')
-                assert(int(d[0]) == len(d) - 1)
+                assert int(d[0]) == len(d) - 1
                 return d[1:]
             elif val == ',':
                 pass
             elif val == '{':
                 d.append(self.read_hdr_dict())
-                assert(self._lex.get_token() == '}')
+                assert self._lex.get_token() == '}'
             elif val[0] == '"':
                 d.append(val[1:-1])
             else:
@@ -1589,12 +1590,12 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
                 while val != ')' and val != ',':
                     v.append(val)
                     val = self._lex.get_token()
-                    assert(val)
+                    assert val
                 self._lex.push_token(val)
                 v = ''.join(v)
                 try:
                     v = float(v)
-                except:
+                except ValueError:
                     pass
                 d.append(v)
 
@@ -1606,20 +1607,20 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
         while True:
             name = self._lex.get_token()
             if not name:
-                assert(not inner)
+                assert not inner
                 return d
             elif name == '}':
-                assert(inner)
+                assert inner
                 self._lex.push_token(name)
                 return d
-            assert(self._lex.get_token() == '=')
+            assert self._lex.get_token() == '='
             val = self._lex.get_token()
             if val == '{':
                 d[name] = self.read_hdr_dict()
-                assert(self._lex.get_token() == '}')
+                assert self._lex.get_token() == '}'
             elif val == '(':
                 d[name] = self.read_hdr_list()
-                assert(self._lex.get_token() == ')')
+                assert self._lex.get_token() == ')'
             elif val[0] == '"':
                 d[name] = val[1:-1]
             else:
@@ -1631,20 +1632,19 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
                 v = ''.join(v)
                 try:
                     v = float(v)
-                except:
+                except ValueError:
                     pass
                 d[name] = v
-            assert(self._lex.get_token() == ';')
+            assert self._lex.get_token() == ';'
 
     def read_spectra(self):
-        import shlex
         with open(self.filename, 'r') as f:
             # Parse file contents into dictionaries/lists
             self._lex = shlex.shlex(instream=f)
             try:
                 hdrdata = self.read_hdr_dict(inner=False)
-            except AssertionError:
-                raise IOError('Error parsing hdr file ' + self.filename)
+            except AssertionError as e:
+                raise IOError('Error parsing hdr file ' + self.filename) from e
         regions = hdrdata['ScanDefinition']['Regions'][0]
         axes = [regions['QAxis'], regions['PAxis'],
                 hdrdata['ScanDefinition']['StackAxis']]
