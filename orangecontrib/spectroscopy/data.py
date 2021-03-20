@@ -1237,7 +1237,7 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
             if len(value) == 1:
                 value = value[0]
             info.update({key: value})
-        
+
         info.update({'Reader': 'NeaReaderGSF'}) # key used in confirmation for complex fft calculation
 
         averaging = int(info['Averaging'])
@@ -1557,3 +1557,117 @@ class agilentMosaicTileReader(FileFormat, TileFileFormat):
             data = np.asarray(data, dtype=np.float64)  # Orange assumes X to be float64
             tile_table = Orange.data.Table.from_numpy(domain, X=data, metas=additional_table.metas)
             yield tile_table
+
+class HDRReader_STXM(FileFormat, SpectralFileFormat):
+    """ Reader for STXM/NEXAFS files from MAX IV and other synchrotrons.
+    It is assumed that there are .xim files with plain text data in the same
+    directory as the .hdr file. For foo.hdr these are called foo_a000.xim,
+    foo_a001.xim etc.
+    """
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'STXM/NEXAFS .hdr+.xim files'
+
+    def read_hdr_list(self):
+        "Read a list of items (1,2,3,{...}) from self._lex"
+        d = []
+        while True:
+            val = self._lex.get_token()
+            assert(val);
+            if val == ')':
+                self._lex.push_token(')')
+                assert(int(d[0]) == len(d) - 1)
+                return d[1:]
+            elif val == ',':
+                pass
+            elif val == '{':
+                d.append(self.read_hdr_dict())
+                assert(self._lex.get_token() == '}')
+            elif val[0] == '"':
+                d.append(val[1:-1])
+            else:
+                v = []
+                while val != ')' and val != ',':
+                    v.append(val)
+                    val = self._lex.get_token()
+                    assert(val)
+                self._lex.push_token(val)
+                v = ''.join(v)
+                try:
+                    v = float(v)
+                except:
+                    pass
+                d.append(v)
+
+    def read_hdr_dict(self, inner=True):
+        """Read a dict {name = 'value'; foo = (...);} from self._lex;
+            inner=False for the outermost level.
+        """
+        d = {}
+        while True:
+            name = self._lex.get_token()
+            if not name:
+                assert(not inner)
+                return d
+            elif name == '}':
+                assert(inner)
+                self._lex.push_token(name)
+                return d
+            assert(self._lex.get_token() == '=')
+            val = self._lex.get_token()
+            if val == '{':
+                d[name] = self.read_hdr_dict()
+                assert(self._lex.get_token() == '}')
+            elif val == '(':
+                d[name] = self.read_hdr_list()
+                assert(self._lex.get_token() == ')')
+            elif val[0] == '"':
+                d[name] = val[1:-1]
+            else:
+                v = [val]
+                while (val := self._lex.get_token()) != ';':
+                    v.append(val)
+                self._lex.push_token(';')
+                v = ''.join(v)
+                try:
+                    v = float(v)
+                except:
+                    pass
+                d[name] = v
+            assert(self._lex.get_token() == ';')
+
+    def read_spectra(self):
+        import shlex
+        with open(self.filename, 'r') as f:
+            # Parse file contents into dictionaries/lists
+            self._lex = shlex.shlex(instream=f)
+            try:
+                hdrdata = self.read_hdr_dict(inner=False)
+            except AssertionError:
+                raise IOError('Error parsing hdr file ' + self.filename)
+        regions = hdrdata['ScanDefinition']['Regions'][0]
+        axes = [regions['QAxis'], regions['PAxis'],
+                hdrdata['ScanDefinition']['StackAxis']]
+        dims = [len(ax['Points']) for ax in axes]
+        spectra = np.empty(dims)
+        for nf in range(dims[2]):
+            ximname = '%s_a%03d.xim' % (self.filename[:-4], nf)
+            xim = np.loadtxt(ximname)
+            spectra[...,nf] = xim
+
+        x_loc = axes[1]['Points']
+        y_loc = axes[0]['Points']
+        features = np.asarray(axes[2]['Points'])
+        return _spectra_from_image(spectra, features, x_loc, y_loc)
+
+class HDRMetaReader(FileFormat):
+    """ Meta-reader to handle EnviMapReader and HDRReader_STXM name clash
+    over .hdr extension. """
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'Envi hdr or STXM hdr+xim files'
+    PRIORITY = min(EnviMapReader.PRIORITY, HDRReader_STXM.PRIORITY) - 1
+
+    def read(self):
+        try:
+            return EnviMapReader(filename=self.filename).read()
+        except spectral.io.envi.FileNotAnEnviHeader:
+            return HDRReader_STXM(filename=self.filename).read()
