@@ -1587,7 +1587,7 @@ class HDRReader_STXM(FileFormat, SpectralFileFormat):
                 d.append(val[1:-1])
             else:
                 v = []
-                while val != ')' and val != ',':
+                while val not in (')', ','):
                     v.append(val)
                     val = self._lex.get_token()
                     assert val
