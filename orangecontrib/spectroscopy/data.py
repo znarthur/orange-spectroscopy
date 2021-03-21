@@ -357,6 +357,29 @@ class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
         return _spectra_from_image(intensities, energies, x_locs, y_locs)
 
 
+class HDF5Reader_NXS(FileFormat, SpectralFileFormat):
+    """ A very case specific reader for hyperspectral imaging HDF5
+    files from the Diamond Light Source"""
+    EXTENSIONS = ('.nxs',)
+    DESCRIPTION = 'HDF5 file @Diamond Light Source'
+
+    def read_spectra(self):
+        import h5py
+        hdf5_file = h5py.File(self.filename, mode='r')
+        if 'entry1/definition' in hdf5_file and \
+                hdf5_file['entry1/definition'][()].astype('str') == 'NXstxm':
+            grp = hdf5_file['entry1/Counter1']
+            x_locs = np.array(grp['sample_x'])
+            y_locs = np.array(grp['sample_y'])
+            energy = np.array(grp['photon_energy'])
+            order = [grp[n].attrs['axis'] - 1 for n in
+                     ['sample_y', 'sample_x', 'photon_energy']]
+            intensities = np.array(grp['data']).transpose(order)
+            return _spectra_from_image(intensities, energy, x_locs, y_locs)
+        else:
+            raise IOError("Not an HDF5 Diamond Light Source file")
+
+
 class OmnicMapReader(FileFormat, SpectralFileFormat):
     """ Reader for files with two columns of numbers (X and Y)"""
     EXTENSIONS = ('.map',)
@@ -1237,7 +1260,7 @@ class NeaReaderGSF(FileFormat, SpectralFileFormat):
             if len(value) == 1:
                 value = value[0]
             info.update({key: value})
-        
+
         info.update({'Reader': 'NeaReaderGSF'}) # key used in confirmation for complex fft calculation
 
         averaging = int(info['Averaging'])
