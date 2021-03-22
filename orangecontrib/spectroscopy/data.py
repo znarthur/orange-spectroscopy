@@ -357,11 +357,13 @@ class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
         return _spectra_from_image(intensities, energies, x_locs, y_locs)
 
 
-class HDF5Reader_NXS(FileFormat, SpectralFileFormat):
-    """ A very case specific reader for hyperspectral imaging HDF5
-    files from the Diamond Light Source"""
+class NXS_STXM_Diamond_I08(FileFormat, SpectralFileFormat):
+    """ A case specific reader for hyperspectral imaging NXS HDF5
+    files from the I08 beamline of the Diamond Light Source.
+    These files have very little metadata and don't fully adhere to
+    https://manual.nexusformat.org/classes/applications/NXstxm.html """
     EXTENSIONS = ('.nxs',)
-    DESCRIPTION = 'HDF5 file @Diamond Light Source'
+    DESCRIPTION = 'NXS HDF5 file @I08/Diamond Light Source'
 
     def read_spectra(self):
         import h5py
@@ -377,7 +379,7 @@ class HDF5Reader_NXS(FileFormat, SpectralFileFormat):
             intensities = np.array(grp['data']).transpose(order)
             return _spectra_from_image(intensities, energy, x_locs, y_locs)
         else:
-            raise IOError("Not an HDF5 Diamond Light Source file")
+            raise IOError("Not an NXS HDF5 @I08/Diamond file")
 
 
 class OmnicMapReader(FileFormat, SpectralFileFormat):
