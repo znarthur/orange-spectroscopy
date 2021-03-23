@@ -1,5 +1,6 @@
 import sys
 import time
+from collections import OrderedDict
 from functools import reduce
 
 import lmfit
@@ -98,35 +99,40 @@ def fit_peaks(data, model, params):
     return fit_results_table(output, out, data)
 
 
-class ParameterBox(QHBoxLayout):
+class ParamHintBox(QHBoxLayout):
     """
-    Box to interact with a lmfit.Parameter object
+    Box to interact with lmfit parameter hints
 
     Args:
-        par (lmfit.Parameter): Parameter object
+        name (str): Name of the parameter
+        init_hints (OrderedDict): initial parameter hints for parameter given by 'name'
     """
 
-    valueChanged = Signal(Parameter)
+    valueChanged = Signal(OrderedDict)
     editingFinished = Signal(QObject)
 
-    def __init__(self, par, parent=None, **kwargs):
+    def __init__(self, init_hints=None, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.par = par
+        if init_hints is None:
+            self.init_hints = OrderedDict()
+        else:
+            self.init_hints = init_hints
 
-        minf, maxf = -sys.float_info.max, sys.float_info.max
+        # minf, maxf = -sys.float_info.max, sys.float_info.max
+        minf, maxf = float('-inf'), float('inf')
 
         self.min_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=par.min,
+                                       singleStep=0.5, value=self.init_hints.get('min', minf),
                                        maximumWidth=75)
         self.val_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=par.value,
+                                       singleStep=0.5, value=self.init_hints.get('value', 0),
                                        maximumWidth=75)
         self.max_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=par.max,
+                                       singleStep=0.5, value=self.init_hints.get('max', maxf),
                                        maximumWidth=75)
         self.vary_e = QCheckBox("vary")
-        self.vary_e.setCheckState(par.vary)
+        self.vary_e.setChecked(self.init_hints.get('vary', 1))
 
         self.addWidget(self.min_e)
         self.addWidget(self.val_e)
@@ -154,32 +160,42 @@ class ParameterBox(QHBoxLayout):
     def focusInChild(self):
         self.focusIn()
 
-    def setValue(self, par):
-        if not isinstance(par, Parameter):
-            raise ValueError("Value must be instance of Parameter")
-        if par.name != self.par.name:
-            raise ValueError(f"Parameter.name ({par.name}) must match {self.par.name}")
-        self.par = par
-        with blocked(self.min_e):
-            self.min_e.setValue(par.min)
-        with blocked(self.max_e):
-            self.max_e.setValue(par.max)
-        with blocked(self.val_e):
-            self.val_e.setValue(par.value)
-        with blocked(self.vary_e):
-            self.vary_e.setCheckState(par.vary)
+    def setValues(self, **kwargs):
+        for k, v in kwargs.items():
+            if k == 'min':
+                with blocked(self.min_e):
+                    self.min_e.setValue(v)
+            if k == 'max':
+                with blocked(self.max_e):
+                    self.max_e.setValue(v)
+            if k == 'value':
+                with blocked(self.val_e):
+                    self.val_e.setValue(v)
+            if k == 'vary':
+                with blocked(self.vary_e):
+                    self.vary_e.setChecked(v)
 
     def parameterChanged(self):
-        self.par.set(
-            value=self.val_e.value(),
-            vary=self.vary_e.checkState(),
-            min=self.min_e.value(),
-            max=self.max_e.value(),
-        )
-        self.valueChanged.emit(self.par)
+        e_vals = {
+            'value': self.val_e.value(),
+            'vary': self.vary_e.isChecked(),
+            'min': self.min_e.value(),
+            'max': self.max_e.value(),
+        }
+        # Avoid collecting unchanged hints
+        if e_vals['vary'] == self.init_hints.get('vary', True):
+            e_vals.pop('vary')
+        if e_vals['min'] == self.init_hints.get('min', float('-inf')):
+            e_vals.pop('min')
+        if e_vals['max'] == self.init_hints.get('max', float('inf')):
+            e_vals.pop('max')
+        e_hints = self.init_hints.copy()
+        e_hints.update(e_vals)
+        self.valueChanged.emit(e_hints)
 
     def editFinished(self):
         self.editingFinished.emit(self)
+
 
 class ModelEditor(BaseEditorOrange):
     # Adapted from IntegrateOneEditor
@@ -196,24 +212,27 @@ class ModelEditor(BaseEditorOrange):
         self.__values = {}
         self.__editors = {}
         self.__lines = {}
-        self.__defaults = self.model().make_params()
+        self.__defaults = self.model().param_hints
 
         for name in self.model_parameters():
-            p = self.__defaults[name]
-            self.__values[name] = p
+            h = self.__defaults.get(name, OrderedDict())
+            self.__values[name] = h
 
-            e = ParameterBox(p)
+            e = ParamHintBox(h)
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)
-            def cf(x, name=name):
+            def ch(h, name=name):
                 self.edited.emit()
-                return self.set_param(name, x)
-            e.valueChanged.connect(cf)
+                return self.set_param_hints(name, h)
+            e.valueChanged.connect(ch)
             self.__editors[name] = e
             layout.addRow(name, e)
 
             if name in self.model_lines():
-                l = MovableVline(position=p.value, label=name)
+                l = MovableVline(position=0.0, label=name)
+                def cf(x, name=name):
+                    self.edited.emit()
+                    return self.set_hint(name, value=x)
                 l.sigMoved.connect(cf)
                 self.__lines[name] = l
 
@@ -229,17 +248,24 @@ class ModelEditor(BaseEditorOrange):
                 l.report = self.parent_widget.curveplot
                 self.parent_widget.curveplot.add_marking(l)
 
-    def set_param(self, name, p, user=True):
+    def set_param_hints(self, name, h, user=True):
         if user:
             self.user_changed = True
-        if self.__values[name] != p:
-            self.__values[name] = p
+        if self.__values[name] != h:
+            self.__values[name] = h
             with blocked(self.__editors[name]):
-                self.__editors[name].setValue(p)
+                self.__editors[name].setValues(**h)
                 l = self.__lines.get(name, None)
-                if l is not None:
-                    l.setValue(p.value)
+                if l is not None and 'value' in h:
+                    l.setValue(h['value'])
             self.changed.emit()
+
+    def set_hint(self, name, **kwargs):
+        h = self.__values[name].copy()
+        for k, v in kwargs.items():
+            if k in ('value', 'vary', 'min', 'max', 'expr'):
+                h[k] = v
+        self.set_param_hints(name, h)
 
     # # TODO do we still want this?
     # def set_value(self, name, v, user=True):
@@ -258,7 +284,7 @@ class ModelEditor(BaseEditorOrange):
         if params:  # parameters were set manually set
             self.user_changed = True
         for name in self.model_parameters():
-            self.set_param(name, params.get(name, self.__defaults[name]), user=False)
+            self.set_param_hints(name, params.get(name, self.__defaults.get(name, OrderedDict())), user=False)
 
     def parameters(self):
         return self.__values
@@ -278,11 +304,11 @@ class ModelEditor(BaseEditorOrange):
             if len(xs):
                 minx = np.min(xs)
                 maxx = np.max(xs)
-                limits = [(name, self.__values.get(name, self.__defaults[name]))
+                limits = [(name, self.__values.get(name, {}))
                           for name in self.model_lines()]
-                for name, p in limits:
-                    v = getattr(p, 'value', p)
-                    if v < minx or v > maxx:
+                for name, h in limits:
+                    v = h.get('value', None)
+                    if v is not None and v < minx or v > maxx:
                         self.parent_widget.Warning.preprocessor()
                         self.Warning.out_of_range(name)
 
@@ -317,9 +343,7 @@ class PeakModelEditor(ModelEditor):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                p_center = self.parameters()['center']
-                p_center.set(value=x[int(len(x)/2)])
-                self.set_param('center', p_center)
+                self.set_hint('center', value=x[int(len(x)/2)])
                 self.edited.emit()
         super().set_preview_data(data)
 
@@ -578,9 +602,8 @@ def create_model(item, rownum):
 
 def prepare_params(item, model):
     editor_params = item.data(ParametersRole)
-    hint_names = ('value', 'vary', 'min', 'max', 'expr')
-    for name, par in editor_params.items():
-        model.set_param_hint(name, **{k: getattr(par, k) for k in hint_names})
+    for name, hints in editor_params.items():
+        model.set_param_hint(name, **hints)
     params = model.make_params()
     return params
 

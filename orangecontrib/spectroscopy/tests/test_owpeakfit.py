@@ -1,4 +1,5 @@
 import unittest
+from collections import OrderedDict
 from functools import reduce
 
 import numpy as np
@@ -129,15 +130,15 @@ class TestBuildModel(unittest.TestCase):
 
     def test_model_from_editor(self):
         self.editor = VoigtModelEditor()
-        p_center = self.editor.parameters()['center']
-        p_center.set(value=1655)
-        self.editor.set_param('center', p_center)
+        self.editor.set_hint('center', value=1655)
         self.editor.edited.emit()
 
         m = self.editor.createinstance(prefix=unique_prefix(self.editor, 0))
         self.assertIsInstance(m, self.editor.model)
         editor_params = self.editor.parameters()
-        params = m.make_params(**editor_params)
+        for name, hints in editor_params.items():
+            m.set_param_hint(name, **hints)
+        params = m.make_params()
         self.assertEqual(params['v0_center'], 1655)
 
 
@@ -191,21 +192,24 @@ class TestVoigtEditor(ModelEditorTest):
 
     def test_set_param(self):
         e = self.editor
-        p = Parameter(name="center", value=1623, min=1603, max=1643)
-        e.set_param('center', p)
+        p = e.parameters()['center'].copy()
+        p.update({'value': 1623, 'min': 1603, 'max': 1643})
+        e.set_param_hints('center', p)
         e.edited.emit()
         p_set = e.parameters()['center']
-        self.assertIsInstance(p_set, Parameter)
-        self.assertEqual(p_set.value, 1623)
-        self.assertEqual(p_set.min, 1603)
-        self.assertEqual(p_set.max, 1643)
-        self.assertEqual(p_set.vary, True)
+        self.assertIsInstance(p_set, OrderedDict)
+        self.assertEqual(p_set['value'], 1623)
+        self.assertEqual(p_set['min'], 1603)
+        self.assertEqual(p_set['max'], 1643)
+        # Also test GUI is updated
+        p_box = e._ModelEditor__editors['center']
+        self.assertEqual(p_box.val_e.value(), p_set['value'])
+        self.assertEqual(p_box.min_e.value(), p_set['min'])
+        self.assertEqual(p_box.max_e.value(), p_set['max'])
 
     def test_set_center(self):
         e = self.editor
-        p_center = e.parameters()['center']
-        p_center.set(value=1655)
-        e.set_param('center', p_center)
+        e.set_hint('center', value=1655)
         e.edited.emit()
         m = self.get_model_single()
         params = self.get_params_single(m)
@@ -246,9 +250,9 @@ class TestVoigtEditorMulti(ModelEditorTest):
             # Set editor to same values
             e = self.editors[i]
             e_params = e.parameters()
-            e_params['center'].set(value=center, min=center - dx, max=center + dx)
-            e_params['sigma'].set(max=50)
-            e_params['amplitude'].set(min=0.0001)
+            e_params['center'].update({'value': center, 'min': center - dx, 'max': center + dx})
+            e_params['sigma']['max'] = 50
+            e_params['amplitude']['min'] = 0.0001
             e.setParameters(e_params)
             e.edited.emit()
         return model, params
