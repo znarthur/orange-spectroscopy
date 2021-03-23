@@ -196,11 +196,10 @@ class ModelEditor(BaseEditorOrange):
         self.__values = {}
         self.__editors = {}
         self.__lines = {}
+        self.__defaults = self.model().make_params()
 
-        params = self.model().make_params()
-
-        for name, longname, v in self.model_parameters():
-            p = params[name]
+        for name in self.model_parameters():
+            p = self.__defaults[name]
             self.__values[name] = p
 
             e = ParameterBox(p)
@@ -214,7 +213,7 @@ class ModelEditor(BaseEditorOrange):
             layout.addRow(name, e)
 
             if name in self.model_lines():
-                l = MovableVline(position=v, label=name)
+                l = MovableVline(position=p.value, label=name)
                 l.sigMoved.connect(cf)
                 self.__lines[name] = l
 
@@ -258,8 +257,8 @@ class ModelEditor(BaseEditorOrange):
     def setParameters(self, params):
         if params:  # parameters were set manually set
             self.user_changed = True
-        for name, _, default in self.model_parameters():
-            self.set_param(name, params.get(name, Parameter(name=name, value=default)), user=False)
+        for name in self.model_parameters():
+            self.set_param(name, params.get(name, self.__defaults[name]), user=False)
 
     def parameters(self):
         return self.__values
@@ -279,9 +278,8 @@ class ModelEditor(BaseEditorOrange):
             if len(xs):
                 minx = np.min(xs)
                 maxx = np.max(xs)
-                limits = [(name, self.__values.get(name, default))
-                          for name, _, default in self.model_parameters()
-                          if name in self.model_lines()]
+                limits = [(name, self.__values.get(name, self.__defaults[name]))
+                          for name in self.model_lines()]
                 for name, p in limits:
                     v = getattr(p, 'value', p)
                     if v < minx or v > maxx:
@@ -291,7 +289,7 @@ class ModelEditor(BaseEditorOrange):
     @staticmethod
     def model_parameters():
         """
-        Returns a tuple of tuple(parameter, display name, default value)
+        Returns a tuple of Parameter names for the model which should be editable
         """
         raise NotImplementedError
 
@@ -309,10 +307,7 @@ class PeakModelEditor(ModelEditor):
 
     @staticmethod
     def model_parameters():
-        return (('center', "Center", 0.),
-                ('amplitude', "Amplitude", 1.),
-                ('sigma', "Sigma", 1.),
-                )
+        return 'center', 'amplitude', 'sigma'
 
     @staticmethod
     def model_lines():
@@ -348,7 +343,7 @@ class SplitLorentzianModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('sigma_r', "Sigma Right", 1.),)
+        return super().model_parameters() + ('sigma_r',)
 
 
 class VoigtModelEditor(PeakModelEditor):
@@ -370,7 +365,7 @@ class PseudoVoigtModelEditor(PeakModelEditor):
     # TODO Review if sigma should be exposed (it is somewhat constrained)
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('fraction', "Fraction Lorentzian", 0.5),)
+        return super().model_parameters() + ('fraction',)
 
 
 class MoffatModelEditor(PeakModelEditor):
@@ -380,7 +375,7 @@ class MoffatModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('beta', "Beta", 1.0),)
+        return super().model_parameters() + ('beta',)
 
 
 class Pearson7ModelEditor(PeakModelEditor):
@@ -390,7 +385,7 @@ class Pearson7ModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('exponent', "Exponent", 1.5),)
+        return super().model_parameters() + ('exponent',)
 
 
 class StudentsTModelEditor(PeakModelEditor):
@@ -406,7 +401,7 @@ class BreitWignerModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('q', "q", 1.0),)
+        return super().model_parameters() + ('q',)
 
 
 class LognormalModelEditor(PeakModelEditor):
@@ -431,7 +426,7 @@ class DampedHarmonicOscillatorModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('gamma', "Gamma", 1.0),)
+        return super().model_parameters() + ('gamma',)
 
 
 class ExponentialGaussianModelEditor(PeakModelEditor):
@@ -442,7 +437,7 @@ class ExponentialGaussianModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('gamma', "Gamma", 1.0),)
+        return super().model_parameters() + ('gamma',)
 
 
 class SkewedGaussianModelEditor(PeakModelEditor):
@@ -452,7 +447,7 @@ class SkewedGaussianModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('gamma', "Gamma", 0.0),)
+        return super().model_parameters() + ('gamma',)
 
 
 class SkewedVoigtModelEditor(PeakModelEditor):
@@ -463,7 +458,7 @@ class SkewedVoigtModelEditor(PeakModelEditor):
     # TODO as with VoigtModel, gamma is constrained to sigma by default, not exposed
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('skew', "Skew", 0.0),)
+        return super().model_parameters() + ('skew',)
 
 
 class ThermalDistributionModelEditor(PeakModelEditor):
@@ -474,7 +469,7 @@ class ThermalDistributionModelEditor(PeakModelEditor):
     @classmethod
     def model_parameters(cls):
         # TODO kwarg "form" can be used to select between bose / maxwell / fermi
-        return super().model_parameters()[:2] + (('kt', "kt", 1.0),)
+        return super().model_parameters()[:2] + ('kt',)
 
 
 class DoniachModelEditor(PeakModelEditor):
@@ -484,7 +479,7 @@ class DoniachModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + (('gamma', "Gamma", 0.0),)
+        return super().model_parameters() + ('gamma',)
 
 
 class BaselineModelEditor(ModelEditor):
@@ -504,7 +499,7 @@ class ConstantModelEditor(BaselineModelEditor):
 
     @staticmethod
     def model_parameters():
-        return (('c', "Constant", 0.0),)
+        return ('c',)
 
 
 class LinearModelEditor(BaselineModelEditor):
@@ -514,9 +509,7 @@ class LinearModelEditor(BaselineModelEditor):
 
     @staticmethod
     def model_parameters():
-        return (('intercept', "Intercept", 0.0),
-                ('slope', "Slope", 1.0)
-                )
+        return 'intercept', 'slope'
 
 
 class QuadraticModelEditor(BaselineModelEditor):
@@ -526,10 +519,7 @@ class QuadraticModelEditor(BaselineModelEditor):
 
     @staticmethod
     def model_parameters():
-        return (('a', "a", 0.0),
-                ('b', "b", 0.0),
-                ('c', "c", 0.0),
-                )
+        return 'a', 'b', 'c'
 
 
 class PolynomialModelEditor(BaselineModelEditor):

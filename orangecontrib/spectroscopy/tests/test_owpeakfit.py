@@ -219,7 +219,7 @@ class TestVoigtEditor(ModelEditorTest):
                  if isinstance(l, MovableVline)]
         for ml in model_lines:
             self.assertIn(ml, lines)
-        no_lines = [p[0] for p in self.editor.model_parameters() if p[0] not in model_lines]
+        no_lines = [p for p in self.editor.model_parameters() if p not in model_lines]
         for nl in no_lines:
             self.assertNotIn(nl, lines)
 
