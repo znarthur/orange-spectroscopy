@@ -135,7 +135,7 @@ if __name__ == '__main__':
             'extranormal3',
             'renishawWiRE>=0.1.8',
             'pillow',
-            'lmfit',
+            'lmfit>=1.0.2',
             'bottleneck',
         ],
         extras_require={

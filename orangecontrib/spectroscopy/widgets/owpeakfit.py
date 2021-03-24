@@ -13,7 +13,7 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.concurrent import TaskState
 from Orange.widgets.utils.signals import Output
 from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QCheckBox, QComboBox
 from lmfit import Parameters, Parameter
 from orangewidget.widget import Msg
 from scipy import integrate
@@ -225,7 +225,7 @@ class ModelEditor(BaseEditorOrange):
         self.__defaults = m.param_hints
 
         for name in self.model_parameters():
-            h = self.__defaults.get(name, OrderedDict())
+            h = self.__defaults.get(name, OrderedDict(value=0))
             self.__values[name] = h
 
             e = ParamHintBox(h)
@@ -277,6 +277,10 @@ class ModelEditor(BaseEditorOrange):
                 h[k] = v
         self.set_param_hints(name, h)
 
+    def set_form(self, form):
+        self.__values.update(form=form)
+        self.edited.emit()
+
     # # TODO do we still want this?
     # def set_value(self, name, v, user=True):
     #     if user:
@@ -300,11 +304,9 @@ class ModelEditor(BaseEditorOrange):
         return self.__values
 
     @classmethod
-    def createinstance(cls, prefix):
-        # params = dict(params)
-        # values = []
-        # for ind, (name, _) in enumerate(cls.model_parameters()):
-        #     values.append(params.get(name, 0.))
+    def createinstance(cls, prefix, form=None):
+        if form is not None:
+            return cls.model(prefix=prefix, form=form)
         return cls.model(prefix=prefix)
 
     def set_preview_data(self, data):
@@ -500,9 +502,15 @@ class ThermalDistributionModelEditor(PeakModelEditor):
     model = lmfit.models.ThermalDistributionModel
     prefix_generic = "td"
 
+    def __init__(self):
+        super().__init__()
+        cb = QComboBox()
+        cb.insertItems(0, self.model.valid_forms)
+        cb.currentTextChanged.connect(self.set_form)
+        self.controlArea.layout().insertRow(0, "form", cb)  # put at top of the form
+
     @classmethod
     def model_parameters(cls):
-        # TODO kwarg "form" can be used to select between bose / maxwell / fermi
         return super().model_parameters()[:2] + ('kt',)
 
 
@@ -557,10 +565,20 @@ class QuadraticModelEditor(BaselineModelEditor):
 
 
 class PolynomialModelEditor(BaselineModelEditor):
-    # TODO kwarg "degree" required, sets number of parameters
     name = "Polynomial"
     model = lmfit.models.PolynomialModel
     prefix_generic = "poly"
+
+    def __init__(self):
+        super().__init__()
+        cb = QComboBox()
+        cb.insertItems(0, tuple(str(vf) for vf in self.model.valid_forms))
+        cb.currentTextChanged.connect(self.set_form)
+        self.controlArea.layout().insertRow(0, "form", cb)  # put at top of the form
+
+    @classmethod
+    def model_parameters(cls):
+        return tuple(f"c{vf}" for vf in cls.model.valid_forms)
 
 
 def pack_model_editor(editor):
@@ -594,7 +612,7 @@ PREPROCESSORS = [pack_model_editor(e) for e in [
     # ConstantModelEditor,
     LinearModelEditor,
     QuadraticModelEditor,
-    # PolynomialModelEditor,
+    PolynomialModelEditor,
     ]
 ]
 
@@ -607,13 +625,15 @@ def create_model(item, rownum):
     desc = item.data(DescriptionRole)
     create = desc.viewclass.createinstance
     prefix = unique_prefix(desc.viewclass, rownum)
-    return create(prefix=prefix)
+    form = item.data(ParametersRole).get('form', None)
+    return create(prefix=prefix, form=form)
 
 
 def prepare_params(item, model):
     editor_params = item.data(ParametersRole)
     for name, hints in editor_params.items():
-        model.set_param_hint(name, **hints)
+        if name != 'form':
+            model.set_param_hint(name, **hints)
     params = model.make_params()
     return params
 
