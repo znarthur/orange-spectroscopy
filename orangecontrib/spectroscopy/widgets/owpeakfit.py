@@ -119,19 +119,18 @@ class ParamHintBox(QHBoxLayout):
         else:
             self.init_hints = init_hints
 
-        # minf, maxf = -sys.float_info.max, sys.float_info.max
-        minf, maxf = float('-inf'), float('inf')
+        minf, maxf, neginf = -sys.float_info.max, sys.float_info.max, float('-inf')
 
-        self.min_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=self.init_hints.get('min', minf),
-                                       maximumWidth=75)
+        self.min_e = SetXDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
+                                       singleStep=0.5, value=self.init_hints.get('min', neginf),
+                                       maximumWidth=50, buttonSymbols=2, specialValueText="None")
         self.val_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
                                        singleStep=0.5, value=self.init_hints.get('value', 0),
-                                       maximumWidth=75)
-        self.max_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=self.init_hints.get('max', maxf),
-                                       maximumWidth=75)
-        self.vary_e = QCheckBox("vary")
+                                       minimumWidth=50, maximumWidth=50, buttonSymbols=2)
+        self.max_e = SetXDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
+                                       singleStep=0.5, value=self.init_hints.get('max', neginf),
+                                       maximumWidth=50, buttonSymbols=2, specialValueText="None")
+        self.vary_e = QCheckBox()
         self.vary_e.setChecked(self.init_hints.get('vary', 1))
 
         self.addWidget(self.min_e)
@@ -142,11 +141,12 @@ class ParamHintBox(QHBoxLayout):
         self.min_e.valueChanged[float].connect(self.parameterChanged)
         self.val_e.valueChanged[float].connect(self.parameterChanged)
         self.max_e.valueChanged[float].connect(self.parameterChanged)
-        self.vary_e.stateChanged.connect(self.parameterChanged)
+        self.vary_e.stateChanged.connect(self.varyChanged)
 
         self.min_e.editingFinished.connect(self.editFinished)
         self.val_e.editingFinished.connect(self.editFinished)
         self.max_e.editingFinished.connect(self.editFinished)
+        self.vary_e.stateChanged.connect(self.editFinished)
 
         self.min_e.focusIn = self.focusInChild
         self.val_e.focusIn = self.focusInChild
@@ -187,11 +187,17 @@ class ParamHintBox(QHBoxLayout):
             e_vals.pop('vary')
         if e_vals['min'] == self.init_hints.get('min', float('-inf')):
             e_vals.pop('min')
-        if e_vals['max'] == self.init_hints.get('max', float('inf')):
+        if e_vals['max'] == self.init_hints.get('max', float('-inf')):
             e_vals.pop('max')
         e_hints = self.init_hints.copy()
         e_hints.update(e_vals)
         self.valueChanged.emit(e_hints)
+
+    def varyChanged(self):
+        vary = self.vary_e.isChecked()
+        self.min_e.setEnabled(vary)
+        self.max_e.setEnabled(vary)
+        self.parameterChanged()
 
     def editFinished(self):
         self.editingFinished.emit(self)
@@ -212,7 +218,11 @@ class ModelEditor(BaseEditorOrange):
         self.__values = {}
         self.__editors = {}
         self.__lines = {}
-        self.__defaults = self.model().param_hints
+
+        m = self.model()
+        for name, value in m.def_vals.items():
+            m.set_param_hint(name, value=value)
+        self.__defaults = m.param_hints
 
         for name in self.model_parameters():
             h = self.__defaults.get(name, OrderedDict())
@@ -409,7 +419,7 @@ class Pearson7ModelEditor(PeakModelEditor):
 
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + ('exponent',)
+        return super().model_parameters() + ('expon',)
 
 
 class StudentsTModelEditor(PeakModelEditor):
