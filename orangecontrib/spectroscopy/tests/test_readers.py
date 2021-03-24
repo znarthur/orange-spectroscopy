@@ -139,6 +139,15 @@ class TestHermesHDF5Reader(unittest.TestCase):
         self.assertEqual(d[1]["map_y"], 11.1)
 
 
+class TestNXS_STXM_Diamond_I08(unittest.TestCase):
+
+    def test_read(self):
+        d = Orange.data.Table("small_diamond_nxs.nxs")
+        self.assertAlmostEqual(d[0]['map_x'], -1.77900021)
+        self.assertAlmostEqual(d[0]['map_y'], -2.74319824)
+        self.assertEqual(d[13, 2], 1373)
+
+
 class TestOmnicMapReader(unittest.TestCase):
 
     def test_read(self):
