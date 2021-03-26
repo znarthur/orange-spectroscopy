@@ -13,7 +13,7 @@ from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.concurrent import TaskState
 from Orange.widgets.utils.signals import Output
 from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QCheckBox, QComboBox
+from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QCheckBox, QComboBox, QLineEdit
 from lmfit import Parameters, Parameter
 from orangewidget.widget import Msg
 from scipy import integrate
@@ -130,28 +130,44 @@ class ParamHintBox(QHBoxLayout):
         self.max_e = SetXDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
                                        singleStep=0.5, value=self.init_hints.get('max', neginf),
                                        maximumWidth=50, buttonSymbols=2, specialValueText="None")
-        self.vary_e = QCheckBox()
-        self.vary_e.setChecked(self.init_hints.get('vary', 1))
+        self.delta_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
+                                         singleStep=0.5, value=1, prefix="±",
+                                         maximumWidth=50, buttonSymbols=2, visible=False)
+        self.vary_e = QComboBox(maximumWidth=50)
+        self.vary_e.insertItems(0, ('fixed', 'limits', 'delta', 'expr'))
+        self.vary_e.setCurrentText('limits')
+        self.expr_e = QLineEdit(maximumWidth=150, visible=False)
 
         self.addWidget(self.min_e)
         self.addWidget(self.val_e)
         self.addWidget(self.max_e)
+        self.addWidget(self.delta_e)
+        self.addWidget(self.expr_e)
         self.addWidget(self.vary_e)
 
         self.min_e.valueChanged[float].connect(self.parameterChanged)
         self.val_e.valueChanged[float].connect(self.parameterChanged)
         self.max_e.valueChanged[float].connect(self.parameterChanged)
-        self.vary_e.stateChanged.connect(self.varyChanged)
+        self.delta_e.valueChanged[float].connect(self.parameterChanged)
+        self.vary_e.currentTextChanged.connect(self.parameterChanged)
+        self.expr_e.textChanged.connect(self.parameterChanged)
+
 
         self.min_e.editingFinished.connect(self.editFinished)
         self.val_e.editingFinished.connect(self.editFinished)
         self.max_e.editingFinished.connect(self.editFinished)
-        self.vary_e.stateChanged.connect(self.editFinished)
+        self.delta_e.editingFinished.connect(self.editFinished)
+        self.vary_e.currentTextChanged.connect(self.editFinished)
+        self.expr_e.editingFinished.connect(self.editFinished)
 
         self.min_e.focusIn = self.focusInChild
         self.val_e.focusIn = self.focusInChild
         self.max_e.focusIn = self.focusInChild
+        self.delta_e.focusIn = self.focusInChild
         self.vary_e.focusIn = self.focusInChild
+        self.expr_e.focusIn = self.focusInChild
+
+        self.setValues(**self.init_hints)
 
     def focusInEvent(self, *e):
         self.focusIn()
@@ -161,43 +177,102 @@ class ParamHintBox(QHBoxLayout):
         self.focusIn()
 
     def setValues(self, **kwargs):
-        for k, v in kwargs.items():
-            if k == 'min':
-                with blocked(self.min_e):
-                    self.min_e.setValue(v)
-            if k == 'max':
-                with blocked(self.max_e):
-                    self.max_e.setValue(v)
-            if k == 'value':
-                with blocked(self.val_e):
-                    self.val_e.setValue(v)
-            if k == 'vary':
-                with blocked(self.vary_e):
-                    self.vary_e.setChecked(v)
+        """Set parameter hint value(s) for the parameter represented by this widget.
+        Possible keywords are ('value', 'vary', 'min', 'max', 'expr')
+        """
+        value = kwargs.get('value', None)
+        min = kwargs.get('min', None)
+        max = kwargs.get('max', None)
+        expr = kwargs.get('expr', None)
+        vary = kwargs.get('vary', None)
 
-    def parameterChanged(self):
-        e_vals = {
+        # Prioritize current gui setting
+        vary_opt = self.vary_e.currentText()
+        if expr is not None and expr != "":
+            vary_opt = 'expr'
+        elif vary is False:
+            vary_opt = 'fixed'
+        elif vary_opt not in ('limits', 'delta'):
+            vary_opt = 'limits'
+        elif vary_opt == 'delta' and value is not None:
+            d = self.delta_e.value()
+            min = value - d
+            max = value + d
+        elif vary_opt == 'limits' and value is not None and min is not None and max is not None\
+                and value - min == max - value:
+            # restore delta setting on param load
+            vary_opt = 'delta'
+            with blocked(self.delta_e):
+                self.delta_e.setValue(value - min)
+        with blocked(self.vary_e):
+            self.vary_e.setCurrentText(vary_opt)
+
+        if value is not None:
+            with blocked(self.val_e):
+                self.val_e.setValue(value)
+        if min is not None:
+            with blocked(self.min_e):
+                self.min_e.setValue(min)
+        if max is not None:
+            with blocked(self.max_e):
+                self.max_e.setValue(max)
+        if expr is not None:
+            with blocked(self.expr_e):
+                self.expr_e.setText(expr)
+
+        self.update_gui()
+
+    def e_vals(self):
+        return {
             'value': self.val_e.value(),
-            'vary': self.vary_e.isChecked(),
+            'vary': self.vary_e.currentText(),
             'min': self.min_e.value(),
             'max': self.max_e.value(),
+            'delta': self.delta_e.value(),
+            'expr': self.expr_e.text(),
         }
+
+    def parameterChanged(self):
+        """Convert editor values to OrderedDict of param_hints"""
+        e_vals = self.e_vals()
+        # Handle delta case
+        delta = e_vals.pop('delta')
+        if e_vals['vary'] == 'delta':
+            if delta == 0:
+                e_vals['vary'] = 'fixed'
+            else:
+                e_vals['min'] = e_vals['value'] - delta
+                e_vals['max'] = e_vals['value'] + delta
+                # Update min/max state
+                self.setValues(min=e_vals['min'], max=e_vals['max'])
+        # Convert vary option to boolean
+        # vary is implied False by 'expr' hint, so set True to remove
+        e_vals['vary'] = False if e_vals['vary'] == 'fixed' else True
         # Avoid collecting unchanged hints
+        if e_vals['expr'] == self.init_hints.get('expr', ""):
+            e_vals.pop('expr')
         if e_vals['vary'] == self.init_hints.get('vary', True):
             e_vals.pop('vary')
         if e_vals['min'] == self.init_hints.get('min', float('-inf')):
             e_vals.pop('min')
         if e_vals['max'] == self.init_hints.get('max', float('-inf')):
             e_vals.pop('max')
+        # Start with defaults
         e_hints = self.init_hints.copy()
         e_hints.update(e_vals)
+        self.update_gui()
         self.valueChanged.emit(e_hints)
 
-    def varyChanged(self):
-        vary = self.vary_e.isChecked()
-        self.min_e.setEnabled(vary)
-        self.max_e.setEnabled(vary)
-        self.parameterChanged()
+    def update_gui(self):
+        vary = self.vary_e.currentText()
+
+        self.min_e.setVisible(vary in ('limits', 'fixed', 'delta'))
+        self.min_e.setEnabled(vary not in ('fixed', 'delta'))
+        self.val_e.setVisible(vary != 'expr')
+        self.max_e.setVisible(vary in ('limits', 'fixed'))
+        self.max_e.setEnabled(vary != 'fixed')
+        self.delta_e.setVisible(vary == 'delta')
+        self.expr_e.setVisible(vary == 'expr')
 
     def editFinished(self):
         self.editingFinished.emit(self)

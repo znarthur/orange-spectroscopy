@@ -8,6 +8,7 @@ import lmfit
 from Orange.widgets.data.utils.preprocess import DescriptionRole
 from Orange.widgets.tests.base import WidgetTest
 from lmfit import Parameters, Parameter
+from orangewidget.tests.base import GuiTest
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut
@@ -16,7 +17,7 @@ from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEdito
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, PseudoVoigtModelEditor, \
-    ExponentialGaussianModelEditor, create_composite_model, pack_model_editor
+    ExponentialGaussianModelEditor, create_composite_model, pack_model_editor, ParamHintBox
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
 
@@ -126,7 +127,7 @@ class TestPeakFit(unittest.TestCase):
         self.assertEqual(out_row.id, self.data.ids[0])
 
 
-class TestBuildModel(unittest.TestCase):
+class TestBuildModel(GuiTest):
 
     def test_model_from_editor(self):
         self.editor = VoigtModelEditor()
@@ -227,6 +228,14 @@ class TestVoigtEditor(ModelEditorTest):
         for nl in no_lines:
             self.assertNotIn(nl, lines)
 
+    def test_move_line(self):
+        self.editor.activateOptions()
+        l = self.widget.curveplot.markings[0]
+        self.assertIsInstance(l, MovableVline)
+        l.setValue(1673)
+        l.sigMoved.emit(l.value())
+        self.assertEqual(1673, self.editor.parameters()['center']['value'])
+
 
 class TestVoigtEditorMulti(ModelEditorTest):
 
@@ -290,3 +299,48 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
         self.assertEqual(model.name, sv_model.name)
         self.assertEqual(set(params), set(sv_params))
+
+
+class TestParamHintBox(GuiTest):
+
+    def test_defaults(self):
+        hb = ParamHintBox()
+        # TODO must set focusIn: am I using focusIn wrong?
+        hb.focusIn = lambda: None
+        defaults = {
+            'value': 0,
+            'vary': 'limits',
+            'min': float('-inf'),
+            'max': float('-inf'),
+            'delta': 1,
+            'expr': "",
+        }
+        self.assertEqual(defaults, hb.e_vals())
+
+    def test_keep_delta(self):
+        hb = ParamHintBox()
+        hb.focusIn = lambda: None
+        hb.vary_e.setCurrentText('delta')
+        self.assertEqual('delta', hb.vary_e.currentText())
+        self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
+        hb.vary_e.setCurrentText('limits')
+        self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
+        hb.vary_e.setCurrentText('delta')
+        self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
+
+    def test_delta_update_limits(self):
+        hb = ParamHintBox()
+        hb.focusIn = lambda: None
+        hb.vary_e.setCurrentText('delta')
+        self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
+        hb.setValues(value=10)
+        self.assertEqual((9, 11), (hb.min_e.value(), hb.max_e.value()))
+        hb.vary_e.setCurrentText('limits')
+        self.assertEqual((9, 11), (hb.min_e.value(), hb.max_e.value()))
+
+    def test_delta_restore_from_saved_hints(self):
+        hb = ParamHintBox()
+        hb.focusIn = lambda: None
+        hb.setValues(value=15.3, min=10.3, max=20.3)
+        self.assertEqual('delta', hb.vary_e.currentText())
+        self.assertEqual(5.0, hb.delta_e.value())
