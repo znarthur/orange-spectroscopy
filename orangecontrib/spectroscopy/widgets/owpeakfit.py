@@ -1,3 +1,4 @@
+import copy
 import sys
 import time
 from collections import OrderedDict
@@ -117,7 +118,7 @@ class ParamHintBox(QHBoxLayout):
         if init_hints is None:
             self.init_hints = OrderedDict()
         else:
-            self.init_hints = init_hints
+            self.init_hints = copy.deepcopy(init_hints)
 
         minf, maxf, neginf = -sys.float_info.max, sys.float_info.max, float('-inf')
 
@@ -134,9 +135,11 @@ class ParamHintBox(QHBoxLayout):
                                          singleStep=0.5, value=1, prefix="±",
                                          maximumWidth=50, buttonSymbols=2, visible=False)
         self.vary_e = QComboBox(maximumWidth=50)
-        self.vary_e.insertItems(0, ('fixed', 'limits', 'delta', 'expr'))
+        v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints else ('fixed', 'limits', 'delta')
+        self.vary_e.insertItems(0, v_opt)
         self.vary_e.setCurrentText('limits')
-        self.expr_e = QLineEdit(maximumWidth=150, visible=False)
+        self.expr_e = QLineEdit(maximumWidth=160, visible=False, enabled=False,
+                                text=self.init_hints.get('expr', ""))
 
         self.addWidget(self.min_e)
         self.addWidget(self.val_e)
@@ -216,14 +219,12 @@ class ParamHintBox(QHBoxLayout):
         if max is not None:
             with blocked(self.max_e):
                 self.max_e.setValue(max)
-        if expr is not None:
-            with blocked(self.expr_e):
-                self.expr_e.setText(expr)
 
         self.update_gui()
 
-    def e_vals(self):
-        return {
+    def param_hints(self):
+        """Convert editor values to OrderedDict of param_hints"""
+        e_vals = {
             'value': self.val_e.value(),
             'vary': self.vary_e.currentText(),
             'min': self.min_e.value(),
@@ -231,10 +232,7 @@ class ParamHintBox(QHBoxLayout):
             'delta': self.delta_e.value(),
             'expr': self.expr_e.text(),
         }
-
-    def parameterChanged(self):
-        """Convert editor values to OrderedDict of param_hints"""
-        e_vals = self.e_vals()
+        vary_opt = e_vals['vary']
         # Handle delta case
         delta = e_vals.pop('delta')
         if e_vals['vary'] == 'delta':
@@ -246,20 +244,32 @@ class ParamHintBox(QHBoxLayout):
                 # Update min/max state
                 self.setValues(min=e_vals['min'], max=e_vals['max'])
         # Convert vary option to boolean
-        # vary is implied False by 'expr' hint, so set True to remove
-        e_vals['vary'] = False if e_vals['vary'] == 'fixed' else True
-        # Avoid collecting unchanged hints
-        if e_vals['expr'] == self.init_hints.get('expr', ""):
-            e_vals.pop('expr')
-        if e_vals['vary'] == self.init_hints.get('vary', True):
+        # vary is implied False by 'expr' hint
+        if vary_opt == 'fixed':
+            e_vals['vary'] = False
+        else:
             e_vals.pop('vary')
+        # Set expr to "" if default expr should be overridden
+        if 'expr' in self.init_hints and vary_opt != 'expr':
+            e_vals['expr'] = ""
+        else:
+            e_vals.pop('expr')
+        # Avoid collecting unchanged hints
         if e_vals['min'] == self.init_hints.get('min', float('-inf')):
             e_vals.pop('min')
         if e_vals['max'] == self.init_hints.get('max', float('-inf')):
             e_vals.pop('max')
+
         # Start with defaults
         e_hints = self.init_hints.copy()
-        e_hints.update(e_vals)
+        # Only send default if expr selected, Parameter respects bounds even if expr is set
+        if vary_opt != 'expr':
+            e_hints.update(e_vals)
+
+        return e_hints
+
+    def parameterChanged(self):
+        e_hints = self.param_hints()
         self.update_gui()
         self.valueChanged.emit(e_hints)
 
@@ -300,7 +310,7 @@ class ModelEditor(BaseEditorOrange):
         self.__defaults = m.param_hints
 
         for name in self.model_parameters():
-            h = self.__defaults.get(name, OrderedDict(value=0))
+            h = copy.deepcopy(self.__defaults.get(name, OrderedDict(value=0)))
             self.__values[name] = h
 
             e = ParamHintBox(h)
@@ -462,10 +472,9 @@ class VoigtModelEditor(PeakModelEditor):
     model = lmfit.models.VoigtModel
     prefix_generic = "v"
 
-    # TODO by default, gamma is constrained to sigma. This is not yet exposed by the GUI
-    # @classmethod
-    # def model_parameters(cls):
-    #     return super().model_parameters() + (('gamma', "Gamma", TODO ))
+    @classmethod
+    def model_parameters(cls):
+        return super().model_parameters() + ('gamma',)
 
 
 class PseudoVoigtModelEditor(PeakModelEditor):
@@ -566,10 +575,9 @@ class SkewedVoigtModelEditor(PeakModelEditor):
     model = lmfit.models.SkewedVoigtModel
     prefix_generic = "sv"
 
-    # TODO as with VoigtModel, gamma is constrained to sigma by default, not exposed
     @classmethod
     def model_parameters(cls):
-        return super().model_parameters() + ('skew',)
+        return super().model_parameters() + ('gamma', 'skew',)
 
 
 class ThermalDistributionModelEditor(PeakModelEditor):
@@ -707,7 +715,12 @@ def create_model(item, rownum):
 def prepare_params(item, model):
     editor_params = item.data(ParametersRole)
     for name, hints in editor_params.items():
+        # Exclude model init keyword 'form'
         if name != 'form':
+            # Exclude 'expr' hints unless setting to "" to disable default
+            #   Otherwise expression has variable references which are missing prefixes
+            if hints.get('expr', "") != "":
+                hints = {k: v for k, v in hints.items() if k != 'expr'}
             model.set_param_hint(name, **hints)
     params = model.make_params()
     return params

@@ -49,7 +49,6 @@ class TestOWPeakFit(WidgetTest):
             self.widget.unconditional_commit()
             self.wait_until_finished()
             out = self.get_output(self.widget.Outputs.fit_params)
-            self.assertEqual(len(p.viewclass.model_parameters()) + 2, len(out.domain.attributes))
 
     def test_outputs(self):
         self.widget = self.create_widget(OWPeakFit)
@@ -315,7 +314,16 @@ class TestParamHintBox(GuiTest):
             'delta': 1,
             'expr': "",
         }
-        self.assertEqual(defaults, hb.e_vals())
+        e_vals = {
+            'value': hb.val_e.value(),
+            'vary': hb.vary_e.currentText(),
+            'min': hb.min_e.value(),
+            'max': hb.max_e.value(),
+            'delta': hb.delta_e.value(),
+            'expr': hb.expr_e.text(),
+        }
+        self.assertEqual(defaults, e_vals)
+        self.assertEqual(OrderedDict([('value', 0.0)]), hb.param_hints())
 
     def test_keep_delta(self):
         hb = ParamHintBox()
@@ -344,3 +352,22 @@ class TestParamHintBox(GuiTest):
         hb.setValues(value=15.3, min=10.3, max=20.3)
         self.assertEqual('delta', hb.vary_e.currentText())
         self.assertEqual(5.0, hb.delta_e.value())
+
+    def test_expr_change_to_vary(self):
+        init = OrderedDict([('expr', "test")])
+        hb = ParamHintBox(init_hints=init)
+        hb.focusIn = lambda: None
+        self.assertEqual(init, hb.param_hints())
+        hb.vary_e.setCurrentText('delta')
+        self.assertEqual('delta', hb.vary_e.currentText())
+        self.assertEqual("", hb.param_hints()['expr'])
+        hb.vary_e.setCurrentText('expr')
+        self.assertEqual('expr', hb.vary_e.currentText())
+        self.assertEqual(init, hb.param_hints())
+
+    def test_expr_set_hint(self):
+        hb = ParamHintBox(init_hints=OrderedDict([('expr', "test")]))
+        hb.focusIn = lambda: None
+        hb.setValues(expr="")
+        self.assertEqual('limits', hb.vary_e.currentText())
+        self.assertEqual("", hb.param_hints()['expr'])
