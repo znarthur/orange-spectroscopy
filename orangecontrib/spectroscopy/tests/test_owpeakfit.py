@@ -15,7 +15,7 @@ from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_previe
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     VoigtModelEditor, create_model, prepare_params, unique_prefix, create_composite_model, \
-    pack_model_editor, ParamHintBox
+    pack_model_editor, ParamHintBox, ExponentialGaussianModelEditor, PolynomialModelEditor
 
 COLLAGEN = Orange.data.Table("collagen")[0:3]
 COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
@@ -34,6 +34,8 @@ class TestOWPeakFit(WidgetTest):
 
     def test_allint_indv(self):
         for p in PREPROCESSORS:
+            if p.viewclass in (ExponentialGaussianModelEditor, PolynomialModelEditor):
+                continue
             self.widget = self.create_widget(OWPeakFit)
             self.send_signal("Data", self.data)
             self.widget.add_preprocessor(p)
