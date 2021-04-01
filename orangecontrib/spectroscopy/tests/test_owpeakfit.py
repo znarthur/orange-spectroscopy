@@ -58,6 +58,7 @@ class TestOWPeakFit(WidgetTest):
         self.wait_until_finished()
         fit_params = self.get_output(self.widget.Outputs.fit_params)
         fits = self.get_output(self.widget.Outputs.fits)
+        residuals = self.get_output(self.widget.Outputs.residuals)
         data = self.get_output(self.widget.Outputs.annotated_data)
         # fit_params
         self.assertEqual(len(fit_params), len(self.data))
@@ -68,6 +69,12 @@ class TestOWPeakFit(WidgetTest):
         self.assert_domain_equal(fits.domain, self.data.domain)
         np.testing.assert_array_equal(fits.Y, self.data.Y)
         np.testing.assert_array_equal(fits.metas, self.data.metas)
+        # residuals
+        self.assertEqual(len(residuals), len(self.data))
+        self.assert_domain_equal(residuals.domain, self.data.domain)
+        np.testing.assert_array_equal(residuals.X, fits.X - self.data.X)
+        np.testing.assert_array_equal(residuals.Y, self.data.Y)
+        np.testing.assert_array_equal(residuals.metas, self.data.metas)
         # annotated data
         self.assertEqual(len(data), len(self.data))
         np.testing.assert_array_equal(data.X, self.data.X)
