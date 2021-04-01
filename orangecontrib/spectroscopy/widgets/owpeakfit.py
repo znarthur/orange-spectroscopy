@@ -767,6 +767,12 @@ class PeakPreviewRunner(PreviewRunner):
         super().__init__(master=master)
         self.preview_model_result = None
 
+    def on_exception(self, ex: Exception):
+        try:
+            super().on_exception(ex)
+        except ValueError:
+            self.master.Error.preview(ex)
+
     def on_done(self, result):
         orig_data, after_data, model_result = result
         final_preview = self.preview_pos is None
@@ -965,6 +971,16 @@ class OWPeakFit(SpectralPreprocess):
         self.Outputs.fits.send(fits)
         self.Outputs.residuals.send(residuals)
         self.Outputs.annotated_data.send(annotated_data)
+
+    def on_exception(self, ex):
+        try:
+            super().on_exception(ex)
+        except ValueError:
+            self.Error.applying(ex)
+            self.Outputs.fit_params.send(None)
+            self.Outputs.fits.send(None)
+            self.Outputs.residuals.send(None)
+            self.Outputs.annotated_data.send(None)
 
 
 if __name__ == "__main__":  # pragma: no cover
