@@ -2,31 +2,31 @@ import unittest
 from collections import OrderedDict
 from functools import reduce
 
-import numpy as np
 import Orange
 import lmfit
+import numpy as np
 from Orange.widgets.data.utils.preprocess import DescriptionRole
 from Orange.widgets.tests.base import WidgetTest
-from lmfit import Parameters, Parameter
 from orangewidget.tests.base import GuiTest
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
-from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
-    VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, PseudoVoigtModelEditor, \
-    ExponentialGaussianModelEditor, create_composite_model, pack_model_editor, ParamHintBox
+    VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, \
+    PseudoVoigtModelEditor, ExponentialGaussianModelEditor, create_composite_model, \
+    pack_model_editor, ParamHintBox
 
 COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
 
 # Peak models which don't converge with defaults on COLLAGEN in reasonable time
 # TODO could be removed once max iterations implemented? or bounds are implemented
-PREPROCESSORS_NO_CONVERGE = [p for p in PREPROCESSORS if p.viewclass in (StudentsTModelEditor,
-                                                                         PseudoVoigtModelEditor,
-                                                                         ExponentialGaussianModelEditor,
-                                                                         )]
+PREPROCESSORS_NO_CONVERGE = [p for p in PREPROCESSORS if p.viewclass in
+                             (StudentsTModelEditor,
+                              PseudoVoigtModelEditor,
+                              ExponentialGaussianModelEditor,
+                              )]
 PREPROCESSORS_CONVERGE = [p for p in PREPROCESSORS if p not in PREPROCESSORS_NO_CONVERGE]
 
 
@@ -48,7 +48,6 @@ class TestOWPeakFit(WidgetTest):
             wait_for_preview(self.widget)
             self.widget.unconditional_commit()
             self.wait_until_finished()
-            out = self.get_output(self.widget.Outputs.fit_params)
 
     def test_outputs(self):
         self.widget = self.create_widget(OWPeakFit)
@@ -199,11 +198,6 @@ class TestVoigtEditor(ModelEditorTest):
         self.assertEqual(p_set['value'], 1623)
         self.assertEqual(p_set['min'], 1603)
         self.assertEqual(p_set['max'], 1643)
-        # Also test GUI is updated
-        p_box = e._ModelEditor__editors['center']
-        self.assertEqual(p_box.val_e.value(), p_set['value'])
-        self.assertEqual(p_box.min_e.value(), p_set['min'])
-        self.assertEqual(p_box.max_e.value(), p_set['max'])
 
     def test_set_center(self):
         e = self.editor

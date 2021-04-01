@@ -5,28 +5,35 @@ from collections import OrderedDict
 from functools import reduce
 
 import lmfit
+from lmfit import Parameters
 import numpy as np
+from scipy import integrate
+
 from AnyQt.QtCore import Signal
+from PyQt5.QtCore import QObject
+from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit
+
 from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
 from Orange.widgets.data.utils.preprocess import blocked, DescriptionRole, ParametersRole
 from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.utils.concurrent import TaskState
 from Orange.widgets.utils.signals import Output
-from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QCheckBox, QComboBox, QLineEdit
-from lmfit import Parameters, Parameter
+from Orange.widgets.utils.widgetpreview import WidgetPreview
+
 from orangewidget.widget import Msg
-from scipy import integrate
 
 from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.preprocess import Cut
 from orangecontrib.spectroscopy.preprocess.integrate import INTEGRATE_DRAW_CURVE_PENARGS, \
     INTEGRATE_DRAW_BASELINE_PENARGS
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owhyper import refresh_integral_markings
-from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, InterruptException, PreviewRunner
+from orangecontrib.spectroscopy.widgets.owpreprocess import SpectralPreprocess, \
+    InterruptException, PreviewRunner
 from orangecontrib.spectroscopy.widgets.owspectra import SELECTONE
-from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, SetXDoubleSpinBox
+from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
+    SetXDoubleSpinBox
 
 
 def init_output_array(data, model, params):
@@ -132,7 +139,8 @@ class ParamHintBox(QHBoxLayout):
                                          singleStep=0.5, value=1, prefix="±",
                                          maximumWidth=50, buttonSymbols=2, visible=False)
         self.vary_e = QComboBox(maximumWidth=50)
-        v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints else ('fixed', 'limits', 'delta')
+        v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints \
+            else ('fixed', 'limits', 'delta')
         self.vary_e.insertItems(0, v_opt)
         self.vary_e.setCurrentText('limits')
         self.expr_e = QLineEdit(maximumWidth=160, visible=False, enabled=False,
@@ -313,19 +321,21 @@ class ModelEditor(BaseEditorOrange):
             e = ParamHintBox(h)
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)
-            def ch(h, name=name):
+
+            def change_hint(h, name=name):
                 self.edited.emit()
                 return self.set_param_hints(name, h)
-            e.valueChanged.connect(ch)
+            e.valueChanged.connect(change_hint)
             self.__editors[name] = e
             layout.addRow(name, e)
 
             if name in self.model_lines():
                 l = MovableVline(position=0.0, label=name)
-                def cf(x, name=name):
+
+                def change_value(x, name=name):
                     self.edited.emit()
                     return self.set_hint(name, value=x)
-                l.sigMoved.connect(cf)
+                l.sigMoved.connect(change_value)
                 self.__lines[name] = l
 
         self.focusIn = self.activateOptions
@@ -380,7 +390,9 @@ class ModelEditor(BaseEditorOrange):
         if params:  # parameters were set manually set
             self.user_changed = True
         for name in self.model_parameters():
-            self.set_param_hints(name, params.get(name, self.__defaults.get(name, OrderedDict())), user=False)
+            self.set_param_hints(name,
+                                 params.get(name, self.__defaults.get(name, OrderedDict())),
+                                 user=False)
 
     def parameters(self):
         return self.__values
@@ -431,7 +443,7 @@ class PeakModelEditor(ModelEditor):
 
     @staticmethod
     def model_lines():
-        return 'center',
+        return ('center',)
 
     def set_preview_data(self, data):
         if not self.user_changed:
@@ -535,7 +547,7 @@ class DampedOscillatorModelEditor(PeakModelEditor):
     prefix_generic = "do"
 
 
-class DampedHarmonicOscillatorModelEditor(PeakModelEditor):
+class DampedHarmOscillatorModelEditor(PeakModelEditor):
     name = "Damped Harmonic Oscillator (DAVE)"
     description = "Damped Harm. Osc. (DAVE)"
     model = lmfit.models.DampedHarmonicOscillatorModel
@@ -609,6 +621,13 @@ class BaselineModelEditor(ModelEditor):
     icon = "Continuize.svg"
 
     @staticmethod
+    def model_parameters():
+        """
+        Returns a tuple of Parameter names for the model which should be editable
+        """
+        raise NotImplementedError
+
+    @staticmethod
     def model_lines():
         return tuple()
 
@@ -666,7 +685,8 @@ def pack_model_editor(editor):
         name=editor.name,
         qualname=f"orangecontrib.spectroscopy.widgets.owwidget.{editor.prefix_generic}",
         category=editor.category,
-        description=Description(getattr(editor, 'description', editor.name), icon_path(editor.icon)),
+        description=Description(getattr(editor, 'description', editor.name),
+                                icon_path(editor.icon)),
         viewclass=editor,
     )
 
@@ -683,7 +703,7 @@ PREPROCESSORS = [pack_model_editor(e) for e in [
     BreitWignerModelEditor,
     LognormalModelEditor,
     DampedOscillatorModelEditor,
-    DampedHarmonicOscillatorModelEditor,
+    DampedHarmOscillatorModelEditor,
     ExponentialGaussianModelEditor,
     SkewedGaussianModelEditor,
     SkewedVoigtModelEditor,
@@ -790,7 +810,7 @@ class PeakPreviewRunner(PreviewRunner):
     def run_preview(data: Table,
                     m_def, state: TaskState):
 
-        def progress_interrupt(i: float):
+        def progress_interrupt(_: float):
             if state.is_interruption_requested():
                 raise InterruptException
 
@@ -798,7 +818,7 @@ class PeakPreviewRunner(PreviewRunner):
         # happen when adding a preprocessor (there, commit() is called twice).
         # Wait 500 ms before processing - if a new task is started in meanwhile,
         # allow that is easily` cancelled.
-        for i in range(10):
+        for _ in range(10):
             time.sleep(0.050)
             progress_interrupt(0)
 
@@ -859,7 +879,8 @@ class OWPeakFit(SpectralPreprocess):
                     color = self.flow_view.preview_color(i)
                     dis.append({"draw": di, "color": color})
         result = None
-        if np.any(self.curveplot.selection_group) and self.curveplot.data and self.preview_runner.preview_model_result:
+        if np.any(self.curveplot.selection_group) and self.curveplot.data \
+                and self.preview_runner.preview_model_result:
             # select result
             ind = np.flatnonzero(self.curveplot.selection_group)[0]
             row_id = self.curveplot.data[ind].id
@@ -941,7 +962,5 @@ class OWPeakFit(SpectralPreprocess):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    from Orange.widgets.utils.widgetpreview import WidgetPreview
-    from orangecontrib.spectroscopy.preprocess import Cut
     data = Cut(lowlim=1360, highlim=1700)(Table("collagen")[0:3])
     WidgetPreview(OWPeakFit).run(data)
