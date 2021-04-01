@@ -44,14 +44,11 @@ def add_result_to_output_array(output, i, model_result, x):
     comps = out.eval_components(x=x)
     best_values = out.best_values
 
-    ###generate results
-    # calculate total area
-    total_area = integrate.trapz(out.best_fit)
-
     # add peak values to output storage
     col = 0
     for comp in out.components:
-        output[i, col] = integrate.trapz(comps[comp.prefix]) / total_area * 100
+        # Peak area
+        output[i, col] = integrate.trapz(comps[comp.prefix])
         col += 1
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
             output[i, col] = best_values[param]

@@ -73,10 +73,8 @@ class TestOWPeakFit(WidgetTest):
         self.assertEqual(len(data), len(self.data))
         np.testing.assert_array_equal(data.X, self.data.X)
         np.testing.assert_array_equal(data.Y, self.data.Y)
-        # area is Nan and float(nan) != float(nan)
-        # TODO check area calculation to confirm nan is the output we want here
         join_metas = np.asarray(np.hstack((self.data.metas, fit_params.X)), dtype=object)
-        np.testing.assert_array_equal(data.metas[:, 1:], join_metas[:, 1:])
+        np.testing.assert_array_equal(data.metas, join_metas)
 
     def test_saving_models(self):
         settings = self.widget.settingsHandler.pack_data(self.widget)
@@ -118,7 +116,7 @@ class TestPeakFit(unittest.TestCase):
         self.assertEqual(out_row.x.shape[0], len(pcs) + len(out_result.var_names) + 1)
         attrs = [a.name for a in out_table.domain.attributes[:4]]
         self.assertEqual(attrs, ["v0 area", "v0 amplitude", "v0 center", "v0 sigma"])
-        self.assertNotEqual(0, out_row["v0 area"].value)          # TODO check area calculation
+        self.assertNotEqual(0, out_row["v0 area"].value)
         self.assertEqual(out_result.best_values["v0_amplitude"], out_row["v0 amplitude"].value)
         self.assertEqual(out_result.best_values["v0_center"], out_row["v0 center"].value)
         self.assertEqual(out_result.best_values["v0_sigma"], out_row["v0 sigma"].value)
