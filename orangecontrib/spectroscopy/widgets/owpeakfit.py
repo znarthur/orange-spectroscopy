@@ -632,10 +632,21 @@ class BaselineModelEditor(ModelEditor):
         return tuple()
 
 
+# lmfit.Model.copy is marked NotImplemented to communicate to users, not meant to be overridden
+#pylint: disable=abstract-method
+class EvalConstantModel(lmfit.models.ConstantModel):
+
+    def eval(self, params=None, **kwargs):
+        c = super().eval(params, **kwargs)
+        if 'x' in kwargs:
+            return np.full_like(kwargs['x'], c)
+        else:
+            return c
+
+
 class ConstantModelEditor(BaselineModelEditor):
-    # TODO eval returns single-value of constant instead of data.shape array of the constant
     name = "Constant"
-    model = lmfit.models.ConstantModel
+    model = EvalConstantModel
     prefix_generic = "const"
 
     @staticmethod
@@ -709,7 +720,7 @@ PREPROCESSORS = [pack_model_editor(e) for e in [
     SkewedVoigtModelEditor,
     ThermalDistributionModelEditor,
     DoniachModelEditor,
-    # ConstantModelEditor,
+    ConstantModelEditor,
     LinearModelEditor,
     QuadraticModelEditor,
     PolynomialModelEditor,
