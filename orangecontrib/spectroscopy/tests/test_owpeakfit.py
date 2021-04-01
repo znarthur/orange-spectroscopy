@@ -10,38 +10,30 @@ from Orange.widgets.tests.base import WidgetTest
 from orangewidget.tests.base import GuiTest
 
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import Cut
+from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
-    VoigtModelEditor, create_model, prepare_params, unique_prefix, StudentsTModelEditor, \
-    PseudoVoigtModelEditor, ExponentialGaussianModelEditor, create_composite_model, \
+    VoigtModelEditor, create_model, prepare_params, unique_prefix, create_composite_model, \
     pack_model_editor, ParamHintBox
 
-COLLAGEN = Cut(lowlim=1360, highlim=1700)(Orange.data.Table("collagen")[0:3])
-
-# Peak models which don't converge with defaults on COLLAGEN in reasonable time
-# TODO could be removed once max iterations implemented? or bounds are implemented
-PREPROCESSORS_NO_CONVERGE = [p for p in PREPROCESSORS if p.viewclass in
-                             (StudentsTModelEditor,
-                              PseudoVoigtModelEditor,
-                              ExponentialGaussianModelEditor,
-                              )]
-PREPROCESSORS_CONVERGE = [p for p in PREPROCESSORS if p not in PREPROCESSORS_NO_CONVERGE]
+COLLAGEN = Orange.data.Table("collagen")[0:3]
+COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
+COLLAGEN_1 = LinearBaseline()(Cut(lowlim=1600, highlim=1700)(COLLAGEN_2))
 
 
 class TestOWPeakFit(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWPeakFit)
-        self.data = COLLAGEN
+        self.data = COLLAGEN_1
 
     def test_load_unload(self):
         self.send_signal("Data", Orange.data.Table("iris.tab"))
         self.send_signal("Data", None)
 
     def test_allint_indv(self):
-        for p in PREPROCESSORS_CONVERGE:
+        for p in PREPROCESSORS:
             self.widget = self.create_widget(OWPeakFit)
             self.send_signal("Data", self.data)
             self.widget.add_preprocessor(p)
@@ -97,7 +89,7 @@ class TestOWPeakFit(WidgetTest):
 class TestPeakFit(unittest.TestCase):
 
     def setUp(self):
-        self.data = COLLAGEN
+        self.data = COLLAGEN_2
 
     def test_fit_peaks(self):
         model = lmfit.models.VoigtModel(prefix="v1_")
@@ -106,7 +98,7 @@ class TestPeakFit(unittest.TestCase):
         assert len(out) == len(self.data)
 
     def test_table_output(self):
-        pcs = [1400, 1457, 1547, 1655]
+        pcs = [1547, 1655]
         mlist = [lmfit.models.VoigtModel(prefix=f"v{i}_") for i in range(len(pcs))]
         model = reduce(lambda x, y: x + y, mlist)
         params = model.make_params()
@@ -153,7 +145,7 @@ class ModelEditorTest(WidgetTest):
         self.widget = self.create_widget(OWPeakFit)
         if self.EDITOR is not None:
             self.editor = self.add_editor(self.EDITOR, self.widget)
-            self.data = COLLAGEN
+            self.data = COLLAGEN_1
             self.send_signal(self.widget.Inputs.data, self.data)
         else:
             # Test adding all the editors
@@ -238,17 +230,18 @@ class TestVoigtEditor(ModelEditorTest):
 class TestVoigtEditorMulti(ModelEditorTest):
 
     def setUp(self):
+        self.pcs = [1547, 1655]
         self.widget = self.create_widget(OWPeakFit)
-        self.editors = [self.add_editor(VoigtModelEditor, self.widget) for _ in range(4)]
-        self.data = COLLAGEN
+        self.editors = [self.add_editor(VoigtModelEditor, self.widget)
+                        for _ in range(len(self.pcs))]
+        self.data = COLLAGEN_2
         self.send_signal(self.widget.Inputs.data, self.data)
 
     def matched_models(self):
-        pcs = [1400, 1457, 1547, 1655]
-        mlist = [lmfit.models.VoigtModel(prefix=f"v{i}_") for i in range(len(pcs))]
+        mlist = [lmfit.models.VoigtModel(prefix=f"v{i}_") for i in range(len(self.pcs))]
         model = reduce(lambda x, y: x + y, mlist)
         params = model.make_params()
-        for i, center in enumerate(pcs):
+        for i, center in enumerate(self.pcs):
             p = f"v{i}_"
             dx = 20
             params[p + "center"].set(value=center, min=center - dx, max=center + dx)
@@ -281,7 +274,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
         out_fit = fit_peaks(self.data, model, params)
 
         self.widget.unconditional_commit()
-        self.wait_until_finished(timeout=10000)
+        self.wait_until_finished()
         out = self.get_output(self.widget.Outputs.fit_params)
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
