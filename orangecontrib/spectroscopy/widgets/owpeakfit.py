@@ -115,6 +115,7 @@ class ParamHintBox(QHBoxLayout):
 
     valueChanged = Signal(OrderedDict)
     editingFinished = Signal(QObject)
+    focus_in = None
 
     def __init__(self, init_hints=None, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -168,21 +169,23 @@ class ParamHintBox(QHBoxLayout):
         self.vary_e.currentTextChanged.connect(self.editFinished)
         self.expr_e.editingFinished.connect(self.editFinished)
 
-        self.min_e.focusIn = self.focusInChild
-        self.val_e.focusIn = self.focusInChild
-        self.max_e.focusIn = self.focusInChild
-        self.delta_e.focusIn = self.focusInChild
-        self.vary_e.focusIn = self.focusInChild
-        self.expr_e.focusIn = self.focusInChild
+        self.min_e.focusIn = self.focusIn
+        self.val_e.focusIn = self.focusIn
+        self.max_e.focusIn = self.focusIn
+        self.delta_e.focusIn = self.focusIn
+        self.vary_e.focusIn = self.focusIn
+        self.expr_e.focusIn = self.focusIn
 
         self.setValues(**self.init_hints)
+
+    def focusIn(self):
+        """Call custom method on focus if present"""
+        if self.focus_in is not None:
+            self.focus_in()
 
     def focusInEvent(self, *e):
         self.focusIn()
         return super().focusInEvent(*e)
-
-    def focusInChild(self):
-        self.focusIn()
 
     def setValues(self, **kwargs):
         """Set parameter hint value(s) for the parameter represented by this widget.
@@ -319,7 +322,7 @@ class ModelEditor(BaseEditorOrange):
             self.__values[name] = h
 
             e = ParamHintBox(h)
-            e.focusIn = self.activateOptions
+            e.focus_in = self.activateOptions
             e.editingFinished.connect(self.edited)
 
             def change_hint(h, name=name):

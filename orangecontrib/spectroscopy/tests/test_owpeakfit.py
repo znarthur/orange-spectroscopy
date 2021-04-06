@@ -298,8 +298,6 @@ class TestParamHintBox(GuiTest):
 
     def test_defaults(self):
         hb = ParamHintBox()
-        # TODO must set focusIn: am I using focusIn wrong?
-        hb.focusIn = lambda: None
         defaults = {
             'value': 0,
             'vary': 'limits',
@@ -321,7 +319,6 @@ class TestParamHintBox(GuiTest):
 
     def test_keep_delta(self):
         hb = ParamHintBox()
-        hb.focusIn = lambda: None
         hb.vary_e.setCurrentText('delta')
         self.assertEqual('delta', hb.vary_e.currentText())
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
@@ -332,7 +329,6 @@ class TestParamHintBox(GuiTest):
 
     def test_delta_update_limits(self):
         hb = ParamHintBox()
-        hb.focusIn = lambda: None
         hb.vary_e.setCurrentText('delta')
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
         hb.setValues(value=10)
@@ -342,7 +338,6 @@ class TestParamHintBox(GuiTest):
 
     def test_delta_restore_from_saved_hints(self):
         hb = ParamHintBox()
-        hb.focusIn = lambda: None
         hb.setValues(value=15.3, min=10.3, max=20.3)
         self.assertEqual('delta', hb.vary_e.currentText())
         self.assertEqual(5.0, hb.delta_e.value())
@@ -350,7 +345,6 @@ class TestParamHintBox(GuiTest):
     def test_expr_change_to_vary(self):
         init = OrderedDict([('expr', "test")])
         hb = ParamHintBox(init_hints=init)
-        hb.focusIn = lambda: None
         self.assertEqual(init, hb.param_hints())
         hb.vary_e.setCurrentText('delta')
         self.assertEqual('delta', hb.vary_e.currentText())
@@ -361,7 +355,6 @@ class TestParamHintBox(GuiTest):
 
     def test_expr_set_hint(self):
         hb = ParamHintBox(init_hints=OrderedDict([('expr', "test")]))
-        hb.focusIn = lambda: None
         hb.setValues(expr="")
         self.assertEqual('limits', hb.vary_e.currentText())
         self.assertEqual("", hb.param_hints()['expr'])
