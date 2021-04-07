@@ -11,7 +11,7 @@ from scipy import integrate
 
 from AnyQt.QtCore import Signal
 from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit
+from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget
 
 from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
@@ -104,7 +104,7 @@ def fit_peaks(data, model, params):
     return fit_results_table(output, out, data)
 
 
-class ParamHintBox(QHBoxLayout):
+class ParamHintBox(QWidget):
     """
     Box to interact with lmfit parameter hints
 
@@ -119,6 +119,10 @@ class ParamHintBox(QHBoxLayout):
 
     def __init__(self, init_hints=None, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
 
         if init_hints is None:
             self.init_hints = OrderedDict()
@@ -147,12 +151,12 @@ class ParamHintBox(QHBoxLayout):
         self.expr_e = QLineEdit(maximumWidth=160, visible=False, enabled=False,
                                 text=self.init_hints.get('expr', ""))
 
-        self.addWidget(self.min_e)
-        self.addWidget(self.val_e)
-        self.addWidget(self.max_e)
-        self.addWidget(self.delta_e)
-        self.addWidget(self.expr_e)
-        self.addWidget(self.vary_e)
+        layout.addWidget(self.min_e)
+        layout.addWidget(self.val_e)
+        layout.addWidget(self.max_e)
+        layout.addWidget(self.delta_e)
+        layout.addWidget(self.expr_e)
+        layout.addWidget(self.vary_e)
 
         self.min_e.valueChanged[float].connect(self.parameterChanged)
         self.val_e.valueChanged[float].connect(self.parameterChanged)
@@ -160,7 +164,6 @@ class ParamHintBox(QHBoxLayout):
         self.delta_e.valueChanged[float].connect(self.parameterChanged)
         self.vary_e.currentTextChanged.connect(self.parameterChanged)
         self.expr_e.textChanged.connect(self.parameterChanged)
-
 
         self.min_e.editingFinished.connect(self.editFinished)
         self.val_e.editingFinished.connect(self.editFinished)
