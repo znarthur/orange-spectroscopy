@@ -10,7 +10,7 @@ import numpy as np
 from scipy import integrate
 
 from AnyQt.QtCore import Signal
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, QSize
 from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget
 
 from Orange.data import Table, ContinuousVariable, Domain
@@ -104,6 +104,17 @@ def fit_peaks(data, model, params):
     return fit_results_table(output, out, data)
 
 
+class CompactDoubleSpinBox(SetXDoubleSpinBox):
+
+    def sizeHint(self) -> QSize:
+        sh = super().sizeHint()
+        sh.setWidth(int(sh.width() / 2))
+        return sh
+
+    def minimumSizeHint(self) -> QSize:
+        return self.sizeHint()
+
+
 class ParamHintBox(QWidget):
     """
     Box to interact with lmfit parameter hints
@@ -123,6 +134,7 @@ class ParamHintBox(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
+        self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 
         if init_hints is None:
             self.init_hints = OrderedDict()
@@ -131,24 +143,24 @@ class ParamHintBox(QWidget):
 
         minf, maxf, neginf = -sys.float_info.max, sys.float_info.max, float('-inf')
 
-        self.min_e = SetXDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
+        self.min_e = CompactDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
                                        singleStep=0.5, value=self.init_hints.get('min', neginf),
-                                       maximumWidth=50, buttonSymbols=2, specialValueText="None")
-        self.val_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
+                                       buttonSymbols=2, specialValueText="None")
+        self.val_e = CompactDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
                                        singleStep=0.5, value=self.init_hints.get('value', 0),
-                                       minimumWidth=50, maximumWidth=50, buttonSymbols=2)
-        self.max_e = SetXDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
+                                       buttonSymbols=2)
+        self.max_e = CompactDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
                                        singleStep=0.5, value=self.init_hints.get('max', neginf),
-                                       maximumWidth=50, buttonSymbols=2, specialValueText="None")
-        self.delta_e = SetXDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
+                                       buttonSymbols=2, specialValueText="None")
+        self.delta_e = CompactDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
                                          singleStep=0.5, value=1, prefix="±",
-                                         maximumWidth=50, buttonSymbols=2, visible=False)
-        self.vary_e = QComboBox(maximumWidth=50)
+                                         buttonSymbols=2, visible=False)
+        self.vary_e = QComboBox()
         v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints \
             else ('fixed', 'limits', 'delta')
         self.vary_e.insertItems(0, v_opt)
         self.vary_e.setCurrentText('limits')
-        self.expr_e = QLineEdit(maximumWidth=160, visible=False, enabled=False,
+        self.expr_e = QLineEdit(visible=False, enabled=False,
                                 text=self.init_hints.get('expr', ""))
 
         layout.addWidget(self.min_e)
@@ -345,7 +357,6 @@ class ModelEditor(BaseEditorOrange):
                 self.__lines[name] = l
 
         self.focusIn = self.activateOptions
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.user_changed = False
 
     def activateOptions(self):
