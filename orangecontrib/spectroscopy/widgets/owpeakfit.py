@@ -11,7 +11,8 @@ from scipy import integrate
 
 from AnyQt.QtCore import Signal
 from PyQt5.QtCore import QObject, QSize
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget
+from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget, QVBoxLayout, QLabel, \
+    QGridLayout
 
 from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
@@ -132,6 +133,7 @@ class ParamHintBox(QWidget):
         super().__init__(parent, **kwargs)
 
         layout = QHBoxLayout()
+        layout.setSpacing(2)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
         self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
@@ -320,7 +322,8 @@ class ModelEditor(BaseEditorOrange):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        layout = QFormLayout()
+        layout = QGridLayout()
+        layout.setSpacing(2)
         self.controlArea.setLayout(layout)
 
         self.__values = {}
@@ -332,7 +335,7 @@ class ModelEditor(BaseEditorOrange):
             m.set_param_hint(name, value=value)
         self.__defaults = m.param_hints
 
-        for name in self.model_parameters():
+        for row, name in enumerate(self.model_parameters()):
             h = copy.deepcopy(self.__defaults.get(name, OrderedDict(value=0)))
             self.__values[name] = h
 
@@ -345,7 +348,8 @@ class ModelEditor(BaseEditorOrange):
                 return self.set_param_hints(name, h)
             e.valueChanged.connect(change_hint)
             self.__editors[name] = e
-            layout.addRow(name, e)
+            layout.addWidget(QLabel(name), row, 0)
+            layout.addWidget(e, row, 1)
 
             if name in self.model_lines():
                 l = MovableVline(position=0.0, label=name)
