@@ -14,8 +14,9 @@ from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
-    VoigtModelEditor, create_model, prepare_params, unique_prefix, create_composite_model, \
-    pack_model_editor, ParamHintBox, ExponentialGaussianModelEditor, PolynomialModelEditor, PseudoVoigtModelEditor
+    create_model, prepare_params, unique_prefix, create_composite_model, pack_model_editor
+from orangecontrib.spectroscopy.widgets.peak_editors import ParamHintBox, VoigtModelEditor, \
+    PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor
 
 COLLAGEN = Orange.data.Table("collagen")[0:3]
 COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
@@ -38,7 +39,7 @@ class TestOWPeakFit(WidgetTest):
                 settings = None
                 if p.viewclass == PolynomialModelEditor:
                     continue
-                elif p.viewclass == ExponentialGaussianModelEditor:
+                if p.viewclass == ExponentialGaussianModelEditor:
                     settings = {'storedsettings':
                                 {'name': '',
                                  'preprocessors':
