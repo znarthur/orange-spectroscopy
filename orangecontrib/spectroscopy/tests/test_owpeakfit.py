@@ -34,14 +34,15 @@ class TestOWPeakFit(WidgetTest):
 
     def test_allint_indv(self):
         for p in PREPROCESSORS:
-            if p.viewclass in (ExponentialGaussianModelEditor, PolynomialModelEditor):
-                continue
-            self.widget = self.create_widget(OWPeakFit)
-            self.send_signal("Data", self.data)
-            self.widget.add_preprocessor(p)
-            wait_for_preview(self.widget)
-            self.widget.unconditional_commit()
-            self.wait_until_finished()
+            with self.subTest(msg=f"Testing model {p.name}"):
+                if p.viewclass in (ExponentialGaussianModelEditor, PolynomialModelEditor):
+                    continue
+                self.widget = self.create_widget(OWPeakFit)
+                self.send_signal("Data", self.data)
+                self.widget.add_preprocessor(p)
+                wait_for_preview(self.widget)
+                self.widget.unconditional_commit()
+                self.wait_until_finished()
 
     def test_outputs(self):
         self.widget = self.create_widget(OWPeakFit)

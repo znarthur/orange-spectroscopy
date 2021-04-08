@@ -617,10 +617,15 @@ class ThermalDistributionModelEditor(PeakModelEditor):
 
     def __init__(self):
         super().__init__()
+        layout = QHBoxLayout()
+        layout.addStretch()
+        layout.addWidget(QLabel("Form: "))
         cb = QComboBox()
         cb.insertItems(0, self.model.valid_forms)
         cb.currentTextChanged.connect(self.set_form)
-        self.controlArea.layout().insertRow(0, "form", cb)  # put at top of the form
+        layout.addWidget(cb)
+        layout.addStretch()
+        self.layout().insertLayout(0, layout)  # put at top of the editor
 
     @classmethod
     def model_parameters(cls):
@@ -702,10 +707,15 @@ class PolynomialModelEditor(BaselineModelEditor):
 
     def __init__(self):
         super().__init__()
+        layout = QHBoxLayout()
+        layout.addStretch()
+        layout.addWidget(QLabel("Form: "))
         cb = QComboBox()
         cb.insertItems(0, tuple(str(vf) for vf in self.model.valid_forms))
         cb.currentTextChanged.connect(self.set_form)
-        self.controlArea.layout().insertRow(0, "form", cb)  # put at top of the form
+        layout.addWidget(cb)
+        layout.addStretch()
+        self.layout().insertLayout(0, layout)  # put at top of the editor
 
     @classmethod
     def model_parameters(cls):
