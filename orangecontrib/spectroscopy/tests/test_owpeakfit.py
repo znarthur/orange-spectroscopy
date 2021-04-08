@@ -15,7 +15,7 @@ from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_previe
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     VoigtModelEditor, create_model, prepare_params, unique_prefix, create_composite_model, \
-    pack_model_editor, ParamHintBox, ExponentialGaussianModelEditor, PolynomialModelEditor
+    pack_model_editor, ParamHintBox, ExponentialGaussianModelEditor, PolynomialModelEditor, PseudoVoigtModelEditor
 
 COLLAGEN = Orange.data.Table("collagen")[0:3]
 COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
@@ -35,14 +35,33 @@ class TestOWPeakFit(WidgetTest):
     def test_allint_indv(self):
         for p in PREPROCESSORS:
             with self.subTest(msg=f"Testing model {p.name}"):
-                if p.viewclass in (ExponentialGaussianModelEditor, PolynomialModelEditor):
+                settings = None
+                if p.viewclass == PolynomialModelEditor:
                     continue
-                self.widget = self.create_widget(OWPeakFit)
+                elif p.viewclass == ExponentialGaussianModelEditor:
+                    settings = {'storedsettings':
+                                {'name': '',
+                                 'preprocessors':
+                                 [('orangecontrib.spectroscopy.widgets.owwidget.eg',
+                                   {'center': OrderedDict([('value', 1650.0)]),
+                                    'sigma': OrderedDict([('value', 5.0),
+                                                          ('max', 20.0)]),
+                                    'gamma': OrderedDict([('value', 1.0),
+                                                          ('vary', False)]),
+                                    })]}}
+                elif p.viewclass == PseudoVoigtModelEditor:
+                    settings = {'storedsettings':
+                                {'name': '',
+                                 'preprocessors':
+                                 [('orangecontrib.spectroscopy.widgets.owwidget.pv',
+                                   {'center': OrderedDict([('value', 1650.0)]),
+                                    'fraction': OrderedDict([('vary', False)]),
+                                    })]}}
+                self.widget = self.create_widget(OWPeakFit, stored_settings=settings)
                 self.send_signal("Data", self.data)
-                self.widget.add_preprocessor(p)
+                if settings is None:
+                    self.widget.add_preprocessor(p)
                 wait_for_preview(self.widget)
-                self.widget.unconditional_commit()
-                self.wait_until_finished()
 
     def test_outputs(self):
         self.widget = self.create_widget(OWPeakFit)

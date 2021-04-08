@@ -11,7 +11,7 @@ from scipy import integrate
 
 from AnyQt.QtCore import Signal
 from PyQt5.QtCore import QObject, QSize
-from PyQt5.QtWidgets import QFormLayout, QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget, QVBoxLayout, QLabel, \
+from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QComboBox, QLineEdit, QWidget, QLabel, \
     QGridLayout
 
 from Orange.data import Table, ContinuousVariable, Domain
@@ -394,19 +394,6 @@ class ModelEditor(BaseEditorOrange):
         self.__values.update(form=form)
         self.edited.emit()
 
-    # # TODO do we still want this?
-    # def set_value(self, name, v, user=True):
-    #     if user:
-    #         self.user_changed = True
-    #     if self.__values[name].value != v:
-    #         self.__values[name].value = v
-    #         with blocked(self.__editors[name]):
-    #             self.__editors[name].setValue(self.__values[name])
-    #             l = self.__lines.get(name, None)
-    #             if l is not None:
-    #                 l.setValue(v)
-    #         self.changed.emit()
-
     def setParameters(self, params):
         if params:  # parameters were set manually set
             self.user_changed = True
@@ -512,7 +499,6 @@ class PseudoVoigtModelEditor(PeakModelEditor):
     model = lmfit.models.PseudoVoigtModel
     prefix_generic = "pv"
 
-    # TODO Review if sigma should be exposed (it is somewhat constrained)
     @classmethod
     def model_parameters(cls):
         return super().model_parameters() + ('fraction',)
@@ -555,7 +541,6 @@ class BreitWignerModelEditor(PeakModelEditor):
 
 
 class LognormalModelEditor(PeakModelEditor):
-    # TODO init_eval doesn't give anything peak-like
     name = "Log-normal"
     model = lmfit.models.LognormalModel
     prefix_generic = "ln"
@@ -580,7 +565,6 @@ class DampedHarmOscillatorModelEditor(PeakModelEditor):
 
 
 class ExponentialGaussianModelEditor(PeakModelEditor):
-    # TODO by default generates NaNs and raises a ValueError
     name = "Exponential Gaussian"
     model = lmfit.models.ExponentialGaussianModel
     prefix_generic = "eg"
