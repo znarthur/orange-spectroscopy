@@ -283,6 +283,7 @@ class OWPeakFit(SpectralPreprocess):
         self.preview_runner = PeakPreviewRunner(self)
         self.curveplot.selection_type = SELECTONE
         self.curveplot.select_at_least_1 = True
+        self.curveplot.view_average_menu.setEnabled(False)
         self.curveplot.selection_changed.connect(self.redraw_integral)
         self.preview_runner.preview_updated.connect(self.redraw_integral)
         # GUI
