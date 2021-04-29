@@ -34,6 +34,7 @@ Widgets
    widgets/interferogram-to-spectrum
    widgets/reshape-map
    widgets/pls
+   widgets/peakfit
 
 Indices and tables
 ------------------
