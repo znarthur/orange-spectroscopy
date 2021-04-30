@@ -13,10 +13,10 @@ Signal-to-Noise Ratio (SNR)
     - *SNR = \\(\frac{\overline{Spectra_{x, y}}}{\sigma _{x, y}}\\)*
 - Averages: averaged dataset
     - *Averages = \\(\overline{Spectra_{x, y}}\\)*
-- Standart Deviation: standart deviation dataset
-    - *Standart Deviation = \\(\sigma _{x, y}\\)*
+- Standard Deviation: standard deviation dataset
+    - *Standard Deviation = \\(\sigma _{x, y}\\)*
 
-The **SNR** widget enables you to calculate de SNR, average or standart deviation spectra. It can output the results of a entire dataset or by coordinates (x, y).
+The **SNR** widget enables you to calculate de SNR, average or standard deviation spectra. It can output the results of a entire dataset or by coordinates (x, y).
 
 ------------
 Use *Select axis: x* select an axis that will act as a first element for your coordinate system defined byNumeric meta.
@@ -46,9 +46,9 @@ If you want to select only one axis:
  
 ![](images/snr_std_y.png)
 
-**output = Standart Deviation(x)**
+**output = Standard Deviation(x)**
 
-*Standart Deviation = \\(\sigma _{column}\\)*
+*Standard Deviation = \\(\sigma _{column}\\)*
 ___________
 
 If you want the result of the complete data set, you can just leave both as None.
