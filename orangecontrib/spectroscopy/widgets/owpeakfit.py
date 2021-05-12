@@ -71,8 +71,9 @@ def fit_results_table(output, model_result, orig_data):
     domain = Domain(features,
                     orig_data.domain.class_vars,
                     orig_data.domain.metas)
-    return Table.from_numpy(domain, X=output, Y=orig_data.Y,
-                            metas=orig_data.metas, ids=orig_data.ids)
+    out = orig_data.transform(domain)
+    out.X = output
+    return out
 
 
 def fit_peaks(data, model, params):
@@ -368,17 +369,16 @@ class OWPeakFit(SpectralPreprocess):
                 residuals.append(out.residual)
                 progress_interrupt(i / n * 100)
             data = fit_results_table(output, out, orig_data)
-            data_fits = Table.from_numpy(orig_data.domain, X=np.vstack(fits), Y=orig_data.Y,
-                                         metas=orig_data.metas, ids=orig_data.ids)
-            data_resid = Table.from_numpy(orig_data.domain, X=np.vstack(residuals), Y=orig_data.Y,
-                                          metas=orig_data.metas, ids=orig_data.ids)
+            data_fits = orig_data.from_table_rows(orig_data, ...)  # a shallow copy
+            data_fits.X = np.vstack(fits)
+            data_resid = orig_data.from_table_rows(orig_data, ...)  # a shallow copy
+            data_resid.X = np.vstack(residuals)
             dom_anno = Domain(orig_data.domain.attributes,
                               orig_data.domain.class_vars,
                               orig_data.domain.metas + data.domain.attributes,
                               )
-            data_anno = Table.from_numpy(dom_anno, orig_data.X, orig_data.Y,
-                                         np.hstack((orig_data.metas, data.X)),
-                                         ids=orig_data.ids)
+            data_anno = orig_data.transform(dom_anno)
+            data_anno.metas[:, len(orig_data.domain.metas):] = data.X
 
         progress_interrupt(100)
 
