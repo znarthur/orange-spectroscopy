@@ -10,7 +10,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangewidget.tests.base import GuiTest
 
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
+from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline, Integrate
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
@@ -309,6 +309,17 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
         self.assertEqual(self.model.name, sv_model.name)
         self.assertEqual(set(self.params), set(sv_params))
+
+    def test_total_area(self):
+        """ Test v0 + v1 area == total fit area """
+        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        fits = self.get_output(self.widget.Outputs.fits)
+        xs = getx(fits)
+        total_areas = Integrate(methods=Integrate.Simple, limits=[[xs.min(), xs.max()]])(fits)
+        total_area = total_areas.X[0, 0]
+        v0_area = fit_params[0]["v0 area"].value
+        v1_area = fit_params[0]["v1 area"].value
+        self.assertEqual(total_area, v0_area + v1_area)
 
 
 class TestParamHintBox(GuiTest):
