@@ -259,6 +259,9 @@ class TestVoigtEditorMulti(ModelEditorTest):
                         for _ in range(len(self.pcs))]
         self.data = COLLAGEN_2
         self.send_signal(self.widget.Inputs.data, self.data)
+        self.model, self.params = self.matched_models()
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
 
     def matched_models(self):
         mlist = [lmfit.models.VoigtModel(prefix=f"v{i}_") for i in range(len(self.pcs))]
@@ -281,38 +284,31 @@ class TestVoigtEditorMulti(ModelEditorTest):
         return model, params
 
     def test_same_params(self):
-        model, params = self.matched_models()
         m_def = [self.widget.preprocessormodel.item(i)
                  for i in range(self.widget.preprocessormodel.rowCount())]
         ed_model, ed_params = create_composite_model(m_def)
 
-        self.assertEqual(model.name, ed_model.name)
-        self.assertEqual(set(params), set(ed_params))
-        for k, v in params.items():
+        self.assertEqual(self.model.name, ed_model.name)
+        self.assertEqual(set(self.params), set(ed_params))
+        for k, v in self.params.items():
             self.assertEqual(v, ed_params[k])
 
     def test_same_output(self):
-        model, params = self.matched_models()
-
-        out_fit = fit_peaks(self.data, model, params)
-
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
+        out_fit = fit_peaks(self.data, self.model, self.params)
         out = self.get_output(self.widget.Outputs.fit_params)
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
         np.testing.assert_array_equal(out_fit.X, out.X)
 
     def test_saving_model_params(self):
-        model, params = self.matched_models()
         settings = self.widget.settingsHandler.pack_data(self.widget)
-        self.widget = self.create_widget(OWPeakFit, stored_settings=settings)
-        m_def = [self.widget.preprocessormodel.item(i)
-                 for i in range(self.widget.preprocessormodel.rowCount())]
+        restored_widget = self.create_widget(OWPeakFit, stored_settings=settings)
+        m_def = [restored_widget.preprocessormodel.item(i)
+                 for i in range(restored_widget.preprocessormodel.rowCount())]
         sv_model, sv_params = create_composite_model(m_def)
 
-        self.assertEqual(model.name, sv_model.name)
-        self.assertEqual(set(params), set(sv_params))
+        self.assertEqual(self.model.name, sv_model.name)
+        self.assertEqual(set(self.params), set(sv_params))
 
 
 class TestParamHintBox(GuiTest):
