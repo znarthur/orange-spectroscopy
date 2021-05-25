@@ -293,7 +293,7 @@ class OWPeakFit(SpectralPreprocess):
     def redraw_integral(self):
         dis = []
         if self.curveplot.data:
-            x = getx(self.curveplot.data).sort()
+            x = np.sort(getx(self.curveplot.data))
             previews = self.flow_view.preview_n()
             for i in range(self.preprocessormodel.rowCount()):
                 if i in previews:
