@@ -319,7 +319,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
         total_area = total_areas.X[0, 0]
         v0_area = fit_params[0]["v0 area"].value
         v1_area = fit_params[0]["v1 area"].value
-        self.assertEqual(total_area, v0_area + v1_area)
+        self.assertAlmostEqual(total_area, v0_area + v1_area)
 
 
 class TestParamHintBox(GuiTest):
