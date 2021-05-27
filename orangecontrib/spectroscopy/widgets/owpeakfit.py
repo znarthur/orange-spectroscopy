@@ -41,14 +41,15 @@ def init_output_array(data, model, params):
 def add_result_to_output_array(output, i, model_result, x):
     """Add values from ModelResult to output array"""
     out = model_result
-    comps = out.eval_components(x=x)
+    sorted_x = np.sort(x)
+    comps = out.eval_components(x=sorted_x)
     best_values = out.best_values
 
     # add peak values to output storage
     col = 0
     for comp in out.components:
         # Peak area
-        output[i, col] = np.trapz(comps[comp.prefix], x)
+        output[i, col] = np.trapz(comps[comp.prefix], sorted_x)
         col += 1
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
             output[i, col] = best_values[param]
@@ -292,7 +293,7 @@ class OWPeakFit(SpectralPreprocess):
     def redraw_integral(self):
         dis = []
         if self.curveplot.data:
-            x = getx(self.curveplot.data)
+            x = np.sort(getx(self.curveplot.data))
             previews = self.flow_view.preview_n()
             for i in range(self.preprocessormodel.rowCount()):
                 if i in previews:
