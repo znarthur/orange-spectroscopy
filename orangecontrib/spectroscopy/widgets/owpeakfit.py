@@ -3,7 +3,6 @@ from functools import reduce
 
 from lmfit import Parameters
 import numpy as np
-from scipy import integrate
 
 from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
@@ -49,7 +48,7 @@ def add_result_to_output_array(output, i, model_result, x):
     col = 0
     for comp in out.components:
         # Peak area
-        output[i, col] = integrate.trapz(comps[comp.prefix])
+        output[i, col] = np.trapz(comps[comp.prefix], x)
         col += 1
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
             output[i, col] = best_values[param]
