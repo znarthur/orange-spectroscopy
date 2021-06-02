@@ -14,7 +14,7 @@ from Orange.widgets.utils.filedialogs import format_filter
 from Orange.data.io import TabReader
 from Orange.tests import named_file
 
-from orangecontrib.spectroscopy.data import SPAReader
+from orangecontrib.spectroscopy.data import SPAReader, AsciiColReader, SpectralFileFormat, getx
 from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 
 
@@ -279,3 +279,50 @@ class TestOWMultifile(WidgetTest):
                 self.assertEqual(disjunct, ['M', 'M', 'F', "F"])
                 common = [str(a[1]) for a in out]
                 self.assertEqual(common, ['M', 'F', 'F', "M"])
+
+    def test_special_and_normal(self):
+        s1 = """\
+        100\t3
+        102\t3.10
+        104\t3.20
+        """
+        s2 = """\
+        100\t3
+        101\t3.05
+        104\t3.20
+        """
+        n =  """\
+        100.000000\t200.000000\t300.000000\tclass
+        4\t5\t6\td
+        """
+
+        nan = float("nan")
+        concat = np.array([[3., 3.1, 3.2, nan, nan, nan, nan],
+                          [3., nan, 3.2, 3.05, nan, nan, nan],
+                          [4., nan, nan, nan, 5., 6., 0.]])
+
+        self.assertTrue(issubclass(AsciiColReader, SpectralFileFormat))
+        with named_file(s1, suffix=".xy") as fn1:
+            with named_file(s2, suffix=".xy") as fn2:
+                with named_file(n, suffix=".tab") as fn:
+                    self.load_files(fn1, reader=AsciiColReader)
+                    self.load_files(fn2, reader=AsciiColReader)
+                    out = self.get_output(self.widget.Outputs.data)
+                    np.testing.assert_equal(getx(out), [100, 102, 104, 101])
+                    np.testing.assert_equal(out.X, concat[:2, :4])
+                    self.load_files(fn)
+                    out = self.get_output(self.widget.Outputs.data)
+                    atts = [a.name for a in out.domain.attributes]
+                    self.assertEqual(atts, ['100.000000', '102.000000', '104.000000',
+                                            '101.000000', '200.000000', '300.000000',
+                                            'class'])
+                    out = self.get_output(self.widget.Outputs.data)
+                    np.testing.assert_equal(out.X, concat)
+
+                    # load the same files in a different order
+                    self.widget.clear()
+                    self.load_files(fn1, reader=AsciiColReader)
+                    self.load_files(fn)
+                    self.load_files(fn2, reader=AsciiColReader)
+                    out = self.get_output(self.widget.Outputs.data)
+                    np.testing.assert_equal(out.X, concat[[0, 2, 1]])
