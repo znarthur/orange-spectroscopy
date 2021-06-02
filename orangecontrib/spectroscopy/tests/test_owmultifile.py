@@ -12,6 +12,7 @@ from Orange.widgets.tests.base import WidgetTest
 from Orange.data import FileFormat, dataset_dirs, Table
 from Orange.widgets.utils.filedialogs import format_filter
 from Orange.data.io import TabReader
+from Orange.tests import named_file
 
 from orangecontrib.spectroscopy.data import SPAReader
 from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
@@ -258,3 +259,23 @@ class TestOWMultifile(WidgetTest):
         self.assertEqual(2, self.widget.sheet_combo.currentIndex())
         out = self.get_output(self.widget.Outputs.data)
         self.assertAlmostEqual(0.91213142, out.X[0][0])
+
+    def test_repeated_discrete_disjuct_values(self):
+        f1 = """\
+        Disjunct values\tCommon values
+        M      \tM
+        M      \tF
+        """
+        f2 = """\
+        Disjunct values\tCommon values
+        F      \tF
+        F      \tM
+        """
+        with named_file(f1, suffix=".tab") as fn1:
+            with named_file(f2, suffix=".tab") as fn2:
+                self.load_files(fn1, fn2)
+                out = self.get_output(self.widget.Outputs.data)
+                disjunct = [str(a[0]) for a in out]
+                self.assertEqual(disjunct, ['M', 'M', 'F', "F"])
+                common = [str(a[1]) for a in out]
+                self.assertEqual(common, ['M', 'F', 'F', "M"])
