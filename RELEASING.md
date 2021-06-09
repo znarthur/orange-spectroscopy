@@ -66,11 +66,8 @@ Upload to pypi:
     twine upload dist/packagenames (there are two, .tar.gz and .whl).
 
 Copy the built conda package to the correct static/conda/noarch folder in 
-the quasar.codes repository and then reindex:
-	
-    conda index  # run this in static/conda
-
-Add new files and then either push or make a pull request.
+the quasar.codes web page. Add the new files and then either push or 
+make a pull request.
   
     git add . && git commit -a -m "Orange-Spectroscopy x.x.x"
 
