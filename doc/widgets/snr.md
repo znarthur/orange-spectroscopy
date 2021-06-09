@@ -16,16 +16,16 @@ Signal-to-Noise Ratio (SNR)
 - Standard Deviation: standard deviation dataset
     - *Standard Deviation = \\(\sigma _{x, y}\\)*
 
-The **SNR** widget enables you to calculate de SNR, average or standard deviation spectra. It can output the results of a entire dataset or by coordinates (x, y).
+The **SNR** widget computes the SNR, average, or standard deviation of spectra. It can output the results of an entire dataset or by coordinates (x, y).
 
 ------------
-Use *Select axis: x* select an axis that will act as a first element for your coordinate system defined byNumeric meta.
+Use *Select axis: x* to select an axis that will act as the first element for your coordinate system defined by a numeric meta.
 
-Use *Select axis: y* Select an axis that will act as a second element for your coordinate system defined by a Numeric meta.
+Use *Select axis: y* to select an axis that will act as the second element for your coordinate system defined by a numeric meta.
 
 ![](images/snr_print.png)
 
-In the example above, the end result will be:
+In the example above, the result will be:
 
 **output = Signal-to-noise ratio(column, row)**
 
