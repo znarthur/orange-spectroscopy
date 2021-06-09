@@ -54,6 +54,13 @@
     "keywords": []
    },
    {
+    "text": "Peak Fit",
+    "doc": "widgets/peakfit.md",
+    "icon": "../orangecontrib/spectroscopy/widgets/icons/peakfit.svg",
+    "background": "light-blue",
+    "keywords": []
+   },
+   {
     "text": "Multifile",
     "doc": "widgets/multifile.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/multifile.svg",
@@ -110,7 +117,7 @@
    },
    {
     "text": "SNR",
-    "doc": null,
+    "doc": "widgets/snr.md",
     "icon": "../orangecontrib/spectroscopy/widgets/icons/snr.svg",
     "background": "light-blue",
     "keywords": []
