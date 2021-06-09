@@ -35,6 +35,7 @@ Widgets
    widgets/reshape-map
    widgets/pls
    widgets/peakfit
+   widgets/snr
 
 Indices and tables
 ------------------
