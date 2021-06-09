@@ -326,3 +326,21 @@ class TestOWMultifile(WidgetTest):
                     self.load_files(fn2, reader=AsciiColReader)
                     out = self.get_output(self.widget.Outputs.data)
                     np.testing.assert_equal(out.X, concat[[0, 2, 1]])
+
+    def test_special_spectral_reader_metas(self):
+        n =  """\
+        100.000000\t200.000000\t300.000000\tmeta
+        \t\t\tstring\n
+        \t\t\tmeta\n
+        4\t5\t6\thello
+        """
+        with named_file(n, suffix=".tab") as fn:
+            self.load_files("small_diamond_nxs.nxs")  # special spectral rader
+            self.load_files(fn)
+            out = self.get_output(self.widget.Outputs.data)
+            self.assertEqual([a.name for a in out.domain.metas[:3]],
+                             ["map_x", "map_y", "meta"])
+            self.assertAlmostEqual(out[0]['map_x'], -1.77900021)
+            self.assertAlmostEqual(out[0]['map_y'], -2.74319824)
+            self.assertEqual(out[0]['meta'].value, "")
+            self.assertEqual(out[-1]['meta'].value, "hello")
