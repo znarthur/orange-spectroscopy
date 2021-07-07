@@ -125,8 +125,8 @@ if __name__ == '__main__':
         data_files=DATA_FILES,
         install_requires=[
             'Orange3>=3.28.0',
-            'orange-canvas-core>=0.1.19',
-            'orange-widget-base>=4.12.0',
+            'orange-canvas-core>=0.1.20',
+            'orange-widget-base>=4.14.1',
             'scipy>=0.14.0',
             'spectral>=0.18',
             'serverfiles>=0.2',

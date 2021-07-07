@@ -8,7 +8,6 @@ import pyqtgraph as pg
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME, ANNOTATED_DATA_FEATURE_NAME
 
 from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra, MAX_INSTANCES_DRAWN, \
     PlotCurvesItem, NoSuchCurve, MAX_THICK_SELECTED
@@ -20,7 +19,6 @@ from orangecontrib.spectroscopy.preprocess import Interpolate
 
 
 NAN = float("nan")
-
 
 def wait_for_graph(widget, timeout=5000):
     concurrent = widget.curveplot.show_average_thread
@@ -145,15 +143,15 @@ class TestOWSpectra(WidgetTest):
             self.send_signal("Data", data)
             out = self.get_output("Selection")
             self.assertIsNone(out, None)
-            out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
-            sa = out.transform(Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
+            out = self.get_output(self.widget.Outputs.annotated_data)
+            sa = out.transform(Domain([out.domain["Selected"]]))
             np.testing.assert_equal(sa.X, 0)
             self.select_diagonal()
             out = self.get_output("Selection")
             self.assertEqual(len(data), len(out))
-            out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+            out = self.get_output(self.widget.Outputs.annotated_data)
             self.assertEqual(len(data), len(out))
-            sa = out.transform(Domain([out.domain[ANNOTATED_DATA_FEATURE_NAME]]))
+            sa = out.transform(Domain([out.domain["Selected"]]))
             np.testing.assert_equal(sa.X, 1)
 
     def do_zoom_rect(self, invertX):
@@ -380,7 +378,7 @@ class TestOWSpectra(WidgetTest):
             self.widget.curveplot.make_selection([3])
         with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
             self.widget.curveplot.make_selection([4])
-        out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+        out = self.get_output(self.widget.Outputs.annotated_data)
         self.assertEqual(len(out), 100)  # have a data table at the output
         newvars = out.domain.variables + out.domain.metas
         oldvars = data.domain.variables + data.domain.metas
@@ -390,13 +388,18 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o for o in out], [data[i] for i in [1, 2, 3, 4]])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
+        out = self.get_output(self.widget.Outputs.selected_data)
+        np.testing.assert_equal([o[out.domain["Group"]].value for o in out],
+                                ["G1", "G2", "G3", "G3"])
 
         # remove one element
         with hold_modifiers(self.widget, Qt.AltModifier):
             self.widget.curveplot.make_selection([1])
-        out = self.get_output("Selection")
+        out = self.get_output(self.widget.Outputs.selected_data)
         np.testing.assert_equal(len(out), 3)
         np.testing.assert_equal([o for o in out], [data[i] for i in [2, 3, 4]])
+        np.testing.assert_equal([o[out.domain["Group"]].value for o in out],
+                                ["G2", "G3", "G3"])
 
     def test_select_thick_lines(self):
         data = self.collagen[:100]
@@ -509,3 +512,16 @@ class TestOWSpectra(WidgetTest):
                                          stored_settings={"context_settings": [c]})
         self.send_signal("Data", self.iris)
         self.assertIsInstance(self.widget.curveplot.feature_color, DiscreteVariable)
+
+    def test_compat_no_group(self):
+        settings = {}
+        OWSpectra.migrate_settings(settings, 3)
+        self.assertEqual(settings, {})
+        self.widget = self.create_widget(OWSpectra, stored_settings=settings)
+        self.assertFalse(self.widget.Information.compat_no_group.is_shown())
+
+        settings = {}
+        OWSpectra.migrate_settings(settings, 2)
+        self.assertEqual(settings, {"compat_no_group": True})
+        self.widget = self.create_widget(OWSpectra, stored_settings=settings)
+        self.assertTrue(self.widget.Information.compat_no_group.is_shown())

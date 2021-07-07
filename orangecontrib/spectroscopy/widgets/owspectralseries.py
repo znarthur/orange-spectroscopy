@@ -12,21 +12,21 @@ import pyqtgraph as pg
 import numpy as np
 
 from Orange.data import Table, Domain, DiscreteVariable, ContinuousVariable
-from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
-from orangecontrib.spectroscopy.data import getx
 
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import values_to_linspace, index_values
 from orangecontrib.spectroscopy.widgets.owhyper import _shift, \
     ImageColorSettingMixin, ImageZoomMixin, ImageItemNan, ImageColorLegend
-from orangecontrib.spectroscopy.widgets.owspectra import SelectionGroupMixin, HelpEventDelegate, \
+from orangecontrib.spectroscopy.widgets.owspectra import HelpEventDelegate, \
     selection_modifiers, \
     SELECTMANY, INDIVIDUAL, InteractiveViewBox, MenuFocus
-from orangecontrib.spectroscopy.widgets.utils import groups_or_annotated_table
+from orangecontrib.spectroscopy.widgets.utils import \
+    SelectionGroupMixin, SelectionOutputsMixin
 
 
 class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
@@ -247,15 +247,17 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
         self.make_selection(sel)
 
 
-class OWSpectralSeries(OWWidget):
+class OWSpectralSeries(OWWidget, SelectionOutputsMixin):
     name = "Spectral Series"
 
     class Inputs:
         data = Input("Data", Table, default=True)
 
-    class Outputs:
-        selected_data = Output("Selection", Table, default=True)
-        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Table)
+    class Outputs(SelectionOutputsMixin.Outputs):
+        pass
+
+    class Information(SelectionOutputsMixin.Information):
+        pass
 
     class Warning(OWWidget.Warning):
         threshold_error = Msg("Low slider should be less than High")
@@ -263,7 +265,7 @@ class OWSpectralSeries(OWWidget):
     icon = "icons/spectralseries.svg"
     priority = 100
 
-    settings_version = 1
+    settings_version = 2
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(LineScanPlot)
@@ -274,6 +276,7 @@ class OWSpectralSeries(OWWidget):
 
     def __init__(self):
         super().__init__()
+        SelectionOutputsMixin.__init__(self)
 
         self.imageplot = LineScanPlot(self)
         self.imageplot.selection_changed.connect(self.output_image_selection)
@@ -284,18 +287,7 @@ class OWSpectralSeries(OWWidget):
         self.resize(900, 700)
 
     def output_image_selection(self):
-        if not self.data:
-            self.Outputs.selected_data.send(None)
-            self.Outputs.annotated_data.send(None)
-            return
-
-        indices = np.flatnonzero(self.imageplot.selection_group)
-
-        annotated_data = groups_or_annotated_table(self.data, self.imageplot.selection_group)
-        self.Outputs.annotated_data.send(annotated_data)
-
-        selected = self.data[indices]
-        self.Outputs.selected_data.send(selected if selected else None)
+        self.send_selection(self.data, self.imageplot.selection_group)
 
     @Inputs.data
     def set_data(self, data):
@@ -317,6 +309,11 @@ class OWSpectralSeries(OWWidget):
         self.imageplot.set_data(data)
         self.imageplot.update_view()
         self.output_image_selection()
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        if version < 2:
+            settings["compat_no_group"] = True
 
 
 if __name__ == "__main__":  # pragma: no cover

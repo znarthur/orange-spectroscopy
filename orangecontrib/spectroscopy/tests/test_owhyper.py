@@ -17,7 +17,7 @@ from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_tabl
 from orangecontrib.spectroscopy.preprocess.integrate import IntegrateFeaturePeakSimple
 from orangecontrib.spectroscopy.widgets import owhyper
 from orangecontrib.spectroscopy.widgets.owhyper import \
-    OWHyper, ANNOTATED_DATA_SIGNAL_NAME
+    OWHyper
 from orangecontrib.spectroscopy.preprocess import Interpolate
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon, is_left
 from orangecontrib.spectroscopy.tests.util import hold_modifiers, set_png_graph_save
@@ -199,6 +199,8 @@ class TestOWHyper(WidgetTest):
         self.widget.imageplot.select_square(QPointF(9.4, 9.4), QPointF(11.6, 10.6))
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas, [[10, 10], [11, 10]])
+        np.testing.assert_equal([o[out.domain["Group"]].value for o in out],
+                                ["G1", "G1"])
 
     def test_select_polygon_as_rectangle(self):
         # rectangle and a polygon need to give the same results
@@ -229,7 +231,7 @@ class TestOWHyper(WidgetTest):
             self.widget.imageplot.select_by_click(QPointF(3, 2))
         with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
             self.widget.imageplot.select_by_click(QPointF(4, 2))
-        out = self.get_output(ANNOTATED_DATA_SIGNAL_NAME)
+        out = self.get_output(self.widget.Outputs.annotated_data)
         self.assertEqual(len(out), 20000)  # have a data table at the output
         newvars = out.domain.variables + out.domain.metas
         oldvars = data.domain.variables + data.domain.metas
@@ -239,12 +241,17 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o["map_x"].value for o in out], [1, 2, 3, 4])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
+        out = self.get_output(self.widget.Outputs.selected_data)
+        np.testing.assert_equal([o[out.domain["Group"]].value for o in out],
+                                ["G1", "G2", "G3", "G3"])
 
         # remove one element
         with hold_modifiers(self.widget, Qt.AltModifier):
             self.widget.imageplot.select_by_click(QPointF(1, 2))
-        out = self.get_output("Selection")
+        out = self.get_output(self.widget.Outputs.selected_data)
         np.testing.assert_equal(len(out), 3)
+        np.testing.assert_equal([o[out.domain["Group"]].value for o in out],
+                                ["G2", "G3", "G3"])
 
     def test_select_a_curve(self):
         self.send_signal("Data", self.iris)
@@ -612,3 +619,16 @@ class TestVisibleImage(WidgetTest):
             self.assert_same_visible_image(data.attributes["visible_images"][0],
                                            w.imageplot.vis_img,
                                            mock_rect)
+
+    def test_compat_no_group(self):
+        settings = {}
+        OWHyper.migrate_settings(settings, 6)
+        self.assertEqual(settings, {})
+        self.widget = self.create_widget(OWHyper, stored_settings=settings)
+        self.assertFalse(self.widget.Information.compat_no_group.is_shown())
+
+        settings = {}
+        OWHyper.migrate_settings(settings, 5)
+        self.assertEqual(settings, {"compat_no_group": True})
+        self.widget = self.create_widget(OWHyper, stored_settings=settings)
+        self.assertTrue(self.widget.Information.compat_no_group.is_shown())
