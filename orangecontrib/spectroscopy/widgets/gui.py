@@ -3,11 +3,12 @@ from decimal import Decimal
 from abc import ABCMeta, abstractmethod
 
 from AnyQt.QtCore import QLocale, Qt, QSize
-from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator
+from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator, QColor
 from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QSizePolicy
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
+from pyqtgraph import Point, QtCore
 
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
@@ -474,3 +475,96 @@ class XPosLineEdit(QWidget, OWComponent):
     def focusInEvent(self, *e):
         self.focusIn.emit()
         return QWidget.focusInEvent(self, *e)
+
+
+class VerticalPeakLine(pg.InfiniteLine):
+
+    """pyqtgraph.InfiniteLine with adjustments for spectra analysis
+    """
+
+    def __init__(self, pos=None, angle=90, pen=None, movable=True,
+                 bounds=None, label=None, span=None):
+
+        super().__init__(pos, angle, pen, movable, bounds, span)
+
+        if label is None:
+            self.label = VerticalPeakLineLabel(self,
+                                               text=str(self.getXPos()), position=(1))
+
+        self.sigDragged.connect(self.updateLabel)
+        self.selection = 0
+        self.span = span
+
+    def setSpan(self, mn, mx):
+        if self.span != (mn, mx):
+            self.span = (mn, mx)
+            self.update()
+
+    def _computeBoundingRect(self):
+        vr = self.viewRect()
+        if vr is None:
+            return QtCore.QRectF()
+
+        px = self.pixelLength(direction=Point(1, 0), ortho=True)
+        if px is None:
+            px = 0
+        pw = max(self.pen.width() / 2, self.hoverPen.width() / 2)
+        w = max(4, 0 + pw) + 1
+        w = w * px
+        br = QtCore.QRectF(vr)
+        br.setBottom(-w)
+        br.setTop(w)
+        left = self.span[0] #left = br.left() + length * self.span[0]
+        right = self.span[1] #right = br.left() + length * self.span[1]
+        #right and left changed to only go from min to max values of data
+        br.setLeft(left)
+        br.setRight(right)
+        br = br.normalized()
+
+        vs = self.getViewBox().size()
+        if self.mouseDragEvent:
+            left = self.span[0] - self.getYPos()
+
+        if self._bounds != br or self._lastViewSize != vs:
+            self._bounds = br
+            self._lastViewSize = vs
+            self.prepareGeometryChange()
+
+        self._endPoints = (left, right)
+        self._lastViewRect = vr
+
+        return self._bounds
+
+    def mouseClickEvent(self, ev):
+        if ev.button() == QtCore.Qt.LeftButton and not self.moving and self.selection == 0:
+            self.setPen(pg.mkPen(color=QColor(Qt.blue), width=2, style=Qt.DotLine))
+            self.update()
+            self.selection = 1
+        else:
+            self.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
+            self.update()
+            self.selection = 0
+
+    def delete_line(self):
+        if self.selection == 1:
+            self.hide()
+            self.update()
+
+    def updateLabel(self):
+        x = self.getXPos()
+        length = len(str(round(x)))
+        if length >= 4:
+            length = 2
+        elif 4 > length > 2:
+            length = 3
+        elif length <= 2:
+            length = 4
+        elif length == 0:
+            length = len(x)
+        self.label.setText(str(round(self.getXPos(), length)))
+        self.update()
+
+class VerticalPeakLineLabel(pg.InfLineLabel):
+    def __init__(self, line, text="", movable=False, position=0.5, anchors=None, **kwds):
+        super().__init__(line)
+        self.line = line
