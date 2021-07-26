@@ -165,8 +165,17 @@ class ImageItemNan(pg.ImageItem):
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
+        levels = levels*3
+        lut = None
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
-        argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        print(argb.shape)
+        print(np.isnan(image).shape)
+        print(argb[np.isnan(image)].shape)
+        if image.ndim == 3:
+            argb[np.isnan(image)] = (100,255)
+        else:
+            argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        #if shape image is 3D, .ndim, change to 100,255
         w = 1
         if np.any(self.selection):
             max_sel = np.max(self.selection)
@@ -783,13 +792,23 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         # the code below does this, but part-wise:
         # d = image_values(data).X[:, 0]
         parts = []
+            #RGB Array
+            
+        
         for slice in split_to_size(len(data), 10000):
-            part = image_values(data[slice]).X[:, 0]
-            parts.append(part)
-            progress_interrupt(0)
+            if len(image_values(data[slice])[0]) == 3:
+                part = image_values(data[slice]).X[:, :]
+                #print(part)
+                parts.append(part)
+                progress_interrupt(0)
+            else:
+                part = image_values(data[slice]).X[:, 0]
+                parts.append(part)
+                progress_interrupt(0)
         d = np.concatenate(parts)
 
         res.d = d
+        #print(d)
         progress_interrupt(0)
 
         return res
@@ -800,6 +819,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         lsx, lsy = self.lsx, self.lsy
 
         d = res.d
+       # print("D", "\n", d)
 
         self.fixed_levels = res.image_values_fixed_levels
 
@@ -812,8 +832,13 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if invalid_positions:
             self.parent.Information.not_shown(invalid_positions)
 
-        imdata = np.ones((lsy[2], lsx[2])) * float("nan")
-        imdata[yindex[valid], xindex[valid]] = d[valid]
+        if isinstance(d[0],np.floating):
+            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+            imdata[yindex[valid], xindex[valid]] = d[valid]
+        else:
+            imdata =  np.ones((lsy[2], lsx[2],3))*float("nan")
+            imdata[yindex[valid], xindex[valid]] = d[valid]
+        #print("Imdata", "\n", imdata)
         self.data_values = d
         self.data_imagepixels = np.vstack((yindex, xindex)).T
 
@@ -877,6 +902,9 @@ class OWHyper(OWWidget):
     integration_methods = Integrate.INTEGRALS
     value_type = Setting(0)
     attr_value = ContextSetting(None)
+    rgb_red_value = ContextSetting(None)
+    rgb_green_value = ContextSetting(None)
+    rgb_blue_value = ContextSetting(None)
 
     show_visible_image = Setting(False)
     visible_image_name = Setting(None)
@@ -949,6 +977,29 @@ class OWHyper(OWWidget):
                                                valid_types=DomainModel.PRIMITIVE)
         self.feature_value = gui.comboBox(
             self.box_values_feature, self, "attr_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_feature_value, model=self.feature_value_model)
+
+        gui.appendRadioButton(rbox, "RGB")
+        self.box_values_RGB_feature = gui.indentedBox(rbox)
+
+        #Probs change the callback to a new function???? within that it gets the v
+        #RGB STUFF
+        self.RGB_feature_value_model = DomainModel(DomainModel.SEPARATED,
+                                               valid_types=DomainModel.PRIMITIVE)
+
+        self.RGB_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_red_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_feature_value, model=self.feature_value_model)
+
+        self.RGB_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_green_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_feature_value, model=self.feature_value_model)
+
+        self.RGB_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_blue_value",
             contentsLength=12, searchable=True,
             callback=self.update_feature_value, model=self.feature_value_model)
 
@@ -1119,9 +1170,12 @@ class OWHyper(OWWidget):
             else:
                 return Integrate(methods=imethod,
                                  limits=[[self.choose, self.choose]])
-        else:
+        elif self.value_type == 1:
             return lambda data, attr=self.attr_value: \
                 data.transform(Domain([data.domain[attr]]))
+        else:
+            return lambda data, attr_red=self.rgb_red_value,attr_green = self.rgb_green_value, attr_blue = self.rgb_blue_value: \
+                data.transform(Domain([data.domain[attr_red],data.domain[attr_green],data.domain[attr_blue]]))
 
     def image_values_fixed_levels(self):
         if self.value_type == 1 and isinstance(self.attr_value, DiscreteVariable):
@@ -1142,6 +1196,7 @@ class OWHyper(OWWidget):
         if self.value_type == 0:
             self.box_values_spectra.setDisabled(False)
             self.box_values_feature.setDisabled(True)
+            self.box_values_RGB_feature.setDisabled(True)
             if self.integration_methods[self.integration_method] != Integrate.PeakAt:
                 self.line1.show()
                 self.line2.show()
@@ -1150,6 +1205,11 @@ class OWHyper(OWWidget):
         elif self.value_type == 1:
             self.box_values_spectra.setDisabled(True)
             self.box_values_feature.setDisabled(False)
+            self.box_values_RGB_feature.setDisabled(True)
+        elif self.value_type == 2:
+            self.box_values_spectra.setDisabled(True)
+            self.box_values_feature.setDisabled(True)
+            self.box_values_RGB_feature.setDisabled(False)
         QTest.qWait(1)  # first update the interface
 
     def _change_integration(self):
