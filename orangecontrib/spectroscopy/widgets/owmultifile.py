@@ -185,7 +185,10 @@ class OWMultifile(widget.OWWidget, RelocatablePathsWidgetMixin):
                   "and send a data table to the output."
     priority = 10000
     replaces = ["orangecontrib.infrared.widgets.owfiles.OWFiles",
-                "orangecontrib.infrared.widgets.owmultifile.OWMultifile"]
+                "orangecontrib.infrared.widgets.owmultifile.OWMultifile",
+                # next file: a file unintentionally added in one version
+                "orangecontrib.spectroscopy.widgets.owmultifile_vesna.OWMultifile",
+                ]
     keywords = ["file", "files", "multiple"]
 
     class Outputs:
