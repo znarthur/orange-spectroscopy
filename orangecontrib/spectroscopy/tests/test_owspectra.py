@@ -1,8 +1,8 @@
 import os
 from unittest.mock import Mock, patch
 
-from AnyQt.QtCore import QRectF, QPoint, Qt
-from AnyQt.QtTest import QTest, QSignalSpy
+from AnyQt.QtCore import QRectF, Qt
+from AnyQt.QtTest import QSignalSpy
 import numpy as np
 import pyqtgraph as pg
 
@@ -115,20 +115,30 @@ class TestOWSpectra(WidgetTest):
             self.send_signal("Data", data)
             self.do_mousemove()
 
+    def simulate_drag(self, vb, from_, to_):
+        # from_ and to_ are in plot coordinates
+        event = Mock()
+        event.button.return_value = Qt.LeftButton
+
+        mapToParent = vb.childGroup.mapToParent
+
+        event.pos.return_value = mapToParent(from_)
+        event.lastPos.return_value = mapToParent(from_)
+        event.buttonDownPos.return_value = mapToParent(from_)
+        event.isFinish.return_value = False
+        vb.mouseDragEvent(event)
+
+        event.pos.return_value = mapToParent(to_)
+        event.lastPos.return_value = mapToParent(from_)
+        event.buttonDownPos.return_value = mapToParent(from_)
+        event.isFinish.return_value = True
+        vb.mouseDragEvent(event)
+
     def select_diagonal(self):
         vb = self.widget.curveplot.plot.vb
         vb.set_mode_select()
-        vr = vb.viewRect()
-        tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
-        brs = vr.topLeft() if self.widget.curveplot.invertX else vr.topRight()
-        tl = vb.mapViewToScene(tls).toPoint() + QPoint(2, 100)  # avoid menu button
-        br = vb.mapViewToScene(brs).toPoint() - QPoint(2, 2)
-        ca = self.widget.curveplot.childAt(tl)
-        QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
-        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl)
-        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl + QPoint(10, 10))
-        QTest.qWait(1)
-        QTest.mouseClick(ca, Qt.LeftButton, pos=br)
+        pos_down, pos_up = vb.viewRect().topLeft(), vb.viewRect().bottomRight()
+        self.simulate_drag(vb, pos_down, pos_up)
 
     def test_select_line(self):
         for data in self.normal_data:
@@ -154,20 +164,9 @@ class TestOWSpectra(WidgetTest):
         self.widget.curveplot.invertX_apply()
         vb.set_mode_zooming()
         vr = vb.viewRect()
-        tls = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
-        # move down to avoid clicking on the menu button
-        tl = vb.mapViewToScene(tls).toPoint() + QPoint(0, 100)
-        br = vb.mapViewToScene(vr.center()).toPoint()
-        tlw = vb.mapSceneToView(tl)
-        brw = vb.mapSceneToView(br)
-        ca = self.widget.curveplot.childAt(tl)
-        QTest.mouseClick(ca, Qt.LeftButton, pos=tl)
-        QTest.qWait(1)
-        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl)
-        QTest.qWait(1)
-        self.widget.curveplot.plot.scene().sigMouseMoved.emit(tl + QPoint(10, 10))
-        QTest.qWait(1)
-        QTest.mouseClick(ca, Qt.LeftButton, pos=br)
+        tlw = vr.bottomRight() if self.widget.curveplot.invertX else vr.bottomLeft()
+        brw = vr.center()
+        self.simulate_drag(vb, tlw, brw)
         vr = vb.viewRect()
         self.assertAlmostEqual(vr.bottom(), tlw.y())
         self.assertAlmostEqual(vr.top(), brw.y())
