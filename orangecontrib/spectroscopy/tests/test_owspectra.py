@@ -119,15 +119,7 @@ class TestOWSpectra(WidgetTest):
         # from_ and to_ are in plot coordinates
         event = Mock()
         event.button.return_value = Qt.LeftButton
-
         mapToParent = vb.childGroup.mapToParent
-
-        event.pos.return_value = mapToParent(from_)
-        event.lastPos.return_value = mapToParent(from_)
-        event.buttonDownPos.return_value = mapToParent(from_)
-        event.isFinish.return_value = False
-        vb.mouseDragEvent(event)
-
         event.pos.return_value = mapToParent(to_)
         event.lastPos.return_value = mapToParent(from_)
         event.buttonDownPos.return_value = mapToParent(from_)
