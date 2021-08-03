@@ -438,9 +438,10 @@ class InteractiveViewBox(ViewBox):
         elif self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
                 and ev.button() == Qt.LeftButton and self.graph.selection_type:
             pos = self.childGroup.mapFromParent(ev.pos())
+            start = self.childGroup.mapFromParent(ev.buttonDownPos())
             if self.current_selection is None:
-                self.current_selection = [pos]
-            elif ev.isFinish():
+                self.current_selection = [start]
+            if ev.isFinish():
                 self._add_selection_point(pos)
             ev.accept()
         else:
