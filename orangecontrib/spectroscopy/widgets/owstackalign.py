@@ -146,9 +146,8 @@ class OWStackAlign(OWWidget):
         # TODO: add input box for selecting which should be the reference frame
         box = gui.widgetBox(self.controlArea, "Axes")
 
-        common_options = dict(
-            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
-            valueType=str)
+        common_options = dict(labelWidth=50, orientation=Qt.Horizontal,
+                              sendSelectedValue=True)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
                                     valid_types=ContinuousVariable)
         self.cb_attr_x = gui.comboBox(

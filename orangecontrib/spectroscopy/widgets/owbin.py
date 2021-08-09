@@ -82,9 +82,8 @@ class OWBin(OWWidget):
 
         self.contextAboutToBeOpened.connect(self._init_interface_data)
 
-        common_options = dict(
-            labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True,
-            valueType=str)
+        common_options = dict(labelWidth=50, orientation=Qt.Horizontal,
+                              sendSelectedValue=True)
         for i in range(MAX_DIMENSIONS):
             hbox = gui.hBox(self.axes_box)
             gui.comboBox(
