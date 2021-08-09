@@ -41,17 +41,17 @@ def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
     dx = 0.094
 
     x1 = np.linspace(-(p1 - 1) * dx, 0, p1)
-    x2 = np.linspace(dx, np.floor((p2 - p1) / 2) * dx, np.int(np.floor((p2 - p1) / 2)))
+    x2 = np.linspace(dx, np.floor((p2 - p1) / 2) * dx, int(np.floor((p2 - p1) / 2)))
 
     xp1 = np.hstack([x1, x2])
 
-    x3 = np.linspace(-(np.ceil((p2 - p1) / 2) - 1) * dx, 0, np.int((np.ceil((p2 - p1) / 2))))
-    x4 = np.linspace(dx, np.floor((p3 - p2) / 2) * dx, np.int(np.floor((p3 - p2) / 2)))
+    x3 = np.linspace(-(np.ceil((p2 - p1) / 2) - 1) * dx, 0, int((np.ceil((p2 - p1) / 2))))
+    x4 = np.linspace(dx, np.floor((p3 - p2) / 2) * dx, int(np.floor((p3 - p2) / 2)))
 
     xp2 = np.hstack([x3, x4])
 
-    x5 = np.linspace(-(np.ceil((p3 - p2) / 2) - 1) * dx, 0, np.int((np.ceil((p3 - p2) / 2))))
-    x6 = np.linspace(dx, (len(wavenumbers) - p3) * dx, np.int(len(wavenumbers) - p3))
+    x5 = np.linspace(-(np.ceil((p3 - p2) / 2) - 1) * dx, 0, int((np.ceil((p3 - p2) / 2))))
+    x6 = np.linspace(dx, (len(wavenumbers) - p3) * dx, int(len(wavenumbers) - p3))
 
     xp3 = np.hstack([x5, x6])
 
@@ -65,8 +65,8 @@ def weights_from_inflection_points_legacy(points, kappa, wavenumbers):
         p0 = np.argmin(np.abs(wavenumbers - points[3]))
 
         x1a = np.linspace(-(p0 - 1) * dx, 0, p0)
-        x2a = np.linspace(dx, np.floor((p1 - p0) / 2) * dx, np.int(np.floor((p1 - p0) / 2)))
-        x3a = np.linspace(-(np.ceil((p1 - p0) / 2) - 1) * dx, 0, np.int((np.ceil((p1 - p0) / 2))))
+        x2a = np.linspace(dx, np.floor((p1 - p0) / 2) * dx, int(np.floor((p1 - p0) / 2)))
+        x3a = np.linspace(-(np.ceil((p1 - p0) / 2) - 1) * dx, 0, int((np.ceil((p1 - p0) / 2))))
 
         xp0 = np.hstack([x1a, x2a])
         xp1 = np.hstack([x3a, x2])

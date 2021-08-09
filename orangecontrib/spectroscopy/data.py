@@ -956,7 +956,7 @@ class NeaReader(FileFormat, SpectralFileFormat):
             metacols = np.arange(0, 4)
             meta = np.loadtxt(f,
                               dtype={'names': ('row', 'column', 'run', 'channel'),
-                                     'formats': (np.int, np.int, np.int, "S10")},
+                                     'formats': (int, int, int, "S10")},
                               usecols=metacols)
 
             # ASSUMTION: runs start with 0

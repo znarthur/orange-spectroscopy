@@ -128,7 +128,7 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
             # transformed can have additional columns
             addc = X.shape[1] - xc
             if addc:
-                nans = np.hstack((nans, np.zeros((X.shape[0], addc), dtype=np.bool)))
+                nans = np.hstack((nans, np.zeros((X.shape[0], addc), dtype=bool)))
             X[nans] = np.nan
 
         # restore order
