@@ -121,11 +121,19 @@ def get_levels(img):
     """ Compute levels. Account for NaN values. """
     while img.size > 2 ** 16:
         img = img[::2, ::2]
-    mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
-    if mn == mx:
-        mn = 0
-        mx = 255
-    return [mn, mx]
+
+    if img.ndim == 3:
+        mn1, mx1 = bottleneck.nanmin(img[:,:,0]), bottleneck.nanmax(img[:,:,0])
+        mn2, mx2 = bottleneck.nanmin(img[:,:,1]), bottleneck.nanmax(img[:,:,1])
+        mn3, mx3 = bottleneck.nanmin(img[:,:,2]), bottleneck.nanmax(img[:,:,2])
+        return [[mn1,mx1],[mn2,mx2],[mn3,mx3]]
+    else:
+        mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
+        if mn == mx:
+            mn = 0
+            mx = 255
+        return [mn, mx]
+
 
 
 class VisibleImageListModel(PyListModel):
@@ -165,17 +173,28 @@ class ImageItemNan(pg.ImageItem):
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
-        levels = levels*3
-        lut = None
-        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
-        print(argb.shape)
-        print(np.isnan(image).shape)
-        print(argb[np.isnan(image)].shape)
+
         if image.ndim == 3:
-            argb[np.isnan(image)] = (100,255)
+
+            #run a new function??? (def could be incorporated into update_levels but not sure how)
+            #also need to incorporate into update_levels so slider works
+            lut = None
+            #levels = levels*3
+        argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
+
+
+        if image.ndim == 3:
+            argb[np.isnan(image)[:,:,0]] = 100
+            argb[np.isnan(image)[:,:,1]] = 100
+            argb[np.isnan(image)[:,:,2]] = 100
+            argb[np.isnan(image)[:,:,2],3] = 255
+
+
         else:
+            #print(argb[np.isnan(image)])
             argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
-        #if shape image is 3D, .ndim, change to 100,255
+            #print(argb.shape)
+
         w = 1
         if np.any(self.selection):
             max_sel = np.max(self.selection)
@@ -346,6 +365,10 @@ class ImageColorSettingMixin:
             levels = get_levels(self.img.image)
         else:
             levels = [0, 255]
+
+        if len(levels) == 3:
+            self.img.setLevels(levels)
+            return
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
 
