@@ -1,3 +1,5 @@
+import numpy as np
+
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
@@ -49,6 +51,35 @@ class TestMeEMSCEditor(PreprocessorEditorTest):
         p = self.commit_get_preprocessor()
         self.assertFalse(self.editor.controls.ncomp.isEnabled())
         self.assertEqual(p.ncomp, 6)  # for this data set
+
+    def _change_le(self, le, val):
+        le.setText(val)
+        le.textEdited.emit(val)
+        le.editingFinished.emit()
+
+    def test_refractive_index(self):
+        reference = SMALL_COLLAGEN[:1]
+        self.send_signal(self.widget.Inputs.reference, reference)
+
+        p = self.commit_get_preprocessor()
+        np.testing.assert_equal(p.n0, np.linspace(1.1, 1.4, 10))
+
+        self._change_le(self.editor.controls.n0_low, str(1.2))
+        self._change_le(self.editor.controls.n0_high, str(1.5))
+        p = self.commit_get_preprocessor()
+        np.testing.assert_equal(p.n0, np.linspace(1.2, 1.5, 10))
+
+    def test_spherical_radius(self):
+        reference = SMALL_COLLAGEN[:1]
+        self.send_signal(self.widget.Inputs.reference, reference)
+
+        p = self.commit_get_preprocessor()
+        np.testing.assert_equal(p.a, np.linspace(2, 7.1, 10))
+
+        self._change_le(self.editor.controls.a_low, str(3))
+        self._change_le(self.editor.controls.a_high, str(42))
+        p = self.commit_get_preprocessor()
+        np.testing.assert_equal(p.a, np.linspace(3, 42, 10))
 
     def test_iterations(self):
         reference = SMALL_COLLAGEN[:1]
