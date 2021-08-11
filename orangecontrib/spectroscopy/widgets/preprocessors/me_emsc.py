@@ -42,7 +42,7 @@ class MeEMSCEditor(EMSCEditor):
 
         gui.spin(self.controlArea, self, "max_iter", label="Max iterations", minv=0, maxv=100,
                  controlWidth=50, callback=self.edited.emit)
-        gui.checkBox(self.controlArea, self, "fixed_iter", label="Use fixed number of iterations",
+        gui.checkBox(self.controlArea, self, "fixed_iter", label="Always perform max iterations",
                      callback=self.edited.emit)
 
         self.comp_spin = gui.spin(self.controlArea, self, "ncomp", label="Components",
