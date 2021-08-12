@@ -290,6 +290,12 @@ def color_palette_model(palettes, iconsize=QSize(64, 16)):
 class ImageColorSettingMixin:
     threshold_low = Setting(0.0, schema_only=True)
     threshold_high = Setting(1.0, schema_only=True)
+    red_threshold_low = Setting(0.0, schema_only=True)
+    red_threshold_high =  Setting(1.0, schema_only=True)
+    green_threshold_low = Setting(0.0, schema_only=True)
+    green_threshold_high =  Setting(1.0, schema_only=True)
+    blue_threshold_low = Setting(0.0, schema_only=True)
+    blue_threshold_high =  Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
     show_legend = Setting(True)
@@ -341,8 +347,42 @@ class ImageColorSettingMixin:
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
 
+        ##RGB Sliders
+        self._threshold_red_low_slider = redlowslider = gui.hSlider(
+            box, self, "red_threshold_low", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+        self._threshold_red_high_slider = redhighslider = gui.hSlider(
+            box, self, "red_threshold_high", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+        self._threshold_green_low_slider = greenlowslider = gui.hSlider(
+            box, self, "green_threshold_low", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+        self._threshold_green_high_slider = greenhighslider = gui.hSlider(
+            box, self, "green_threshold_high", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+        self._threshold_blue_low_slider = bluelowslider = gui.hSlider(
+            box, self, "blue_threshold_low", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+        self._threshold_blue_high_slider = bluehighslider = gui.hSlider(
+            box, self, "blue_threshold_high", minValue=0.0, maxValue=1.0,
+            step=0.05, ticks=True, intOnly=False,
+            createLabel=False, callback=self.update_levels)
+
+
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
+        form.addRow("Red Low: ",redlowslider)
+        form.addRow("Red High: ",redhighslider)
+        form.addRow("Green Low: ",greenlowslider)
+        form.addRow("Green High: ",greenhighslider)
+        form.addRow("Blue Low: ",bluelowslider)
+        form.addRow("Blue High: ",bluehighslider)
+
         box.layout().addLayout(form)
 
         self.update_legend_visible()
@@ -368,6 +408,43 @@ class ImageColorSettingMixin:
 
         if len(levels) == 3:
             self.img.setLevels(levels)
+            enabled_level_settings = self.fixed_levels is None
+            self._threshold_red_low_slider.setEnabled(enabled_level_settings)
+            self._threshold_red_high_slider.setEnabled(enabled_level_settings)
+
+            if not self.red_threshold_low < self.red_threshold_high:
+                # TODO this belongs here, not in the parent
+                self.parent.Warning.threshold_error()
+                return
+            else:
+                self.parent.Warning.threshold_error.clear()
+            if not self.green_threshold_low < self.green_threshold_high:
+                # TODO this belongs here, not in the parent
+                self.parent.Warning.threshold_error()
+                return
+            else:
+                self.parent.Warning.threshold_error.clear()
+            if not self.blue_threshold_low < self.blue_threshold_high:
+                # TODO this belongs here, not in the parent
+                self.parent.Warning.threshold_error()
+                return
+            else:
+                self.parent.Warning.threshold_error.clear()
+
+            new_levels = levels
+
+            rll_threshold = new_levels[0][0] * self.red_threshold_low
+            rlh_threshold = new_levels[0][1] * self.red_threshold_high
+            gll_threshold = new_levels[1][0] * self.green_threshold_low
+            glh_threshold = new_levels[1][1] * self.green_threshold_high
+            bll_threshold = new_levels[2][0] * self.blue_threshold_low
+            blh_threshold = new_levels[2][1] * self.blue_threshold_high
+
+            new_levels = [[rll_threshold,rlh_threshold],[gll_threshold,glh_threshold],[bll_threshold,blh_threshold]]
+            self.img.setLevels(new_levels)
+
+
+
             return
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
@@ -1143,6 +1220,10 @@ class OWHyper(OWWidget):
         domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
+        rgb_attrs = [a for a in self.feature_value_model[:3]] if self.feature_value_model else [None]
+        rgb_attrs = (rgb_attrs + rgb_attrs[-1:]*3)[:3]
+        self.rgb_red_value,self.rgb_green_value,self.rgb_blue_value = rgb_attrs
+        ##TODO test datasets with features <3
 
     def init_visible_images(self, data):
         self.visible_image_model.clear()
