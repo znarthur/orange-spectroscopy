@@ -123,6 +123,7 @@ def get_levels(img):
         img = img[::2, ::2]
 
     if img.ndim == 3:
+        #Add a statement here if minimum is less than 0?
         mn1, mx1 = bottleneck.nanmin(img[:,:,0]), bottleneck.nanmax(img[:,:,0])
         mn2, mx2 = bottleneck.nanmin(img[:,:,1]), bottleneck.nanmax(img[:,:,1])
         mn3, mx3 = bottleneck.nanmin(img[:,:,2]), bottleneck.nanmax(img[:,:,2])
@@ -175,11 +176,7 @@ class ImageItemNan(pg.ImageItem):
 
 
         if image.ndim == 3:
-
-            #run a new function??? (def could be incorporated into update_levels but not sure how)
-            #also need to incorporate into update_levels so slider works
             lut = None
-            #levels = levels*3
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
 
 
@@ -188,12 +185,8 @@ class ImageItemNan(pg.ImageItem):
             argb[np.isnan(image)[:,:,1]] = 100
             argb[np.isnan(image)[:,:,2]] = 100
             argb[np.isnan(image)[:,:,2],3] = 255
-
-
         else:
-            #print(argb[np.isnan(image)])
             argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
-            #print(argb.shape)
 
         w = 1
         if np.any(self.selection):
@@ -298,6 +291,12 @@ class ImageColorSettingMixin:
     blue_threshold_high =  Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
+    red_level_low = Setting(None, schema_only=True)
+    red_level_high = Setting(None, schema_only=True)
+    green_level_low = Setting(None, schema_only=True)
+    green_level_high = Setting(None, schema_only=True)
+    blue_level_low = Setting(None, schema_only=True)
+    blue_level_high = Setting(None, schema_only=True)
     show_legend = Setting(True)
     palette_index = Setting(0)
 
@@ -346,6 +345,31 @@ class ImageColorSettingMixin:
             box, self, "threshold_high", minValue=0.0, maxValue=1.0,
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
+
+        ## RGB Level Numbers
+        self._red_level_low_le = lineEditDecimalOrNone(self, self, "red_level_low", callback=limit_changed)
+        self._red_level_low_le.validator().setDefault(0)
+        form.addRow("Red Low limit:", self._red_level_low_le)
+
+        self._red_level_high_le = lineEditDecimalOrNone(self, self, "red_level_high", callback=limit_changed)
+        self._red_level_high_le.validator().setDefault(1)
+        form.addRow("Red High limit:", self._red_level_high_le)
+
+        self._green_level_low_le = lineEditDecimalOrNone(self, self, "green_level_low", callback=limit_changed)
+        self._green_level_low_le.validator().setDefault(0)
+        form.addRow("Green Low limit:", self._green_level_low_le)
+
+        self._green_level_high_le = lineEditDecimalOrNone(self, self, "green_level_high", callback=limit_changed)
+        self._green_level_high_le.validator().setDefault(1)
+        form.addRow("Green High limit:", self._green_level_high_le)
+
+        self._blue_level_low_le = lineEditDecimalOrNone(self, self, "blue_level_low", callback=limit_changed)
+        self._blue_level_low_le.validator().setDefault(0)
+        form.addRow("Blue Low limit:", self._blue_level_low_le)
+
+        self._blue_level_high_le = lineEditDecimalOrNone(self, self, "blue_level_high", callback=limit_changed)
+        self._blue_level_high_le.validator().setDefault(1)
+        form.addRow("Blue High limit:", self._blue_level_high_le)
 
         ##RGB Sliders
         self._threshold_red_low_slider = redlowslider = gui.hSlider(
@@ -405,12 +429,57 @@ class ImageColorSettingMixin:
             levels = get_levels(self.img.image)
         else:
             levels = [0, 255]
-
+        #RGB Addition (Pretty repetitive to original code outside of the if statement)
         if len(levels) == 3:
             self.img.setLevels(levels)
+            red_prec = pixels_to_decimals((levels[0][1] - levels[0][0])/1000)
+
+            red_rounded_levels = [float_to_str_decimals(levels[0][0], red_prec),
+                          float_to_str_decimals(levels[0][1], red_prec)]
+
+            green_prec = pixels_to_decimals((levels[1][1] - levels[1][0])/1000)
+
+            green_rounded_levels = [float_to_str_decimals(levels[1][0], green_prec),
+                          float_to_str_decimals(levels[1][1], green_prec)]
+
+            blue_prec = pixels_to_decimals((levels[0][1] - levels[0][0])/1000)
+
+            blue_rounded_levels = [float_to_str_decimals(levels[2][0], blue_prec),
+                          float_to_str_decimals(levels[2][1], blue_prec)]
+
+            self._red_level_low_le.validator().setDefault(red_rounded_levels[0])
+            self._red_level_high_le.validator().setDefault(red_rounded_levels[1])
+
+            self._red_level_low_le.setPlaceholderText(red_rounded_levels[0])
+            self._red_level_high_le.setPlaceholderText(red_rounded_levels[1])
+
+            self._green_level_low_le.validator().setDefault(green_rounded_levels[0])
+            self._green_level_high_le.validator().setDefault(green_rounded_levels[1])
+
+            self._green_level_low_le.setPlaceholderText(green_rounded_levels[0])
+            self._green_level_high_le.setPlaceholderText(green_rounded_levels[1])
+
+            self._blue_level_low_le.validator().setDefault(blue_rounded_levels[0])
+            self._blue_level_high_le.validator().setDefault(blue_rounded_levels[1])
+
+            self._blue_level_low_le.setPlaceholderText(blue_rounded_levels[0])
+            self._blue_level_high_le.setPlaceholderText(blue_rounded_levels[1])
+
+            #this section may be unecessary if fixed levels is always none for RGB
             enabled_level_settings = self.fixed_levels is None
+            self._red_level_low_le.setEnabled(enabled_level_settings)
+            self._red_level_high_le.setEnabled(enabled_level_settings)
+            self._green_level_low_le.setEnabled(enabled_level_settings)
+            self._green_level_high_le.setEnabled(enabled_level_settings)
+            self._blue_level_low_le.setEnabled(enabled_level_settings)
+            self._blue_level_high_le.setEnabled(enabled_level_settings)
+
             self._threshold_red_low_slider.setEnabled(enabled_level_settings)
             self._threshold_red_high_slider.setEnabled(enabled_level_settings)
+            self._threshold_green_low_slider.setEnabled(enabled_level_settings)
+            self._threshold_green_high_slider.setEnabled(enabled_level_settings)
+            self._threshold_blue_low_slider.setEnabled(enabled_level_settings)
+            self._threshold_blue_high_slider.setEnabled(enabled_level_settings)
 
             if not self.red_threshold_low < self.red_threshold_high:
                 # TODO this belongs here, not in the parent
@@ -433,18 +502,21 @@ class ImageColorSettingMixin:
 
             new_levels = levels
 
-            rll_threshold = new_levels[0][0] * self.red_threshold_low
-            rlh_threshold = new_levels[0][1] * self.red_threshold_high
-            gll_threshold = new_levels[1][0] * self.green_threshold_low
-            glh_threshold = new_levels[1][1] * self.green_threshold_high
-            bll_threshold = new_levels[2][0] * self.blue_threshold_low
-            blh_threshold = new_levels[2][1] * self.blue_threshold_high
+            rll = float(self.red_level_low) if self.red_level_low is not None else levels[0][0]
+            rlh = float(self.red_level_high) if self.red_level_high is not None else levels[0][1]
+            gll = float(self.green_level_low) if self.green_level_low is not None else levels[1][0]
+            glh = float(self.green_level_high) if self.green_level_high is not None else levels[1][1]
+            bll = float(self.blue_level_low) if self.blue_level_low is not None else levels[2][0]
+            blh = float(self.blue_level_high) if self.blue_level_high is not None else levels[2][1]
+            rll_threshold = rll + (rlh-rll) * self.red_threshold_low
+            rlh_threshold = rll+(rlh-rll) * self.red_threshold_high
+            gll_threshold = gll + (glh-gll) * self.green_threshold_low
+            glh_threshold = gll + (glh-gll) * self.green_threshold_high
+            bll_threshold = bll + (blh-bll) * self.blue_threshold_low
+            blh_threshold = bll + (blh-bll) * self.blue_threshold_high
 
             new_levels = [[rll_threshold,rlh_threshold],[gll_threshold,glh_threshold],[bll_threshold,blh_threshold]]
             self.img.setLevels(new_levels)
-
-
-
             return
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
@@ -892,13 +964,10 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         # the code below does this, but part-wise:
         # d = image_values(data).X[:, 0]
         parts = []
-            #RGB Array
-            
         
         for slice in split_to_size(len(data), 10000):
             if len(image_values(data[slice])[0]) == 3:
                 part = image_values(data[slice]).X[:, :]
-                #print(part)
                 parts.append(part)
                 progress_interrupt(0)
             else:
@@ -908,7 +977,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         d = np.concatenate(parts)
 
         res.d = d
-        #print(d)
+
         progress_interrupt(0)
 
         return res
@@ -919,7 +988,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         lsx, lsy = self.lsx, self.lsy
 
         d = res.d
-       # print("D", "\n", d)
 
         self.fixed_levels = res.image_values_fixed_levels
 
@@ -938,7 +1006,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         else:
             imdata =  np.ones((lsy[2], lsx[2],3))*float("nan")
             imdata[yindex[valid], xindex[valid]] = d[valid]
-        #print("Imdata", "\n", imdata)
+
         self.data_values = d
         self.data_imagepixels = np.vstack((yindex, xindex)).T
 
@@ -1082,9 +1150,8 @@ class OWHyper(OWWidget):
 
         gui.appendRadioButton(rbox, "RGB")
         self.box_values_RGB_feature = gui.indentedBox(rbox)
-
-        #Probs change the callback to a new function???? within that it gets the v
-        #RGB STUFF
+        
+        #RGB radio buttons
         self.RGB_feature_value_model = DomainModel(DomainModel.SEPARATED,
                                                valid_types=DomainModel.PRIMITIVE)
 
