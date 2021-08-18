@@ -136,7 +136,6 @@ def get_levels(img):
         return [mn, mx]
 
 
-
 class VisibleImageListModel(PyListModel):
 
     def data(self, index, role=Qt.DisplayRole):
@@ -160,7 +159,6 @@ class ImageItemNan(pg.ImageItem):
 
     def render(self):
         # simplified pg.ImageITem
-
         if self.image is None or self.image.size == 0:
             return
         if isinstance(self.lut, collections.abc.Callable):
@@ -174,11 +172,9 @@ class ImageItemNan(pg.ImageItem):
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
-
         if image.ndim == 3:
             lut = None
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
-
 
         if image.ndim == 3:
             argb[np.isnan(image)[:,:,0]] = 100
@@ -283,12 +279,6 @@ def color_palette_model(palettes, iconsize=QSize(64, 16)):
 class ImageColorSettingMixin:
     threshold_low = Setting(0.0, schema_only=True)
     threshold_high = Setting(1.0, schema_only=True)
-    red_threshold_low = Setting(0.0, schema_only=True)
-    red_threshold_high =  Setting(1.0, schema_only=True)
-    green_threshold_low = Setting(0.0, schema_only=True)
-    green_threshold_high =  Setting(1.0, schema_only=True)
-    blue_threshold_low = Setting(0.0, schema_only=True)
-    blue_threshold_high =  Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
     red_level_low = Setting(None, schema_only=True)
@@ -346,7 +336,6 @@ class ImageColorSettingMixin:
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
 
-        ## RGB Level Numbers
         self._red_level_low_le = lineEditDecimalOrNone(self, self, "red_level_low", callback=limit_changed)
         self._red_level_low_le.validator().setDefault(0)
         form.addRow("Red Low limit:", self._red_level_low_le)
@@ -371,42 +360,8 @@ class ImageColorSettingMixin:
         self._blue_level_high_le.validator().setDefault(1)
         form.addRow("Blue High limit:", self._blue_level_high_le)
 
-        ##RGB Sliders
-        self._threshold_red_low_slider = redlowslider = gui.hSlider(
-            box, self, "red_threshold_low", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-        self._threshold_red_high_slider = redhighslider = gui.hSlider(
-            box, self, "red_threshold_high", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-        self._threshold_green_low_slider = greenlowslider = gui.hSlider(
-            box, self, "green_threshold_low", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-        self._threshold_green_high_slider = greenhighslider = gui.hSlider(
-            box, self, "green_threshold_high", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-        self._threshold_blue_low_slider = bluelowslider = gui.hSlider(
-            box, self, "blue_threshold_low", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-        self._threshold_blue_high_slider = bluehighslider = gui.hSlider(
-            box, self, "blue_threshold_high", minValue=0.0, maxValue=1.0,
-            step=0.05, ticks=True, intOnly=False,
-            createLabel=False, callback=self.update_levels)
-
-
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
-        form.addRow("Red Low: ",redlowslider)
-        form.addRow("Red High: ",redhighslider)
-        form.addRow("Green Low: ",greenlowslider)
-        form.addRow("Green High: ",greenhighslider)
-        form.addRow("Blue Low: ",bluelowslider)
-        form.addRow("Blue High: ",bluehighslider)
-
         box.layout().addLayout(form)
 
         self.update_legend_visible()
@@ -429,7 +384,7 @@ class ImageColorSettingMixin:
             levels = get_levels(self.img.image)
         else:
             levels = [0, 255]
-        #RGB Addition (Pretty repetitive to original code outside of the if statement)
+
         if len(levels) == 3:
             self.img.setLevels(levels)
             red_prec = pixels_to_decimals((levels[0][1] - levels[0][0])/1000)
@@ -474,48 +429,14 @@ class ImageColorSettingMixin:
             self._blue_level_low_le.setEnabled(enabled_level_settings)
             self._blue_level_high_le.setEnabled(enabled_level_settings)
 
-            self._threshold_red_low_slider.setEnabled(enabled_level_settings)
-            self._threshold_red_high_slider.setEnabled(enabled_level_settings)
-            self._threshold_green_low_slider.setEnabled(enabled_level_settings)
-            self._threshold_green_high_slider.setEnabled(enabled_level_settings)
-            self._threshold_blue_low_slider.setEnabled(enabled_level_settings)
-            self._threshold_blue_high_slider.setEnabled(enabled_level_settings)
-
-            if not self.red_threshold_low < self.red_threshold_high:
-                # TODO this belongs here, not in the parent
-                self.parent.Warning.threshold_error()
-                return
-            else:
-                self.parent.Warning.threshold_error.clear()
-            if not self.green_threshold_low < self.green_threshold_high:
-                # TODO this belongs here, not in the parent
-                self.parent.Warning.threshold_error()
-                return
-            else:
-                self.parent.Warning.threshold_error.clear()
-            if not self.blue_threshold_low < self.blue_threshold_high:
-                # TODO this belongs here, not in the parent
-                self.parent.Warning.threshold_error()
-                return
-            else:
-                self.parent.Warning.threshold_error.clear()
-
-            new_levels = levels
-
             rll = float(self.red_level_low) if self.red_level_low is not None else levels[0][0]
             rlh = float(self.red_level_high) if self.red_level_high is not None else levels[0][1]
             gll = float(self.green_level_low) if self.green_level_low is not None else levels[1][0]
             glh = float(self.green_level_high) if self.green_level_high is not None else levels[1][1]
             bll = float(self.blue_level_low) if self.blue_level_low is not None else levels[2][0]
             blh = float(self.blue_level_high) if self.blue_level_high is not None else levels[2][1]
-            rll_threshold = rll + (rlh-rll) * self.red_threshold_low
-            rlh_threshold = rll+(rlh-rll) * self.red_threshold_high
-            gll_threshold = gll + (glh-gll) * self.green_threshold_low
-            glh_threshold = gll + (glh-gll) * self.green_threshold_high
-            bll_threshold = bll + (blh-bll) * self.blue_threshold_low
-            blh_threshold = bll + (blh-bll) * self.blue_threshold_high
-
-            new_levels = [[rll_threshold,rlh_threshold],[gll_threshold,glh_threshold],[bll_threshold,blh_threshold]]
+            new_levels = levels
+            new_levels = [[rll,rlh],[gll,glh],[bll,blh]]
             self.img.setLevels(new_levels)
             return
 
@@ -977,7 +898,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         d = np.concatenate(parts)
 
         res.d = d
-
         progress_interrupt(0)
 
         return res
@@ -1150,8 +1070,7 @@ class OWHyper(OWWidget):
 
         gui.appendRadioButton(rbox, "RGB")
         self.box_values_RGB_feature = gui.indentedBox(rbox)
-        
-        #RGB radio buttons
+
         self.RGB_feature_value_model = DomainModel(DomainModel.SEPARATED,
                                                valid_types=DomainModel.PRIMITIVE)
 
