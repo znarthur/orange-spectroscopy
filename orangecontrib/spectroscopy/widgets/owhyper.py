@@ -121,7 +121,6 @@ def get_levels(img):
     """ Compute levels. Account for NaN values. """
     while img.size > 2 ** 16:
         img = img[::2, ::2]
-
     if img.ndim == 3:
         #Add a statement here if minimum is less than 0?
         mn1, mx1 = bottleneck.nanmin(img[:,:,0]), bottleneck.nanmax(img[:,:,0])
@@ -159,6 +158,7 @@ class ImageItemNan(pg.ImageItem):
 
     def render(self):
         # simplified pg.ImageITem
+
         if self.image is None or self.image.size == 0:
             return
         if isinstance(self.lut, collections.abc.Callable):
@@ -824,7 +824,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = None
         self.data_valid_positions = None
 
-        if self.data and self.attr_x and self.attr_y:
+        if self.data and self.attr_x and self.attr_y and self.parent.image_values():
             self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
                        self.parent.image_values(),
                        self.parent.image_values_fixed_levels())
@@ -885,7 +885,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         # the code below does this, but part-wise:
         # d = image_values(data).X[:, 0]
         parts = []
-        
         for slice in split_to_size(len(data), 10000):
             if len(image_values(data[slice])[0]) == 3:
                 part = image_values(data[slice]).X[:, :]
@@ -929,7 +928,6 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         self.data_values = d
         self.data_imagepixels = np.vstack((yindex, xindex)).T
-
         self.img.setImage(imdata, autoLevels=False)
         self.update_levels()
         self.update_color_schema()
@@ -1071,23 +1069,23 @@ class OWHyper(OWWidget):
         gui.appendRadioButton(rbox, "RGB")
         self.box_values_RGB_feature = gui.indentedBox(rbox)
 
-        self.RGB_feature_value_model = DomainModel(DomainModel.SEPARATED,
-                                               valid_types=DomainModel.PRIMITIVE)
+        self.rgb_value_model = DomainModel(DomainModel.SEPARATED,
+                                               valid_types=(ContinuousVariable,))
 
-        self.RGB_feature_value = gui.comboBox(
+        self.red_feature_value = gui.comboBox(
             self.box_values_RGB_feature, self, "rgb_red_value",
             contentsLength=12, searchable=True,
-            callback=self.update_feature_value, model=self.feature_value_model)
+            callback=self.update_rgb_value, model=self.rgb_value_model)
 
-        self.RGB_feature_value = gui.comboBox(
+        self.green_feature_value = gui.comboBox(
             self.box_values_RGB_feature, self, "rgb_green_value",
             contentsLength=12, searchable=True,
-            callback=self.update_feature_value, model=self.feature_value_model)
+            callback=self.update_rgb_value, model=self.rgb_value_model)
 
-        self.RGB_feature_value = gui.comboBox(
+        self.blue_feature_value = gui.comboBox(
             self.box_values_RGB_feature, self, "rgb_blue_value",
             contentsLength=12, searchable=True,
-            callback=self.update_feature_value, model=self.feature_value_model)
+            callback=self.update_rgb_value, model=self.rgb_value_model)
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
@@ -1205,11 +1203,14 @@ class OWHyper(OWWidget):
     def init_attr_values(self, data):
         domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
+        self.rgb_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
-        rgb_attrs = [a for a in self.feature_value_model[:3]] if self.feature_value_model else [None]
-        rgb_attrs = (rgb_attrs + rgb_attrs[-1:]*3)[:3]
-        self.rgb_red_value,self.rgb_green_value,self.rgb_blue_value = rgb_attrs
-        ##TODO test datasets with features <3
+        if self.rgb_value_model and len(self.rgb_value_model) >= 3:
+            # Filter PyListModel.Separator objects
+            rgb_attrs = [a for a in self.feature_value_model if isinstance(a, ContinuousVariable)]
+            self.rgb_red_value, self.rgb_green_value, self.rgb_blue_value = rgb_attrs[:3]
+        else:
+            self.rgb_red_value = self.rgb_green_value = self.rgb_blue_value = None
 
     def init_visible_images(self, data):
         self.visible_image_model.clear()
@@ -1260,12 +1261,17 @@ class OWHyper(OWWidget):
             else:
                 return Integrate(methods=imethod,
                                  limits=[[self.choose, self.choose]])
-        elif self.value_type == 1:
+        elif self.value_type == 1:  # feature
             return lambda data, attr=self.attr_value: \
                 data.transform(Domain([data.domain[attr]]))
-        else:
-            return lambda data, attr_red=self.rgb_red_value,attr_green = self.rgb_green_value, attr_blue = self.rgb_blue_value: \
-                data.transform(Domain([data.domain[attr_red],data.domain[attr_green],data.domain[attr_blue]]))
+        elif self.value_type == 2:  # RGB
+            # Ensure all RGB variables are unique
+            if len({self.rgb_red_value, self.rgb_green_value, self.rgb_blue_value}) == 3:
+                return lambda data, \
+                    attr_red=self.rgb_red_value, attr_green=self.rgb_green_value, attr_blue=self.rgb_blue_value: \
+                    data.transform(Domain([data.domain[attr_red], data.domain[attr_green], data.domain[attr_blue]]))
+            else:
+                return
 
     def image_values_fixed_levels(self):
         if self.value_type == 1 and isinstance(self.attr_value, DiscreteVariable):
@@ -1277,6 +1283,9 @@ class OWHyper(OWWidget):
         self.imageplot.update_view()
 
     def update_feature_value(self):
+        self.redraw_data()
+
+    def update_rgb_value(self):
         self.redraw_data()
 
     def _update_integration_type(self):

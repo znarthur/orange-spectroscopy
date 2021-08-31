@@ -119,6 +119,19 @@ class TestOWHyper(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWHyper)  # type: OWHyper
 
+    def test_feature_init(self):
+        self.send_signal("Data", self.iris)
+        self.assertEqual(self.widget.attr_value, self.iris.domain.class_var)
+        attr1, attr2, attr3 = self.iris.domain.attributes[:3]
+        self.assertEqual(self.widget.rgb_red_value, attr1)
+        self.assertEqual(self.widget.rgb_green_value, attr2)
+        self.assertEqual(self.widget.rgb_blue_value, attr3)
+        self.send_signal("Data", self.iris1)
+        self.assertEqual(self.widget.attr_value, attr1)
+        self.assertIsNone(self.widget.rgb_red_value)
+        self.assertIsNone(self.widget.rgb_green_value)
+        self.assertIsNone(self.widget.rgb_blue_value)
+
     def try_big_selection(self):
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100))
         self.widget.imageplot.make_selection(None)
