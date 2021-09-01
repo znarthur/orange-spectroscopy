@@ -55,10 +55,24 @@ class TestOWReshape(WidgetTest):
         self.assertEqual(self.widget.ypoints, 100)
         self.widget.commit()
         m = self.get_output("Map data")
-        self.assertEqual(m[2]["X"].value, 2)
-        self.assertEqual(m[2]["Y"].value, 0)
+        self.assertEqual(m[1]["X"].value, 1)
+        self.assertEqual(m[1]["Y"].value, 0)
         self.assertEqual(m[102]["X"].value, 2)
         self.assertEqual(m[102]["Y"].value, 20)
+
+    def test_invert(self):
+        self.send_signal("Data", self.collagen[:500])
+        self.widget.xpoints = 5
+        self.widget.le1_changed()
+        self.assertEqual(self.widget.ypoints, 100)
+        self.widget.invert_x = True
+        self.widget.invert_y = True
+        self.widget.commit()
+        m = self.get_output("Map data")
+        self.assertEqual(m[1]["X"].value, 3)
+        self.assertEqual(m[1]["Y"].value, 99)
+        self.assertEqual(m[102]["X"].value, 2)
+        self.assertEqual(m[102]["Y"].value, 79)
 
     def test_var_name_exists(self):
         self.send_signal("Data", self.collagen[:500])
