@@ -118,21 +118,23 @@ def _shift(ls):
 
 
 def get_levels(img):
-    """ Compute levels. Account for NaN values. """
+    """
+    Compute levels. Account for NaN values.
+    Returns [min, max] or list of [min, max] for each image in final axis
+    """
     while img.size > 2 ** 16:
         img = img[::2, ::2]
-    if img.ndim == 3:
-        #Add a statement here if minimum is less than 0?
-        mn1, mx1 = bottleneck.nanmin(img[:,:,0]), bottleneck.nanmax(img[:,:,0])
-        mn2, mx2 = bottleneck.nanmin(img[:,:,1]), bottleneck.nanmax(img[:,:,1])
-        mn3, mx3 = bottleneck.nanmin(img[:,:,2]), bottleneck.nanmax(img[:,:,2])
-        return [[mn1,mx1],[mn2,mx2],[mn3,mx3]]
-    else:
-        mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
+    levels = []
+    for i in range(img.shape[2]):
+        mn, mx = bottleneck.nanmin(img[:, :, i]), bottleneck.nanmax(img[:, :, i])
         if mn == mx:
             mn = 0
             mx = 255
-        return [mn, mx]
+        levels.append([mn, mx])
+    if len(levels) == 1:
+        return levels[0]
+    else:
+        return levels
 
 
 class VisibleImageListModel(PyListModel):
@@ -161,28 +163,30 @@ class ImageItemNan(pg.ImageItem):
 
         if self.image is None or self.image.size == 0:
             return
-        if isinstance(self.lut, collections.abc.Callable):
+
+        image = self.image
+
+        if image.shape[2] == 3:
+            # Direct RGB data
+            lut = None
+        elif isinstance(self.lut, collections.abc.Callable):
             lut = self.lut(self.image)
         else:
             lut = self.lut
 
-        image = self.image
         levels = self.levels
 
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
-        if image.ndim == 3:
-            lut = None
+        image_nans = np.isnan(image).all(axis=2)
+
+        if image.shape[2] == 1:
+            image = image[:, :, 0]
+
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
 
-        if image.ndim == 3:
-            argb[np.isnan(image)[:,:,0]] = 100
-            argb[np.isnan(image)[:,:,1]] = 100
-            argb[np.isnan(image)[:,:,2]] = 100
-            argb[np.isnan(image)[:,:,2],3] = 255
-        else:
-            argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+        argb[image_nans] = (100, 100, 100, 255)  # replace unknown values with a color
 
         w = 1
         if np.any(self.selection):
@@ -886,14 +890,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         # d = image_values(data).X[:, 0]
         parts = []
         for slice in split_to_size(len(data), 10000):
-            if len(image_values(data[slice])[0]) == 3:
-                part = image_values(data[slice]).X[:, :]
-                parts.append(part)
-                progress_interrupt(0)
-            else:
-                part = image_values(data[slice]).X[:, 0]
-                parts.append(part)
-                progress_interrupt(0)
+            part = image_values(data[slice]).X
+            parts.append(part)
+            progress_interrupt(0)
         d = np.concatenate(parts)
 
         res.d = d
@@ -919,12 +918,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if invalid_positions:
             self.parent.Information.not_shown(invalid_positions)
 
-        if isinstance(d[0],np.floating):
-            imdata = np.ones((lsy[2], lsx[2])) * float("nan")
-            imdata[yindex[valid], xindex[valid]] = d[valid]
-        else:
-            imdata =  np.ones((lsy[2], lsx[2],3))*float("nan")
-            imdata[yindex[valid], xindex[valid]] = d[valid]
+        imdata = np.ones((lsy[2], lsx[2], d.shape[1])) * float("nan")
+        imdata[yindex[valid], xindex[valid]] = d[valid]
 
         self.data_values = d
         self.data_imagepixels = np.vstack((yindex, xindex)).T
