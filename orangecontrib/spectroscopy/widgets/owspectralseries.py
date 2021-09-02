@@ -106,7 +106,7 @@ class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
 
         box.setFocusProxy(self.cb_attr_x)
 
-        box.layout().addWidget(self.color_settings_box())
+        box.layout().addWidget(self.setup_color_settings_box())
 
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)

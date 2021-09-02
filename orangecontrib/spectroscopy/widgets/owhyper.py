@@ -285,19 +285,13 @@ class ImageColorSettingMixin:
     threshold_high = Setting(1.0, schema_only=True)
     level_low = Setting(None, schema_only=True)
     level_high = Setting(None, schema_only=True)
-    red_level_low = Setting(None, schema_only=True)
-    red_level_high = Setting(None, schema_only=True)
-    green_level_low = Setting(None, schema_only=True)
-    green_level_high = Setting(None, schema_only=True)
-    blue_level_low = Setting(None, schema_only=True)
-    blue_level_high = Setting(None, schema_only=True)
     show_legend = Setting(True)
     palette_index = Setting(0)
 
     def __init__(self):
         self.fixed_levels = None  # fixed level settings for categoric data
 
-    def color_settings_box(self):
+    def setup_color_settings_box(self):
         box = gui.vBox(self)
         self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
                                      labelWidth=50, orientation=Qt.Horizontal)
@@ -340,30 +334,6 @@ class ImageColorSettingMixin:
             step=0.05, ticks=True, intOnly=False,
             createLabel=False, callback=self.update_levels)
 
-        self._red_level_low_le = lineEditDecimalOrNone(self, self, "red_level_low", callback=limit_changed)
-        self._red_level_low_le.validator().setDefault(0)
-        form.addRow("Red Low limit:", self._red_level_low_le)
-
-        self._red_level_high_le = lineEditDecimalOrNone(self, self, "red_level_high", callback=limit_changed)
-        self._red_level_high_le.validator().setDefault(1)
-        form.addRow("Red High limit:", self._red_level_high_le)
-
-        self._green_level_low_le = lineEditDecimalOrNone(self, self, "green_level_low", callback=limit_changed)
-        self._green_level_low_le.validator().setDefault(0)
-        form.addRow("Green Low limit:", self._green_level_low_le)
-
-        self._green_level_high_le = lineEditDecimalOrNone(self, self, "green_level_high", callback=limit_changed)
-        self._green_level_high_le.validator().setDefault(1)
-        form.addRow("Green High limit:", self._green_level_high_le)
-
-        self._blue_level_low_le = lineEditDecimalOrNone(self, self, "blue_level_low", callback=limit_changed)
-        self._blue_level_low_le.validator().setDefault(0)
-        form.addRow("Blue Low limit:", self._blue_level_low_le)
-
-        self._blue_level_high_le = lineEditDecimalOrNone(self, self, "blue_level_high", callback=limit_changed)
-        self._blue_level_high_le.validator().setDefault(1)
-        form.addRow("Blue High limit:", self._blue_level_high_le)
-
         form.addRow("Low:", lowslider)
         form.addRow("High:", highslider)
         box.layout().addLayout(form)
@@ -373,7 +343,7 @@ class ImageColorSettingMixin:
         return box
 
     def update_legend_visible(self):
-        if self.fixed_levels is not None:
+        if self.fixed_levels is not None or self.parent.value_type == 2:
             self.legend.setVisible(False)
         else:
             self.legend.setVisible(self.show_legend)
@@ -390,58 +360,7 @@ class ImageColorSettingMixin:
             levels = [0, 255]
 
         if len(levels) == 3:
-            self.img.setLevels(levels)
-            red_prec = pixels_to_decimals((levels[0][1] - levels[0][0])/1000)
-
-            red_rounded_levels = [float_to_str_decimals(levels[0][0], red_prec),
-                          float_to_str_decimals(levels[0][1], red_prec)]
-
-            green_prec = pixels_to_decimals((levels[1][1] - levels[1][0])/1000)
-
-            green_rounded_levels = [float_to_str_decimals(levels[1][0], green_prec),
-                          float_to_str_decimals(levels[1][1], green_prec)]
-
-            blue_prec = pixels_to_decimals((levels[0][1] - levels[0][0])/1000)
-
-            blue_rounded_levels = [float_to_str_decimals(levels[2][0], blue_prec),
-                          float_to_str_decimals(levels[2][1], blue_prec)]
-
-            self._red_level_low_le.validator().setDefault(red_rounded_levels[0])
-            self._red_level_high_le.validator().setDefault(red_rounded_levels[1])
-
-            self._red_level_low_le.setPlaceholderText(red_rounded_levels[0])
-            self._red_level_high_le.setPlaceholderText(red_rounded_levels[1])
-
-            self._green_level_low_le.validator().setDefault(green_rounded_levels[0])
-            self._green_level_high_le.validator().setDefault(green_rounded_levels[1])
-
-            self._green_level_low_le.setPlaceholderText(green_rounded_levels[0])
-            self._green_level_high_le.setPlaceholderText(green_rounded_levels[1])
-
-            self._blue_level_low_le.validator().setDefault(blue_rounded_levels[0])
-            self._blue_level_high_le.validator().setDefault(blue_rounded_levels[1])
-
-            self._blue_level_low_le.setPlaceholderText(blue_rounded_levels[0])
-            self._blue_level_high_le.setPlaceholderText(blue_rounded_levels[1])
-
-            #this section may be unecessary if fixed levels is always none for RGB
-            enabled_level_settings = self.fixed_levels is None
-            self._red_level_low_le.setEnabled(enabled_level_settings)
-            self._red_level_high_le.setEnabled(enabled_level_settings)
-            self._green_level_low_le.setEnabled(enabled_level_settings)
-            self._green_level_high_le.setEnabled(enabled_level_settings)
-            self._blue_level_low_le.setEnabled(enabled_level_settings)
-            self._blue_level_high_le.setEnabled(enabled_level_settings)
-
-            rll = float(self.red_level_low) if self.red_level_low is not None else levels[0][0]
-            rlh = float(self.red_level_high) if self.red_level_high is not None else levels[0][1]
-            gll = float(self.green_level_low) if self.green_level_low is not None else levels[1][0]
-            glh = float(self.green_level_high) if self.green_level_high is not None else levels[1][1]
-            bll = float(self.blue_level_low) if self.blue_level_low is not None else levels[2][0]
-            blh = float(self.blue_level_high) if self.blue_level_high is not None else levels[2][1]
-            new_levels = levels
-            new_levels = [[rll,rlh],[gll,glh],[bll,blh]]
-            self.img.setLevels(new_levels)
+            self.update_rgb_levels()
             return
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
@@ -502,6 +421,90 @@ class ImageColorSettingMixin:
     def reset_thresholds(self):
         self.threshold_low = 0.
         self.threshold_high = 1.
+
+
+class ImageRGBSettingMixin:
+    red_level_low = Setting(None, schema_only=True)
+    red_level_high = Setting(None, schema_only=True)
+    green_level_low = Setting(None, schema_only=True)
+    green_level_high = Setting(None, schema_only=True)
+    blue_level_low = Setting(None, schema_only=True)
+    blue_level_high = Setting(None, schema_only=True)
+
+    def setup_rgb_settings_box(self):
+        box = gui.vBox(self)
+
+        form = QFormLayout(
+            formAlignment=Qt.AlignLeft,
+            labelAlignment=Qt.AlignLeft,
+            fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
+        )
+
+        self._red_level_low_le = lineEditDecimalOrNone(self, self, "red_level_low", callback=self.update_rgb_levels)
+        self._red_level_low_le.validator().setDefault(0)
+        form.addRow("Red Low limit:", self._red_level_low_le)
+
+        self._red_level_high_le = lineEditDecimalOrNone(self, self, "red_level_high", callback=self.update_rgb_levels)
+        self._red_level_high_le.validator().setDefault(1)
+        form.addRow("Red High limit:", self._red_level_high_le)
+
+        self._green_level_low_le = lineEditDecimalOrNone(self, self, "green_level_low", callback=self.update_rgb_levels)
+        self._green_level_low_le.validator().setDefault(0)
+        form.addRow("Green Low limit:", self._green_level_low_le)
+
+        self._green_level_high_le = lineEditDecimalOrNone(self, self, "green_level_high", callback=self.update_rgb_levels)
+        self._green_level_high_le.validator().setDefault(1)
+        form.addRow("Green High limit:", self._green_level_high_le)
+
+        self._blue_level_low_le = lineEditDecimalOrNone(self, self, "blue_level_low", callback=self.update_rgb_levels)
+        self._blue_level_low_le.validator().setDefault(0)
+        form.addRow("Blue Low limit:", self._blue_level_low_le)
+
+        self._blue_level_high_le = lineEditDecimalOrNone(self, self, "blue_level_high", callback=self.update_rgb_levels)
+        self._blue_level_high_le.validator().setDefault(1)
+        form.addRow("Blue High limit:", self._blue_level_high_le)
+
+        box.layout().addLayout(form)
+        return box
+
+    def update_rgb_levels(self):
+        if not self.data:
+            return
+
+        if self.img.image is not None:
+            levels = get_levels(self.img.image)
+        else:
+            levels = [0, 255]
+
+        if len(levels) != 3:
+            return
+
+        rgb_le = [
+            [self._red_level_low_le, self._red_level_high_le],
+            [self._green_level_low_le, self._green_level_high_le],
+            [self._blue_level_low_le, self._blue_level_high_le]
+        ]
+
+        for i, (low_le, high_le) in enumerate(rgb_le):
+            prec = pixels_to_decimals((levels[i][1] - levels[i][0]) / 1000)
+            rounded_levels = [float_to_str_decimals(levels[i][0], prec),
+                              float_to_str_decimals(levels[i][1], prec)]
+
+            low_le.validator().setDefault(rounded_levels[0])
+            high_le.validator().setDefault(rounded_levels[1])
+
+            low_le.setPlaceholderText(rounded_levels[0])
+            high_le.setPlaceholderText(rounded_levels[1])
+
+        rll = float(self.red_level_low) if self.red_level_low is not None else levels[0][0]
+        rlh = float(self.red_level_high) if self.red_level_high is not None else levels[0][1]
+        gll = float(self.green_level_low) if self.green_level_low is not None else levels[1][0]
+        glh = float(self.green_level_high) if self.green_level_high is not None else levels[1][1]
+        bll = float(self.blue_level_low) if self.blue_level_low is not None else levels[2][0]
+        blh = float(self.blue_level_high) if self.blue_level_high is not None else levels[2][1]
+
+        new_levels = [[rll, rlh], [gll, glh], [bll, blh]]
+        self.img.setLevels(new_levels)
 
 
 class ImageZoomMixin:
@@ -584,7 +587,8 @@ class ImageColorLegend(GraphicsWidget):
 
 
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
-                ImageColorSettingMixin, ImageZoomMixin, ConcurrentMixin):
+                ImageColorSettingMixin, ImageRGBSettingMixin,
+                ImageZoomMixin, ConcurrentMixin):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
@@ -693,7 +697,11 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             model=self.xy_model, **common_options)
         box.setFocusProxy(self.cb_attr_x)
 
-        box.layout().addWidget(self.color_settings_box())
+        self.color_settings_box = self.setup_color_settings_box()
+        self.rgb_settings_box = self.setup_rgb_settings_box()
+
+        box.layout().addWidget(self.color_settings_box)
+        box.layout().addWidget(self.rgb_settings_box)
 
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
@@ -1304,6 +1312,10 @@ class OWHyper(OWWidget):
             self.box_values_spectra.setDisabled(True)
             self.box_values_feature.setDisabled(True)
             self.box_values_RGB_feature.setDisabled(False)
+        # ImagePlot menu levels visibility
+        rgb = self.value_type == 2
+        self.imageplot.rgb_settings_box.setVisible(rgb)
+        self.imageplot.color_settings_box.setVisible(not rgb)
         QTest.qWait(1)  # first update the interface
 
     def _change_integration(self):
