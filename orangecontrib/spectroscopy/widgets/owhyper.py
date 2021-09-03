@@ -118,23 +118,14 @@ def _shift(ls):
 
 
 def get_levels(img):
-    """
-    Compute levels. Account for NaN values.
-    Returns [min, max] or list of [min, max] for each image in final axis
-    """
+    """ Compute levels. Account for NaN values. """
     while img.size > 2 ** 16:
         img = img[::2, ::2]
-    levels = []
-    for i in range(img.shape[2]):
-        mn, mx = bottleneck.nanmin(img[:, :, i]), bottleneck.nanmax(img[:, :, i])
-        if mn == mx:
-            mn = 0
-            mx = 255
-        levels.append([mn, mx])
-    if len(levels) == 1:
-        return levels[0]
-    else:
-        return levels
+    mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
+    if mn == mx:
+        mn = 0
+        mx = 255
+    return [mn, mx]
 
 
 class VisibleImageListModel(PyListModel):
@@ -164,7 +155,7 @@ class ImageItemNan(pg.ImageItem):
         if self.image is None or self.image.size == 0:
             return
 
-        image = self.image
+        image = np.atleast_3d(self.image)
 
         if image.shape[2] == 3:
             # Direct RGB data
@@ -354,14 +345,14 @@ class ImageColorSettingMixin:
 
         if self.fixed_levels is not None:
             levels = list(self.fixed_levels)
-        elif self.img.image is not None:
+        elif self.img.image is not None and self.img.image.ndim == 2:
             levels = get_levels(self.img.image)
+        elif self.img.image is not None and self.img.image.shape[2] == 1:
+            levels = get_levels(self.img.image[:, :, 0])
+        elif self.img.image is not None and self.img.image.shape[2] == 3:
+            return
         else:
             levels = [0, 255]
-
-        if len(levels) == 3:
-            self.update_rgb_levels()
-            return
 
         prec = pixels_to_decimals((levels[1] - levels[0])/1000)
 
@@ -471,12 +462,9 @@ class ImageRGBSettingMixin:
         if not self.data:
             return
 
-        if self.img.image is not None:
-            levels = get_levels(self.img.image)
+        if self.img.image is not None and self.img.image.shape[2] == 3:
+            levels = [get_levels(self.img.image[:, :, i]) for i in range(self.img.image.shape[2])]
         else:
-            levels = [0, 255]
-
-        if len(levels) != 3:
             return
 
         rgb_le = [
@@ -933,6 +921,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = np.vstack((yindex, xindex)).T
         self.img.setImage(imdata, autoLevels=False)
         self.update_levels()
+        self.update_rgb_levels()
         self.update_color_schema()
         self.update_legend_visible()
 
