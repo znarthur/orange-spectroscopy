@@ -9,6 +9,7 @@ class SelectColumnReader(FileFormat, SpectralFileFormat):
     contains the wavelengths, the others contain the spectra. """
     EXTENSIONS = ('.txt',)
     DESCRIPTION = 'XAS ascii spectrum from ROCK'
+    PRIORITY = 9999
 
     @property
     def sheets(self):
