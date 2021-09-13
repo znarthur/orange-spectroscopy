@@ -1,0 +1,1699 @@
+import io
+from collections import defaultdict
+from functools import reduce
+import numbers
+import struct
+from html.parser import HTMLParser
+import shlex
+
+import bottleneck
+import numpy as np
+import spectral.io.envi
+from scipy.interpolate import interp1d
+from scipy.io import matlab
+
+import Orange
+from Orange.data import \
+    ContinuousVariable, StringVariable, TimeVariable, Domain, Table
+from Orange.data.io import FileFormat, CSVReader
+import Orange.data.io
+
+from .pymca5 import OmnicMap
+from .agilent import agilentImage, agilentMosaic, agilentImageIFG, agilentMosaicIFG, agilentMosaicTiles
+from .utils import spc
+
+
+class SpectralFileFormat:
+
+    def read_spectra(self):
+        """ Fast reading of spectra. Return spectral information
+        in two arrays (wavelengths and values). Only additional
+        attributes (usually metas) are returned as a Table.
+
+        Return a triplet:
+            - 1D numpy array,
+            - 2D numpy array with the same last dimension as xs,
+            - Orange.data.Table with only meta or class attributes
+        """
+        pass
+
+    def read(self):
+        return build_spec_table(*self.read_spectra())
+
+
+class AsciiColReader(FileFormat, SpectralFileFormat):
+    """ Reader for files with multiple columns of numbers. The first column
+    contains the wavelengths, the others contain the spectra. """
+    EXTENSIONS = ('.dat', '.dpt', '.xy', '.csv')
+    DESCRIPTION = 'Spectra ASCII'
+
+    PRIORITY = CSVReader.PRIORITY + 1
+
+    def read_spectra(self):
+        tbl = None
+        delimiters = [None, ";", ":", ","]
+        for d in delimiters:
+            try:
+                tbl = np.loadtxt(self.filename, ndmin=2, delimiter=d)
+                break
+            except ValueError:
+                pass
+        if tbl is None:
+            raise ValueError('File should be delimited by <whitespace>, ";", ":", or ",".')
+        wavenumbers = tbl.T[0]  # first column is attribute name
+        datavals = tbl.T[1:]
+        return wavenumbers, datavals, None
+
+    @staticmethod
+    def write_file(filename, data):
+        xs = getx(data)
+        xs = xs.reshape((-1, 1))
+        table = np.hstack((xs, data.X.T))
+        np.savetxt(filename, table, delimiter="\t", fmt="%g")
+
+
+class SelectColumnReader(FileFormat, SpectralFileFormat):
+    """ Reader for files with multiple columns of numbers. The first column
+    contains the wavelengths, the others contain the spectra. """
+    EXTENSIONS = ('.txt',)
+    DESCRIPTION = 'XAS ascii spectrum from ROCK'
+
+    @property
+    def sheets(self):
+
+        with open(self.filename, 'r') as dataf:
+            l = ""
+            for l in dataf:
+                if not l.startswith('#'):
+                    break
+            col_nbrs = range(2, min(len(l.split()) + 1, 11))
+
+        return list(map(str, col_nbrs))
+
+    def read_spectra(self):
+
+        if self.sheet:
+            col_nb = int(self.sheet)
+        else:
+            col_nb = int(self.sheets[0])
+
+        spectrum = np.loadtxt(self.filename, comments='#',
+                              usecols=(0, col_nb - 1),
+                              unpack=True)
+        return spectrum[0], np.atleast_2d(spectrum[1]), None
+
+
+class AsciiMapReader(FileFormat):
+    """ Reader ascii map files.
+
+    First row contains wavelengths, then each row describes a spectrum, starting with (x, y)
+    coordinates: http://www.cytospec.com/file.php#FileASCII3 """
+    EXTENSIONS = ('.xyz',)
+    DESCRIPTION = 'Hyperspectral map ASCII'
+
+    def read(self):
+        with open(self.filename, "rb") as f:
+            # read first row separately because of two empty columns
+            header = f.readline().decode("ascii").rstrip().split("\t")
+            header = [a.strip() for a in header]
+            assert header[0] == header[1] == ""
+            dom_vals = [float(v) for v in header[2:]]
+            domain = Orange.data.Domain([ContinuousVariable.make("%f" % f) for f in dom_vals], None)
+            tbl = np.loadtxt(f, ndmin=2)
+            data = Table.from_numpy(domain, X=tbl[:, 2:])
+            metas = [ContinuousVariable.make('map_x'), ContinuousVariable.make('map_y')]
+            domain = Orange.data.Domain(domain.attributes, None, metas=metas)
+            data = data.transform(domain)
+            data[:, metas[0]] = tbl[:, 0].reshape(-1, 1)
+            data[:, metas[1]] = tbl[:, 1].reshape(-1, 1)
+            return data
+
+    @staticmethod
+    def write_file(filename, data):
+        wavelengths = getx(data)
+        map_x = data.domain["map_x"] if "map_x" in data.domain else ContinuousVariable("map_x")
+        map_y = data.domain["map_y"] if "map_y" in data.domain else ContinuousVariable("map_y")
+        ndom = Domain([map_x, map_y] + list(data.domain.attributes))
+        data = data.transform(ndom)
+        with open(filename, "wb") as f:
+            header = ["", ""] + [("%g" % w) for w in wavelengths]
+            f.write(('\t'.join(header) + '\n').encode("ascii"))
+            np.savetxt(f, data.X, delimiter="\t", fmt="%g")
+
+
+def _metatable_maplocs(x_locs, y_locs):
+    """ Create an Orange table containing (x,y) map locations as metas. """
+    x_locs = np.asarray(x_locs)
+    y_locs = np.asarray(y_locs)
+    metas = np.vstack((x_locs, y_locs)).T
+
+    domain = Domain([], None,
+                    metas=[ContinuousVariable.make("map_x"),
+                           ContinuousVariable.make("map_y")]
+                    )
+    data = Table.from_numpy(domain, X=np.zeros((len(metas), 0)),
+                            metas=np.asarray(metas, dtype=object))
+    return data
+
+
+def _spectra_from_image(X, features, x_locs, y_locs):
+    """
+    Create a spectral format (returned by SpectralFileFormat.read_spectra)
+    from a 3D image organized [ rows, columns, wavelengths ]
+    """
+    X = np.asarray(X)
+    x_locs = np.asarray(x_locs)
+    y_locs = np.asarray(y_locs)
+
+    # each spectrum has its own row
+    spectra = X.reshape((X.shape[0]*X.shape[1], X.shape[2]))
+
+    # locations
+    y_loc = np.repeat(np.arange(X.shape[0]), X.shape[1])
+    x_loc = np.tile(np.arange(X.shape[1]), X.shape[0])
+    meta_table = _metatable_maplocs(x_locs[x_loc], y_locs[y_loc])
+
+    return features, spectra, meta_table
+
+
+def _spectra_from_image_2d(X, wn, x_locs, y_locs):
+    """
+    Create a spectral format (returned by SpectralFileFormat.read_spectra)
+    from a spectral image organized [ sample, wn ] and locations for each sample
+    """
+    X = np.asarray(X)
+    meta_table = _metatable_maplocs(x_locs, y_locs)
+
+    return wn, X, meta_table
+
+
+class MatlabReader(FileFormat):
+    EXTENSIONS = ('.mat',)
+    DESCRIPTION = "Matlab"
+
+    # Matlab 7.3+ files are not handled by scipy reader
+
+    def read(self):
+        who = matlab.whosmat(self.filename)
+        if not who:
+            raise IOError("Couldn't load matlab file " + self.filename)
+        else:
+            ml = matlab.loadmat(self.filename, chars_as_strings=True)
+            ml = {a: b for a, b in ml.items() if isinstance(b, np.ndarray)}
+
+            def num_elements(array):
+                return reduce(lambda x, y: x * y, array.shape, 1)
+
+            def find_biggest(arrays):
+                sizes = []
+                for n, c in arrays.items():
+                    sizes.append((num_elements(c), n))
+                return max(sizes)[1]
+
+            def is_string_array(array):
+                return issubclass(array.dtype.type, np.str_)
+
+            def is_number_array(array):
+                return issubclass(array.dtype.type, numbers.Number)
+
+            numeric = {n: a for n, a in ml.items() if is_number_array(a)}
+
+            # X is the biggest numeric array
+            X = ml.pop(find_biggest(numeric)) if numeric else None
+
+            # find an array with compatible shapes
+            attributes = []
+            if X is not None:
+                name_array = None
+                for name in sorted(ml):
+                    con = ml[name]
+                    if con.shape in [(X.shape[1],), (1, X.shape[1])]:
+                        name_array = name
+                        break
+                names = ml.pop(name_array).ravel() if name_array else range(X.shape[1])
+                names = [str(a).rstrip() for a in names]  # remove matlab char padding
+                attributes = [ContinuousVariable.make(a) for a in names]
+
+            meta_names = []
+            metas = []
+
+            meta_size = None
+            if X is None:
+                counts = defaultdict(list)
+                for name, con in ml.items():
+                    counts[len(con)].append(name)
+                if counts:
+                    meta_size = max(counts.keys(), key=lambda x: len(counts[x]))
+            else:
+                meta_size = len(X)
+            if meta_size:
+                for name, con in ml.items():
+                    if len(con) == meta_size:
+                        meta_names.append(name)
+
+            meta_data = []
+            for m in sorted(meta_names):
+                f = ml[m]
+                if is_string_array(f) and len(f.shape) == 1:  # 1D string arrays
+                    metas.append(StringVariable.make(m))
+                    f = np.array([a.rstrip() for a in f])  # remove matlab char padding
+                    f.resize(meta_size, 1)
+                    meta_data.append(f)
+                elif is_number_array(f) and len(f.shape) == 2:
+                    if f.shape[1] == 1:
+                        names = [m]
+                    else:
+                        names = [m + "_" + str(i+1) for i in range(f.shape[1])]
+                    for n in names:
+                        metas.append(ContinuousVariable.make(n))
+                    meta_data.append(f)
+
+            meta_data = np.hstack(tuple(meta_data)) if meta_data else None
+
+            domain = Domain(attributes, metas=metas)
+            if X is None:
+                X = np.zeros((meta_size, 0))
+            return Orange.data.Table.from_numpy(domain, X, Y=None, metas=meta_data)
+
+
+class EnviMapReader(FileFormat, SpectralFileFormat):
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'Envi'
+
+    def read_spectra(self):
+        a = spectral.io.envi.open(self.filename)
+        X = np.array(a.load())
+        try:
+            lv = a.metadata["wavelength"]
+            features = np.array(list(map(float, lv)))
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        x_locs = np.arange(X.shape[1])
+        y_locs = np.arange(X.shape[0])
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class HDF5Reader_HERMES(FileFormat, SpectralFileFormat):
+    """ A very case specific reader for HDF5 files from the HEREMES beamline in SOLEIL"""
+    EXTENSIONS = ('.hdf5',)
+    DESCRIPTION = 'HDF5 file @HERMRES/SOLEIL'
+
+    def read_spectra(self):
+        import h5py
+        hdf5_file = h5py.File(self.filename)
+        if 'entry1/collection/beamline' in hdf5_file and \
+                hdf5_file['entry1/collection/beamline'][()].astype('str') == 'Hermes':
+            x_locs = np.array(hdf5_file['entry1/Counter0/sample_x'])
+            y_locs = np.array(hdf5_file['entry1/Counter0/sample_y'])
+            energy = np.array(hdf5_file['entry1/Counter0/energy'])
+            intensities = np.array(hdf5_file['entry1/Counter0/data']).T
+            return _spectra_from_image(intensities, energy, x_locs, y_locs)
+        else:
+            raise IOError("Not an HDF5 HERMES file")
+
+
+class HDF5Reader_ROCK(FileFormat, SpectralFileFormat):
+    """ A very case specific reader for hyperspectral imaging HDF5
+    files from the ROCK beamline in SOLEIL"""
+    EXTENSIONS = ('.h5',)
+    DESCRIPTION = 'HDF5 file @ROCK(hyperspectral imaging)/SOLEIL'
+
+    @property
+    def sheets(self):
+        import h5py as h5
+
+        with h5.File(self.filename, "r") as dataf:
+            cube_nbrs = range(1, len(dataf["data"].keys())+1)
+
+        return list(map(str, cube_nbrs))
+
+    def read_spectra(self):
+
+        import h5py as h5
+
+        if self.sheet:
+            cube_nb = int(self.sheet)
+        else:
+            cube_nb = 1
+
+        with h5.File(self.filename, "r") as dataf:
+            cube_h5 = dataf["data/cube_{:0>5d}".format(cube_nb)]
+
+            # directly read into float64 so that Orange.data.Table does not
+            # convert to float64 afterwards (if we would not read into float64,
+            # the memory use would be 50% greater)
+            cube_np = np.empty(cube_h5.shape, dtype=np.float64)
+            cube_h5.read_direct(cube_np)
+
+            energies = np.array(dataf['context/energies'])
+
+        intensities = np.transpose(cube_np, (1, 2, 0))
+        height, width, _ = np.shape(intensities)
+        x_locs = np.arange(width)
+        y_locs = np.arange(height)
+
+        return _spectra_from_image(intensities, energies, x_locs, y_locs)
+
+
+class NXS_STXM_Diamond_I08(FileFormat, SpectralFileFormat):
+    """ A case specific reader for hyperspectral imaging NXS HDF5
+    files from the I08 beamline of the Diamond Light Source.
+    These files have very little metadata and don't fully adhere to
+    https://manual.nexusformat.org/classes/applications/NXstxm.html """
+    EXTENSIONS = ('.nxs',)
+    DESCRIPTION = 'NXS HDF5 file @I08/Diamond Light Source'
+
+    def read_spectra(self):
+        import h5py
+        hdf5_file = h5py.File(self.filename, mode='r')
+        if 'entry1/definition' in hdf5_file and \
+                hdf5_file['entry1/definition'][()].astype('str') == 'NXstxm':
+            grp = hdf5_file['entry1/Counter1']
+            x_locs = np.array(grp['sample_x'])
+            y_locs = np.array(grp['sample_y'])
+            energy = np.array(grp['photon_energy'])
+            order = [grp[n].attrs['axis'] - 1 for n in
+                     ['sample_y', 'sample_x', 'photon_energy']]
+            intensities = np.array(grp['data']).transpose(order)
+            return _spectra_from_image(intensities, energy, x_locs, y_locs)
+        else:
+            raise IOError("Not an NXS HDF5 @I08/Diamond file")
+
+
+class OmnicMapReader(FileFormat, SpectralFileFormat):
+    """ Reader for files with two columns of numbers (X and Y)"""
+    EXTENSIONS = ('.map',)
+    DESCRIPTION = 'Omnic map'
+
+    def read_spectra(self):
+        om = OmnicMap.OmnicMap(self.filename)
+        info = om.info
+        X = om.data
+
+        try:
+            lv = info['OmnicInfo']['Last X value']
+            fv = info['OmnicInfo']['First X value']
+            features = np.linspace(fv, lv, num=X.shape[-1])
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        try:
+            loc_first = info['OmnicInfo']["First map location"]
+            loc_last = info['OmnicInfo']["Last map location"]
+            x_locs = np.linspace(min(loc_first[0], loc_last[0]),
+                                 max(loc_first[0], loc_last[0]), X.shape[1])
+            y_locs = np.linspace(min(loc_first[1], loc_last[1]),
+                                 max(loc_first[1], loc_last[1]), X.shape[0])
+        except KeyError:
+            x_locs = np.arange(X.shape[1])
+            y_locs = np.arange(X.shape[0])
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class AgilentImageReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA single tile image files"""
+    EXTENSIONS = ('.dat',)
+    DESCRIPTION = 'Agilent Single Tile Image'
+
+    def read_spectra(self):
+        ai = agilentImage(self.filename)
+        info = ai.info
+        X = ai.data
+
+        try:
+            features = info['wavenumbers']
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        return _spectra_from_image(X, features, x_locs, y_locs)
+
+
+class AgilentImageIFGReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA single tile image files (IFG)"""
+    EXTENSIONS = ('.seq',)
+    DESCRIPTION = 'Agilent Single Tile Image (IFG)'
+
+    def read_spectra(self):
+        ai = agilentImageIFG(self.filename)
+        info = ai.info
+        X = ai.data
+
+        features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        import_params = ['Effective Laser Wavenumber',
+                         'Under Sampling Ratio',
+        ]
+        new_attributes = []
+        new_columns = []
+        for param_key in import_params:
+            try:
+                param = info[param_key]
+            except KeyError:
+                pass
+            else:
+                new_attributes.append(ContinuousVariable.make(param_key))
+                new_columns.append(np.full((len(data),), param))
+
+        domain = Domain(additional_table.domain.attributes,
+                        additional_table.domain.class_vars,
+                        additional_table.domain.metas + tuple(new_attributes))
+        table = additional_table.transform(domain)
+        table[:, new_attributes] = np.asarray(new_columns).T
+
+        return (features, data, table)
+
+
+class agilentMosaicReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dmt',)
+    DESCRIPTION = 'Agilent Mosaic Image'
+
+    def read_spectra(self):
+        am = agilentMosaic(self.filename, dtype=np.float64)
+        info = am.info
+        X = am.data
+        visible_images = am.vis
+
+        try:
+            features = info['wavenumbers']
+        except KeyError:
+            #just start counting from 0 when nothing is known
+            features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        if visible_images:
+            additional_table.attributes['visible_images'] = visible_images
+        return features, data, additional_table
+
+
+class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
+    """ Reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dmt',)
+    DESCRIPTION = 'Agilent Mosaic Image (IFG)'
+    PRIORITY = agilentMosaicReader.PRIORITY + 1
+
+    def read_spectra(self):
+        am = agilentMosaicIFG(self.filename, dtype=np.float64)
+        info = am.info
+        X = am.data
+
+        features = np.arange(X.shape[-1])
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+        x_locs = np.linspace(0, X.shape[1]*px_size, num=X.shape[1], endpoint=False)
+        y_locs = np.linspace(0, X.shape[0]*px_size, num=X.shape[0], endpoint=False)
+
+        features, data, additional_table = _spectra_from_image(X, features, x_locs, y_locs)
+
+        import_params = ['Effective Laser Wavenumber',
+                         'Under Sampling Ratio',
+        ]
+        new_attributes = []
+        new_columns = []
+        for param_key in import_params:
+            try:
+                param = info[param_key]
+            except KeyError:
+                pass
+            else:
+                new_attributes.append(ContinuousVariable.make(param_key))
+                new_columns.append(np.full((len(data),), param))
+
+        domain = Domain(additional_table.domain.attributes,
+                        additional_table.domain.class_vars,
+                        additional_table.domain.metas + tuple(new_attributes))
+        table = additional_table.transform(domain)
+        table[:, new_attributes] = np.asarray(new_columns).T
+
+        return (features, data, table)
+
+
+class WiREReaders(FileFormat, SpectralFileFormat):
+    EXTENSIONS = ('.wdf', '.WDF')
+    DESCRIPTION = 'Renishaw WiRE WDF reader'
+
+    def read_spectra(self):
+        # renishawWiRE is imported here so that its API changes would not block spectroscopy
+        from renishawWiRE import WDFReader  # pylint: disable=import-outside-toplevel
+        wdf_file = WDFReader(self.filename)
+
+        try:
+            if wdf_file.measurement_type == 1: # single point spectra
+                table = self.single_reader(wdf_file)
+            elif wdf_file.measurement_type == 2: # series scan
+                table = self.series_reader(wdf_file)
+            elif wdf_file.measurement_type == 3: # line scan
+                table = self.map_reader(wdf_file)
+        finally:
+            wdf_file.close()
+
+        return table
+
+    def single_reader(self, wdf_file):
+        domvals = wdf_file.xdata # energies
+        y_data = wdf_file.spectra # spectra
+
+        return domvals, y_data, None
+
+    def series_reader(self, wdf_file):
+        domvals = wdf_file.xdata # energies
+        y_data = wdf_file.spectra # spectra
+        z_locs = wdf_file.zpos # depth info
+        z_locs = z_locs.reshape(-1, 1)
+
+        domain = Orange.data.Domain([], None,
+                                    metas=[Orange.data.ContinuousVariable.make("map_z")])
+
+        data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(y_data), 0)),
+                                            metas=np.asarray(z_locs, dtype=object))
+        return domvals, y_data, data
+
+    def map_reader(self, wdf_file):
+        domvals = wdf_file.xdata
+        X = wdf_file.spectra  # a (rows, cols, wn) array
+        if X.ndim == 2:  # line scan
+            spectra = X
+        elif X.ndim == 3:  # a map, X is as (rows, cols, wn) array
+            spectra = X.reshape((X.shape[0] * X.shape[1], X.shape[2]))
+        else:
+            raise NotImplementedError
+        x_locs = wdf_file.xpos
+        y_locs = wdf_file.ypos
+        return _spectra_from_image_2d(spectra, domvals, x_locs, y_locs)
+
+
+class SPCReader(FileFormat):
+    EXTENSIONS = ('.spc', '.SPC',)
+    DESCRIPTION = 'Galactic SPC format'
+
+    def read(self):
+        spc_file = spc.File(self.filename)
+        if spc_file.talabs:
+            table = self.multi_x_reader(spc_file)
+        else:
+            table = self.single_x_reader(spc_file)
+        return table
+
+    def single_x_reader(self, spc_file):
+        domvals = spc_file.x  # first column is attribute name
+        domain = Domain([ContinuousVariable.make("%f" % f) for f in domvals], None)
+        y_data = [sub.y for sub in spc_file.sub]
+        y_data = np.array(y_data)
+        table = Orange.data.Table.from_numpy(domain, y_data.astype(float, order='C'))
+        return table
+
+    def multi_x_reader(self, spc_file):
+        # use x-values as domain
+        all_x = []
+        for sub in spc_file.sub:
+            x = sub.x
+            # assume values in x do not repeat
+            all_x = np.union1d(all_x, x)
+        domain = Domain([ContinuousVariable.make("%f" % f) for f in all_x], None)
+
+        instances = []
+        for sub in spc_file.sub:
+            x, y = sub.x, sub.y
+            newinstance = np.ones(len(all_x))*np.nan
+            ss = np.searchsorted(all_x, x)  # find positions to set
+            newinstance[ss] = y
+            instances.append(newinstance)
+
+        y_data = np.array(instances).astype(float, order='C')
+        return Orange.data.Table.from_numpy(domain, y_data)
+
+
+class OPUSReader(FileFormat):
+    """Reader for OPUS files"""
+
+    EXTENSIONS = (".0*", ".1*", ".2*", ".3*", ".4*", ".5*", ".6*", ".7*", ".8*", ".9*")
+    DESCRIPTION = 'OPUS Spectrum'
+
+    _OPUS_WARNING = "Opus files require the opusFC module (https://pypi.org/project/opusFC/)"
+
+    @property
+    def sheets(self):
+        try:
+            import opusFC
+        except ImportError:
+            # raising an exception here would just show an generic error in File widget
+            return ()
+        dbs = []
+        for db in opusFC.listContents(self.filename):
+            dbs.append(db[0] + " " + db[1] + " " + db[2])
+        return dbs
+
+    def read(self):
+        try:
+            import opusFC
+        except ImportError:
+            raise RuntimeError(self._OPUS_WARNING)
+
+        if self.sheet:
+            db = self.sheet
+        else:
+            db = self.sheets[0]
+
+        db = tuple(db.split(" "))
+        dim = db[1]
+
+        try:
+            data = opusFC.getOpusData(self.filename, db)
+        except Exception:
+            raise IOError("Couldn't load spectrum from " + self.filename)
+
+        attrs, clses, metas = [], [], []
+
+        attrs = [ContinuousVariable.make(repr(data.x[i]))
+                 for i in range(data.x.shape[0])]
+
+        y_data = None
+        meta_data = None
+
+        if type(data) == opusFC.MultiRegionDataReturn:
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region'),
+                          TimeVariable.make('start_time')])
+            for region in data.regions:
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                start_time = region.start_time
+                meta_region = np.column_stack((mapX, mapY,
+                                               map_region, start_time))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
+        elif type(data) == opusFC.MultiRegionTRCDataReturn:
+            y_data = []
+            meta_data = []
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y'),
+                          StringVariable.make('map_region')])
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                     for i in range(len(data.labels))]
+            for region in data.regions:
+                y_data.append(region.spectra)
+                mapX = region.mapX
+                mapY = region.mapY
+                map_region = np.full_like(mapX, region.title, dtype=object)
+                meta_region = np.column_stack((mapX, mapY, map_region))
+                meta_data.append(meta_region.astype(object))
+            y_data = np.vstack(y_data)
+            meta_data = np.vstack(meta_data)
+
+        elif type(data) == opusFC.ImageDataReturn:
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
+
+            data_3D = data.spectra
+
+            for i in np.ndindex(data_3D.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data_3D[i]
+                    meta_data = coord.astype(object)
+                else:
+                    y_data = np.vstack((y_data, data_3D[i]))
+                    meta_data = np.vstack((meta_data, coord))
+
+        elif type(data) == opusFC.ImageTRCDataReturn:
+            metas.extend([ContinuousVariable.make('map_x'),
+                          ContinuousVariable.make('map_y')])
+
+            attrs = [ContinuousVariable.make(repr(data.labels[i]))
+                     for i in range(len(data.labels))]
+            data_3D = data.traces
+
+            for i in np.ndindex(data_3D.shape[:1]):
+                map_y = np.full_like(data.mapX, data.mapY[i])
+                coord = np.column_stack((data.mapX, map_y))
+                if y_data is None:
+                    y_data = data_3D[i]
+                    meta_data = coord.astype(object)
+                else:
+                    y_data = np.vstack((y_data, data_3D[i]))
+                    meta_data = np.vstack((meta_data, coord))
+
+        elif type(data) == opusFC.TimeResolvedTRCDataReturn:
+            y_data = data.traces
+
+        elif type(data) == opusFC.TimeResolvedDataReturn:
+            metas.extend([ContinuousVariable.make('z')])
+
+            y_data = data.spectra
+            meta_data = data.z
+
+        elif type(data) == opusFC.SingleDataReturn:
+            y_data = data.y[None, :]
+
+        else:
+            raise ValueError("Empty or unsupported opusFC DataReturn object: " + type(data))
+
+        import_params = ['SRT', 'SNM']
+
+        for param_key in import_params:
+            try:
+                param = data.parameters[param_key]
+            except KeyError:
+                pass  # TODO should notify user?
+            else:
+                try:
+                    param_name = opusFC.paramDict[param_key]
+                except KeyError:
+                    param_name = param_key
+                if param_key == 'SRT':
+                    var = TimeVariable.make(param_name)
+                elif type(param) is float:
+                    var = ContinuousVariable.make(param_name)
+                elif type(param) is str:
+                    var = StringVariable.make(param_name)
+                else:
+                    raise ValueError #Found a type to handle
+                metas.extend([var])
+                params = np.full((y_data.shape[0],), param, np.array(param).dtype)
+                if meta_data is not None:
+                    # NB dtype default will be np.array(fill_value).dtype in future
+                    meta_data = np.column_stack((meta_data, params.astype(object)))
+                else:
+                    meta_data = params
+
+        visible_images = []
+        for img in opusFC.getVisImages(self.filename):
+            try:
+                visible_images.append({
+                    'name': img['Title'],
+                    'image_ref': io.BytesIO(img['image']),
+                    'pos_x': img['Pos. X'] * img['PixelSizeX'],
+                    'pos_y': img['Pos. Y'] * img['PixelSizeY'],
+                    'pixel_size_x': img['PixelSizeX'],
+                    'pixel_size_y': img['PixelSizeY'],
+                })
+            except KeyError:
+                pass
+
+        domain = Orange.data.Domain(attrs, clses, metas)
+
+        meta_data = np.atleast_2d(meta_data)
+
+        table = Orange.data.Table.from_numpy(domain,
+                                             y_data.astype(float, order='C'),
+                                             metas=meta_data)
+
+        if visible_images:
+            table.attributes['visible_images'] = visible_images
+
+        return table
+
+
+class SPAReader(FileFormat, SpectralFileFormat):
+    #based on code by Zack Gainsforth
+
+    EXTENSIONS = (".spa", ".SPA", ".srs")
+    DESCRIPTION = 'SPA'
+
+    saved_sections = None
+    type = None
+
+    def sections(self):
+        if self.saved_sections is None:
+            with open(self.filename, 'rb') as f:
+                name = struct.unpack("30s", f.read(30))[0].decode("ascii")
+                extended = "Exte" in name
+                f.seek(288)
+                ft, v, _, n = struct.unpack('<hhhh', f.read(8))
+                self.saved_sections = []
+                self.type = ft
+                for i in range(n):
+                    # Go to the section start.
+                    f.seek(304 + (22 if extended else 16) * i)
+                    t, offset, length = struct.unpack('<hqi' if extended else '<hii',
+                                                      f.read(14 if extended else 10))
+                    self.saved_sections.append((i, t, offset, length))
+        return self.saved_sections
+
+    SPEC_HEADER = 2
+
+    def find_indextype(self, t):
+        for i, a, _, _ in self.sections():
+            if a == t:
+                return i
+
+    @property
+    def sheets(self):
+        return ()
+
+    def read_spec_header(self):
+        info = self.find_indextype(self.SPEC_HEADER)
+        _, _, offset, length = self.sections()[info]
+        with open(self.filename, 'rb') as f:
+            f.seek(offset)
+            dataType, numPoints, xUnits, yUnits, firstX, lastX, noise = \
+                struct.unpack('<iiiifff', f.read(28))
+            return numPoints, firstX, lastX,
+
+    def read_spectra(self):
+
+        self.sections()
+
+        if self.type == 1:
+            type = 3
+        else:
+            type = 3  # TODO handle others differently
+
+        numPoints, firstX, lastX = self.read_spec_header()
+
+        _, _, offset, length = self.sections()[self.find_indextype(type)]
+
+        with open(self.filename, 'rb') as f:
+            f.seek(offset)
+            data = np.fromfile(f, dtype='float32', count=length//4)
+
+        if len(data) == numPoints:
+            domvals = np.linspace(firstX, lastX, numPoints)
+        else:
+            domvals = np.arange(len(data))
+
+        data = np.array([data])
+        return domvals, data, None
+
+
+class GSFReader(FileFormat, SpectralFileFormat):
+
+    EXTENSIONS = (".gsf",)
+    DESCRIPTION = 'Gwyddion Simple Field'
+
+    def read_spectra(self):
+        X, XRr, YRr = reader_gsf(self.filename)
+        data = _spectra_from_image(X, [1], XRr, YRr)
+        return data
+
+
+class NeaReader(FileFormat, SpectralFileFormat):
+
+    EXTENSIONS = (".nea", ".txt")
+    DESCRIPTION = 'NeaSPEC'
+
+    def read_v1(self):
+
+        with open(self.filename, "rt") as f:
+            next(f)  # skip header
+            l = next(f)
+            l = l.strip()
+            l = l.split("\t")
+            ncols = len(l)
+
+            f.seek(0)
+            next(f)
+            datacols = np.arange(4, ncols)
+            data = np.loadtxt(f, dtype="float", usecols=datacols)
+
+            f.seek(0)
+            next(f)
+            metacols = np.arange(0, 4)
+            meta = np.loadtxt(f,
+                              dtype={'names': ('row', 'column', 'run', 'channel'),
+                                     'formats': (int, int, int, "S10")},
+                              usecols=metacols)
+
+            # ASSUMTION: runs start with 0
+            runs = np.unique(meta["run"])
+
+            # ASSUMPTION: there is one M channel and multiple O?A and O?P channels,
+            # both with the same number, both starting with 0
+            channels = np.unique(meta["channel"])
+            maxn = -1
+
+            def channel_type(a):
+                if a.startswith(b"O") and a.endswith(b"A"):
+                    return "OA"
+                elif a.startswith(b"O") and a.endswith(b"P"):
+                    return "OP"
+                else:
+                    return "M"
+
+            for a in channels:
+                if channel_type(a) in ("OA", "OP"):
+                    maxn = max(maxn, int(a[1:-1]))
+            numharmonics = maxn+1
+
+            rowcols = np.vstack((meta["row"], meta["column"])).T
+            uniquerc = set(map(tuple, rowcols))
+
+            di = {}  # dictionary of indices for each row and column
+
+            min_intp, max_intp = None, None
+
+            for i, (row, col, run, chan) in enumerate(meta):
+                if (row, col) not in di:
+                    di[(row, col)] = \
+                        {"M": np.zeros((len(runs), len(datacols))) * np.nan,
+                         "OA": np.zeros((numharmonics, len(runs), len(datacols))) * np.nan,
+                         "OP": np.zeros((numharmonics, len(runs), len(datacols))) * np.nan}
+                if channel_type(chan) == "M":
+                    di[(row, col)][channel_type(chan)][run] = data[i]
+                    if min_intp is None:  # we need the limits of common X for all
+                        min_intp = np.min(data[i])
+                        max_intp = np.max(data[i])
+                    else:
+                        min_intp = max(min_intp, np.min(data[i]))
+                        max_intp = min(max_intp, np.max(data[i]))
+                elif channel_type(chan) in ("OA", "OP"):
+                    di[(row, col)][channel_type(chan)][int(chan[1:-1]), run] = data[i]
+
+            X = np.linspace(min_intp, max_intp, num=len(datacols))
+
+            final_metas = []
+            final_data = []
+
+            for row, col in uniquerc:
+                cur = di[(row, col)]
+                M, OA, OP = cur["M"], cur["OA"], cur["OP"]
+
+                OAn = np.zeros(OA.shape) * np.nan
+                OPn = np.zeros(OA.shape) * np.nan
+                for run in range(len(M)):
+                    f = interp1d(M[run], OA[:, run])
+                    OAn[:, run] = f(X)
+                    f = interp1d(M[run], OP[:, run])
+                    OPn[:, run] = f(X)
+
+                OAmean = np.mean(OAn, axis=1)
+                OPmean = np.mean(OPn, axis=1)
+                final_data.append(OAmean)
+                final_data.append(OPmean)
+                final_metas += [[row, col, "O%dA" % i] for i in range(numharmonics)]
+                final_metas += [[row, col, "O%dP" % i] for i in range(numharmonics)]
+
+            final_data = np.vstack(final_data)
+
+            metas = [Orange.data.ContinuousVariable.make("row"),
+                     Orange.data.ContinuousVariable.make("column"),
+                     Orange.data.StringVariable.make("channel")]
+
+            domain = Orange.data.Domain([], None, metas=metas)
+            meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
+                                         metas=np.asarray(final_metas, dtype=object))
+            return X, final_data, meta_data
+
+    def read_v2(self):
+
+        # Find line in which data begins
+        count = 0
+        with open(self.filename, "r") as f:
+            while f:
+                line = f.readline()
+                count = count + 1
+                if line[0] != '#':
+                    break
+
+            file = np.loadtxt(f)  # Slower part
+
+        # Find the Wavenumber column
+        line = line.strip().split('\t')
+
+        for i, e in enumerate(line):
+            if e == 'Wavenumber':
+                index = i
+                break
+
+        # Channel need to have exactly 3 letters
+        Channel = line[index + 1:]
+        Channel = np.array(Channel)
+        # Extract other data #
+        Max_row = int(file[:, 0].max() + 1)
+        Max_col = int(file[:, 1].max() + 1)
+        Max_omega = int(file[:, 2].max() + 1)
+        N_rows = Max_row * Max_col * Channel.size
+        N_cols = Max_omega
+
+        # Transform Actual Data
+        M = np.full((int(N_rows), int(N_cols)), np.nan, dtype='float')
+
+        for j in range(int(Max_row * Max_col)):
+            row_value = file[j * (Max_omega):(j + 1) * (Max_omega), 0]
+            assert np.all(row_value == row_value[0])
+            col_value = file[j * (Max_omega):(j + 1) * (Max_omega), 1]
+            assert np.all(col_value == col_value[0])
+            for k in range(Channel.size):
+                M[k + Channel.size * j, :] = file[j * (Max_omega):(j + 1) * (Max_omega), k + 4]
+
+        Meta_data = np.zeros((int(N_rows), 3), dtype='object')
+
+        alpha = 0
+        beta = 0
+        Ch_n = int(Channel.size)
+
+        for i in range(0, N_rows, Ch_n):
+            if beta == Max_row:
+                beta = 0
+                alpha = alpha + 1
+            Meta_data[i:i + Ch_n, 2] = Channel
+            Meta_data[i:i + Ch_n, 1] = alpha
+            Meta_data[i:i + Ch_n, 0] = beta
+            beta = beta + 1
+
+        waveN = file[0:int(Max_omega), 3]
+        metas = [Orange.data.ContinuousVariable.make("row"),
+                 Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.StringVariable.make("channel")]
+
+        domain = Orange.data.Domain([], None, metas=metas)
+        meta_data = Table.from_numpy(domain, X=np.zeros((len(M), 0)),
+                                     metas=Meta_data)
+        return waveN, M, meta_data
+
+    def read_spectra(self):
+        version = 1
+        with open(self.filename, "rt") as f:
+            if f.read(2) == '# ':
+                version = 2
+        if version == 1:
+            return self.read_v1()
+        else:
+            return self.read_v2()
+
+
+def build_spec_table(domvals, data, additional_table=None):
+    """Create a an Orange data table from a triplet:
+        - 1D numpy array defining wavelengths (size m)
+        - 2D numpy array (shape (n, m)) with values
+        - Orange.data.Table with only meta or class attributes (size n)
+    """
+    data = np.atleast_2d(data)
+    features = [Orange.data.ContinuousVariable.make("%f" % f) for f in domvals]
+    if additional_table is None:
+        domain = Orange.data.Domain(features, None)
+        return Table.from_numpy(domain, X=data)
+    else:
+        domain = Domain(features,
+                        class_vars=additional_table.domain.class_vars,
+                        metas=additional_table.domain.metas)
+        ret_data = Table.from_numpy(domain, X=data, Y=additional_table.Y,
+                                    metas=additional_table.metas,
+                                    attributes=additional_table.attributes)
+        return ret_data
+
+
+def getx(data):
+    """
+    Return x of the data. If all attribute names are numbers,
+    return their values. If not, return indices.
+    """
+    x = np.arange(len(data.domain.attributes), dtype="f")
+    try:
+        x = np.array([float(a.name) for a in data.domain.attributes])
+    except:
+        pass
+    return x
+
+
+class DatMetaReader(FileFormat):
+    """ Meta-reader to handle agilentImageReader and AsciiColReader name clash
+    over .dat extension. """
+    EXTENSIONS = ('.dat',)
+    DESCRIPTION = 'Spectra ASCII or Agilent Single Tile Image'
+    PRIORITY = min(AsciiColReader.PRIORITY, AgilentImageReader.PRIORITY) - 1
+
+    def read(self):
+        try:
+            # agilentImage requires the .bsp file to be present as well
+            return AgilentImageReader(filename=self.filename).read()
+        except OSError:
+            return AsciiColReader(filename=self.filename).read()
+
+
+def spectra_mean(X):
+    return bottleneck.nanmean(X, axis=0)
+
+
+def reader_gsf(file_path):
+
+    with open(file_path, "rb") as f:
+        if not f.readline() == b'Gwyddion Simple Field 1.0\n':
+            raise ValueError('Not a correct GSF file, wrong header.')
+
+        meta = {}
+
+        term = False #there are mandatory fileds
+        while term != b'\x00':
+            l = f.readline().decode('utf-8')
+            name, value = l.split("=")
+            name = name.strip()
+            value = value.strip()
+            meta[name] = value
+            term = f.read(1)
+            f.seek(-1, 1)
+
+        f.read(4 - f.tell() % 4)
+
+        meta["XRes"] = XR = int(meta["XRes"])
+        meta["YRes"] = YR = int(meta["YRes"])
+        meta["XReal"] = float(meta.get("XReal", 1))
+        meta["YReal"] = float(meta.get("YReal", 1))
+        meta["XOffset"] = float(meta.get("XOffset", 0))
+        meta["YOffset"] = float(meta.get("YOffset", 0))
+        meta["Title"] = meta.get("Title", None)
+        meta["XYUnits"] = meta.get("XYUnits", None)
+        meta["ZUnits"] = meta.get("ZUnits", None)
+
+        X = np.fromfile(f, dtype='float32', count=XR*YR).reshape(XR, YR)
+
+        XRr = np.arange(XR)
+        YRr = np.arange(YR-1, -1, -1)  # needed to have the same orientation as in Gwyddion
+
+        X = X.reshape((meta["YRes"], meta["XRes"]) + (1,))
+
+    return X, XRr, YRr
+
+
+class NeaReaderGSF(FileFormat, SpectralFileFormat):
+
+    EXTENSIONS = (".gsf",)
+    DESCRIPTION = 'NeaSPEC raw files'
+
+    def read_spectra(self):
+
+        file_channel = str(self.filename.split(' ')[-2]).strip()
+        folder_file = str(self.filename.split(file_channel)[-2]).strip()
+
+        if 'P' in file_channel:
+            self.channel_p = file_channel
+            self.channel_a = file_channel.replace('P', 'A')
+            file_gsf_p = self.filename
+            file_gsf_a = self.filename.replace('P raw.gsf', 'A raw.gsf')
+            file_html = folder_file + '.html'
+        elif 'A' in file_channel:
+            self.channel_a = file_channel
+            self.channel_p = file_channel.replace('A', 'P')
+            file_gsf_a = self.filename
+            file_gsf_p = self.filename.replace('A raw.gsf', 'P raw.gsf')
+            file_html = folder_file + '.html'
+
+        data_gsf_a = self._gsf_reader(file_gsf_a)
+        data_gsf_p = self._gsf_reader(file_gsf_p)
+        info = self._html_reader(file_html)
+
+        final_data, parameters, final_metas = self._format_file(data_gsf_a, data_gsf_p, info)
+
+        metas = [Orange.data.ContinuousVariable.make("column"),
+                 Orange.data.ContinuousVariable.make("row"),
+                 Orange.data.ContinuousVariable.make("run"),
+                 Orange.data.StringVariable.make("channel")]
+
+        domain = Orange.data.Domain([], None, metas=metas)
+        meta_data = Table.from_numpy(domain, X=np.zeros((len(final_data), 0)),
+                                     metas=np.asarray(final_metas, dtype=object))
+
+        meta_data.attributes = parameters
+
+        depth = np.arange(0, int(parameters['Pixel Area (X, Y, Z)'][3]))
+
+        return depth, final_data, meta_data
+
+    def _format_file(self, gsf_a, gsf_p, parameters):
+
+        info = {}
+        for row in parameters:
+            key = row[0].strip(':')
+            value = [v for v in row[1:] if len(v)]
+            if len(value) == 1:
+                value = value[0]
+            info.update({key: value})
+
+        info.update({'Reader': 'NeaReaderGSF'}) # key used in confirmation for complex fft calculation
+
+        averaging = int(info['Averaging'])
+        px_x = int(info['Pixel Area (X, Y, Z)'][1])
+        px_y = int(info['Pixel Area (X, Y, Z)'][2])
+        px_z = int(info['Pixel Area (X, Y, Z)'][3])
+
+        data_complete = []
+        final_metas = []
+        for y in range(0, px_y):
+            amplitude = gsf_a[y].reshape((1, px_x * px_z * averaging))[0]
+            phase = gsf_p[y].reshape((1, px_x * px_z * averaging))[0]
+            i = 0
+            f = i + px_z
+            for x in range(0, px_x):
+                for run in range(0, averaging):
+                    data_complete += [amplitude[i:f]]
+                    data_complete += [phase[i:f]]
+                    final_metas += [[x, y, run, self.channel_a]]
+                    final_metas += [[x, y, run, self.channel_p]]
+                    i = f
+                    f = i + px_z
+
+        return np.asarray(data_complete), info, final_metas
+
+    def _html_reader(self, path):
+
+        class HTMLTableParser(HTMLParser):
+
+            def __init__(self):
+                super().__init__()
+                self._current_row = []
+                self._current_table = []
+                self._in_cell = False
+
+                self.tables = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "td":
+                    self._in_cell = True
+
+            def handle_endtag(self, tag):
+                if tag == "tr":
+                    self._current_table.append(self._current_row)
+                    self._current_row = []
+                elif tag == "table":
+                    self.tables.append(self._current_table)
+                    self._current_table = []
+                elif tag == "td":
+                    self._in_cell = False
+
+            def handle_data(self, data):
+                if self._in_cell:
+                    self._current_row.append(data.strip())
+
+        p = HTMLTableParser()
+        with open(path, "rt", encoding="utf8") as f:
+            p.feed(f.read())
+        return p.tables[0]
+
+    def _gsf_reader(self, path):
+        X, _, _ = reader_gsf(path)
+        return np.asarray(X)
+
+
+class PTIRFileReader(FileFormat, SpectralFileFormat):
+    """ Reader for .ptir HDF5 files from Photothermal systems"""
+    EXTENSIONS = ('.ptir',)
+    DESCRIPTION = 'PTIR Studio file'
+    PRIORITY = 1
+
+    data_signal = ''
+
+    def get_channels(self):
+        import h5py
+        hdf5_file = h5py.File(self.filename, 'r')
+        keys = list(hdf5_file.keys())
+
+        # map all unique data channels
+        channel_map = {}
+        for meas_name in filter(lambda s: s.startswith('Measurement'), keys):
+            hdf5_meas = hdf5_file[meas_name]
+            meas_keys = list(hdf5_meas.keys())
+            meas_attrs = hdf5_meas.attrs
+
+            # skip background measurements
+            if meas_attrs.keys().__contains__('IsBackground') and meas_attrs['IsBackground'][0]:
+                continue
+
+            for chan_name in filter(lambda s: s.startswith('Channel'), meas_keys):
+                hdf5_chan = hdf5_meas[chan_name]
+                try:
+                    signal = hdf5_chan.attrs['DataSignal']
+                    if not channel_map.keys().__contains__(signal):
+                        label = hdf5_chan.attrs['Label']
+                        channel_map[signal] = label
+                except:
+                    pass
+        if len(channel_map) == 0:
+            raise IOError("Error reading channels from " + self.filename)
+        return channel_map
+
+    @property
+    def sheets(self):
+        return [label.decode("utf-8") for label in self.get_channels().values()]
+
+    def read_spectra(self):
+        channels = self.get_channels()
+
+        for c, label in channels.items():
+            if label.decode("utf-8") == self.sheet:
+                self.data_signal = c
+                break
+        else:
+            self.data_signal = list(channels.keys())[0]
+
+        import h5py
+        hdf5_file = h5py.File(self.filename,'r')
+        keys = list(hdf5_file.keys())
+
+        hyperspectra = False
+        intensities = []
+        wavenumbers = []
+        x_locs = []
+        y_locs = []
+
+        # load measurements
+        for meas_name in filter(lambda s: s.startswith('Measurement'), keys):
+            hdf5_meas = hdf5_file[meas_name]
+
+            meas_keys = list(hdf5_meas.keys())
+            meas_attrs = hdf5_meas.attrs
+
+            # check if this measurement contains the selected data channel
+            selected_signal = False
+            for chan_name in filter(lambda s: s.startswith('Channel'), meas_keys):
+                hdf5_chan = hdf5_meas[chan_name]
+                if hdf5_chan.attrs.keys().__contains__('DataSignal') and hdf5_chan.attrs['DataSignal'] == self.data_signal:
+                    selected_signal = True
+                    break
+            if not selected_signal:
+                continue
+
+            # build range arrays
+            spec_vals = []
+            try:
+                if meas_attrs.keys().__contains__('RangeWavenumberStart'):
+                    wn_start = meas_attrs['RangeWavenumberStart'][0]
+                    wn_end = meas_attrs['RangeWavenumberEnd'][0]
+                    wn_points = meas_attrs['RangeWavenumberPoints'][0]
+                    spec_vals = np.linspace(wn_start, wn_end, wn_points)
+            except:
+                raise IOError("Error reading wavenumber range from " + self.filename)
+
+            pos_vals = []
+            try:
+                if meas_attrs.keys().__contains__('RangeXStart'):
+                    x_start = meas_attrs['RangeXStart'][0]
+                    x_points = meas_attrs['RangeXPoints'][0]
+                    x_incr = meas_attrs['RangeXIncrement'][0]
+                    x_end = x_start + x_incr * (x_points - 1)
+                    x_min = min(x_start, x_end)
+                    if meas_attrs.keys().__contains__('RangeYStart'):
+                        y_start = meas_attrs['RangeYStart'][0]
+                        y_points = meas_attrs['RangeYPoints'][0]
+                        y_incr = meas_attrs['RangeYIncrement'][0]
+                        y_end = y_start + y_incr * (y_points - 1)
+                        y_min = min(y_start, y_end)
+
+                        # construct the positions array
+                        for iY in range(int(y_points)):
+                            y = y_min + iY * abs(y_incr)
+                            for iX in range(int(x_points)):
+                                x = x_min + iX * abs(x_incr)
+                                pos_vals.append([x, y])
+                        pos_vals = np.array(pos_vals)
+                else:
+                    pos_vals = np.array([1])
+            except:
+                raise IOError("Error reading position data from " + self.filename)
+
+            hyperspectra = pos_vals.shape[0] > 1
+
+            # ignore backgrounds and unchecked data
+            if not hyperspectra:
+                if meas_attrs.keys().__contains__('IsBackground') and meas_attrs['IsBackground'][0]:
+                    continue
+                if meas_attrs.keys().__contains__('Checked') and not meas_attrs['Checked'][0]:
+                    continue
+
+            if len(wavenumbers) == 0:
+                wavenumbers = spec_vals
+
+            if hyperspectra:
+                x_len = meas_attrs['RangeXPoints'][0]
+                y_len = meas_attrs['RangeYPoints'][0]
+                x_locs = pos_vals[:x_len,0]
+                y_indices = np.round(np.linspace(0, pos_vals.shape[0] - 1, y_len)).astype(int)
+                y_locs = pos_vals[y_indices,1]
+            else:
+                x_locs.append(meas_attrs['LocationX'][0])
+                y_locs.append(meas_attrs['LocationY'][0])
+
+            # load channels
+            for chan_name in filter(lambda s: s.startswith('Channel'), meas_keys):
+                hdf5_chan = hdf5_meas[chan_name]
+                chan_attrs = hdf5_chan.attrs
+
+                signal = chan_attrs['DataSignal']
+                if signal != self.data_signal:
+                    continue
+
+                data = hdf5_chan['Raw_Data']
+                if hyperspectra:
+                    rows = meas_attrs['RangeYPoints'][0]
+                    cols = meas_attrs['RangeXPoints'][0]
+                    intensities = np.reshape(data, (rows,cols,data.shape[1])) # organized rows, columns, wavelengths
+                    break
+                else:
+                    intensities.append(data[0,:])
+
+        intensities = np.array(intensities)
+        features = np.array(wavenumbers)
+        x_locs = np.array(x_locs).flatten()
+        y_locs = np.array(y_locs).flatten()
+        if hyperspectra:
+            return _spectra_from_image(intensities, features, x_locs, y_locs)
+        else:
+            spectra = intensities
+
+            # locations
+            x_loc = y_loc = np.arange(spectra.shape[0])
+            metas = np.array([x_locs[x_loc], y_locs[y_loc]]).T
+
+            domain = Orange.data.Domain([], None,
+                                        metas=[Orange.data.ContinuousVariable.make("map_x"),
+                                               Orange.data.ContinuousVariable.make("map_y")]
+                                        )
+            data = Orange.data.Table.from_numpy(domain, X=np.zeros((len(spectra), 0)),
+                                                metas=np.asarray(metas, dtype=object))
+            return features, spectra, data
+
+
+class TileFileFormat:
+
+    def read_tile(self):
+        """ Read file in chunks (tiles) to allow preprocessing before combining
+        into one large Table.
+
+        Return a generator of Tables, where each Table is a chunk of the total.
+        Tables should already have appropriate meta-data (i.e. map_x/map_y)
+        """
+
+    def read(self):
+        ret_table = None
+        for tile_table in self.read_tile():
+            if ret_table is None:
+                ret_table = self.preprocess(tile_table)
+            else:
+                tile_table_pp = tile_table.transform(ret_table.domain)
+                ret_table.X = np.vstack((ret_table.X, tile_table_pp.X))
+                ret_table._Y = np.vstack((ret_table._Y, tile_table_pp._Y))
+                ret_table.metas = np.vstack((ret_table.metas, tile_table_pp.metas))
+                ret_table.W = np.vstack((ret_table.W, tile_table_pp.W))
+                ret_table.ids = np.hstack((ret_table.ids, tile_table_pp.ids))
+
+        return ret_table
+
+
+class agilentMosaicTileReader(FileFormat, TileFileFormat):
+    """ Tile-by-tile reader for Agilent FPA mosaic image files"""
+    EXTENSIONS = ('.dmt',)
+    DESCRIPTION = 'Agilent Mosaic Tile-by-tile'
+    PRIORITY = agilentMosaicReader.PRIORITY + 100
+
+    def __init__(self, filename):
+        super().__init__(filename)
+        self.preprocessor = None
+
+    def set_preprocessor(self, preprocessor):
+        self.preprocessor = preprocessor
+
+    def preprocess(self, table):
+        if self.preprocessor is not None:
+            return self.preprocessor(table)
+        else:
+            return table
+
+
+    def read_tile(self):
+        am = agilentMosaicTiles(self.filename)
+        info = am.info
+        tiles = am.tiles
+        ytiles = am.tiles.shape[0]
+
+        features = info['wavenumbers']
+
+        attrs = [Orange.data.ContinuousVariable.make("%f" % f) for f in features]
+        domain = Orange.data.Domain(attrs, None,
+                                    metas=[Orange.data.ContinuousVariable.make("map_x"),
+                                           Orange.data.ContinuousVariable.make("map_y")]
+                                    )
+
+        try:
+            px_size = info['FPA Pixel Size'] * info['PixelAggregationSize']
+        except KeyError:
+            # Use pixel units if FPA Pixel Size is not known
+            px_size = 1
+
+        for (x, y) in np.ndindex(tiles.shape):
+            tile = tiles[x, y]()
+            x_size, y_size = tile.shape[1], tile.shape[0]
+            x_locs = np.linspace(x*x_size*px_size, (x+1)*x_size*px_size, num=x_size, endpoint=False)
+            y_locs = np.linspace((ytiles-y-1)*y_size*px_size, (ytiles-y)*y_size*px_size, num=y_size, endpoint=False)
+
+            _, data, additional_table = _spectra_from_image(tile, None, x_locs, y_locs)
+            data = np.asarray(data, dtype=np.float64)  # Orange assumes X to be float64
+            tile_table = Orange.data.Table.from_numpy(domain, X=data, metas=additional_table.metas)
+            yield tile_table
+
+class HDRReader_STXM(FileFormat, SpectralFileFormat):
+    """ Reader for STXM/NEXAFS files from MAX IV and other synchrotrons.
+    It is assumed that there are .xim files with plain text data in the same
+    directory as the .hdr file. For foo.hdr these are called foo_a000.xim,
+    foo_a001.xim etc.
+    """
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'STXM/NEXAFS .hdr+.xim files'
+
+    def read_hdr_list(self):
+        "Read a list of items (1,2,3,{...}) from self._lex"
+        d = []
+        while True:
+            val = self._lex.get_token()
+            assert val
+            if val == ')':
+                self._lex.push_token(')')
+                assert int(d[0]) == len(d) - 1
+                return d[1:]
+            elif val == ',':
+                pass
+            elif val == '{':
+                d.append(self.read_hdr_dict())
+                assert self._lex.get_token() == '}'
+            elif val[0] == '"':
+                d.append(val[1:-1])
+            else:
+                v = []
+                while val not in (')', ','):
+                    v.append(val)
+                    val = self._lex.get_token()
+                    assert val
+                self._lex.push_token(val)
+                v = ''.join(v)
+                try:
+                    v = float(v)
+                except ValueError:
+                    pass
+                d.append(v)
+
+    def read_hdr_dict(self, inner=True):
+        """Read a dict {name = 'value'; foo = (...);} from self._lex;
+            inner=False for the outermost level.
+        """
+        d = {}
+        while True:
+            name = self._lex.get_token()
+            if not name:
+                assert not inner
+                return d
+            elif name == '}':
+                assert inner
+                self._lex.push_token(name)
+                return d
+            assert self._lex.get_token() == '='
+            val = self._lex.get_token()
+            if val == '{':
+                d[name] = self.read_hdr_dict()
+                assert self._lex.get_token() == '}'
+            elif val == '(':
+                d[name] = self.read_hdr_list()
+                assert self._lex.get_token() == ')'
+            elif val[0] == '"':
+                d[name] = val[1:-1]
+            else:
+                v = []
+                while val != ';':
+                    v.append(val)
+                    val = self._lex.get_token()
+                self._lex.push_token(';')
+                v = ''.join(v)
+                try:
+                    v = float(v)
+                except ValueError:
+                    pass
+                d[name] = v
+            assert self._lex.get_token() == ';'
+
+    def read_spectra(self):
+        with open(self.filename, 'r') as f:
+            # Parse file contents into dictionaries/lists
+            self._lex = shlex.shlex(instream=f)
+            try:
+                hdrdata = self.read_hdr_dict(inner=False)
+            except AssertionError as e:
+                raise IOError('Error parsing hdr file ' + self.filename) from e
+        regions = hdrdata['ScanDefinition']['Regions'][0]
+        axes = [regions['QAxis'], regions['PAxis'],
+                hdrdata['ScanDefinition']['StackAxis']]
+        dims = [len(ax['Points']) for ax in axes]
+        spectra = np.empty(dims)
+        for nf in range(dims[2]):
+            ximname = '%s_a%03d.xim' % (self.filename[:-4], nf)
+            xim = np.loadtxt(ximname)
+            spectra[...,nf] = xim
+
+        x_loc = axes[1]['Points']
+        y_loc = axes[0]['Points']
+        features = np.asarray(axes[2]['Points'])
+        return _spectra_from_image(spectra, features, x_loc, y_loc)
+
+class HDRMetaReader(FileFormat):
+    """ Meta-reader to handle EnviMapReader and HDRReader_STXM name clash
+    over .hdr extension. """
+    EXTENSIONS = ('.hdr',)
+    DESCRIPTION = 'Envi hdr or STXM hdr+xim files'
+    PRIORITY = min(EnviMapReader.PRIORITY, HDRReader_STXM.PRIORITY) - 1
+
+    def read(self):
+        try:
+            return EnviMapReader(filename=self.filename).read()
+        except spectral.io.envi.FileNotAnEnviHeader:
+            return HDRReader_STXM(filename=self.filename).read()
