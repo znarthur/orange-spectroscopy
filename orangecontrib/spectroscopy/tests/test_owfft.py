@@ -5,7 +5,7 @@ from Orange.data import dataset_dirs
 from Orange.data.io import FileFormat
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.data import NeaReaderGSF
+from orangecontrib.spectroscopy.io.neaspec import NeaReaderGSF
 from orangecontrib.spectroscopy import irfft
 from orangecontrib.spectroscopy.widgets.owfft import OWFFT, CHUNK_SIZE
 

@@ -5,7 +5,8 @@ import numpy as np
 
 import Orange.data
 
-from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table, getx
+from orangecontrib.spectroscopy.data import build_spec_table, getx
+from orangecontrib.spectroscopy.io.util import _spectra_from_image
 from orangecontrib.spectroscopy.utils import get_hypercube, index_values, \
     InvalidAxisException, split_to_size
 

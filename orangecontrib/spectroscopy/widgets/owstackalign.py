@@ -14,7 +14,8 @@ from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
 
-from orangecontrib.spectroscopy.data import _spectra_from_image, getx, build_spec_table
+from orangecontrib.spectroscopy.data import getx, build_spec_table
+from orangecontrib.spectroscopy.io.util import _spectra_from_image
 from orangecontrib.spectroscopy.widgets.gui import lineEditIntRange
 from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisException, \
     get_hypercube

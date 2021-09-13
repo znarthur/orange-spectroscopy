@@ -22,7 +22,7 @@ from Orange.widgets.utils.filedialogs import RecentPathsWidgetMixin, \
     RecentPath, open_filename_dialog
 from Orange.widgets.utils.signals import Output
 
-from orangecontrib.spectroscopy.data import SpectralFileFormat
+from orangecontrib.spectroscopy.io.util import SpectralFileFormat
 
 
 def numpy_union_keep_order(A, B):
