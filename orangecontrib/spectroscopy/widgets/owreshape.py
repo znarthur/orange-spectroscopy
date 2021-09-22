@@ -37,8 +37,12 @@ class OWReshape(OWWidget):
     want_main_area = False
     resizing_enabled = False
 
+    settings_version = 2
+
     xpoints = settings.Setting(None)
     ypoints = settings.Setting(None)
+    invert_x = settings.Setting(False)
+    invert_y = settings.Setting(False)
 
     class Warning(OWWidget.Warning):
         wrong_div = Msg("Wrong divisor for {} curves.")
@@ -58,6 +62,9 @@ class OWReshape(OWWidget):
         formlayout.addRow("X dimension", self.le1)
         self.le3 = lineEditIntOrNone(box, self, "ypoints", callback=self.le3_changed)
         formlayout.addRow("Y dimension", self.le3)
+
+        gui.checkBox(box, self, "invert_x", "Invert X axis", callback=lambda: self.commit())
+        gui.checkBox(box, self, "invert_y", "Invert Y axis", callback=lambda: self.commit())
 
         self.data = None
         self.set_data(self.data)  # show warning
@@ -107,8 +114,14 @@ class OWReshape(OWWidget):
             metas = self.data.domain.metas + (xmeta, ymeta)
             domain = Orange.data.Domain(self.data.domain.attributes, self.data.domain.class_vars, metas)
             map_data = self.data.transform(domain)
-            map_data[:, xmeta] = np.tile(np.arange(self.xpoints), len(self.data)//self.xpoints).reshape(-1, 1)
-            map_data[:, ymeta] = np.repeat(np.arange(self.ypoints), len(self.data)//self.ypoints).reshape(-1, 1)
+            xpoints = np.arange(self.xpoints)
+            ypoints = np.arange(self.ypoints)
+            if self.invert_x:
+                xpoints = np.flip(xpoints)
+            if self.invert_y:
+                ypoints = np.flip(ypoints)
+            map_data[:, xmeta] = np.tile(xpoints, len(self.data)//self.xpoints).reshape(-1, 1)
+            map_data[:, ymeta] = np.repeat(ypoints, len(self.data)//self.ypoints).reshape(-1, 1)
         self.Outputs.map.send(map_data)
 
     def send_report(self):
