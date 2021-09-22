@@ -9,11 +9,13 @@ from Orange.data import dataset_dirs
 from Orange.data.io import FileFormat
 from Orange.tests import named_file
 from Orange.widgets.data.owfile import OWFile
-from orangecontrib.spectroscopy.data import getx, build_spec_table, SelectColumnReader, NeaReader
+from orangecontrib.spectroscopy.data import getx, build_spec_table
+from orangecontrib.spectroscopy.io.neaspec import NeaReader, NeaReaderGSF
+from orangecontrib.spectroscopy.io.soleil import SelectColumnReader
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
-from orangecontrib.spectroscopy.data import SPAReader, agilentMosaicIFGReader
-from orangecontrib.spectroscopy.data import NeaReaderGSF
-from orangecontrib.spectroscopy.data import PTIRFileReader
+from orangecontrib.spectroscopy.io import SPAReader
+from orangecontrib.spectroscopy.io.agilent import agilentMosaicIFGReader
+from orangecontrib.spectroscopy.io.ptir import PTIRFileReader
 
 try:
     import opusFC

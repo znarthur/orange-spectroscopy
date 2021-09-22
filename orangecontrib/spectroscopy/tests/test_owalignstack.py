@@ -7,7 +7,8 @@ from scipy.ndimage import sobel
 from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 from Orange.widgets.tests.base import WidgetTest
 
-from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
+from orangecontrib.spectroscopy.data import build_spec_table
+from orangecontrib.spectroscopy.io.util import _spectra_from_image
 from orangecontrib.spectroscopy.widgets.owstackalign import \
     alignstack, RegisterTranslation, shift_fill, OWStackAlign, process_stack
 

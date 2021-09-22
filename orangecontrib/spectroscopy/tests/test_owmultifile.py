@@ -14,7 +14,10 @@ from Orange.widgets.utils.filedialogs import format_filter
 from Orange.data.io import TabReader
 from Orange.tests import named_file
 
-from orangecontrib.spectroscopy.data import SPAReader, AsciiColReader, SpectralFileFormat, getx
+from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.io import SPAReader
+from orangecontrib.spectroscopy.io.ascii import AsciiColReader
+from orangecontrib.spectroscopy.io.util import SpectralFileFormat
 from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
 
 

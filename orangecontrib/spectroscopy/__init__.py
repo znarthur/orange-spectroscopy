@@ -1,6 +1,6 @@
 import Orange.data
 import os.path
-from . import data #register file formats
+from . import io  # register file formats
 
 
 def get_sample_datasets_dir():

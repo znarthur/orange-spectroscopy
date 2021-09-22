@@ -4,7 +4,7 @@ import sys
 import numpy as np
 from Orange.data import Table
 
-from orangecontrib.spectroscopy.data import agilentMosaicIFGReader
+from orangecontrib.spectroscopy.io.agilent import agilentMosaicIFGReader
 
 from orangecontrib.spectroscopy.irfft import (IRFFT, MultiIRFFT, PhaseCorrection,
                                               PeakSearch, ApodFunc,

@@ -631,7 +631,7 @@ class OWFFT(OWWidget):
 
 # Simple main stub function in case being run outside Orange Canvas
 def main(argv=sys.argv):
-    from orangecontrib.spectroscopy.data import NeaReaderGSF #Used to run outside Orange Canvas
+    from orangecontrib.spectroscopy.io.neaspec import NeaReaderGSF
     from Orange.data.io import FileFormat
     from Orange.data import dataset_dirs
 
