@@ -22,6 +22,7 @@ from PIL import Image
 
 import Orange.data
 from Orange.data import Domain
+from Orange.preprocess.transformation import Identity
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -824,7 +825,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = None
         self.data_valid_positions = None
 
-        if self.data and self.attr_x and self.attr_y and self.parent.image_values():
+        if self.data and self.attr_x and self.attr_y:
             self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
                        self.parent.image_values(),
                        self.parent.image_values_fixed_levels())
@@ -1257,13 +1258,11 @@ class OWHyper(OWWidget):
             return lambda data, attr=self.attr_value: \
                 data.transform(Domain([data.domain[attr]]))
         elif self.value_type == 2:  # RGB
-            # Ensure all RGB variables are unique
-            if len({self.rgb_red_value, self.rgb_green_value, self.rgb_blue_value}) == 3:
-                return lambda data, \
-                    attr_red=self.rgb_red_value, attr_green=self.rgb_green_value, attr_blue=self.rgb_blue_value: \
-                    data.transform(Domain([data.domain[attr_red], data.domain[attr_green], data.domain[attr_blue]]))
-            else:
-                return
+            red = ContinuousVariable("red", compute_value=Identity(self.rgb_red_value))
+            green = ContinuousVariable("green", compute_value=Identity(self.rgb_green_value))
+            blue = ContinuousVariable("blue", compute_value=Identity(self.rgb_blue_value))
+            return lambda data: \
+                    data.transform(Domain([red, green, blue]))
 
     def image_values_fixed_levels(self):
         if self.value_type == 1 and isinstance(self.attr_value, DiscreteVariable):
