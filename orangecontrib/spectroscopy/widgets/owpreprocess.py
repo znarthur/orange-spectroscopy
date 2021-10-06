@@ -60,6 +60,7 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, B
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.preprocessors.spikeremoval import SpikeRemovalEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.als import ALSEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.atm_corr import AtmCorrEditor
 
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
@@ -1114,6 +1115,12 @@ PREPROCESSORS = [
         Description("Asymmetric Least Squares Smoothing",
                     icon_path("Discretize.svg")),
         ALSEditor
+    ),
+    PreprocessAction(
+        "Atmospheric Correction", "preprocessors.atm_corr", "Atmospheric Correction",
+        Description("Atmospheric gas (CO2/H2O) correction",
+                    icon_path("Discretize.svg")),
+        AtmCorrEditor
     ),
     ]
 
