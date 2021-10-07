@@ -128,9 +128,9 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(self.widget.rgb_blue_value, attr3)
         self.send_signal("Data", self.iris1)
         self.assertEqual(self.widget.attr_value, attr1)
-        self.assertIsNone(self.widget.rgb_red_value)
-        self.assertIsNone(self.widget.rgb_green_value)
-        self.assertIsNone(self.widget.rgb_blue_value)
+        self.assertEqual(self.widget.rgb_red_value, attr1)
+        self.assertEqual(self.widget.rgb_green_value, attr1)
+        self.assertEqual(self.widget.rgb_blue_value, attr1)
 
     def try_big_selection(self):
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100))

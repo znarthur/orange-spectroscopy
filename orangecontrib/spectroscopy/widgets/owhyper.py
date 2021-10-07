@@ -1198,9 +1198,11 @@ class OWHyper(OWWidget):
         self.feature_value_model.set_domain(domain)
         self.rgb_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
-        if self.rgb_value_model and len(self.rgb_value_model) >= 3:
+        if self.rgb_value_model:
             # Filter PyListModel.Separator objects
             rgb_attrs = [a for a in self.feature_value_model if isinstance(a, ContinuousVariable)]
+            if len(rgb_attrs) <= 3:
+                rgb_attrs = (rgb_attrs + rgb_attrs[-1:]*3)[:3]
             self.rgb_red_value, self.rgb_green_value, self.rgb_blue_value = rgb_attrs[:3]
         else:
             self.rgb_red_value = self.rgb_green_value = self.rgb_blue_value = None
