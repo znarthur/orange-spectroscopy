@@ -115,6 +115,11 @@ class TestOWSpectra(WidgetTest):
             self.send_signal("Data", data)
             self.do_mousemove()
 
+    def test_rescale_y(self):
+        for data in self.normal_data + self.strange_data:
+            self.send_signal("Data", data)
+            self.widget.curveplot.rescale_current_view_y()
+
     def simulate_drag(self, vb, from_, to_):
         # from_ and to_ are in plot coordinates
         event = Mock()
