@@ -83,14 +83,16 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += [xas_norm_collagen, ExtractEXAFSUsage()]
 def add_zeros(data):
     """ Every 5th value is zero """
     s = data.copy()
-    s[:, ::5] = 0
+    with s.unlocked():
+        s[:, ::5] = 0
     return s
 
 
 def make_edges_nan(data):
     s = data.copy()
-    s[:, 0:3] = np.nan
-    s[:, s.X.shape[1]-3:] = np.nan
+    with s.unlocked():
+        s[:, 0:3] = np.nan
+        s[:, s.X.shape[1]-3:] = np.nan
     return s
 
 
@@ -98,7 +100,8 @@ def make_middle_nan(data):
     """ Four middle values are NaN """
     s = data.copy()
     half = s.X.shape[1]//2
-    s[:, half-2:half+2] = np.nan
+    with s.unlocked():
+        s[:, half-2:half+2] = np.nan
     return s
 
 
@@ -218,9 +221,10 @@ class TestSavitzkyGolay(unittest.TestCase):
         data = Orange.data.Table("iris")
         f = SavitzkyGolayFiltering()
         data = data[:5]
-        for i in range(4):
-            data.X[i, i] = np.nan
-        data.X[4] = np.nan
+        with data.unlocked():
+            for i in range(4):
+                data.X[i, i] = np.nan
+            data.X[4] = np.nan
         fdata = f(data)
         np.testing.assert_equal(np.sum(np.isnan(fdata.X), axis=1), [1, 1, 1, 1, 4])
 
@@ -239,9 +243,10 @@ class TestGaussian(unittest.TestCase):
         data = Orange.data.Table("iris")
         f = GaussianSmoothing()
         data = data[:5]
-        for i in range(4):
-            data.X[i, i] = np.nan
-        data.X[4] = np.nan
+        with data.unlocked():
+            for i in range(4):
+                data.X[i, i] = np.nan
+            data.X[4] = np.nan
         fdata = f(data)
         np.testing.assert_equal(np.sum(np.isnan(fdata.X), axis=1), [1, 1, 1, 1, 4])
 
@@ -326,12 +331,14 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 0.5)
         # unknown in between that can be interpolated does not change results
-        data.X[0, 2] = float("nan")
+        with data.unlocked():
+            data.X[0, 2] = float("nan")
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 0.5)
         self.assertTrue(np.isnan(p.X[0, 2]))
         # unknowns at the edges do not get interpolated
-        data.X[0, 3] = float("nan")
+        with data.unlocked():
+            data.X[0, 3] = float("nan")
         p = Normalize(method=Normalize.Vector)(data)
         self.assertAlmostEqual(p.X[0, 0], 2**0.5/2)
         self.assertTrue(np.all(np.isnan(p.X[0, 2:])))
@@ -351,7 +358,8 @@ class TestNormalize(unittest.TestCase):
         ndom = Orange.data.Domain(data.domain.attributes, data.domain.class_vars,
                                   metas=[Orange.data.ContinuousVariable("f")])
         data = data.transform(ndom)
-        data[0]["f"] = 2
+        with data.unlocked(data.metas):
+            data[0]["f"] = 2
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0])(data)
         np.testing.assert_equal(p.X, data.X / 2)
         p = Normalize(method=Normalize.Attribute, attr=data.domain.metas[0],
@@ -425,7 +433,8 @@ class TestCommon(unittest.TestCase):
         """ Preprocessors should not crash when there are all-nan samples. """
         for proc in PREPROCESSORS:
             data = preprocessor_data(proc).copy()
-            data.X[0, :] = np.nan
+            with data.unlocked():
+                data.X[0, :] = np.nan
             try:
                 _ = proc(data)
             except PreprocessException:
@@ -449,8 +458,9 @@ class TestCommon(unittest.TestCase):
         for proc in PREPROCESSORS:
             data = preprocessor_data(proc).copy()
             # one unknown in line
-            for i in range(min(len(data), len(data.domain.attributes))):
-                data.X[i, i] = np.nan
+            with data.unlocked():
+                for i in range(min(len(data), len(data.domain.attributes))):
+                    data.X[i, i] = np.nan
 
             if hasattr(proc, "skip_add_zeros"):
                 continue
@@ -463,10 +473,11 @@ class TestCommon(unittest.TestCase):
         for proc in PREPROCESSORS:
             data = preprocessor_data(proc).copy()
             # add some zeros to the dataset
-            for i in range(min(len(data), len(data.domain.attributes))):
-                data.X[i, i] = 0
-            data.X[0, :] = 0
-            data.X[:, 0] = 0
+            with data.unlocked():
+                for i in range(min(len(data), len(data.domain.attributes))):
+                    data.X[i, i] = 0
+                data.X[0, :] = 0
+                data.X[:, 0] = 0
             try:
                 pdata = proc(data)
             except PreprocessException:

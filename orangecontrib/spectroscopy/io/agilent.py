@@ -74,7 +74,8 @@ class AgilentImageIFGReader(FileFormat, SpectralFileFormat):
                         additional_table.domain.class_vars,
                         additional_table.domain.metas + tuple(new_attributes))
         table = additional_table.transform(domain)
-        table[:, new_attributes] = np.asarray(new_columns).T
+        with table.unlocked():
+            table[:, new_attributes] = np.asarray(new_columns).T
 
         return (features, data, table)
 
@@ -152,7 +153,8 @@ class agilentMosaicIFGReader(FileFormat, SpectralFileFormat):
                         additional_table.domain.class_vars,
                         additional_table.domain.metas + tuple(new_attributes))
         table = additional_table.transform(domain)
-        table[:, new_attributes] = np.asarray(new_columns).T
+        with table.unlocked():
+            table[:, new_attributes] = np.asarray(new_columns).T
 
         return (features, data, table)
 

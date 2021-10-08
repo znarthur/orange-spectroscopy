@@ -47,15 +47,18 @@ class TestOWSpectra(WidgetTest):
         # dataset with large blank regions
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         cls.unknown_last_instance = cls.iris.copy()
-        cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
+        with cls.unknown_last_instance.unlocked():
+            cls.unknown_last_instance.X[73] = NAN  # needs to be unknown after sampling and permutation
         # dataset with mixed unknowns
         cls.unknown_pts = cls.collagen.copy()
-        cls.unknown_pts[5] = np.nan
-        cls.unknown_pts[8:10] = np.nan
-        cls.unknown_pts[15] = np.inf
+        with cls.unknown_pts.unlocked():
+            cls.unknown_pts[5] = np.nan
+            cls.unknown_pts[8:10] = np.nan
+            cls.unknown_pts[15] = np.inf
         # a data set with only infs
         cls.only_inf = iris1.copy()
-        cls.only_inf.X *= np.Inf
+        with cls.only_inf.unlocked():
+            cls.only_inf.X *= np.Inf
         cls.strange_data = [iris1, iris0, empty, irisunknown, cls.unknown_last_instance,
                             cls.only_inf, cls.unknown_pts]
 
@@ -432,7 +435,8 @@ class TestOWSpectra(WidgetTest):
 
     def test_unknown_feature_color(self):
         data = Table("iris")
-        data[0][data.domain.class_var] = np.nan
+        with data.unlocked():
+            data[0][data.domain.class_var] = np.nan
         self.send_signal("Data", data)
         self.widget.curveplot.cycle_color_attr()
         self.assertEqual(self.widget.curveplot.feature_color, data.domain.class_var)

@@ -294,42 +294,43 @@ class _NormalizeCommon(CommonDomain):
             return data.X
         data = data.copy()
 
-        if self.method == Normalize.Vector:
-            nans = np.isnan(data.X)
-            nan_num = nans.sum(axis=1, keepdims=True)
-            ys = data.X
-            if np.any(nan_num > 0):
-                # interpolate nan elements for normalization
-                x = getx(data)
-                ys = interp1d_with_unknowns_numpy(x, ys, x)
-                ys = np.nan_to_num(ys)  # edge elements can still be zero
-            data.X = sknormalize(ys, norm='l2', axis=1, copy=False)
-            if np.any(nan_num > 0):
-                # keep nans where they were
-                data.X[nans] = float("nan")
-        elif self.method == Normalize.Area:
-            norm_data = Integrate(methods=self.int_method,
-                                  limits=[[self.lower, self.upper]])(data)
-            data.X /= norm_data.X
-            replace_infs(data.X)
-        elif self.method == Normalize.SNV:
-            data.X = (data.X - bottleneck.nanmean(data.X, axis=1).reshape(-1, 1)) / \
-                     bottleneck.nanstd(data.X, axis=1).reshape(-1, 1)
-            replace_infs(data.X)
-        elif self.method == Normalize.Attribute:
-            if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
-                ndom = Orange.data.Domain([data.domain[self.attr]])
-                factors = data.transform(ndom)
-                data.X /= factors.X
+        with data.unlocked():
+            if self.method == Normalize.Vector:
+                nans = np.isnan(data.X)
+                nan_num = nans.sum(axis=1, keepdims=True)
+                ys = data.X
+                if np.any(nan_num > 0):
+                    # interpolate nan elements for normalization
+                    x = getx(data)
+                    ys = interp1d_with_unknowns_numpy(x, ys, x)
+                    ys = np.nan_to_num(ys)  # edge elements can still be zero
+                data.X = sknormalize(ys, norm='l2', axis=1, copy=False)
+                if np.any(nan_num > 0):
+                    # keep nans where they were
+                    data.X[nans] = float("nan")
+            elif self.method == Normalize.Area:
+                norm_data = Integrate(methods=self.int_method,
+                                      limits=[[self.lower, self.upper]])(data)
+                data.X /= norm_data.X
                 replace_infs(data.X)
-                nd = data.domain[self.attr]
-            else:  # invalid attribute for normalization
-                data.X *= float("nan")
-        elif self.method == Normalize.MinMax:
-            min = bottleneck.nanmin(data.X, axis=1).reshape(-1, 1)
-            max = bottleneck.nanmax(data.X, axis=1).reshape(-1, 1)
-            data.X = data.X / (max - min)
-            replace_infs(data.X)
+            elif self.method == Normalize.SNV:
+                data.X = (data.X - bottleneck.nanmean(data.X, axis=1).reshape(-1, 1)) / \
+                         bottleneck.nanstd(data.X, axis=1).reshape(-1, 1)
+                replace_infs(data.X)
+            elif self.method == Normalize.Attribute:
+                if self.attr in data.domain and isinstance(data.domain[self.attr], Orange.data.ContinuousVariable):
+                    ndom = Orange.data.Domain([data.domain[self.attr]])
+                    factors = data.transform(ndom)
+                    data.X /= factors.X
+                    replace_infs(data.X)
+                    nd = data.domain[self.attr]
+                else:  # invalid attribute for normalization
+                    data.X *= float("nan")
+            elif self.method == Normalize.MinMax:
+                min = bottleneck.nanmin(data.X, axis=1).reshape(-1, 1)
+                max = bottleneck.nanmax(data.X, axis=1).reshape(-1, 1)
+                data.X = data.X / (max - min)
+                replace_infs(data.X)
         return data.X
 
 
@@ -621,7 +622,8 @@ class _ExtractEXAFSCommon(CommonDomain):
         # with some values so that the function does not crash.
         # Results are going to be discarded later.
         nan_rows = bottleneck.allnan(X, axis=1)
-        X[nan_rows] = 1.
+        if np.any(nan_rows):  # if there were no nans X is a view, so do not modify
+            X[nan_rows] = 1.
 
         # do the transformation
         X = self.transformed(X, xs[xsind], I_jumps)
