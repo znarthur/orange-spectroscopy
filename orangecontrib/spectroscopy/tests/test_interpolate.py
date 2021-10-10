@@ -69,15 +69,17 @@ class TestInterpolate(unittest.TestCase):
     def test_unknown_middle(self):
         data = Orange.data.Table("iris")
         # whole column in the middle should be interpolated
-        data.X[:, 1] = np.nan
+        with data.unlocked():
+            data.X[:, 1] = np.nan
         interpolated = Interpolate(getx(data))(data)
         self.assertFalse(np.any(np.isnan(interpolated.X)))
 
     def test_unknown_elsewhere(self):
         data = Orange.data.Table("iris")
-        data.X[0, 1] = np.nan
-        data.X[1, 1] = np.nan
-        data.X[1, 2] = np.nan
+        with data.unlocked():
+            data.X[0, 1] = np.nan
+            data.X[1, 1] = np.nan
+            data.X[1, 2] = np.nan
         im = Interpolate(getx(data))
         interpolated = im(data)
         self.assertAlmostEqual(interpolated.X[0, 1], 3.25)
@@ -87,9 +89,10 @@ class TestInterpolate(unittest.TestCase):
 
     def test_unknown_elsewhere_different(self):
         data = Orange.data.Table("iris")
-        data.X[0, 1] = np.nan
-        data.X[1, 1] = np.nan
-        data.X[1, 2] = np.nan
+        with data.unlocked():
+            data.X[0, 1] = np.nan
+            data.X[1, 1] = np.nan
+            data.X[1, 2] = np.nan
         im = Interpolate(getx(data))
         im.interpfn = interp1d_with_unknowns_numpy
         interpolated = im(data)
