@@ -106,16 +106,17 @@ class OWSNR(OWWidget):
     @staticmethod
     def make_table(array, data_table):
         new_table = Orange.data.Table.from_numpy(data_table.domain,
-                                                 X=array,
-                                                 Y=np.atleast_2d(data_table.Y[0].copy()),
-                                                 metas=np.atleast_2d(data_table.metas[0].copy()))
+                                                 X=array.copy(),
+                                                 Y=np.atleast_2d(data_table.Y[0]).copy(),
+                                                 metas=np.atleast_2d(data_table.metas[0]).copy())
         cont_vars = data_table.domain.class_vars + data_table.domain.metas
-        for var in cont_vars:
-            index = data_table.domain.index(var)
-            col, _ = data_table.get_column_view(index)
-            val = var.to_val(new_table[0, var])
-            if not np.all(col == val):
-                new_table[0, var] = Orange.data.Unknown
+        with new_table.unlocked():
+            for var in cont_vars:
+                index = data_table.domain.index(var)
+                col, _ = data_table.get_column_view(index)
+                val = var.to_val(new_table[0, var])
+                if not np.all(col == val):
+                    new_table[0, var] = Orange.data.Unknown
 
         return new_table
 
@@ -168,8 +169,9 @@ class OWSNR(OWWidget):
             matrix.append(array)
         table_2_coord = Orange.data.Table.concatenate(matrix, axis=0)
 
-        table_2_coord[:, attr_x] = np.linspace(*lsx)[unq_coo[:, 0]].reshape(-1, 1)
-        table_2_coord[:, attr_y] = np.linspace(*lsy)[unq_coo[:, 1]].reshape(-1, 1)
+        with table_2_coord.unlocked():
+            table_2_coord[:, attr_x] = np.linspace(*lsx)[unq_coo[:, 0]].reshape(-1, 1)
+            table_2_coord[:, attr_y] = np.linspace(*lsy)[unq_coo[:, 1]].reshape(-1, 1)
         return table_2_coord
 
     def select_1coordinate(self, attr):
@@ -204,7 +206,8 @@ class OWSNR(OWWidget):
             matrix.append(array)
         table_1_coord = Orange.data.Table.concatenate(matrix, axis=0)
 
-        table_1_coord[:, attr] = np.linspace(*ls)[unq_coo[:, 0]].reshape(-1, 1)
+        with table_1_coord.unlocked():
+            table_1_coord[:, attr] = np.linspace(*ls)[unq_coo[:, 0]].reshape(-1, 1)
 
         return table_1_coord
 

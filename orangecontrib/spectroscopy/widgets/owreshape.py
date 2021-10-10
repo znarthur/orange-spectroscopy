@@ -120,8 +120,9 @@ class OWReshape(OWWidget):
                 xpoints = np.flip(xpoints)
             if self.invert_y:
                 ypoints = np.flip(ypoints)
-            map_data[:, xmeta] = np.tile(xpoints, len(self.data)//self.xpoints).reshape(-1, 1)
-            map_data[:, ymeta] = np.repeat(ypoints, len(self.data)//self.ypoints).reshape(-1, 1)
+            with map_data.unlocked(map_data.metas):
+                map_data[:, xmeta] = np.tile(xpoints, len(self.data)//self.xpoints).reshape(-1, 1)
+                map_data[:, ymeta] = np.repeat(ypoints, len(self.data)//self.ypoints).reshape(-1, 1)
         self.Outputs.map.send(map_data)
 
     def send_report(self):

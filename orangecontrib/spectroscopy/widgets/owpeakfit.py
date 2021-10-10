@@ -72,7 +72,8 @@ def fit_results_table(output, model_result, orig_data):
                     orig_data.domain.class_vars,
                     orig_data.domain.metas)
     out = orig_data.transform(domain)
-    out.X = output
+    with out.unlocked(out.X):
+        out.X = output
     return out
 
 
@@ -370,15 +371,18 @@ class OWPeakFit(SpectralPreprocess):
                 progress_interrupt(i / n * 100)
             data = fit_results_table(output, out, orig_data)
             data_fits = orig_data.from_table_rows(orig_data, ...)  # a shallow copy
-            data_fits.X = np.vstack(fits)
+            with data_fits.unlocked(data_fits.X):
+                data_fits.X = np.vstack(fits)
             data_resid = orig_data.from_table_rows(orig_data, ...)  # a shallow copy
-            data_resid.X = np.vstack(residuals)
+            with data_resid.unlocked(data_resid.X):
+                data_resid.X = np.vstack(residuals)
             dom_anno = Domain(orig_data.domain.attributes,
                               orig_data.domain.class_vars,
                               orig_data.domain.metas + data.domain.attributes,
                               )
             data_anno = orig_data.transform(dom_anno)
-            data_anno.metas[:, len(orig_data.domain.metas):] = data.X
+            with data_anno.unlocked(data_anno.metas):
+                data_anno.metas[:, len(orig_data.domain.metas):] = data.X
 
         progress_interrupt(100)
 

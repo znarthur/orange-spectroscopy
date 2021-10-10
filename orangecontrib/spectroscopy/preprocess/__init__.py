@@ -508,7 +508,8 @@ class InterpolateToDomain(Preprocess):
         domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
                                     data.domain.metas)
         data = data.transform(domain)
-        data.X = X
+        with data.unlocked(data.X):
+            data.X = X
         return data
 
 

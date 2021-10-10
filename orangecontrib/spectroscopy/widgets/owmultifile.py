@@ -67,25 +67,26 @@ def concatenate_data(tables, filenames, label):
     tables = [table.transform(domain) for table in tables]
     data = type(tables[0]).concatenate(tables)
 
-    # fill in spectral data
-    xs_sind = np.argsort(xs)
-    xs_sorted = xs[xs_sind]
-    pos = 0
-    for table in orig_tables:
-        if hasattr(table, "special_spectral_data"):
-            special = table.special_spectral_data
-            indices = xs_sind[np.searchsorted(xs_sorted, special[0])]
-            data.X[pos:pos+len(table), indices] = special[1]
-        pos += len(table)
+    with data.unlocked():
+        # fill in spectral data
+        xs_sind = np.argsort(xs)
+        xs_sorted = xs[xs_sind]
+        pos = 0
+        for table in orig_tables:
+            if hasattr(table, "special_spectral_data"):
+                special = table.special_spectral_data
+                indices = xs_sind[np.searchsorted(xs_sorted, special[0])]
+                data.X[pos:pos+len(table), indices] = special[1]
+            pos += len(table)
 
-    data[:, source_var] = np.array(list(
-        chain(*(repeat(fn, len(table))
-                for fn, table in zip(filenames, tables)))
-    )).reshape(-1, 1)
-    data[:, label_var] = np.array(list(
-        chain(*(repeat(label, len(table))
-                for _, table in zip(filenames, tables)))
-    )).reshape(-1, 1)
+        data[:, source_var] = np.array(list(
+            chain(*(repeat(fn, len(table))
+                    for fn, table in zip(filenames, tables)))
+        )).reshape(-1, 1)
+        data[:, label_var] = np.array(list(
+            chain(*(repeat(label, len(table))
+                    for _, table in zip(filenames, tables)))
+        )).reshape(-1, 1)
 
     return data
 

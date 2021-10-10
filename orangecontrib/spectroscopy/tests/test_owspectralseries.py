@@ -22,7 +22,8 @@ class TestOWSpectralSeries(WidgetTest):
         cls.iris = Orange.data.Table("iris")
         cls.whitelight = Orange.data.Table("whitelight.gsf")
         cls.whitelight_unknown = cls.whitelight.copy()
-        cls.whitelight_unknown[0][0] = NAN
+        with cls.whitelight_unknown.unlocked():
+            cls.whitelight_unknown[0][0] = NAN
         # dataset with a single attribute
         cls.iris1 = cls.iris.transform(Orange.data.Domain(cls.iris.domain[:1]))
         # dataset without any attributes
