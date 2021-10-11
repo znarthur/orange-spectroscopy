@@ -31,9 +31,9 @@ class AtmCorrEditor(BaseEditorOrange):
         self.smooth = self.SMOOTH
         self.smooth_win = self.SMOOTH_WIN
 
-        gui.checkBox(self.controlArea, self, "spline_co2",
+        self.spline_button = gui.checkBox(self.controlArea, self, "spline_co2",
                      "Spline over CO2 region", callback=self.edited.emit)
-        gui.checkBox(self.controlArea, self, "smooth",
+        self.smooth_button = gui.checkBox(self.controlArea, self, "smooth",
                      "Smooth corrected regions", callback=self.edited.emit)
         self.smooth_win_spin = gui.spin(self.controlArea, self, "smooth_win",
                  label="Savitzky-Golay window size", minv=5, maxv=25,

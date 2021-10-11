@@ -16,6 +16,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
     PreprocessException, NormalizePhaseReference, Despike, SpSubtract
 from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
+from orangecontrib.spectroscopy.preprocess.atm_corr import AtmCorr
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 
@@ -148,6 +149,10 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
     add_edge_case_data_parameter(EMSC, "badspectra", SMALL_COLLAGEN[0:2],
                                  reference=SMALL_COLLAGEN[-1:]))
+
+# AtmCorr with different kinds of reference
+PREPROCESSORS_INDEPENDENT_SAMPLES += list(
+    add_edge_case_data_parameter(AtmCorr, "reference", SMALL_COLLAGEN[0:1]))
 
 PREPROCESSORS_INDEPENDENT_SAMPLES += \
     list(add_edge_case_data_parameter(NormalizeReference, "reference", SMALL_COLLAGEN[:1]))
