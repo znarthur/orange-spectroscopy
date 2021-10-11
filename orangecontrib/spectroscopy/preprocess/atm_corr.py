@@ -63,13 +63,11 @@ class _AtmCorr(CommonDomainOrderUnknowns):
             y[:, p:q] -= az[:, i, None] @ atm[None, p:q]
 
         # Smoothing of atmospheric regions
-        savgolwin = 1 + 2 * int(self.smooth_win * (len(wavenumbers) - 1) /
-                                np.abs(wavenumbers[-1] - wavenumbers[0]))
-        if savgolwin > 1:
+        if self.smooth_win > 3:
             for i in range(corr_ranges):
                 p, q = ranges[i]
-                if q - p < savgolwin: continue
-                y[:, p:q] = savgol_filter(y[:, p:q], savgolwin, 3, axis=1)
+                if q - p >= self.smooth_win:
+                    y[:, p:q] = savgol_filter(y[:, p:q], self.smooth_win, 3, axis=1)
 
         # Replace CO2 region with spline
         if self.spline_co2:
