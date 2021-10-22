@@ -8,6 +8,7 @@ from Orange.data import Table
 from contextlib import nullcontext
 if not hasattr(Table, "unlocked"):
     Table.unlocked = nullcontext
+    Table.unlocked_reference = nullcontext
 
 
 from . import io  # register file formats

@@ -218,9 +218,8 @@ class TestAbsorbance(unittest.TestCase):
 class TestSavitzkyGolay(unittest.TestCase):
 
     def test_unknown_no_propagate(self):
-        data = Orange.data.Table("iris")
+        data = Orange.data.Table("iris")[:5].copy()
         f = SavitzkyGolayFiltering()
-        data = data[:5]
         with data.unlocked():
             for i in range(4):
                 data.X[i, i] = np.nan
@@ -240,9 +239,8 @@ class TestSavitzkyGolay(unittest.TestCase):
 class TestGaussian(unittest.TestCase):
 
     def test_unknown_no_propagate(self):
-        data = Orange.data.Table("iris")
+        data = Orange.data.Table("iris")[:5].copy()
         f = GaussianSmoothing()
-        data = data[:5]
         with data.unlocked():
             for i in range(4):
                 data.X[i, i] = np.nan
