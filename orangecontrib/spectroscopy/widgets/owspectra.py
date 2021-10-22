@@ -1422,12 +1422,19 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             bleft = qrect.left()
             bright = qrect.right()
 
-            ymax = max(np.max(ys[:, np.searchsorted(x, bleft):
-                                 np.searchsorted(x, bright, side="right")])
-                       for x, ys in self.curves_plotted)
-            ymin = min(np.min(ys[:, np.searchsorted(x, bleft):
-                                 np.searchsorted(x, bright, side="right")])
-                       for x, ys in self.curves_plotted)
+            maxcurve = [np.nanmax(ys[:, np.searchsorted(x, bleft):
+                                  np.searchsorted(x, bright, side="right")])
+                        for x, ys in self.curves_plotted if len(x)]
+            mincurve = [np.nanmin(ys[:, np.searchsorted(x, bleft):
+                                  np.searchsorted(x, bright, side="right")])
+                        for x, ys in self.curves_plotted if len(x)]
+
+            # if all values are nan there is nothing to do
+            if bottleneck.allnan(maxcurve):  # allnan(mincurve) would obtain the same result
+                return
+
+            ymax = np.nanmax(maxcurve)
+            ymin = np.nanmin(mincurve)
 
             self.plot.vb.setYRange(ymin, ymax, padding=0.0)
             self.plot.vb.pad_current_view_y()
