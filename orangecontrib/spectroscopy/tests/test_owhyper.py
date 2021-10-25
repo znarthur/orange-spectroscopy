@@ -13,6 +13,8 @@ import Orange
 from Orange.data import DiscreteVariable, Domain, Table
 from Orange.widgets.tests.base import WidgetTest
 
+from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
+from orangecontrib.spectroscopy.preprocess.integrate import IntegrateFeaturePeakSimple
 from orangecontrib.spectroscopy.widgets import owhyper
 from orangecontrib.spectroscopy.widgets.owhyper import \
     OWHyper, ANNOTATED_DATA_SIGNAL_NAME
@@ -345,6 +347,64 @@ class TestOWHyper(WidgetTest):
                                          stored_settings={"context_settings": [c]})
         self.send_signal("Data", self.iris)
         self.assertIsInstance(self.widget.curveplot.feature_color, DiscreteVariable)
+
+    def test_image_computation(self):
+        spectra = [[[0, 0, 2, 0],
+                    [0, 0, 1, 0]],
+                   [[1, 2, 2, 0],
+                    [0, 1, 1, 0]]]
+        wns = [0, 1, 2, 3]
+        x_locs = [0, 1]
+        y_locs = [0, 1]
+        data = build_spec_table(*_spectra_from_image(spectra, wns, x_locs, y_locs))
+
+        def last_called_array(m):
+            arrays = [a[0][0] for a in m.call_args_list
+                      if a and a[0] and isinstance(a[0][0], np.ndarray)]
+            return arrays[-1]
+
+        wrap = self.widget.imageplot.img
+
+        # integrals from zero; default
+        self.send_signal("Data", data)
+        with patch.object(wrap, 'setImage', wraps=wrap.setImage) as m:
+            wait_for_image(self.widget)
+            called = last_called_array(m)
+            target = [[2, 1], [4.5, 2]]
+            np.testing.assert_equal(called.squeeze(), target)
+
+        # peak from zero
+        self.widget.integration_method = \
+            self.widget.integration_methods.index(IntegrateFeaturePeakSimple)
+        self.widget._change_integral_type()
+        with patch.object(wrap, 'setImage', wraps=wrap.setImage) as m:
+            wait_for_image(self.widget)
+            called = last_called_array(m)
+            target = [[2, 1], [2, 1]]
+            np.testing.assert_equal(called.squeeze(), target)
+
+        # single wavenumber (feature)
+        self.widget.controls.value_type.buttons[1].click()
+        self.widget.attr_value = data.domain.attributes[1]
+        self.widget.update_feature_value()
+        with patch.object(wrap, 'setImage', wraps=wrap.setImage) as m:
+            wait_for_image(self.widget)
+            called = last_called_array(m)
+            target = [[0, 0], [2, 1]]
+            np.testing.assert_equal(called.squeeze(), target)
+
+        # RGB
+        self.widget.controls.value_type.buttons[2].click()
+        self.widget.rgb_red_value = data.domain.attributes[0]
+        self.widget.rgb_green_value = data.domain.attributes[1]
+        self.widget.rgb_blue_value = data.domain.attributes[2]
+        self.widget.update_rgb_value()
+        with patch.object(wrap, 'setImage', wraps=wrap.setImage) as m:
+            wait_for_image(self.widget)
+            called = last_called_array(m)
+            # first three wavenumbers (features) should be passed to setImage
+            target = [data.X[0, :3], data.X[1, :3]], [data.X[2, :3], data.X[3, :3]]
+            np.testing.assert_equal(called, target)
 
 
 class TestVisibleImage(WidgetTest):
