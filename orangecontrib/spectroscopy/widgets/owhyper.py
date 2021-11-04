@@ -22,6 +22,7 @@ from PIL import Image
 
 import Orange.data
 from Orange.data import Domain
+from Orange.preprocess.transformation import Identity
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -154,19 +155,31 @@ class ImageItemNan(pg.ImageItem):
 
         if self.image is None or self.image.size == 0:
             return
-        if isinstance(self.lut, collections.abc.Callable):
+
+        image = np.atleast_3d(self.image)
+
+        if image.shape[2] == 3:
+            # Direct RGB data
+            lut = None
+        elif isinstance(self.lut, collections.abc.Callable):
             lut = self.lut(self.image)
         else:
             lut = self.lut
 
-        image = self.image
         levels = self.levels
 
         if self.axisOrder == 'col-major':
             image = image.transpose((1, 0, 2)[:image.ndim])
 
+        image_nans = np.isnan(image).all(axis=2)
+
+        if image.shape[2] == 1:
+            image = image[:, :, 0]
+
         argb, alpha = pg.makeARGB(image, lut=lut, levels=levels)  # format is bgra
-        argb[np.isnan(image)] = (100, 100, 100, 255)  # replace unknown values with a color
+
+        argb[image_nans] = (100, 100, 100, 255)  # replace unknown values with a color
+
         w = 1
         if np.any(self.selection):
             max_sel = np.max(self.selection)
@@ -270,7 +283,7 @@ class ImageColorSettingMixin:
     def __init__(self):
         self.fixed_levels = None  # fixed level settings for categoric data
 
-    def color_settings_box(self):
+    def setup_color_settings_box(self):
         box = gui.vBox(self)
         self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
                                      labelWidth=50, orientation=Qt.Horizontal)
@@ -322,7 +335,7 @@ class ImageColorSettingMixin:
         return box
 
     def update_legend_visible(self):
-        if self.fixed_levels is not None:
+        if self.fixed_levels is not None or self.parent.value_type == 2:
             self.legend.setVisible(False)
         else:
             self.legend.setVisible(self.show_legend)
@@ -333,8 +346,12 @@ class ImageColorSettingMixin:
 
         if self.fixed_levels is not None:
             levels = list(self.fixed_levels)
-        elif self.img.image is not None:
+        elif self.img.image is not None and self.img.image.ndim == 2:
             levels = get_levels(self.img.image)
+        elif self.img.image is not None and self.img.image.shape[2] == 1:
+            levels = get_levels(self.img.image[:, :, 0])
+        elif self.img.image is not None and self.img.image.shape[2] == 3:
+            return
         else:
             levels = [0, 255]
 
@@ -396,6 +413,87 @@ class ImageColorSettingMixin:
     def reset_thresholds(self):
         self.threshold_low = 0.
         self.threshold_high = 1.
+
+
+class ImageRGBSettingMixin:
+    red_level_low = Setting(None, schema_only=True)
+    red_level_high = Setting(None, schema_only=True)
+    green_level_low = Setting(None, schema_only=True)
+    green_level_high = Setting(None, schema_only=True)
+    blue_level_low = Setting(None, schema_only=True)
+    blue_level_high = Setting(None, schema_only=True)
+
+    def setup_rgb_settings_box(self):
+        box = gui.vBox(self)
+
+        form = QFormLayout(
+            formAlignment=Qt.AlignLeft,
+            labelAlignment=Qt.AlignLeft,
+            fieldGrowthPolicy=QFormLayout.AllNonFixedFieldsGrow
+        )
+
+        self._red_level_low_le = lineEditDecimalOrNone(self, self, "red_level_low", callback=self.update_rgb_levels)
+        self._red_level_low_le.validator().setDefault(0)
+        form.addRow("Red Low limit:", self._red_level_low_le)
+
+        self._red_level_high_le = lineEditDecimalOrNone(self, self, "red_level_high", callback=self.update_rgb_levels)
+        self._red_level_high_le.validator().setDefault(1)
+        form.addRow("Red High limit:", self._red_level_high_le)
+
+        self._green_level_low_le = lineEditDecimalOrNone(self, self, "green_level_low", callback=self.update_rgb_levels)
+        self._green_level_low_le.validator().setDefault(0)
+        form.addRow("Green Low limit:", self._green_level_low_le)
+
+        self._green_level_high_le = lineEditDecimalOrNone(self, self, "green_level_high", callback=self.update_rgb_levels)
+        self._green_level_high_le.validator().setDefault(1)
+        form.addRow("Green High limit:", self._green_level_high_le)
+
+        self._blue_level_low_le = lineEditDecimalOrNone(self, self, "blue_level_low", callback=self.update_rgb_levels)
+        self._blue_level_low_le.validator().setDefault(0)
+        form.addRow("Blue Low limit:", self._blue_level_low_le)
+
+        self._blue_level_high_le = lineEditDecimalOrNone(self, self, "blue_level_high", callback=self.update_rgb_levels)
+        self._blue_level_high_le.validator().setDefault(1)
+        form.addRow("Blue High limit:", self._blue_level_high_le)
+
+        box.layout().addLayout(form)
+        return box
+
+    def update_rgb_levels(self):
+        if not self.data:
+            return
+
+        if self.img.image is not None and self.img.image.shape[2] == 3:
+            levels = [get_levels(self.img.image[:, :, i]) for i in range(self.img.image.shape[2])]
+        else:
+            return
+
+        rgb_le = [
+            [self._red_level_low_le, self._red_level_high_le],
+            [self._green_level_low_le, self._green_level_high_le],
+            [self._blue_level_low_le, self._blue_level_high_le]
+        ]
+
+        for i, (low_le, high_le) in enumerate(rgb_le):
+            prec = pixels_to_decimals((levels[i][1] - levels[i][0]) / 1000)
+            rounded_levels = [float_to_str_decimals(levels[i][0], prec),
+                              float_to_str_decimals(levels[i][1], prec)]
+
+            low_le.validator().setDefault(rounded_levels[0])
+            high_le.validator().setDefault(rounded_levels[1])
+
+            low_le.setPlaceholderText(rounded_levels[0])
+            high_le.setPlaceholderText(rounded_levels[1])
+
+        rll = float(self.red_level_low) if self.red_level_low is not None else levels[0][0]
+        rlh = float(self.red_level_high) if self.red_level_high is not None else levels[0][1]
+        gll = float(self.green_level_low) if self.green_level_low is not None else levels[1][0]
+        glh = float(self.green_level_high) if self.green_level_high is not None else levels[1][1]
+        bll = float(self.blue_level_low) if self.blue_level_low is not None else levels[2][0]
+        blh = float(self.blue_level_high) if self.blue_level_high is not None else levels[2][1]
+
+        new_levels = [[rll, rlh], [gll, glh], [bll, blh]]
+        self.img.setLevels(new_levels)
 
 
 class ImageZoomMixin:
@@ -478,7 +576,8 @@ class ImageColorLegend(GraphicsWidget):
 
 
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
-                ImageColorSettingMixin, ImageZoomMixin, ConcurrentMixin):
+                ImageColorSettingMixin, ImageRGBSettingMixin,
+                ImageZoomMixin, ConcurrentMixin):
 
     attr_x = ContextSetting(None)
     attr_y = ContextSetting(None)
@@ -587,7 +686,11 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             model=self.xy_model, **common_options)
         box.setFocusProxy(self.cb_attr_x)
 
-        box.layout().addWidget(self.color_settings_box())
+        self.color_settings_box = self.setup_color_settings_box()
+        self.rgb_settings_box = self.setup_rgb_settings_box()
+
+        box.layout().addWidget(self.color_settings_box)
+        box.layout().addWidget(self.rgb_settings_box)
 
         choose_xy.setDefaultWidget(box)
         view_menu.addAction(choose_xy)
@@ -784,7 +887,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         # d = image_values(data).X[:, 0]
         parts = []
         for slice in split_to_size(len(data), 10000):
-            part = image_values(data[slice]).X[:, 0]
+            part = image_values(data[slice]).X
             parts.append(part)
             progress_interrupt(0)
         d = np.concatenate(parts)
@@ -812,13 +915,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if invalid_positions:
             self.parent.Information.not_shown(invalid_positions)
 
-        imdata = np.ones((lsy[2], lsx[2])) * float("nan")
+        imdata = np.ones((lsy[2], lsx[2], d.shape[1])) * float("nan")
         imdata[yindex[valid], xindex[valid]] = d[valid]
+
         self.data_values = d
         self.data_imagepixels = np.vstack((yindex, xindex)).T
-
         self.img.setImage(imdata, autoLevels=False)
         self.update_levels()
+        self.update_rgb_levels()
         self.update_color_schema()
         self.update_legend_visible()
 
@@ -877,6 +981,9 @@ class OWHyper(OWWidget):
     integration_methods = Integrate.INTEGRALS
     value_type = Setting(0)
     attr_value = ContextSetting(None)
+    rgb_red_value = ContextSetting(None)
+    rgb_green_value = ContextSetting(None)
+    rgb_blue_value = ContextSetting(None)
 
     show_visible_image = Setting(False)
     visible_image_name = Setting(None)
@@ -951,6 +1058,27 @@ class OWHyper(OWWidget):
             self.box_values_feature, self, "attr_value",
             contentsLength=12, searchable=True,
             callback=self.update_feature_value, model=self.feature_value_model)
+
+        gui.appendRadioButton(rbox, "RGB")
+        self.box_values_RGB_feature = gui.indentedBox(rbox)
+
+        self.rgb_value_model = DomainModel(DomainModel.SEPARATED,
+                                               valid_types=(ContinuousVariable,))
+
+        self.red_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_red_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_rgb_value, model=self.rgb_value_model)
+
+        self.green_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_green_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_rgb_value, model=self.rgb_value_model)
+
+        self.blue_feature_value = gui.comboBox(
+            self.box_values_RGB_feature, self, "rgb_blue_value",
+            contentsLength=12, searchable=True,
+            callback=self.update_rgb_value, model=self.rgb_value_model)
 
         splitter = QSplitter(self)
         splitter.setOrientation(Qt.Vertical)
@@ -1068,7 +1196,16 @@ class OWHyper(OWWidget):
     def init_attr_values(self, data):
         domain = data.domain if data is not None else None
         self.feature_value_model.set_domain(domain)
+        self.rgb_value_model.set_domain(domain)
         self.attr_value = self.feature_value_model[0] if self.feature_value_model else None
+        if self.rgb_value_model:
+            # Filter PyListModel.Separator objects
+            rgb_attrs = [a for a in self.feature_value_model if isinstance(a, ContinuousVariable)]
+            if len(rgb_attrs) <= 3:
+                rgb_attrs = (rgb_attrs + rgb_attrs[-1:]*3)[:3]
+            self.rgb_red_value, self.rgb_green_value, self.rgb_blue_value = rgb_attrs[:3]
+        else:
+            self.rgb_red_value = self.rgb_green_value = self.rgb_blue_value = None
 
     def init_visible_images(self, data):
         self.visible_image_model.clear()
@@ -1119,9 +1256,15 @@ class OWHyper(OWWidget):
             else:
                 return Integrate(methods=imethod,
                                  limits=[[self.choose, self.choose]])
-        else:
+        elif self.value_type == 1:  # feature
             return lambda data, attr=self.attr_value: \
                 data.transform(Domain([data.domain[attr]]))
+        elif self.value_type == 2:  # RGB
+            red = ContinuousVariable("red", compute_value=Identity(self.rgb_red_value))
+            green = ContinuousVariable("green", compute_value=Identity(self.rgb_green_value))
+            blue = ContinuousVariable("blue", compute_value=Identity(self.rgb_blue_value))
+            return lambda data: \
+                    data.transform(Domain([red, green, blue]))
 
     def image_values_fixed_levels(self):
         if self.value_type == 1 and isinstance(self.attr_value, DiscreteVariable):
@@ -1135,6 +1278,9 @@ class OWHyper(OWWidget):
     def update_feature_value(self):
         self.redraw_data()
 
+    def update_rgb_value(self):
+        self.redraw_data()
+
     def _update_integration_type(self):
         self.line1.hide()
         self.line2.hide()
@@ -1142,6 +1288,7 @@ class OWHyper(OWWidget):
         if self.value_type == 0:
             self.box_values_spectra.setDisabled(False)
             self.box_values_feature.setDisabled(True)
+            self.box_values_RGB_feature.setDisabled(True)
             if self.integration_methods[self.integration_method] != Integrate.PeakAt:
                 self.line1.show()
                 self.line2.show()
@@ -1150,6 +1297,15 @@ class OWHyper(OWWidget):
         elif self.value_type == 1:
             self.box_values_spectra.setDisabled(True)
             self.box_values_feature.setDisabled(False)
+            self.box_values_RGB_feature.setDisabled(True)
+        elif self.value_type == 2:
+            self.box_values_spectra.setDisabled(True)
+            self.box_values_feature.setDisabled(True)
+            self.box_values_RGB_feature.setDisabled(False)
+        # ImagePlot menu levels visibility
+        rgb = self.value_type == 2
+        self.imageplot.rgb_settings_box.setVisible(rgb)
+        self.imageplot.color_settings_box.setVisible(not rgb)
         QTest.qWait(1)  # first update the interface
 
     def _change_integration(self):
