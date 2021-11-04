@@ -216,7 +216,7 @@ class TestVoigtEditor(ModelEditorTest):
         e.set_param_hints('center', p)
         e.edited.emit()
         p_set = e.parameters()['center']
-        self.assertIsInstance(p_set, OrderedDict)
+        self.assertIsInstance(p_set, dict)
         self.assertEqual(p_set['value'], 1623)
         self.assertEqual(p_set['min'], 1603)
         self.assertEqual(p_set['max'], 1643)
