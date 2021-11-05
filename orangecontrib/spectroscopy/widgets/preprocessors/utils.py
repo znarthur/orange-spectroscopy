@@ -1,6 +1,6 @@
 from AnyQt.QtWidgets import QWidget
-from PyQt5.QtCore import pyqtSignal as Signal
-from PyQt5.QtWidgets import QVBoxLayout, QSizePolicy, QLayout
+from AnyQt.QtCore import pyqtSignal as Signal, QLocale
+from AnyQt.QtWidgets import QVBoxLayout, QSizePolicy, QLayout
 
 from Orange.widgets.data.utils.preprocess import BaseEditor
 from Orange.widgets.gui import OWComponent
@@ -69,6 +69,16 @@ class SetXDoubleSpinBox(DoubleSpinBox):
         if hasattr(self, "focusIn"):
             self.focusIn()
         return super().focusInEvent(*e)
+
+    # so that scrolling does not accidentally influence values
+    def wheelEvent(self, event):
+        event.ignore()
+
+    # omit group separator
+    def locale(self):
+        locale = super().locale()
+        locale.setNumberOptions(QLocale.OmitGroupSeparator)
+        return locale
 
 
 class PreviewMinMaxMixin:
