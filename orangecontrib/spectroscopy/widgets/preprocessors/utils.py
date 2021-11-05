@@ -1,10 +1,11 @@
 from AnyQt.QtWidgets import QWidget
 from PyQt5.QtCore import pyqtSignal as Signal
-from PyQt5.QtWidgets import QVBoxLayout, QSizePolicy, QDoubleSpinBox, QLayout
+from PyQt5.QtWidgets import QVBoxLayout, QSizePolicy, QLayout
 
 from Orange.widgets.data.utils.preprocess import BaseEditor
 from Orange.widgets.gui import OWComponent
 from Orange.widgets.utils.messages import WidgetMessagesMixin
+from Orange.widgets.utils.spinbox import DoubleSpinBox
 from Orange.widgets.widget import Msg
 from orangecontrib.spectroscopy.data import getx
 
@@ -57,13 +58,16 @@ class BaseEditorOrange(BaseEditor, OWComponent, WidgetMessagesMixin):
         return {k: getattr(self, k) for k in self.controlled_attributes}
 
 
-class SetXDoubleSpinBox(QDoubleSpinBox):
+class SetXDoubleSpinBox(DoubleSpinBox):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs,
+                         keyboardTracking=False  # disable valueChanged while typing
+                         )
 
     def focusInEvent(self, *e):
-        self.focusIn()
+        if hasattr(self, "focusIn"):
+            self.focusIn()
         return super().focusInEvent(*e)
 
 

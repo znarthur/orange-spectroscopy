@@ -48,7 +48,7 @@ class IntegrateOneEditor(BaseEditorOrange):
             v = 0.
             self.__values[name] = v
 
-            e = SetXDoubleSpinBox(decimals=4, minimum=minf, maximum=maxf,
+            e = SetXDoubleSpinBox(minimum=minf, maximum=maxf,
                                   singleStep=0.5, value=v)
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)

@@ -19,6 +19,10 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
 
 class CompactDoubleSpinBox(SetXDoubleSpinBox):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs,
+                         buttonSymbols=2)
+
     def sizeHint(self) -> QSize:
         sh = super().sizeHint()
         sh.setWidth(int(sh.width() / 2))
@@ -26,7 +30,6 @@ class CompactDoubleSpinBox(SetXDoubleSpinBox):
 
     def minimumSizeHint(self) -> QSize:
         return self.sizeHint()
-
 
 class ParamHintBox(QWidget):
     """
@@ -57,18 +60,17 @@ class ParamHintBox(QWidget):
 
         minf, maxf, neginf = -sys.float_info.max, sys.float_info.max, float('-inf')
 
-        self.min_e = CompactDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
-                                       singleStep=0.5, value=self.init_hints.get('min', neginf),
-                                       buttonSymbols=2, specialValueText="None")
-        self.val_e = CompactDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                       singleStep=0.5, value=self.init_hints.get('value', 0),
-                                       buttonSymbols=2)
-        self.max_e = CompactDoubleSpinBox(decimals=2, minimum=neginf, maximum=maxf,
-                                       singleStep=0.5, value=self.init_hints.get('max', neginf),
-                                       buttonSymbols=2, specialValueText="None")
-        self.delta_e = CompactDoubleSpinBox(decimals=2, minimum=minf, maximum=maxf,
-                                         singleStep=0.5, value=1, prefix="±",
-                                         buttonSymbols=2, visible=False)
+        self.min_e = CompactDoubleSpinBox(minimum=neginf, maximum=maxf,
+                                          singleStep=0.5, value=self.init_hints.get('min', neginf),
+                                          specialValueText="None")
+        self.val_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf,
+                                          singleStep=0.5, value=self.init_hints.get('value', 0))
+        self.max_e = CompactDoubleSpinBox(minimum=neginf, maximum=maxf,
+                                          singleStep=0.5, value=self.init_hints.get('max', neginf),
+                                          specialValueText="None")
+        self.delta_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf,
+                                            singleStep=0.5, value=1, prefix="±",
+                                            visible=False)
         self.vary_e = QComboBox()
         v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints \
             else ('fixed', 'limits', 'delta')

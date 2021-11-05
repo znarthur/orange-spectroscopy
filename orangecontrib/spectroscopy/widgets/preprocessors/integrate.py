@@ -164,10 +164,10 @@ class LimitsBox(QHBoxLayout):
         if label:
             self.addWidget(QLabel(label))
 
-        self.lowlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
+        self.lowlime = SetXDoubleSpinBox(minimum=minf,
                                          maximum=maxf, singleStep=0.5,
                                          value=limits[0], maximumWidth=75)
-        self.highlime = SetXDoubleSpinBox(decimals=2, minimum=minf,
+        self.highlime = SetXDoubleSpinBox(minimum=minf,
                                           maximum=maxf, singleStep=0.5,
                                           value=limits[1], maximumWidth=75)
         self.lowlime.setValue(limits[0])
