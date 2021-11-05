@@ -211,7 +211,7 @@ class LimitsBox(QHBoxLayout):
         self.valueChanged.emit(newlimits, self)
 
     def lineLimitChanged(self):
-        newlimits = [self.line1.value(), self.line2.value()]
+        newlimits = [self.line1.rounded_value(), self.line2.rounded_value()]
         self.lowlime.setValue(newlimits[0])
         self.highlime.setValue(newlimits[1])
         self.limitChanged()

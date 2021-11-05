@@ -268,9 +268,9 @@ class ModelEditor(BaseEditorOrange):
             if name in self.model_lines():
                 l = MovableVline(position=0.0, label=name)
 
-                def change_value(x, name=name):
+                def change_value(_, line=l, name=name):
                     self.edited.emit()
-                    return self.set_hint(name, value=x)
+                    return self.set_hint(name, value=float(line.rounded_value()))
                 l.sigMoved.connect(change_value)
                 self.__lines[name] = l
 

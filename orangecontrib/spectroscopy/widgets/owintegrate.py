@@ -60,7 +60,9 @@ class IntegrateOneEditor(BaseEditorOrange):
             layout.addRow(name, e)
 
             l = MovableVline(position=v, label=name)
-            l.sigMoved.connect(cf)
+            def set_rounded(_, line=l, name=name):
+                cf(float(line.rounded_value()), name)
+            l.sigMoved.connect(set_rounded)
             self.__lines[name] = l
 
         self.focusIn = self.activateOptions
