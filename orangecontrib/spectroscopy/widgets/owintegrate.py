@@ -48,7 +48,7 @@ class IntegrateOneEditor(BaseEditorOrange):
             v = 0.
             self.__values[name] = v
 
-            e = SetXDoubleSpinBox(decimals=4, minimum=minf, maximum=maxf,
+            e = SetXDoubleSpinBox(minimum=minf, maximum=maxf,
                                   singleStep=0.5, value=v)
             e.focusIn = self.activateOptions
             e.editingFinished.connect(self.edited)
@@ -60,7 +60,9 @@ class IntegrateOneEditor(BaseEditorOrange):
             layout.addRow(name, e)
 
             l = MovableVline(position=v, label=name)
-            l.sigMoved.connect(cf)
+            def set_rounded(_, line=l, name=name):
+                cf(float(line.rounded_value()), name)
+            l.sigMoved.connect(set_rounded)
             self.__lines[name] = l
 
         self.focusIn = self.activateOptions

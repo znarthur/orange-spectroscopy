@@ -23,7 +23,7 @@ requirements:
     - recommonmark
   run:
     - python
-    - orange3 >=3.25
+    - orange3 >=3.28
     - scipy >=0.14.0
     - spectral >=0.18
     - serverfiles >=0.2

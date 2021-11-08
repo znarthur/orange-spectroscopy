@@ -90,11 +90,14 @@ class NormalizeEditor(BaseEditorOrange):
         self.int_method_cb.currentIndexChanged.connect(self.setinttype)
         self.int_method_cb.activated.connect(self.edited)
 
+        def rounded(line):
+            return float(line.rounded_value())
+
         self.lline = MovableVline(position=self.lower, label="Low limit")
-        self.lline.sigMoved.connect(self.setL)
+        self.lline.sigMoved.connect(lambda _: self.setL(rounded(self.lline)))
         self.lline.sigMoveFinished.connect(self.reorderLimits)
         self.uline = MovableVline(position=self.upper, label="High limit")
-        self.uline.sigMoved.connect(self.setU)
+        self.uline.sigMoved.connect(lambda _: self.setU(rounded(self.uline)))
         self.uline.sigMoveFinished.connect(self.reorderLimits)
 
         self.user_changed = False
