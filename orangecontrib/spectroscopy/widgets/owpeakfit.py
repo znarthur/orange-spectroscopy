@@ -222,6 +222,8 @@ class PeakPreviewRunner(PreviewRunner):
         pp_def = [master.preprocessormodel.item(i)
                   for i in range(master.preprocessormodel.rowCount())]
         if master.data is not None:
+            # Clear markings to indicate preview is running
+            refresh_integral_markings([], master.markings_list, master.curveplot)
             data = master.sample_data(master.data)
             # Pass preview data to widgets here as we don't use on_partial_result()
             for w in self.master.flow_view.widgets():
