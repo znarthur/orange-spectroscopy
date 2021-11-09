@@ -26,7 +26,7 @@ from orangecontrib.spectroscopy.widgets.peak_editors import GaussianModelEditor,
     LognormalModelEditor, DampedOscillatorModelEditor, DampedHarmOscillatorModelEditor, \
     ExponentialGaussianModelEditor, SkewedGaussianModelEditor, SkewedVoigtModelEditor, \
     ThermalDistributionModelEditor, DoniachModelEditor, ConstantModelEditor, \
-    LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor
+    LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor, set_default_vary
 
 
 def init_output_array(data, model, params):
@@ -266,6 +266,7 @@ class OWPeakFit(SpectralPreprocess):
     description = "Fit peaks to spectral region"
     icon = "icons/peakfit.svg"
     priority = 1020
+    settings_version = 2
 
     PREPROCESSORS = PREPROCESSORS
     BUTTON_ADD_LABEL = "Add model..."
@@ -400,6 +401,19 @@ class OWPeakFit(SpectralPreprocess):
             self.Outputs.fits.send(None)
             self.Outputs.residuals.send(None)
             self.Outputs.annotated_data.send(None)
+
+    @classmethod
+    def migrate_preprocessor(cls, preprocessor, version):
+        name, settings = preprocessor
+        settings = settings.copy()
+        if version < 2:
+            for n, h in settings.items():
+                if isinstance(h, dict):
+                    h = h.copy()
+                    set_default_vary(h)
+                    settings[n] = h
+            version = 2
+        return [((name, settings), version)]
 
 
 if __name__ == "__main__":  # pragma: no cover

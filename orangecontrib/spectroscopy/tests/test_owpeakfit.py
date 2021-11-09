@@ -108,6 +108,21 @@ class TestOWPeakFit(WidgetTest):
         vc = self.widget.preprocessormodel.item(0).data(DescriptionRole).viewclass
         self.assertEqual(PREPROCESSORS[0].viewclass, vc)
 
+    def test_migrate_refactor1(self):
+        i1 = ("xyz", {'amplitude': {'value': 42.0, 'vary': False},
+                      'center': {'value': 1349.984, 'min': 1307.984, 'max': 1391.984},
+                      'sigma': {'min': 0, 'value': 1.0}})
+        i2 = ("gam", {'gamma1': {'expr': 'sigma'},
+                      'gamma2': {'expr': '', 'value': 0.0, 'min': -1.0, 'max': 1.0}})
+        settings = {"storedsettings": {"preprocessors": [i1, i2]}}
+        OWPeakFit.migrate_settings(settings, 1)
+        o1 = ('xyz', {'amplitude': {'value': 42.0, 'vary': 'fixed'},
+                      'center': {'max': 1391.984, 'min': 1307.984, 'value': 1349.984, 'vary': 'limits'},
+                      'sigma': {'min': 0, 'value': 1.0, 'vary': 'limits'}})
+        o2 = ('gam', {'gamma1': {'expr': 'sigma', 'vary': 'expr'},
+                      'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0, 'value': 0.0, 'vary': 'limits'}})
+        self.assertEqual(settings["storedsettings"]["preprocessors"], [o1, o2])
+
 
 class TestPeakFit(unittest.TestCase):
 
