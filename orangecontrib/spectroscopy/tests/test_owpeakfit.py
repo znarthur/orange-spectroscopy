@@ -48,7 +48,7 @@ class TestOWPeakFit(WidgetTest):
                                     'sigma': OrderedDict([('value', 5.0),
                                                           ('max', 20.0)]),
                                     'gamma': OrderedDict([('value', 1.0),
-                                                          ('vary', False)]),
+                                                          ('vary', "fixed")]),
                                     })]}}
                 elif p.viewclass == PseudoVoigtModelEditor:
                     settings = {'storedsettings':
@@ -56,7 +56,7 @@ class TestOWPeakFit(WidgetTest):
                                  'preprocessors':
                                  [('orangecontrib.spectroscopy.widgets.owwidget.pv',
                                    {'center': OrderedDict([('value', 1650.0)]),
-                                    'fraction': OrderedDict([('vary', False)]),
+                                    'fraction': OrderedDict([('vary', "fixed")]),
                                     })]}}
                 self.widget = self.create_widget(OWPeakFit, stored_settings=settings)
                 self.send_signal("Data", self.data)

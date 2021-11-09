@@ -149,15 +149,13 @@ def create_model(item, rownum):
 
 
 def prepare_params(item, model):
+    desc = item.data(DescriptionRole)
+    translate_hints = desc.viewclass.translate_hints
     editor_params = item.data(ParametersRole)
-    for name, hints in editor_params.items():
-        # Exclude model init keyword 'form'
-        if name != 'form':
-            # Exclude 'expr' hints unless setting to "" to disable default
-            #   Otherwise expression has variable references which are missing prefixes
-            if hints.get('expr', "") != "":
-                hints = {k: v for k, v in hints.items() if k != 'expr'}
-            model.set_param_hint(name, **hints)
+    all_hints = editor_params
+    all_hints = translate_hints(all_hints)
+    for name, hints in all_hints.items():
+        model.set_param_hint(name, **hints)
     params = model.make_params()
     return params
 
