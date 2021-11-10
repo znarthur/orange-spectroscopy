@@ -1,6 +1,5 @@
 import copy
 import sys
-from collections import OrderedDict
 
 import lmfit
 import numpy as np
@@ -15,6 +14,11 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     SetXDoubleSpinBox, BaseEditorOrange
+
+
+DEFAULT_DELTA = 1
+DEFAULT_VALUE = 0
+UNUSED_VALUE = float('-inf')
 
 
 class CompactDoubleSpinBox(SetXDoubleSpinBox):
@@ -36,15 +40,14 @@ class ParamHintBox(QWidget):
     Box to interact with lmfit parameter hints
 
     Args:
-        name (str): Name of the parameter
-        init_hints (OrderedDict): initial parameter hints for parameter given by 'name'
+        hints (dict): parameter hints (in internal format) for parameter given by 'name'
     """
 
-    valueChanged = Signal(OrderedDict)
+    valueChanged = Signal()
     editingFinished = Signal(QObject)
     focus_in = None
 
-    def __init__(self, init_hints=None, parent=None, **kwargs):
+    def __init__(self, hints, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
         layout = QHBoxLayout()
@@ -53,61 +56,90 @@ class ParamHintBox(QWidget):
         self.setLayout(layout)
         self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 
-        if init_hints is None:
-            self.init_hints = OrderedDict()
-        else:
-            self.init_hints = copy.deepcopy(init_hints)
+        self.hints = hints
+        assert 'vary' in self.hints
 
-        minf, maxf, neginf = -sys.float_info.max, sys.float_info.max, float('-inf')
+        minf, maxf = -sys.float_info.max, sys.float_info.max
 
-        self.min_e = CompactDoubleSpinBox(minimum=neginf, maximum=maxf,
-                                          singleStep=0.5, value=self.init_hints.get('min', neginf),
+        self._defaults = {'min': UNUSED_VALUE,
+                          'value': DEFAULT_VALUE,
+                          'max': UNUSED_VALUE,
+                          'delta': DEFAULT_DELTA,
+                          'expr': ''}
+
+        self.min_e = CompactDoubleSpinBox(minimum=UNUSED_VALUE, maximum=maxf, singleStep=0.5,
+                                          value=self.hints.get('min', self._defaults["min"]),
                                           specialValueText="None")
-        self.val_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf,
-                                          singleStep=0.5, value=self.init_hints.get('value', 0))
-        self.max_e = CompactDoubleSpinBox(minimum=neginf, maximum=maxf,
-                                          singleStep=0.5, value=self.init_hints.get('max', neginf),
+        self.val_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf, singleStep=0.5,
+                                          value=self.hints.get('value', self._defaults["value"]))
+        self.max_e = CompactDoubleSpinBox(minimum=UNUSED_VALUE, maximum=maxf, singleStep=0.5,
+                                          value=self.hints.get('max', self._defaults["min"]),
                                           specialValueText="None")
-        self.delta_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf,
-                                            singleStep=0.5, value=1, prefix="±",
-                                            visible=False)
+        self.delta_e = CompactDoubleSpinBox(minimum=minf, maximum=maxf, singleStep=0.5,
+                                            value=self.hints.get('delta', self._defaults["delta"]),
+                                            prefix="±", visible=False)
         self.vary_e = QComboBox()
-        v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.init_hints \
+        v_opt = ('fixed', 'limits', 'delta', 'expr') if 'expr' in self.hints \
             else ('fixed', 'limits', 'delta')
         self.vary_e.insertItems(0, v_opt)
-        self.vary_e.setCurrentText('limits')
+        with blocked(self.vary_e):
+            self.vary_e.setCurrentText(self.hints['vary'])
+
         self.expr_e = QLineEdit(visible=False, enabled=False,
-                                text=self.init_hints.get('expr', ""))
+                                text=self.hints.get('expr', ""))
 
-        layout.addWidget(self.min_e)
-        layout.addWidget(self.val_e)
-        layout.addWidget(self.max_e)
-        layout.addWidget(self.delta_e)
-        layout.addWidget(self.expr_e)
-        layout.addWidget(self.vary_e)
+        self.edits = [("min", self.min_e),
+                      ("value", self.val_e),
+                      ("max", self.max_e),
+                      ("delta", self.delta_e),
+                      ("vary", self.vary_e),
+                      ("expr", self.expr_e)]
 
-        self.min_e.valueChanged[float].connect(self.parameterChanged)
-        self.val_e.valueChanged[float].connect(self.parameterChanged)
-        self.max_e.valueChanged[float].connect(self.parameterChanged)
-        self.delta_e.valueChanged[float].connect(self.parameterChanged)
-        self.vary_e.currentTextChanged.connect(self.parameterChanged)
-        self.expr_e.textChanged.connect(self.parameterChanged)
+        for name, widget in self.edits[:4]:  # float fields
+            widget.valueChanged[float].connect(lambda x, name=name: self._changed_float(x, name))
+        self.vary_e.currentTextChanged.connect(self._changed_vary)
+        self.expr_e.textChanged.connect(self._changed_expr)
 
-        self.min_e.editingFinished.connect(self.editFinished)
-        self.val_e.editingFinished.connect(self.editFinished)
-        self.max_e.editingFinished.connect(self.editFinished)
-        self.delta_e.editingFinished.connect(self.editFinished)
-        self.vary_e.currentTextChanged.connect(self.editFinished)
-        self.expr_e.editingFinished.connect(self.editFinished)
+        for name, widget in self.edits:
+            layout.addWidget(widget)
+            widget.focusIn = self.focusIn
 
-        self.min_e.focusIn = self.focusIn
-        self.val_e.focusIn = self.focusIn
-        self.max_e.focusIn = self.focusIn
-        self.delta_e.focusIn = self.focusIn
-        self.vary_e.focusIn = self.focusIn
-        self.expr_e.focusIn = self.focusIn
+        self.setValues()
 
-        self.setValues(**self.init_hints)
+    def _change(self, v, name):
+        if v != self.hints.get(name, None):
+            self.hints[name] = v
+            return True
+        else:
+            return False
+
+    def _change_and_notify(self, v, name):
+        changed = self._change(v, name)
+        if changed:
+            self.valueChanged.emit()
+
+    def update_min_max_for_delta(self):
+        vary = self.vary_e.currentText()
+        if vary == "delta":
+            v = self.hints.get("value", self._defaults["value"])
+            self._change(v - self.hints.get("delta", self._defaults["delta"]), "min")
+            self._change(v + self.hints.get("delta", self._defaults["delta"]), "max")
+            self.setValues()  # update UI, no need for signal (min and max are unused in delta)
+
+    def _changed_float(self, v, name):
+        self._change_and_notify(v, name)
+        if name in ["value", "delta"]:
+            self.update_min_max_for_delta()
+
+    def _changed_vary(self):
+        v = self.vary_e.currentText()
+        self.update_gui()
+        self._change_and_notify(v, "vary")
+        self.update_min_max_for_delta()
+
+    def _changed_expr(self):
+        v = self.expr_e.text()
+        self._change_and_notify(v, "expr")
 
     def focusIn(self):
         """Call custom method on focus if present"""
@@ -118,103 +150,25 @@ class ParamHintBox(QWidget):
         self.focusIn()
         return super().focusInEvent(*e)
 
-    def setValues(self, **kwargs):
-        """Set parameter hint value(s) for the parameter represented by this widget.
-        Possible keywords are ('value', 'vary', 'min', 'max', 'expr')
-        """
-        value = kwargs.get('value', None)
-        min = kwargs.get('min', None)
-        max = kwargs.get('max', None)
-        expr = kwargs.get('expr', None)
-        vary = kwargs.get('vary', None)
+    def setValues(self):
+        expr = self.hints.get('expr', self._defaults['expr'])
+        vary = self.hints['vary']
 
-        # Prioritize current gui setting
-        vary_opt = self.vary_e.currentText()
-        if expr is not None and expr != "":
-            vary_opt = 'expr'
-        elif vary is False:
-            vary_opt = 'fixed'
-        elif vary_opt not in ('limits', 'delta'):
-            vary_opt = 'limits'
-        elif vary_opt == 'delta' and value is not None:
-            d = self.delta_e.value()
-            min = value - d
-            max = value + d
-        elif vary_opt == 'limits' and value is not None and min is not None and max is not None\
-                and value - min == max - value:
-            # restore delta setting on param load
-            vary_opt = 'delta'
-            with blocked(self.delta_e):
-                self.delta_e.setValue(value - min)
+        for name, widget in self.edits[:4]:  # floating point elements
+            v = self.hints.get(name, self._defaults[name])
+            with blocked(widget):
+                widget.setValue(v)
+
         with blocked(self.vary_e):
-            self.vary_e.setCurrentText(vary_opt)
+            self.vary_e.setCurrentText(vary)
 
-        if value is not None:
-            with blocked(self.val_e):
-                self.val_e.setValue(value)
-        if min is not None:
-            with blocked(self.min_e):
-                self.min_e.setValue(min)
-        if max is not None:
-            with blocked(self.max_e):
-                self.max_e.setValue(max)
+        with blocked(self.expr_e):
+            self.expr_e.setText(expr)
 
         self.update_gui()
-
-    def param_hints(self):
-        """Convert editor values to OrderedDict of param_hints"""
-        e_vals = {
-            'value': self.val_e.value(),
-            'vary': self.vary_e.currentText(),
-            'min': self.min_e.value(),
-            'max': self.max_e.value(),
-            'delta': self.delta_e.value(),
-            'expr': self.expr_e.text(),
-        }
-        vary_opt = e_vals['vary']
-        # Handle delta case
-        delta = e_vals.pop('delta')
-        if e_vals['vary'] == 'delta':
-            if delta == 0:
-                e_vals['vary'] = 'fixed'
-            else:
-                e_vals['min'] = e_vals['value'] - delta
-                e_vals['max'] = e_vals['value'] + delta
-                # Update min/max state
-                self.setValues(min=e_vals['min'], max=e_vals['max'])
-        # Convert vary option to boolean
-        # vary is implied False by 'expr' hint
-        if vary_opt == 'fixed':
-            e_vals['vary'] = False
-        else:
-            e_vals.pop('vary')
-        # Set expr to "" if default expr should be overridden
-        if 'expr' in self.init_hints and vary_opt != 'expr':
-            e_vals['expr'] = ""
-        else:
-            e_vals.pop('expr')
-        # Avoid collecting unchanged hints
-        if e_vals['min'] == self.init_hints.get('min', float('-inf')):
-            e_vals.pop('min')
-        if e_vals['max'] == self.init_hints.get('max', float('-inf')):
-            e_vals.pop('max')
-
-        # Start with defaults
-        e_hints = self.init_hints.copy()
-        # Only send default if expr selected, Parameter respects bounds even if expr is set
-        if vary_opt != 'expr':
-            e_hints.update(e_vals)
-
-        return e_hints
-
-    def parameterChanged(self):
-        e_hints = self.param_hints()
-        self.update_gui()
-        self.valueChanged.emit(e_hints)
 
     def update_gui(self):
         vary = self.vary_e.currentText()
-
         self.min_e.setVisible(vary in ('limits', 'fixed', 'delta'))
         self.min_e.setEnabled(vary not in ('fixed', 'delta'))
         self.val_e.setVisible(vary != 'expr')
@@ -223,8 +177,19 @@ class ParamHintBox(QWidget):
         self.delta_e.setVisible(vary == 'delta')
         self.expr_e.setVisible(vary == 'expr')
 
-    def editFinished(self):
-        self.editingFinished.emit(self)
+
+def set_default_vary(h):
+    # Set vary corresponding to the defaults:
+    expr = h.get("expr", None)
+    vary = h.get("vary", None)
+    # If vary is not defined and expression is given, use it
+    if expr is not None and expr != "" and vary is None:
+        h["vary"] = "expr"
+    elif vary is False:
+        h["vary"] = "fixed"
+    else:
+        h["vary"] = "limits"
+    return h
 
 
 class ModelEditor(BaseEditorOrange):
@@ -232,6 +197,8 @@ class ModelEditor(BaseEditorOrange):
 
     class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("{} out of range.")
+
+    _defaults = None  # model defaults are stored here
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -244,22 +211,17 @@ class ModelEditor(BaseEditorOrange):
         self.__editors = {}
         self.__lines = {}
 
-        m = self.model()
-        for name, value in m.def_vals.items():
-            m.set_param_hint(name, value=value)
-        self.__defaults = m.param_hints
-
         for row, name in enumerate(self.model_parameters()):
-            h = copy.deepcopy(self.__defaults.get(name, OrderedDict(value=0)))
+            h = copy.deepcopy(self.defaults().get(name, {}))
+            set_default_vary(h)
             self.__values[name] = h
 
             e = ParamHintBox(h)
             e.focus_in = self.activateOptions
-            e.editingFinished.connect(self.edited)
 
-            def change_hint(h, name=name):
+            def change_hint(name=name):
                 self.edited.emit()
-                return self.set_param_hints(name, h)
+                self.changed_param_hints(name)
             e.valueChanged.connect(change_hint)
             self.__editors[name] = e
             layout.addWidget(QLabel(name), row, 0)
@@ -269,8 +231,9 @@ class ModelEditor(BaseEditorOrange):
                 l = MovableVline(position=0.0, label=name)
 
                 def change_value(_, line=l, name=name):
+                    self.set_hint(name, "value", float(line.rounded_value()))
+                    self.__editors[name].update_min_max_for_delta()
                     self.edited.emit()
-                    return self.set_hint(name, value=float(line.rounded_value()))
                 l.sigMoved.connect(change_value)
                 self.__lines[name] = l
 
@@ -285,24 +248,19 @@ class ModelEditor(BaseEditorOrange):
                 l.report = self.parent_widget.curveplot
                 self.parent_widget.curveplot.add_marking(l)
 
-    def set_param_hints(self, name, h, user=True):
+    def changed_param_hints(self, name, user=True):
         if user:
             self.user_changed = True
-        if self.__values[name] != h:
-            self.__values[name] = h
-            with blocked(self.__editors[name]):
-                self.__editors[name].setValues(**h)
-                l = self.__lines.get(name, None)
-                if l is not None and 'value' in h:
-                    l.setValue(h['value'])
-            self.changed.emit()
+        self.__editors[name].setValues()
+        l = self.__lines.get(name, None)
+        h = self.__values[name]
+        if l is not None and 'value' in h:
+            l.setValue(h['value'])
+        self.changed.emit()
 
-    def set_hint(self, name, **kwargs):
-        h = self.__values[name].copy()
-        for k, v in kwargs.items():
-            if k in ('value', 'vary', 'min', 'max', 'expr'):
-                h[k] = v
-        self.set_param_hints(name, h)
+    def set_hint(self, name, k, v):
+        self.__values[name][k] = v
+        self.changed_param_hints(name)
 
     def set_form(self, form):
         self.__values.update(form=form)
@@ -312,12 +270,17 @@ class ModelEditor(BaseEditorOrange):
         if params:  # parameters were set manually set
             self.user_changed = True
         for name in self.model_parameters():
-            self.set_param_hints(name,
-                                 params.get(name, self.__defaults.get(name, OrderedDict())),
-                                 user=False)
+            # change contents within the same dictionary because the editor has the reference
+            default = copy.deepcopy(self.defaults().get(name, {}))
+            default = set_default_vary(default)
+            nparams = copy.deepcopy(params.get(name, default))
+            self.__values[name].clear()
+            self.__values[name].update(nparams)
+            self.changed_param_hints(name, user=False)
 
     def parameters(self):
-        return self.__values
+        # need to copy.deepcopy to get on_modelchanged signal
+        return copy.deepcopy(self.__values)
 
     @classmethod
     def createinstance(cls, prefix, form=None):
@@ -336,9 +299,18 @@ class ModelEditor(BaseEditorOrange):
                           for name in self.model_lines()]
                 for name, h in limits:
                     v = h.get('value', None)
-                    if v is not None and v < minx or v > maxx:
+                    if v is not None and (v < minx or v > maxx):
                         self.parent_widget.Warning.preprocessor()
                         self.Warning.out_of_range(name)
+
+    @classmethod
+    def defaults(cls):
+        if cls._defaults is None:
+            m = cls.model()
+            for name, value in m.def_vals.items():
+                m.set_param_hint(name, value=value)
+            cls._defaults = m.param_hints
+        return cls._defaults
 
     @staticmethod
     def model_parameters():
@@ -353,6 +325,72 @@ class ModelEditor(BaseEditorOrange):
         Returns a tuple of model_parameter names that should have visualized selection lines
         """
         raise NotImplementedError
+
+    @classmethod
+    def translate(cls, name, hints):
+        hints = hints.copy()
+        defaults = cls.defaults()[name]
+
+        vary = hints["vary"]
+        delta = hints.get("delta", DEFAULT_DELTA)
+        value = hints.get("value", DEFAULT_VALUE)
+
+        # special delta case
+        if vary == 'delta' and delta == 0:
+            vary = 'fixed'
+
+        if vary == 'delta':
+            hints["min"] = value - delta
+            hints["max"] = value + delta
+        elif vary == 'limits':
+            hints["value"] = value
+        elif vary == 'expr':
+            pass
+        elif vary == 'fixed':
+            pass
+        else:
+            raise Exception("Invalid vary")
+
+        hints.pop('delta', None)
+
+        # vary is implied False by 'expr' hint
+        if vary == 'fixed':
+            hints['vary'] = False
+        else:
+            hints.pop('vary', None)
+
+        # Set expr to "" if default expr should be overridden
+        if 'expr' in defaults and vary != 'expr':
+            hints['expr'] = ""
+        else:
+            hints.pop('expr', None)
+
+        # Avoid collecting unchanged hints, -inf corresponds to the special value
+        if 'min' in hints and hints['min'] == defaults.get('min', UNUSED_VALUE):
+            hints.pop('min', None)
+        if 'max' in hints and hints['max'] == defaults.get('max', UNUSED_VALUE):
+            hints.pop('max', None)
+
+        # Only send default if expr selected, Parameter respects bounds even if expr is set
+        if vary == 'expr':
+            hints = defaults.copy()
+
+        # Exclude 'expr' hints unless setting to "" to disable default
+        #   Otherwise expression has variable references which are missing prefixes
+        if hints.get('expr', "") != "":
+            hints.pop('expr', None)
+
+        return hints
+
+    @classmethod
+    def translate_hints(cls, all_hints):
+        out = {}
+        for name, hints in all_hints.items():
+            # Exclude model init keyword 'form'
+            if name != 'form':
+                hints = cls.translate(name, hints)
+                out[name] = hints
+        return out
 
 
 class PeakModelEditor(ModelEditor):
@@ -371,7 +409,7 @@ class PeakModelEditor(ModelEditor):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                self.set_hint('center', value=x[int(len(x)/2)])
+                self.set_hint('center', 'value', x[int(len(x)/2)])
                 self.edited.emit()
         super().set_preview_data(data)
 

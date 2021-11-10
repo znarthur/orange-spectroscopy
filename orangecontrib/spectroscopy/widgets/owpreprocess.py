@@ -30,7 +30,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
-    QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
+    QPushButton, QLabel, QMenu, QAction, QScrollArea, QGridLayout,
     QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
@@ -1118,61 +1118,6 @@ PREPROCESSORS = [
     ]
 
 
-def migrate_preprocessor(preprocessor, version):
-    """ Migrate a preprocessor. A preprocessor should migrate into a list of preprocessors. """
-    name, settings = preprocessor
-    settings = settings.copy()
-    if name == "orangecontrib.infrared.rubberband" and version < 2:
-        name = "orangecontrib.infrared.baseline"
-        settings["baseline_type"] = 1
-        version = 2
-    if name == "orangecontrib.infrared.savitzkygolay" and version < 4:
-        name = "orangecontrib.spectroscopy.savitzkygolay"
-        # make window, polyorder, deriv valid, even if they were saved differently
-        SGE = SavitzkyGolayFilteringEditor
-        # some old versions saved these as floats
-        window = int(settings.get("window", SGE.DEFAULT_WINDOW))
-        polyorder = int(settings.get("polyorder", SGE.DEFAULT_POLYORDER))
-        deriv = int(settings.get("deriv", SGE.DEFAULT_DERIV))
-        if window % 2 == 0:
-            window = window + 1
-        window = max(min(window, SGE.MAX_WINDOW), SGE.MIN_WINDOW)
-        polyorder = max(min(polyorder, window - 1), 0)
-        deriv = max(min(SGE.MAX_DERIV, deriv, polyorder), 0)
-        settings["window"] = window
-        settings["polyorder"] = polyorder
-        settings["deriv"] = deriv
-        version = 4
-    if name == "orangecontrib.infrared.absorbance" and version < 5:
-        name = "orangecontrib.spectroscopy.transforms"
-        settings["from_type"] = 1
-        settings["to_type"] = 0
-        version = 5
-    if name == "orangecontrib.infrared.transmittance" and version < 5:
-        name = "orangecontrib.spectroscopy.transforms"
-        settings["from_type"] = 0
-        settings["to_type"] = 1
-        version = 5
-    if name in ["orangecontrib.spectroscopy.preprocess.emsc",
-                "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc"] \
-            and version < 7:
-        ranges = settings.get("ranges", [])
-        new_ranges = [[l, r, w, 0.0] for l, r, w in ranges]
-        settings["ranges"] = new_ranges
-        version = 7
-    return [((name, settings), version)]
-
-
-def migrate_preprocessor_list(preprocessors):
-    pl = []
-    for p, v in preprocessors:
-        tl = migrate_preprocessor(p, v)
-        if tl != [(p, v)]:  # if changed, try another migration
-            tl = migrate_preprocessor_list(tl)
-        pl.extend(tl)
-    return pl
-
-
 class TimeoutLabel(QLabel):
     """ A label that disappears out after two seconds. """
 
@@ -1730,23 +1675,29 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
         return sh.expandedTo(QSize(sh.width(), 500))
 
     @classmethod
+    def migrate_preprocessor(cls, preprocessor, version):
+        """ Migrate a preprocessor. A preprocessor should migrate into a list of preprocessors. """
+        name, settings = preprocessor
+        return [((name, settings), version)]
+
+    @classmethod
+    def migrate_preprocessor_list(cls, preprocessors):
+        pl = []
+        for p, v in preprocessors:
+            tl = cls.migrate_preprocessor(p, v)
+            if tl != [(p, v)]:  # if changed, try another migration
+                tl = cls.migrate_preprocessor_list(tl)
+            pl.extend(tl)
+        return pl
+
+    @classmethod
     def migrate_preprocessors(cls, preprocessors, version):
         input = list(zip(preprocessors, [version]*len(preprocessors)))
-        migrated = migrate_preprocessor_list(input)
+        migrated = cls.migrate_preprocessor_list(input)
         return [p[0] for p in migrated], cls.settings_version
 
     @classmethod
     def migrate_settings(cls, settings_, version):
-        # For backwards compatibility, set process_reference=False
-        # but only if there were multiple preprocessors
-        if "process_reference" not in settings_:
-            settings_["process_reference"] = not(
-                version <= 5
-                and "storedsettings" in settings_
-                and "preprocessors" in settings_["storedsettings"]
-                and len(settings_["storedsettings"]["preprocessors"]) > 1
-            )
-
         # migrate individual preprocessors
         if "storedsettings" in settings_ and "preprocessors" in settings_["storedsettings"]:
             settings_["storedsettings"]["preprocessors"], _ = \
@@ -1821,6 +1772,64 @@ class OWPreprocess(SpectralPreprocessReference):
         # if there are no preprocessors, return None instead of an empty list
         preprocessor = preprocess.preprocess.PreprocessorList(plist) if plist else None
         return data, preprocessor
+
+    @classmethod
+    def migrate_preprocessor(cls, preprocessor, version):
+        name, settings = preprocessor
+        settings = settings.copy()
+        if name == "orangecontrib.infrared.rubberband" and version < 2:
+            name = "orangecontrib.infrared.baseline"
+            settings["baseline_type"] = 1
+            version = 2
+        if name == "orangecontrib.infrared.savitzkygolay" and version < 4:
+            name = "orangecontrib.spectroscopy.savitzkygolay"
+            # make window, polyorder, deriv valid, even if they were saved differently
+            SGE = SavitzkyGolayFilteringEditor
+            # some old versions saved these as floats
+            window = int(settings.get("window", SGE.DEFAULT_WINDOW))
+            polyorder = int(settings.get("polyorder", SGE.DEFAULT_POLYORDER))
+            deriv = int(settings.get("deriv", SGE.DEFAULT_DERIV))
+            if window % 2 == 0:
+                window = window + 1
+            window = max(min(window, SGE.MAX_WINDOW), SGE.MIN_WINDOW)
+            polyorder = max(min(polyorder, window - 1), 0)
+            deriv = max(min(SGE.MAX_DERIV, deriv, polyorder), 0)
+            settings["window"] = window
+            settings["polyorder"] = polyorder
+            settings["deriv"] = deriv
+            version = 4
+        if name == "orangecontrib.infrared.absorbance" and version < 5:
+            name = "orangecontrib.spectroscopy.transforms"
+            settings["from_type"] = 1
+            settings["to_type"] = 0
+            version = 5
+        if name == "orangecontrib.infrared.transmittance" and version < 5:
+            name = "orangecontrib.spectroscopy.transforms"
+            settings["from_type"] = 0
+            settings["to_type"] = 1
+            version = 5
+        if name in ["orangecontrib.spectroscopy.preprocess.emsc",
+                    "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc"] \
+                and version < 7:
+            ranges = settings.get("ranges", [])
+            new_ranges = [[l, r, w, 0.0] for l, r, w in ranges]
+            settings["ranges"] = new_ranges
+            version = 7
+        return [((name, settings), version)]
+
+    @classmethod
+    def migrate_settings(cls, settings_, version):
+        # For backwards compatibility, set process_reference=False
+        # but only if there were multiple preprocessors
+        if "process_reference" not in settings_:
+            settings_["process_reference"] = not(
+                version <= 5
+                and "storedsettings" in settings_
+                and "preprocessors" in settings_["storedsettings"]
+                and len(settings_["storedsettings"]["preprocessors"]) > 1
+            )
+
+        super().migrate_settings(settings_, version)
 
 
 if __name__ == "__main__":  # pragma: no cover
