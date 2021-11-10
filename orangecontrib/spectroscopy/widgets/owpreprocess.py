@@ -30,7 +30,7 @@ from AnyQt.QtCore import (
 from AnyQt.QtWidgets import (
     QWidget, QComboBox, QSpinBox,
     QListView, QVBoxLayout, QFormLayout, QSizePolicy, QStyle,
-    QPushButton, QLabel, QMenu, QApplication, QAction, QScrollArea, QGridLayout,
+    QPushButton, QLabel, QMenu, QAction, QScrollArea, QGridLayout,
     QToolButton, QSplitter
 )
 from AnyQt.QtGui import (
