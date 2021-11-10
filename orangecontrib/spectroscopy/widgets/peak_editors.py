@@ -106,28 +106,36 @@ class ParamHintBox(QWidget):
 
         self.setValues()
 
-    def _change_and_notify(self, v, name):
+    def _change(self, v, name):
         if v != self.hints.get(name, None):
             self.hints[name] = v
+            return True
+        else:
+            return False
+
+    def _change_and_notify(self, v, name):
+        changed = self._change(v, name)
+        if changed:
             self.valueChanged.emit()
 
-    def _updata_min_max_for_delta(self):
+    def update_min_max_for_delta(self):
         vary = self.vary_e.currentText()
         if vary == "delta":
             v = self.hints.get("value", self._defaults["value"])
-            self._change_and_notify(v - self.hints.get("delta", self._defaults["delta"]), "min")
-            self._change_and_notify(v + self.hints.get("delta", self._defaults["delta"]), "max")
+            self._change(v - self.hints.get("delta", self._defaults["delta"]), "min")
+            self._change(v + self.hints.get("delta", self._defaults["delta"]), "max")
+            self.setValues()  # update UI, no need for signal (min and max are unused in delta)
 
     def _changed_float(self, v, name):
         self._change_and_notify(v, name)
         if name in ["value", "delta"]:
-            self._updata_min_max_for_delta()
+            self.update_min_max_for_delta()
 
     def _changed_vary(self):
         v = self.vary_e.currentText()
         self.update_gui()
         self._change_and_notify(v, "vary")
-        self._updata_min_max_for_delta()
+        self.update_min_max_for_delta()
 
     def _changed_expr(self):
         v = self.expr_e.text()
@@ -224,6 +232,7 @@ class ModelEditor(BaseEditorOrange):
 
                 def change_value(_, line=l, name=name):
                     self.set_hint(name, "value", float(line.rounded_value()))
+                    self.__editors[name].update_min_max_for_delta()
                     self.edited.emit()
                 l.sigMoved.connect(change_value)
                 self.__lines[name] = l
