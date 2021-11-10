@@ -117,10 +117,12 @@ class TestOWPeakFit(WidgetTest):
         settings = {"storedsettings": {"preprocessors": [i1, i2]}}
         OWPeakFit.migrate_settings(settings, 1)
         o1 = ('xyz', {'amplitude': {'value': 42.0, 'vary': 'fixed'},
-                      'center': {'max': 1391.984, 'min': 1307.984, 'value': 1349.984, 'vary': 'limits'},
+                      'center': {'max': 1391.984, 'min': 1307.984,
+                                 'value': 1349.984, 'vary': 'limits'},
                       'sigma': {'min': 0, 'value': 1.0, 'vary': 'limits'}})
         o2 = ('gam', {'gamma1': {'expr': 'sigma', 'vary': 'expr'},
-                      'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0, 'value': 0.0, 'vary': 'limits'}})
+                      'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0,
+                                 'value': 0.0, 'vary': 'limits'}})
         self.assertEqual(settings["storedsettings"]["preprocessors"], [o1, o2])
 
 
@@ -164,7 +166,7 @@ class TestBuildModel(GuiTest):
 
     def test_model_from_editor(self):
         self.editor = VoigtModelEditor()
-        self.editor.set_hint('center', value=1655)
+        self.editor.set_hint('center', 'value', 1655)
         self.editor.edited.emit()
 
         m = self.editor.createinstance(prefix=unique_prefix(self.editor, 0))
@@ -226,10 +228,9 @@ class TestVoigtEditor(ModelEditorTest):
 
     def test_set_param(self):
         e = self.editor
-        p = e.parameters()['center'].copy()
-        p.update({'value': 1623, 'min': 1603, 'max': 1643})
-        e.set_param_hints('center', p)
-        e.edited.emit()
+        e.set_hint('center', 'value', 1623)
+        e.set_hint('center', 'min', 1603)
+        e.set_hint('center', 'max', 1643)
         p_set = e.parameters()['center']
         self.assertIsInstance(p_set, dict)
         self.assertEqual(p_set['value'], 1623)
@@ -238,7 +239,7 @@ class TestVoigtEditor(ModelEditorTest):
 
     def test_set_center(self):
         e = self.editor
-        e.set_hint('center', value=1655)
+        e.set_hint('center', 'value', 1655)
         e.edited.emit()
         m = self.get_model_single()
         params = self.get_params_single(m)
@@ -340,7 +341,6 @@ class TestVoigtEditorMulti(ModelEditorTest):
 class TestParamHintBox(GuiTest):
 
     def test_defaults(self):
-        hb = ParamHintBox()
         defaults = {
             'value': 0,
             'vary': 'limits',
@@ -349,6 +349,7 @@ class TestParamHintBox(GuiTest):
             'delta': 1,
             'expr': "",
         }
+        hb = ParamHintBox(defaults)
         e_vals = {
             'value': hb.val_e.value(),
             'vary': hb.vary_e.currentText(),
@@ -358,46 +359,56 @@ class TestParamHintBox(GuiTest):
             'expr': hb.expr_e.text(),
         }
         self.assertEqual(defaults, e_vals)
-        self.assertEqual(OrderedDict([('value', 0.0)]), hb.param_hints())
+        self.assertEqual({'value': 0.0}, VoigtModelEditor.translate("center", hb.hints))
 
     def test_keep_delta(self):
-        hb = ParamHintBox()
+        h = {'vary': 'limits'}
+        hb = ParamHintBox(h)
         hb.vary_e.setCurrentText('delta')
-        self.assertEqual('delta', hb.vary_e.currentText())
+        hb.setValues()  # an Editor should run this
+        self.assertEqual('delta', h['vary'])
+        self.assertEqual((-1, 1), (h['min'], h['max']))
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
         hb.vary_e.setCurrentText('limits')
+        hb.setValues()  # an Editor should run this
+        self.assertEqual('limits', h['vary'])
+        self.assertEqual((-1, 1), (h['min'], h['max']))
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
         hb.vary_e.setCurrentText('delta')
+        hb.setValues()  # an Editor should run this
+        self.assertEqual((-1, 1), (h['min'], h['max']))
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
 
     def test_delta_update_limits(self):
-        hb = ParamHintBox()
+        h = {'vary': 'limits'}
+        hb = ParamHintBox(h)
         hb.vary_e.setCurrentText('delta')
+        hb.setValues()  # an Editor should run this
         self.assertEqual((-1, 1), (hb.min_e.value(), hb.max_e.value()))
-        hb.setValues(value=10)
+        hb.val_e.setValue(10)
+        hb.setValues()
         self.assertEqual((9, 11), (hb.min_e.value(), hb.max_e.value()))
         hb.vary_e.setCurrentText('limits')
+        hb.setValues()
         self.assertEqual((9, 11), (hb.min_e.value(), hb.max_e.value()))
-
-    def test_delta_restore_from_saved_hints(self):
-        hb = ParamHintBox()
-        hb.setValues(value=15.3, min=10.3, max=20.3)
-        self.assertEqual('delta', hb.vary_e.currentText())
-        self.assertEqual(5.0, hb.delta_e.value())
+        hb.vary_e.setCurrentText('delta')
+        h['value'] = 20
+        hb.update_min_max_for_delta()  # should be called after line move
+        self.assertEqual((19, 21), (hb.min_e.value(), hb.max_e.value()))
 
     def test_expr_change_to_vary(self):
-        init = OrderedDict([('expr', "test")])
-        hb = ParamHintBox(init_hints=init)
-        self.assertEqual(init, hb.param_hints())
+        h = {'expr': 'test', 'vary': 'expr'}
+        hb = ParamHintBox(h)
+        self.assertEqual({}, VoigtModelEditor.translate("gamma", hb.hints))  # default
         hb.vary_e.setCurrentText('delta')
         self.assertEqual('delta', hb.vary_e.currentText())
-        self.assertEqual("", hb.param_hints()['expr'])
+        self.assertEqual("", VoigtModelEditor.translate("gamma", hb.hints)["expr"])
         hb.vary_e.setCurrentText('expr')
         self.assertEqual('expr', hb.vary_e.currentText())
-        self.assertEqual(init, hb.param_hints())
+        self.assertEqual({}, VoigtModelEditor.translate("gamma", hb.hints))  # default
 
     def test_expr_set_hint(self):
-        hb = ParamHintBox(init_hints=OrderedDict([('expr', "test")]))
-        hb.setValues(expr="")
-        self.assertEqual('limits', hb.vary_e.currentText())
-        self.assertEqual("", hb.param_hints()['expr'])
+        h = {'expr': 'test', 'vary': 'expr'}
+        hb = ParamHintBox(h)
+        self.assertEqual('expr', hb.vary_e.currentText())
+        self.assertEqual({}, VoigtModelEditor.translate("gamma", hb.hints))  # default

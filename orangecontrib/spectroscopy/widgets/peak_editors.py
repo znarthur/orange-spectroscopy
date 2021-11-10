@@ -318,7 +318,7 @@ class ModelEditor(BaseEditorOrange):
         raise NotImplementedError
 
     @classmethod
-    def _translate(cls, name, hints):
+    def translate(cls, name, hints):
         hints = hints.copy()
         defaults = cls.defaults()[name]
 
@@ -379,7 +379,7 @@ class ModelEditor(BaseEditorOrange):
         for name, hints in all_hints.items():
             # Exclude model init keyword 'form'
             if name != 'form':
-                hints = cls._translate(name, hints)
+                hints = cls.translate(name, hints)
                 out[name] = hints
         return out
 
