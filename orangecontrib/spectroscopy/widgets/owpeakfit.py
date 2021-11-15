@@ -34,6 +34,15 @@ from orangecontrib.spectroscopy.widgets.peak_editors import GaussianModelEditor,
     LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor, set_default_vary
 
 
+def constant(x, c=0.0):
+    return c
+
+
+# WORKAROUND  lmfit's inability to load constant models
+# Add this as kwargs to .loads
+LMFIT_LOADS_KWARGS = {"funcdefs": {"constant": constant}}
+
+
 def n_best_fit_parameters(model, params):
     """Number of output parameters for best fit results"""
     number_of_peaks = len(model.components)
@@ -55,7 +64,7 @@ def best_fit_results(model_result, x, shape):
     col = 0
     for comp in out.model.components:
         # Peak area
-        output[col] = np.trapz(comps[comp.prefix], sorted_x)
+        output[col] = np.trapz(np.broadcast_to(comps[comp.prefix], x.shape), sorted_x)
         col += 1
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
             output[col] = best_values[param]
@@ -283,7 +292,8 @@ class PeakPreviewRunner(PreviewRunner):
                         raise
                     concurrent.futures.wait([res], 0.05)
                 fits = res.result()
-                model_result[row.id] = ModelResult(model, parameters).loads(fits)
+                model_result[row.id] = ModelResult(model, parameters).loads(fits,
+                                                                            **LMFIT_LOADS_KWARGS)
 
         progress_interrupt(0)
         return orig_data, data, model_result
@@ -330,7 +340,7 @@ class OWPeakFit(SpectralPreprocess):
                     m = create_model(item, i)
                     p = prepare_params(item, m)
                     # Show initial fit values for now
-                    init = np.atleast_2d(m.eval(p, x=x))
+                    init = np.atleast_2d(np.broadcast_to(m.eval(p, x=x), x.shape))
                     di = [("curve", (x, init, INTEGRATE_DRAW_BASELINE_PENARGS))]
                     color = self.flow_view.preview_color(i)
                     dis.append({"draw": di, "color": color})
@@ -343,7 +353,7 @@ class OWPeakFit(SpectralPreprocess):
             result = self.preview_runner.preview_model_result.get(row_id, None)
         if result is not None:
             # show total fit
-            eval = np.atleast_2d(result.eval(x=x))
+            eval = np.atleast_2d(np.broadcast_to(result.eval(x=x), x.shape))
             di = [("curve", (x, eval, INTEGRATE_DRAW_CURVE_PENARGS))]
             dis.append({"draw": di, "color": 'red'})
             # show components
@@ -353,7 +363,7 @@ class OWPeakFit(SpectralPreprocess):
                 prefix = unique_prefix(item.data(DescriptionRole).viewclass, i)
                 comp = eval_comps.get(prefix, None)
                 if comp is not None:
-                    comp = np.atleast_2d(comp)
+                    comp = np.atleast_2d(np.broadcast_to(comp, x.shape))
                     di = [("curve", (x, comp, INTEGRATE_DRAW_CURVE_PENARGS))]
                     color = self.flow_view.preview_color(i)
                     dis.append({"draw": di, "color": color})
@@ -411,7 +421,7 @@ class OWPeakFit(SpectralPreprocess):
             progress_interrupt(99)
 
             for fit, bpar, fitted, resid in fitsr:
-                out = ModelResult(model, parameters).loads(fit)
+                out = ModelResult(model, parameters).loads(fit, **LMFIT_LOADS_KWARGS)
                 output.append(bpar)
                 fits.append(fitted)
                 residuals.append(resid)
@@ -475,7 +485,7 @@ def pool_initializer(model, parameters, x):
     # Therefore we need to use loads() and dumps() to transfer it between processes.
     global lmfit_model
     global lmfit_x
-    lmfit_model = Model(None).loads(model), parameters
+    lmfit_model = Model(None).loads(model, **LMFIT_LOADS_KWARGS), parameters
     lmfit_x = x
 
 
@@ -485,7 +495,7 @@ def pool_fit(v):
     model_result = model.fit(v, params=parameters, x=x)
     shape = n_best_fit_parameters(model, parameters)
     bpar = best_fit_results(model_result, x, shape)
-    fitted = model_result.eval(x=x)
+    fitted = np.broadcast_to(model_result.eval(x=x), x.shape)
 
     return model_result.dumps(), \
            bpar, \
@@ -494,7 +504,7 @@ def pool_fit(v):
 
 
 def pool_fit2(v, model, parameters, x):
-    model = Model(None).loads(model)
+    model = Model(None).loads(model, **LMFIT_LOADS_KWARGS)
     model_result = model.fit(v, params=parameters, x=x)
     return model_result.dumps()
 
