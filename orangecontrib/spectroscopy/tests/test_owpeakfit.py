@@ -18,6 +18,7 @@ from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, P
 from orangecontrib.spectroscopy.widgets.peak_editors import ParamHintBox, VoigtModelEditor, \
     PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor
 
+
 COLLAGEN = Orange.data.Table("collagen")[0:3]
 COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
 COLLAGEN_1 = LinearBaseline()(Cut(lowlim=1600, highlim=1700)(COLLAGEN_2))

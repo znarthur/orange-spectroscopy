@@ -1,8 +1,13 @@
 import time
 from functools import reduce
+import concurrent.futures
+import multiprocessing
 
-from lmfit import Parameters
+from lmfit import Parameters, Model
+from lmfit.model import ModelResult
 import numpy as np
+
+import pebble
 
 from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets.data.owpreprocess import PreprocessAction, Description, icon_path
@@ -29,39 +34,41 @@ from orangecontrib.spectroscopy.widgets.peak_editors import GaussianModelEditor,
     LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor, set_default_vary
 
 
-def init_output_array(data, model, params):
-    """Returns nd.array with correct shape for best fit results"""
-    number_of_spectra = len(data)
+def n_best_fit_parameters(model, params):
+    """Number of output parameters for best fit results"""
     number_of_peaks = len(model.components)
     var_params = [name for name, par in params.items() if par.vary]
     number_of_params = len(var_params)
-    return np.zeros((number_of_spectra, number_of_peaks + number_of_params + 1))
+    return number_of_peaks + number_of_params + 1
 
 
-def add_result_to_output_array(output, i, model_result, x):
-    """Add values from ModelResult to output array"""
+def best_fit_results(model_result, x, shape):
+    """Return array of best-fit results"""
     out = model_result
     sorted_x = np.sort(x)
     comps = out.eval_components(x=sorted_x)
     best_values = out.best_values
 
+    output = np.zeros(shape)
+
     # add peak values to output storage
     col = 0
-    for comp in out.components:
+    for comp in out.model.components:
         # Peak area
-        output[i, col] = np.trapz(comps[comp.prefix], sorted_x)
+        output[col] = np.trapz(comps[comp.prefix], sorted_x)
         col += 1
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
-            output[i, col] = best_values[param]
+            output[col] = best_values[param]
             col += 1
-    output[i, -1] = out.redchi
+    output[-1] = out.redchi
+    return output
 
 
 def fit_results_table(output, model_result, orig_data):
     """Return best fit parameters as Orange.data.Table"""
     out = model_result
     features = []
-    for comp in out.components:
+    for comp in out.model.components:
         prefix = comp.prefix.rstrip("_")
         features.append(ContinuousVariable(name=f"{prefix} area"))
         for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
@@ -72,7 +79,7 @@ def fit_results_table(output, model_result, orig_data):
                     orig_data.domain.class_vars,
                     orig_data.domain.metas)
     out = orig_data.transform(domain)
-    with out.unlocked(out.X):
+    with out.unlocked_reference(out.X):
         out.X = output
     return out
 
@@ -90,12 +97,14 @@ def fit_peaks(data, model, params):
     Returns:
         results_table (Orange.data.Table): Table with best fit parameters as features
     """
-    output = init_output_array(data, model, params)
+    output = []
+    shape = n_best_fit_parameters(model, params)
     x = getx(data)
     for row in data:
-        i = row.row_index
         out = model.fit(row.x, params, x=x)
-        add_result_to_output_array(output, i, out, x)
+        output.append(best_fit_results(out, x, shape))
+
+    output = np.vstack(output)
 
     return fit_results_table(output, out, data)
 
@@ -183,6 +192,7 @@ class PeakPreviewRunner(PreviewRunner):
 
     def __init__(self, master):
         super().__init__(master=master)
+        self.pool = pebble.ProcessPool(max_workers=1)
         self.preview_model_result = None
 
     def on_exception(self, ex: Exception):
@@ -227,14 +237,14 @@ class PeakPreviewRunner(PreviewRunner):
             # Pass preview data to widgets here as we don't use on_partial_result()
             for w in self.master.flow_view.widgets():
                 w.set_preview_data(data)
-            self.start(self.run_preview, data, pp_def)
+            self.start(self.run_preview, data, pp_def, self.pool)
         else:
             master.curveplot.set_data(None)
             master.curveplot_after.set_data(None)
 
     @staticmethod
     def run_preview(data: Table,
-                    m_def, state: TaskState):
+                    m_def, pool, state: TaskState):
 
         def progress_interrupt(_: float):
             if state.is_interruption_requested():
@@ -242,10 +252,10 @@ class PeakPreviewRunner(PreviewRunner):
 
         # Protects against running the task in succession many times, as would
         # happen when adding a preprocessor (there, commit() is called twice).
-        # Wait 500 ms before processing - if a new task is started in meanwhile,
+        # Wait 100 ms before processing - if a new task is started in meanwhile,
         # allow that is easily` cancelled.
         for _ in range(10):
-            time.sleep(0.050)
+            time.sleep(0.010)
             progress_interrupt(0)
 
         orig_data = data
@@ -255,10 +265,27 @@ class PeakPreviewRunner(PreviewRunner):
         model_result = {}
         x = getx(data)
         if data is not None and model is not None:
+
             for row in data:
                 progress_interrupt(0)
-                model_result[row.id] = model.fit(row.x, parameters, x=x)
+                res = pool.schedule(pool_fit2, (row.x, model.dumps(), parameters, x))
+                while not res.done():
+                    try:
+                        progress_interrupt(0)
+                    except InterruptException:
+                        # CANCEL
+                        if multiprocessing.get_start_method() != "fork" and res.running():
+                            # If slower start methods are used, give the current computation
+                            # some time to exit gracefully; this avoids reloading processes
+                            concurrent.futures.wait([res], 1.0)
+                        if not res.done():
+                            res.cancel()
+                        raise
+                    concurrent.futures.wait([res], 0.05)
+                fits = res.result()
+                model_result[row.id] = ModelResult(model, parameters).loads(fits)
 
+        progress_interrupt(0)
         return orig_data, data, model_result
 
 
@@ -349,8 +376,8 @@ class OWPeakFit(SpectralPreprocess):
         # happen when adding a preprocessor (there, commit() is called twice).
         # Wait 100 ms before processing - if a new task is started in meanwhile,
         # allow that is easily` cancelled.
-        for i in range(10):
-            time.sleep(0.005)
+        for _ in range(10):
+            time.sleep(0.010)
             progress_interrupt(0)
 
         model, parameters = create_composite_model(m_def)
@@ -358,19 +385,38 @@ class OWPeakFit(SpectralPreprocess):
         data_fits = data_anno = data_resid = None
         if data is not None and model is not None:
             orig_data = data
-            output = init_output_array(data, model, parameters)
+            output = []
             x = getx(data)
             n = len(data)
             fits = []
             residuals = []
-            for row in data:
-                i = row.row_index
-                out = model.fit(row.x, parameters, x=x)
-                add_result_to_output_array(output, i, out, x)
-                fits.append(out.eval(x=x))
-                residuals.append(out.residual)
-                progress_interrupt(i / n * 100)
-            data = fit_results_table(output, out, orig_data)
+
+            with multiprocessing.Pool(processes=None,
+                                      initializer=pool_initializer,
+                                      initargs=(model.dumps(), parameters, x)) as p:
+                res = p.map_async(pool_fit, data.X, chunksize=1)
+
+                def done():
+                    try:
+                        return n - res._number_left * res._chunksize
+                    except AttributeError:
+                        return 0
+
+                while not res.ready():
+                    progress_interrupt(done() / n * 99)
+                    res.wait(0.05)
+
+                fitsr = res.get()
+
+            progress_interrupt(99)
+
+            for fit, bpar, fitted, resid in fitsr:
+                out = ModelResult(model, parameters).loads(fit)
+                output.append(bpar)
+                fits.append(fitted)
+                residuals.append(resid)
+                progress_interrupt(99)
+            data = fit_results_table(np.vstack(output), out, orig_data)
             data_fits = orig_data.from_table_rows(orig_data, ...)  # a shallow copy
             with data_fits.unlocked_reference(data_fits.X):
                 data_fits.X = np.vstack(fits)
@@ -418,6 +464,39 @@ class OWPeakFit(SpectralPreprocess):
                     settings[n] = h
             version = 2
         return [((name, settings), version)]
+
+
+lmfit_model = None
+lmfit_x = None
+
+
+def pool_initializer(model, parameters, x):
+    # Pool initializer is used because lmfit's CompositeModel is not picklable.
+    # Therefore we need to use loads() and dumps() to transfer it between processes.
+    global lmfit_model
+    global lmfit_x
+    lmfit_model = Model(None).loads(model), parameters
+    lmfit_x = x
+
+
+def pool_fit(v):
+    x = lmfit_x
+    model, parameters = lmfit_model
+    model_result = model.fit(v, params=parameters, x=x)
+    shape = n_best_fit_parameters(model, parameters)
+    bpar = best_fit_results(model_result, x, shape)
+    fitted = model_result.eval(x=x)
+
+    return model_result.dumps(), \
+           bpar, \
+           fitted, \
+           model_result.residual
+
+
+def pool_fit2(v, model, parameters, x):
+    model = Model(None).loads(model)
+    model_result = model.fit(v, params=parameters, x=x)
+    return model_result.dumps()
 
 
 if __name__ == "__main__":  # pragma: no cover
