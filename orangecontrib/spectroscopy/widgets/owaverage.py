@@ -79,34 +79,36 @@ class OWAverage(OWWidget):
         """
         if len(table) == 0:
             return table
-        mean = bottleneck.nanmean(table.X, axis=0).reshape(1, -1)
+        mean = bottleneck.nanmean(table.X, axis=0, ).reshape(1, -1).copy()
         avg_table = Orange.data.Table.from_numpy(table.domain,
                                                  X=mean,
-                                                 Y=np.atleast_2d(table.Y[0].copy()),
-                                                 metas=np.atleast_2d(table.metas[0].copy()))
+                                                 Y=np.atleast_2d(table.Y[0]).copy(),
+                                                 metas=np.atleast_2d(table.metas[0]).copy())
         cont_vars = [var for var in table.domain.class_vars + table.domain.metas
                      if isinstance(var, Orange.data.ContinuousVariable)]
-        for var in cont_vars:
-            index = table.domain.index(var)
-            col, _ = table.get_column_view(index)
-            try:
-                avg_table[0, index] = np.nanmean(col)
-            except AttributeError:
-                # numpy.lib.nanfunctions._replace_nan just guesses and returns
-                # a boolean array mask for object arrays because object arrays
-                # do not support `isnan` (numpy-gh-9009)
-                # Since we know that ContinuousVariable values must be np.float64
-                # do an explicit cast here
-                avg_table[0, index] = np.nanmean(col, dtype=np.float64)
 
-        other_vars = [var for var in table.domain.class_vars + table.domain.metas
-                      if not isinstance(var, Orange.data.ContinuousVariable)]
-        for var in other_vars:
-            index = table.domain.index(var)
-            col, _ = table.get_column_view(index)
-            val = var.to_val(avg_table[0, var])
-            if not np.all(col == val):
-                avg_table[0, var] = Orange.data.Unknown
+        with avg_table.unlocked():
+            for var in cont_vars:
+                index = table.domain.index(var)
+                col, _ = table.get_column_view(index)
+                try:
+                    avg_table[0, index] = np.nanmean(col)
+                except AttributeError:
+                    # numpy.lib.nanfunctions._replace_nan just guesses and returns
+                    # a boolean array mask for object arrays because object arrays
+                    # do not support `isnan` (numpy-gh-9009)
+                    # Since we know that ContinuousVariable values must be np.float64
+                    # do an explicit cast here
+                    avg_table[0, index] = np.nanmean(col, dtype=np.float64)
+
+            other_vars = [var for var in table.domain.class_vars + table.domain.metas
+                          if not isinstance(var, Orange.data.ContinuousVariable)]
+            for var in other_vars:
+                index = table.domain.index(var)
+                col, _ = table.get_column_view(index)
+                val = var.to_val(avg_table[0, var])
+                if not np.all(col == val):
+                    avg_table[0, var] = Orange.data.Unknown
 
         return avg_table
 

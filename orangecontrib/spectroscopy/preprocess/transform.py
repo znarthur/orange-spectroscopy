@@ -32,7 +32,7 @@ class _AbsorbanceCommon(CommonDomainRef):
                 absd = ref_X / data.X
                 np.log10(absd, absd)
             else:
-                absd = data
+                absd = data.X.copy()
         else:
             # Calculate from transmittance data
             absd = np.log10(data.X)
@@ -88,7 +88,7 @@ class _TransmittanceCommon(CommonDomainRef):
                 ref_X = self.interpolate_extend_to(self.reference, getx(data))
                 transd = data.X / ref_X
             else:
-                transd = data
+                transd = data.X.copy()
         else:
             # Calculate from absorbance data
             transd = data.X.copy()

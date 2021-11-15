@@ -19,7 +19,8 @@ def add_meta_to_table(data, var, values):
     metas = data.domain.metas + (var,)
     newdomain = Domain(data.domain.attributes, data.domain.class_vars, metas)
     newtable = data.transform(newdomain)
-    newtable[:, var] = np.atleast_1d(values).reshape(-1, 1)
+    with newtable.unlocked(newtable.metas):
+        newtable[:, var] = np.atleast_1d(values).reshape(-1, 1)
     return newtable
 
 DEFAULT_HENE = 15797.337544

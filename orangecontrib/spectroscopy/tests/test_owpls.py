@@ -34,8 +34,9 @@ class TestPLS(TestCase):
 
     def test_compare_to_sklearn(self):
         d = table(10, 5, 1)
-        d.X = np.random.RandomState(0).rand(*d.X.shape)
-        d.Y = np.random.RandomState(0).rand(*d.Y.shape)
+        with d.unlocked():
+            d.X = np.random.RandomState(0).rand(*d.X.shape)
+            d.Y = np.random.RandomState(0).rand(*d.Y.shape)
         orange_model = PLSRegressionLearner()(d)
         scikit_model = PLSRegression().fit(d.X, d.Y)
         np.testing.assert_almost_equal(scikit_model.predict(d.X).ravel(),

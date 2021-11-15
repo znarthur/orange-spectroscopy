@@ -53,7 +53,7 @@ class TestIRFFT(unittest.TestCase):
         assert find_zpd(data, PeakSearch.MAXIMUM) == data.argmax()
         assert find_zpd(data, PeakSearch.MINIMUM) == data.argmin()
         assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
-        data *= -1
+        data = data * -1
         assert find_zpd(data, PeakSearch.ABSOLUTE) == abs(data).argmax()
 
     def test_agilent_fft_sc(self):

@@ -40,8 +40,9 @@ class TestOWAverage(WidgetTest):
 
     def test_nan_propagation(self):
         copy = self.collagen.copy()
-        copy[:, :2] = np.nan
-        copy[3, 3] = np.nan
+        with copy.unlocked():
+            copy[:, :2] = np.nan
+            copy[3, 3] = np.nan
         self.send_signal("Data", copy)
         out = self.get_output("Averages")
         self.assertTrue(np.all(np.isnan(out[:, :2])))
@@ -67,9 +68,10 @@ class TestOWAverage(WidgetTest):
                                       c_domain.class_vars,
                                       [Orange.data.ContinuousVariable("con"), str_var, time_var])
         collagen = self.collagen.transform(n_domain)
-        collagen.metas[:, 0] = np.atleast_2d(collagen.X[:, 0])
-        collagen.metas[:, 1] = ["string"] * len(collagen)
-        collagen.metas[:, 2] = [1560.3] * len(collagen)
+        with collagen.unlocked(collagen.metas):
+            collagen.metas[:, 0] = np.atleast_2d(collagen.X[:, 0])
+            collagen.metas[:, 1] = ["string"] * len(collagen)
+            collagen.metas[:, 2] = [1560.3] * len(collagen)
 
         self.send_signal("Data", collagen)
         gvar = self.widget.group_var = collagen.domain.class_var
@@ -93,7 +95,8 @@ class TestOWAverage(WidgetTest):
         collagen = self.collagen.copy()
         gvar = collagen.domain.class_var
         index_unknowns = [3, 15, 100, 500, 650]
-        collagen[index_unknowns, gvar] = Orange.data.Unknown
+        with collagen.unlocked():
+            collagen[index_unknowns, gvar] = Orange.data.Unknown
 
         self.send_signal("Data", collagen)
         self.widget.group_var = gvar

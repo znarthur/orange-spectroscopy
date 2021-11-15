@@ -99,15 +99,13 @@ class TileFileFormat:
 
     def read(self):
         ret_table = None
+        append_tables = []
         for tile_table in self.read_tile():
             if ret_table is None:
                 ret_table = self.preprocess(tile_table)
             else:
                 tile_table_pp = tile_table.transform(ret_table.domain)
-                ret_table.X = np.vstack((ret_table.X, tile_table_pp.X))
-                ret_table._Y = np.vstack((ret_table._Y, tile_table_pp._Y))
-                ret_table.metas = np.vstack((ret_table.metas, tile_table_pp.metas))
-                ret_table.W = np.vstack((ret_table.W, tile_table_pp.W))
-                ret_table.ids = np.hstack((ret_table.ids, tile_table_pp.ids))
-
+                append_tables.append(tile_table_pp)
+        if append_tables:
+            ret_table = Table.concatenate([ret_table] + append_tables)
         return ret_table

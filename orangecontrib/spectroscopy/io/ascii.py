@@ -59,8 +59,9 @@ class AsciiMapReader(FileFormat):
             metas = [ContinuousVariable.make('map_x'), ContinuousVariable.make('map_y')]
             domain = Orange.data.Domain(domain.attributes, None, metas=metas)
             data = data.transform(domain)
-            data[:, metas[0]] = tbl[:, 0].reshape(-1, 1)
-            data[:, metas[1]] = tbl[:, 1].reshape(-1, 1)
+            with data.unlocked(data.metas):
+                data[:, metas[0]] = tbl[:, 0].reshape(-1, 1)
+                data[:, metas[1]] = tbl[:, 1].reshape(-1, 1)
             return data
 
     @staticmethod

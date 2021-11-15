@@ -118,7 +118,9 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
         # Replace remaining NaNs (where whole rows were NaN) with
         # with some values so that the function does not crash.
         # Results are going to be discarded later.
-        X[np.isnan(X)] = 1.
+        remaining_nans = np.isnan(X)
+        if np.any(remaining_nans):  # if there were no nans X is a view, so do not modify
+            X[remaining_nans] = 1.
 
         # do the transformation
         X = self.transformed(X, xs[xsind])

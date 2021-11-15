@@ -35,7 +35,8 @@ def slightly_change_wavenumbers(data, change):
     ndomain = Orange.data.Domain(natts, data.domain.class_vars,
                                  metas=data.domain.metas)
     ndata = data.transform(ndomain)
-    ndata.X = data.X
+    with ndata.unlocked():
+        ndata.X = data.X
     return ndata
 
 

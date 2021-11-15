@@ -104,7 +104,8 @@ class TestOWHyper(WidgetTest):
         cls.iris = Orange.data.Table("iris")
         cls.whitelight = Orange.data.Table("whitelight.gsf")
         cls.whitelight_unknown = cls.whitelight.copy()
-        cls.whitelight_unknown[0][0] = NAN
+        with cls.whitelight_unknown.unlocked():
+            cls.whitelight_unknown[0][0] = NAN
         # dataset with a single attribute
         cls.iris1 = cls.iris.transform(Orange.data.Domain(cls.iris.domain[:1]))
         # dataset without any attributes
@@ -334,7 +335,8 @@ class TestOWHyper(WidgetTest):
 
     def test_unknown_values_axes(self):
         data = Orange.data.Table("iris")
-        data.Y[0] = np.nan
+        with data.unlocked():
+            data.Y[0] = np.nan
         self.send_signal("Data", data)
         wait_for_image(self.widget)
         self.assertTrue(self.widget.Information.not_shown.is_shown())

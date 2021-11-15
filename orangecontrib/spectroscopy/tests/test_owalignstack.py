@@ -227,7 +227,8 @@ class TestOWStackAlign(WidgetTest):
 
     def test_nan_in_image(self):
         data = stxm_diamond.copy()
-        data.X[1, 2] = np.nan
+        with data.unlocked():
+            data.X[1, 2] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Error.nan_in_image.is_shown())
         self.send_signal(self.widget.Inputs.data, stxm_diamond)
@@ -248,7 +249,8 @@ class TestOWStackAlign(WidgetTest):
 
     def test_invalid_axis(self):
         data = stxm_diamond.copy()
-        data.metas[:, 0] = np.nan
+        with data.unlocked():
+            data.metas[:, 0] = np.nan
         self.send_signal(self.widget.Inputs.data, data)
         self.assertTrue(self.widget.Error.invalid_axis.is_shown())
         self.send_signal(self.widget.Inputs.data, None)
