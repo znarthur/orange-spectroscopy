@@ -251,6 +251,11 @@ class PeakPreviewRunner(PreviewRunner):
             master.curveplot.set_data(None)
             master.curveplot_after.set_data(None)
 
+    def shutdown(self):
+        super().shutdown()
+        self.pool.stop()
+        self.pool.join()
+
     @staticmethod
     def run_preview(data: Table,
                     m_def, pool, state: TaskState):
