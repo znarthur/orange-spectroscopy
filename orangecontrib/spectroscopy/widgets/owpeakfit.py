@@ -34,6 +34,10 @@ from orangecontrib.spectroscopy.widgets.peak_editors import GaussianModelEditor,
     LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor, set_default_vary
 
 
+# number of processes used for computation
+N_PROCESSES = None
+
+
 def constant(x, c=0.0):
     return c
 
@@ -406,7 +410,7 @@ class OWPeakFit(SpectralPreprocess):
             fits = []
             residuals = []
 
-            with multiprocessing.Pool(processes=None,
+            with multiprocessing.Pool(processes=N_PROCESSES,
                                       initializer=pool_initializer,
                                       initargs=(model.dumps(), parameters, x)) as p:
                 res = p.map_async(pool_fit, data.X, chunksize=1)

@@ -13,10 +13,15 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline, Integrate
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
+import orangecontrib.spectroscopy.widgets.owpeakfit as owpeakfit
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     create_model, prepare_params, unique_prefix, create_composite_model, pack_model_editor
 from orangecontrib.spectroscopy.widgets.peak_editors import ParamHintBox, VoigtModelEditor, \
     PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor
+
+
+# shorter initializations in tests
+owpeakfit.N_PROCESSES = 1
 
 
 COLLAGEN = Orange.data.Table("collagen")[0:3]
