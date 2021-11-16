@@ -32,49 +32,11 @@ from orangecontrib.spectroscopy.widgets.peak_editors import GaussianModelEditor,
     ExponentialGaussianModelEditor, SkewedGaussianModelEditor, SkewedVoigtModelEditor, \
     ThermalDistributionModelEditor, DoniachModelEditor, ConstantModelEditor, \
     LinearModelEditor, QuadraticModelEditor, PolynomialModelEditor, set_default_vary
-
+from orangecontrib.spectroscopy.widgets.peakfit_compute import n_best_fit_parameters, \
+    best_fit_results, LMFIT_LOADS_KWARGS, pool_initializer, pool_fit, pool_fit2
 
 # number of processes used for computation
 N_PROCESSES = None
-
-
-def constant(x, c=0.0):
-    return c
-
-
-# WORKAROUND  lmfit's inability to load constant models
-# Add this as kwargs to .loads
-LMFIT_LOADS_KWARGS = {"funcdefs": {"constant": constant}}
-
-
-def n_best_fit_parameters(model, params):
-    """Number of output parameters for best fit results"""
-    number_of_peaks = len(model.components)
-    var_params = [name for name, par in params.items() if par.vary]
-    number_of_params = len(var_params)
-    return number_of_peaks + number_of_params + 1
-
-
-def best_fit_results(model_result, x, shape):
-    """Return array of best-fit results"""
-    out = model_result
-    sorted_x = np.sort(x)
-    comps = out.eval_components(x=sorted_x)
-    best_values = out.best_values
-
-    output = np.zeros(shape)
-
-    # add peak values to output storage
-    col = 0
-    for comp in out.model.components:
-        # Peak area
-        output[col] = np.trapz(np.broadcast_to(comps[comp.prefix], x.shape), sorted_x)
-        col += 1
-        for param in [n for n in out.var_names if n.startswith(comp.prefix)]:
-            output[col] = best_values[param]
-            col += 1
-    output[-1] = out.redchi
-    return output
 
 
 def fit_results_table(output, model_result, orig_data):
@@ -280,6 +242,7 @@ class PeakPreviewRunner(PreviewRunner):
 
         model, parameters = create_composite_model(m_def)
 
+
         model_result = {}
         x = getx(data)
         if data is not None and model is not None:
@@ -384,7 +347,7 @@ class OWPeakFit(SpectralPreprocess):
         self.start(self.run_task, self.data, m_def)
 
     @staticmethod
-    def run_task(data: Table, m_def, state):
+    def run_task(data: Table, m_def, state: TaskState):
 
         def progress_interrupt(i: float):
             state.set_progress_value(i)
@@ -483,39 +446,6 @@ class OWPeakFit(SpectralPreprocess):
                     settings[n] = h
             version = 2
         return [((name, settings), version)]
-
-
-lmfit_model = None
-lmfit_x = None
-
-
-def pool_initializer(model, parameters, x):
-    # Pool initializer is used because lmfit's CompositeModel is not picklable.
-    # Therefore we need to use loads() and dumps() to transfer it between processes.
-    global lmfit_model
-    global lmfit_x
-    lmfit_model = Model(None).loads(model, **LMFIT_LOADS_KWARGS), parameters
-    lmfit_x = x
-
-
-def pool_fit(v):
-    x = lmfit_x
-    model, parameters = lmfit_model
-    model_result = model.fit(v, params=parameters, x=x)
-    shape = n_best_fit_parameters(model, parameters)
-    bpar = best_fit_results(model_result, x, shape)
-    fitted = np.broadcast_to(model_result.eval(x=x), x.shape)
-
-    return model_result.dumps(), \
-           bpar, \
-           fitted, \
-           model_result.residual
-
-
-def pool_fit2(v, model, parameters, x):
-    model = Model(None).loads(model, **LMFIT_LOADS_KWARGS)
-    model_result = model.fit(v, params=parameters, x=x)
-    return model_result.dumps()
 
 
 if __name__ == "__main__":  # pragma: no cover
