@@ -68,7 +68,7 @@ class TestOWPeakFit(WidgetTest):
                 self.send_signal("Data", self.data)
                 if settings is None:
                     self.widget.add_preprocessor(p)
-                wait_for_preview(self.widget)
+                wait_for_preview(self.widget, 10000)
 
     def test_outputs(self):
         self.widget = self.create_widget(OWPeakFit)
@@ -76,8 +76,8 @@ class TestOWPeakFit(WidgetTest):
         self.widget.add_preprocessor(PREPROCESSORS[0])
         wait_for_preview(self.widget)
         self.widget.unconditional_commit()
-        self.wait_until_finished()
-        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        self.wait_until_finished(timeout=10000)
+        fit_params = self.get_output(self.widget.Outputs.fit_params, wait=10000)
         fits = self.get_output(self.widget.Outputs.fits)
         residuals = self.get_output(self.widget.Outputs.residuals)
         data = self.get_output(self.widget.Outputs.annotated_data)
@@ -198,8 +198,12 @@ class ModelEditorTest(WidgetTest):
             for p in self.widget.PREPROCESSORS:
                 self.add_editor(p.viewclass, self.widget)
 
+    def wait_until_finished(self, widget=None, timeout=None):
+        super().wait_until_finished(widget,
+                                    timeout=timeout if timeout is not None else 10000)
+
     def wait_for_preview(self):
-        wait_for_preview(self.widget)
+        wait_for_preview(self.widget, timeout=10000)
 
     def add_editor(self, cls, widget):  # type: (Type[T], object) -> T
         widget.add_preprocessor(pack_model_editor(cls))
@@ -282,6 +286,8 @@ class TestVoigtEditorMulti(ModelEditorTest):
         self.data = COLLAGEN_2
         self.send_signal(self.widget.Inputs.data, self.data)
         self.model, self.params = self.matched_models()
+
+    def test_no_change(self):
         self.widget.unconditional_commit()
         self.wait_until_finished()
 
@@ -317,7 +323,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
     def test_same_output(self):
         out_fit = fit_peaks(self.data, self.model, self.params)
-        out = self.get_output(self.widget.Outputs.fit_params)
+        out = self.get_output(self.widget.Outputs.fit_params, wait=10000)
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
         np.testing.assert_array_equal(out_fit.X, out.X)
@@ -334,7 +340,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
     def test_total_area(self):
         """ Test v0 + v1 area == total fit area """
-        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        fit_params = self.get_output(self.widget.Outputs.fit_params, wait=10000)
         fits = self.get_output(self.widget.Outputs.fits)
         xs = getx(fits)
         total_areas = Integrate(methods=Integrate.Simple, limits=[[xs.min(), xs.max()]])(fits)
