@@ -594,21 +594,9 @@ class BaselineModelEditor(ModelEditor):
         return tuple()
 
 
-# lmfit.Model.copy is marked NotImplemented to communicate to users, not meant to be overridden
-#pylint: disable=abstract-method
-class EvalConstantModel(lmfit.models.ConstantModel):
-
-    def eval(self, params=None, **kwargs):
-        c = super().eval(params, **kwargs)
-        if 'x' in kwargs:
-            return np.full_like(kwargs['x'], c)
-        else:
-            return c
-
-
 class ConstantModelEditor(BaselineModelEditor):
     name = "Constant"
-    model = EvalConstantModel
+    model = lmfit.models.ConstantModel
     prefix_generic = "const"
 
     @staticmethod

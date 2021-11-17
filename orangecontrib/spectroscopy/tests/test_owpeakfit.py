@@ -13,10 +13,16 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline, Integrate
 from orangecontrib.spectroscopy.tests.spectral_preprocess import wait_for_preview
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
+import orangecontrib.spectroscopy.widgets.owpeakfit as owpeakfit
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     create_model, prepare_params, unique_prefix, create_composite_model, pack_model_editor
 from orangecontrib.spectroscopy.widgets.peak_editors import ParamHintBox, VoigtModelEditor, \
     PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor
+
+
+# shorter initializations in tests
+owpeakfit.N_PROCESSES = 1
+
 
 COLLAGEN = Orange.data.Table("collagen")[0:3]
 COLLAGEN_2 = LinearBaseline()(Cut(lowlim=1500, highlim=1700)(COLLAGEN))
@@ -62,16 +68,16 @@ class TestOWPeakFit(WidgetTest):
                 self.send_signal("Data", self.data)
                 if settings is None:
                     self.widget.add_preprocessor(p)
-                wait_for_preview(self.widget)
+                wait_for_preview(self.widget, 10000)
+                self.widget.onDeleteWidget()
 
     def test_outputs(self):
-        self.widget = self.create_widget(OWPeakFit)
         self.send_signal("Data", self.data)
         self.widget.add_preprocessor(PREPROCESSORS[0])
         wait_for_preview(self.widget)
         self.widget.unconditional_commit()
-        self.wait_until_finished()
-        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        self.wait_until_finished(timeout=10000)
+        fit_params = self.get_output(self.widget.Outputs.fit_params, wait=10000)
         fits = self.get_output(self.widget.Outputs.fits)
         residuals = self.get_output(self.widget.Outputs.residuals)
         data = self.get_output(self.widget.Outputs.annotated_data)
@@ -124,6 +130,10 @@ class TestOWPeakFit(WidgetTest):
                       'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0,
                                  'value': 0.0, 'vary': 'limits'}})
         self.assertEqual(settings["storedsettings"]["preprocessors"], [o1, o2])
+
+    def tearDown(self):
+        self.widget.onDeleteWidget()
+        super().tearDown()
 
 
 class TestPeakFit(unittest.TestCase):
@@ -192,8 +202,12 @@ class ModelEditorTest(WidgetTest):
             for p in self.widget.PREPROCESSORS:
                 self.add_editor(p.viewclass, self.widget)
 
+    def wait_until_finished(self, widget=None, timeout=None):
+        super().wait_until_finished(widget,
+                                    timeout=timeout if timeout is not None else 10000)
+
     def wait_for_preview(self):
-        wait_for_preview(self.widget)
+        wait_for_preview(self.widget, timeout=10000)
 
     def add_editor(self, cls, widget):  # type: (Type[T], object) -> T
         widget.add_preprocessor(pack_model_editor(cls))
@@ -208,6 +222,10 @@ class ModelEditorTest(WidgetTest):
     def get_params_single(self, model):
         m_def = self.widget.preprocessormodel.item(0)
         return prepare_params(m_def, model)
+
+    def tearDown(self):
+        self.widget.onDeleteWidget()
+        super().tearDown()
 
 
 class TestVoigtEditor(ModelEditorTest):
@@ -276,6 +294,8 @@ class TestVoigtEditorMulti(ModelEditorTest):
         self.data = COLLAGEN_2
         self.send_signal(self.widget.Inputs.data, self.data)
         self.model, self.params = self.matched_models()
+
+    def test_no_change(self):
         self.widget.unconditional_commit()
         self.wait_until_finished()
 
@@ -311,7 +331,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
     def test_same_output(self):
         out_fit = fit_peaks(self.data, self.model, self.params)
-        out = self.get_output(self.widget.Outputs.fit_params)
+        out = self.get_output(self.widget.Outputs.fit_params, wait=10000)
 
         self.assertEqual(out_fit.domain.attributes, out.domain.attributes)
         np.testing.assert_array_equal(out_fit.X, out.X)
@@ -328,7 +348,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
 
     def test_total_area(self):
         """ Test v0 + v1 area == total fit area """
-        fit_params = self.get_output(self.widget.Outputs.fit_params)
+        fit_params = self.get_output(self.widget.Outputs.fit_params, wait=10000)
         fits = self.get_output(self.widget.Outputs.fits)
         xs = getx(fits)
         total_areas = Integrate(methods=Integrate.Simple, limits=[[xs.min(), xs.max()]])(fits)

@@ -139,6 +139,7 @@ if __name__ == '__main__':
             'pillow',
             'lmfit>=1.0.2',
             'bottleneck',
+            'pebble',
         ],
         extras_require={
             'test': ['coverage']
