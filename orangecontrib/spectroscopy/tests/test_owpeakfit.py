@@ -69,9 +69,9 @@ class TestOWPeakFit(WidgetTest):
                 if settings is None:
                     self.widget.add_preprocessor(p)
                 wait_for_preview(self.widget, 10000)
+                self.widget.onDeleteWidget()
 
     def test_outputs(self):
-        self.widget = self.create_widget(OWPeakFit)
         self.send_signal("Data", self.data)
         self.widget.add_preprocessor(PREPROCESSORS[0])
         wait_for_preview(self.widget)
@@ -130,6 +130,10 @@ class TestOWPeakFit(WidgetTest):
                       'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0,
                                  'value': 0.0, 'vary': 'limits'}})
         self.assertEqual(settings["storedsettings"]["preprocessors"], [o1, o2])
+
+    def tearDown(self):
+        self.widget.onDeleteWidget()
+        super().tearDown()
 
 
 class TestPeakFit(unittest.TestCase):
@@ -218,6 +222,10 @@ class ModelEditorTest(WidgetTest):
     def get_params_single(self, model):
         m_def = self.widget.preprocessormodel.item(0)
         return prepare_params(m_def, model)
+
+    def tearDown(self):
+        self.widget.onDeleteWidget()
+        super().tearDown()
 
 
 class TestVoigtEditor(ModelEditorTest):
