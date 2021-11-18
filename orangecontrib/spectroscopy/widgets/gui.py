@@ -488,8 +488,8 @@ class VerticalPeakLine(pg.InfiniteLine):
         super().__init__(pos, angle, pen, movable, bounds, span)
 
         if label is None:
-            self.label = VerticalPeakLineLabel(self,
-                                               text=str(self.getXPos()), position=(1))
+            self.label = pg.InfLineLabel(self,
+                                         text=str(self.getXPos()), position=(1))
 
         self.sigDragged.connect(self.updateLabel)
         self.selection = 0
@@ -563,8 +563,3 @@ class VerticalPeakLine(pg.InfiniteLine):
             length = len(x)
         self.label.setText(str(round(self.getXPos(), length)))
         self.update()
-
-class VerticalPeakLineLabel(pg.InfLineLabel):
-    def __init__(self, line, text="", movable=False, position=0.5, anchors=None, **kwds):
-        super().__init__(line)
-        self.line = line
