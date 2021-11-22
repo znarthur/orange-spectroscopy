@@ -21,7 +21,7 @@ from pyqtgraph import Point, GraphicsObject
 
 import Orange.data
 from Orange.data import DiscreteVariable
-from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
@@ -30,7 +30,6 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils import saveplot
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate
@@ -42,8 +41,8 @@ from orangecontrib.spectroscopy.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
     float_to_str_decimals as strdec
-from orangecontrib.spectroscopy.widgets.utils import pack_selection, unpack_selection, \
-    selections_to_length, groups_or_annotated_table
+from orangecontrib.spectroscopy.widgets.utils import \
+    SelectionGroupMixin, SelectionOutputsMixin
 
 
 SELECT_SQUARE = 123
@@ -68,22 +67,6 @@ SELECT_POLYGON_TOLERANCE = 10
 COLORBREWER_SET1 = [(228, 26, 28), (55, 126, 184), (77, 175, 74), (152, 78, 163), (255, 127, 0),
                     (255, 255, 51), (166, 86, 40), (247, 129, 191), (153, 153, 153)]
 
-
-class SelectionGroupMixin:
-    selection_group_saved = Setting(None, schema_only=True)
-
-    def __init__(self):
-        self.selection_group = np.array([], dtype=np.uint8)
-        # Remember the saved state to restore with the first open file
-        self._pending_selection_restore = self.selection_group_saved
-
-    def restore_selection_settings(self):
-        self.selection_group = unpack_selection(self._pending_selection_restore)
-        self.selection_group = selections_to_length(self.selection_group, len(self.data))
-        self._pending_selection_restore = None
-
-    def prepare_settings_for_saving(self):
-        self.selection_group_saved = pack_selection(self.selection_group)
 
 
 def selection_modifiers():
@@ -1549,16 +1532,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             values[name] = (var, 100 + vartype)
 
 
-class OWSpectra(OWWidget):
+class OWSpectra(OWWidget, SelectionOutputsMixin):
     name = "Spectra"
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
         data_subset = Input("Data subset", Orange.data.Table)
 
-    class Outputs:
-        selected_data = Output("Selection", Orange.data.Table, default=True)
-        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)
+    class Outputs(SelectionOutputsMixin.Outputs):
+        pass
 
     icon = "icons/spectra.svg"
 
@@ -1569,14 +1551,14 @@ class OWSpectra(OWWidget):
 
     want_control_area = False
 
-    settings_version = 2
+    settings_version = 3
     settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
 
     graph_name = "curveplot.plotview"  # need to be defined for the save button to be shown
 
-    class Information(OWWidget.Information):
+    class Information(SelectionOutputsMixin.Information):
         showing_sample = Msg("Showing {} of {} curves.")
 
     class Warning(OWWidget.Warning):
@@ -1584,6 +1566,7 @@ class OWSpectra(OWWidget):
 
     def __init__(self):
         super().__init__()
+        SelectionOutputsMixin.__init__(self)
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.curveplot.new_sampling.connect(self._showing_sample_info)
@@ -1609,18 +1592,8 @@ class OWSpectra(OWWidget):
         self.curveplot.update_view()
 
     def selection_changed(self):
-        # selection table
-        annotated_data = groups_or_annotated_table(self.curveplot.data,
-                                                   self.curveplot.selection_group)
-        self.Outputs.annotated_data.send(annotated_data)
-
-        # selected elements
-        selected = None
-        if self.curveplot.data:
-            selection_indices = np.flatnonzero(self.curveplot.selection_group)
-            if len(selection_indices):
-                selected = self.curveplot.data[selection_indices]
-        self.Outputs.selected_data.send(selected)
+        self.send_selection(self.curveplot.data,
+                            self.curveplot.selection_group)
 
     def _showing_sample_info(self, num):
         if num is not None and self.curveplot.data and num != len(self.curveplot.data):
@@ -1640,6 +1613,8 @@ class OWSpectra(OWWidget):
     def migrate_settings(cls, settings, version):
         if "curveplot" in settings:
             CurvePlot.migrate_settings_sub(settings["curveplot"], version)
+        if version < 3:
+            settings["compat_no_group"] = True
 
     @classmethod
     def migrate_context(cls, context, version):

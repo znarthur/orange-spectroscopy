@@ -1,7 +1,12 @@
 import array
 
 import numpy as np
-from Orange.widgets.utils.annotated_data import create_annotated_table, create_groups_table
+
+from Orange.data import Table
+from Orange.widgets.utils.annotated_data import \
+    ANNOTATED_DATA_SIGNAL_NAME, create_annotated_table, create_groups_table
+from Orange.widgets.settings import Setting
+from Orange.widgets.widget import OWWidget, Msg, Output
 
 
 def pack_selection(selection_group):
@@ -58,3 +63,61 @@ def groups_or_annotated_table(data, selection):
         return create_groups_table(data, selection)
     else:
         return create_annotated_table(data, np.flatnonzero(selection))
+
+
+class SelectionGroupMixin:
+    selection_group_saved = Setting(None, schema_only=True)
+
+    def __init__(self):
+        self.selection_group = np.array([], dtype=np.uint8)
+        # Remember the saved state to restore with the first open file
+        self._pending_selection_restore = self.selection_group_saved
+
+    def restore_selection_settings(self):
+        self.selection_group = unpack_selection(self._pending_selection_restore)
+        self.selection_group = selections_to_length(self.selection_group, len(self.data))
+        self._pending_selection_restore = None
+
+    def prepare_settings_for_saving(self):
+        self.selection_group_saved = pack_selection(self.selection_group)
+
+
+class SelectionOutputsMixin:
+
+    # older versions did not include the "Group" feature
+    # fot the selected output
+    compat_no_group = Setting(False, schema_only=True)
+
+    class Outputs:
+        selected_data = Output("Selection", Table, default=True)
+        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Table)
+
+    class Information(OWWidget.Information):
+        compat_no_group = Msg("Compatibility mode: Selection does not output Groups.")
+
+    def __init__(self):
+        if self.compat_no_group:
+            # We decided not to show the warning explicitly
+            # self.Information.compat_no_group()
+            pass
+
+    def _send_selection(self, data, selection_group, no_group=False):
+        annotated_data = groups_or_annotated_table(data, selection_group)
+        self.Outputs.annotated_data.send(annotated_data)
+
+        selected = None
+        if data:
+            if no_group and data:  # compatibility mode, the output used to lack the group column
+                selection_indices = np.flatnonzero(selection_group)
+                selected = data[selection_indices]
+            else:
+                selected = create_groups_table(data,
+                                               selection_group, False, "Group")
+        selected = selected if selected else None
+        self.Outputs.selected_data.send(selected if selected else None)
+
+        return annotated_data, selected
+
+    def send_selection(self, data, selection_group):
+        return self._send_selection(data, selection_group,
+                                    no_group=self.compat_no_group)

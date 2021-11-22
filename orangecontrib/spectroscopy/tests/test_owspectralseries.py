@@ -80,6 +80,7 @@ class TestOWSpectralSeries(WidgetTest):
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
         np.testing.assert_equal(out.metas[:, 1], 99)
+        np.testing.assert_equal(out.Y, 0)  # selection group
         # select a feature
         self.widget.imageplot.attr_x = "map_x"
         self.widget.imageplot.update_attr()
@@ -87,6 +88,7 @@ class TestOWSpectralSeries(WidgetTest):
         out = self.get_output("Selection")
         np.testing.assert_equal(out.metas[:, 0], 1)
         np.testing.assert_equal(out.metas[:, 1], list(reversed(np.arange(100))))
+        np.testing.assert_equal(out.Y, 0)  # selection group
 
     def test_single_update_view(self):
         uw = "orangecontrib.spectroscopy.widgets.owspectralseries.LineScanPlot.update_view"
@@ -123,3 +125,16 @@ class TestOWSpectralSeries(WidgetTest):
                 self.assertIn("value = {}".format(data[3, 2]), text)
                 self.assertIn("value = {}".format(data[51, 2]), text)
                 self.assertEqual(2, text.count("iris ="))
+
+    def test_compat_no_group(self):
+        settings = {}
+        OWSpectralSeries.migrate_settings(settings, 2)
+        self.assertEqual(settings, {})
+        self.widget = self.create_widget(OWSpectralSeries, stored_settings=settings)
+        self.assertFalse(self.widget.compat_no_group)
+
+        settings = {}
+        OWSpectralSeries.migrate_settings(settings, 1)
+        self.assertEqual(settings, {"compat_no_group": True})
+        self.widget = self.create_widget(OWSpectralSeries, stored_settings=settings)
+        self.assertTrue(self.widget.compat_no_group)

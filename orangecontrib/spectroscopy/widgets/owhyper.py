@@ -21,15 +21,14 @@ import colorcet
 from PIL import Image
 
 import Orange.data
-from Orange.data import Domain
 from Orange.preprocess.transformation import Identity
-from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input, Output
+from Orange.data import Domain, DiscreteVariable, ContinuousVariable
+from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
 from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel, PyListModel
 from Orange.widgets.utils import saveplot
-from Orange.data import DiscreteVariable, ContinuousVariable
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 
 from orangecontrib.spectroscopy.preprocess import Integrate
@@ -37,15 +36,13 @@ from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_na
 
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate, SelectionGroupMixin, selection_modifiers
+    HelpEventDelegate, selection_modifiers
 
 from orangecontrib.spectroscopy.widgets.gui import MovableVline, lineEditDecimalOrNone,\
     pixels_to_decimals, float_to_str_decimals
 from orangecontrib.spectroscopy.widgets.line_geometry import in_polygon
-from orangecontrib.spectroscopy.widgets.utils import groups_or_annotated_table
-
-from Orange.widgets.utils.annotated_data import ANNOTATED_DATA_SIGNAL_NAME
-
+from orangecontrib.spectroscopy.widgets.utils import \
+    SelectionGroupMixin, SelectionOutputsMixin
 
 IMAGE_TOO_BIG = 1024*1024*100
 
@@ -956,22 +953,21 @@ class CurvePlotHyper(CurvePlot):
     viewtype = Setting(AVERAGE)  # average view by default
 
 
-class OWHyper(OWWidget):
+class OWHyper(OWWidget, SelectionOutputsMixin):
     name = "HyperSpectra"
 
     class Inputs:
         data = Input("Data", Orange.data.Table, default=True)
 
-    class Outputs:
-        selected_data = Output("Selection", Orange.data.Table, default=True)
-        annotated_data = Output(ANNOTATED_DATA_SIGNAL_NAME, Orange.data.Table)
+    class Outputs(SelectionOutputsMixin.Outputs):
+        pass
 
     icon = "icons/hyper.svg"
     priority = 20
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
     keywords = ["image", "spectral", "chemical", "imaging"]
 
-    settings_version = 5
+    settings_version = 6
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
@@ -1002,7 +998,7 @@ class OWHyper(OWWidget):
     class Error(OWWidget.Error):
         image_too_big = Msg("Image for chosen features is too big ({} x {}).")
 
-    class Information(OWWidget.Information):
+    class Information(SelectionOutputsMixin.Information):
         not_shown = Msg("Undefined positions: {} data point(s) are not shown.")
 
     @classmethod
@@ -1025,6 +1021,9 @@ class OWHyper(OWWidget):
             except:  # pylint: disable=bare-except
                 pass
 
+        if version < 6:
+            settings_["compat_no_group"] = True
+
     @classmethod
     def migrate_context(cls, context, version):
         if version <= 3 and "curveplot" in context.values:
@@ -1032,6 +1031,7 @@ class OWHyper(OWWidget):
 
     def __init__(self):
         super().__init__()
+        SelectionOutputsMixin.__init__(self)
 
         dbox = gui.widgetBox(self.controlArea, "Image values")
 
@@ -1175,23 +1175,8 @@ class OWHyper(OWWidget):
         self.init_visible_images(data)
 
     def output_image_selection(self):
-        if not self.data:
-            self.Outputs.selected_data.send(None)
-            self.Outputs.annotated_data.send(None)
-            self.curveplot.set_data(None)
-            return
-
-        indices = np.flatnonzero(self.imageplot.selection_group)
-
-        annotated_data = groups_or_annotated_table(self.data, self.imageplot.selection_group)
-        self.Outputs.annotated_data.send(annotated_data)
-
-        selected = self.data[indices]
-        self.Outputs.selected_data.send(selected if selected else None)
-        if selected:
-            self.curveplot.set_data(selected)
-        else:
-            self.curveplot.set_data(self.data)
+        _, selected = self.send_selection(self.data, self.imageplot.selection_group)
+        self.curveplot.set_data(selected if selected else self.data)
 
     def init_attr_values(self, data):
         domain = data.domain if data is not None else None
