@@ -17,7 +17,8 @@ import orangecontrib.spectroscopy.widgets.owpeakfit as owpeakfit
 from orangecontrib.spectroscopy.widgets.owpeakfit import OWPeakFit, fit_peaks, PREPROCESSORS, \
     create_model, prepare_params, unique_prefix, create_composite_model, pack_model_editor
 from orangecontrib.spectroscopy.widgets.peak_editors import ParamHintBox, VoigtModelEditor, \
-    PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor
+    PseudoVoigtModelEditor, ExponentialGaussianModelEditor, PolynomialModelEditor, \
+    GaussianModelEditor
 
 
 # shorter initializations in tests
@@ -130,6 +131,17 @@ class TestOWPeakFit(WidgetTest):
                       'gamma2': {'expr': '', 'max': 1.0, 'min': -1.0,
                                  'value': 0.0, 'vary': 'limits'}})
         self.assertEqual(settings["storedsettings"]["preprocessors"], [o1, o2])
+
+    def test_bug_iris_crash(self):
+        # bug with override wavenumbers:
+        # TypeError: Object of type 'float32' is not JSON serializable
+        data = Orange.data.Table('iris')
+        self.send_signal("Data", data)
+        # fixing getx output type fixes the bug
+        self.assertEqual(getx(data).dtype, np.float_)
+        self.widget.add_preprocessor(pack_model_editor(GaussianModelEditor))
+        self.widget.unconditional_commit()
+        wait_for_preview(self.widget, 10000)
 
     def tearDown(self):
         self.widget.onDeleteWidget()
