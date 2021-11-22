@@ -97,7 +97,9 @@ class SelectionOutputsMixin:
 
     def __init__(self):
         if self.compat_no_group:
-            self.Information.compat_no_group()
+            # We decided not to show the warning explicitly
+            # self.Information.compat_no_group()
+            pass
 
     def _send_selection(self, data, selection_group, no_group=False):
         annotated_data = groups_or_annotated_table(data, selection_group)

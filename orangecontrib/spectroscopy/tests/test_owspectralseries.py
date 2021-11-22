@@ -131,10 +131,10 @@ class TestOWSpectralSeries(WidgetTest):
         OWSpectralSeries.migrate_settings(settings, 2)
         self.assertEqual(settings, {})
         self.widget = self.create_widget(OWSpectralSeries, stored_settings=settings)
-        self.assertFalse(self.widget.Information.compat_no_group.is_shown())
+        self.assertFalse(self.widget.compat_no_group)
 
         settings = {}
         OWSpectralSeries.migrate_settings(settings, 1)
         self.assertEqual(settings, {"compat_no_group": True})
         self.widget = self.create_widget(OWSpectralSeries, stored_settings=settings)
-        self.assertTrue(self.widget.Information.compat_no_group.is_shown())
+        self.assertTrue(self.widget.compat_no_group)

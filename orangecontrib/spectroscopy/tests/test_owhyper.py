@@ -625,10 +625,10 @@ class TestVisibleImage(WidgetTest):
         OWHyper.migrate_settings(settings, 6)
         self.assertEqual(settings, {})
         self.widget = self.create_widget(OWHyper, stored_settings=settings)
-        self.assertFalse(self.widget.Information.compat_no_group.is_shown())
+        self.assertFalse(self.widget.compat_no_group)
 
         settings = {}
         OWHyper.migrate_settings(settings, 5)
         self.assertEqual(settings, {"compat_no_group": True})
         self.widget = self.create_widget(OWHyper, stored_settings=settings)
-        self.assertTrue(self.widget.Information.compat_no_group.is_shown())
+        self.assertTrue(self.widget.compat_no_group)

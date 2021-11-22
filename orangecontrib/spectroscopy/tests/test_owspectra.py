@@ -518,10 +518,14 @@ class TestOWSpectra(WidgetTest):
         OWSpectra.migrate_settings(settings, 3)
         self.assertEqual(settings, {})
         self.widget = self.create_widget(OWSpectra, stored_settings=settings)
-        self.assertFalse(self.widget.Information.compat_no_group.is_shown())
+        self.assertFalse(self.widget.compat_no_group)
+        # We decided to remove the info box
+        # self.assertFalse(self.widget.Information.compat_no_group.is_shown())
 
         settings = {}
         OWSpectra.migrate_settings(settings, 2)
         self.assertEqual(settings, {"compat_no_group": True})
         self.widget = self.create_widget(OWSpectra, stored_settings=settings)
-        self.assertTrue(self.widget.Information.compat_no_group.is_shown())
+        self.assertTrue(self.widget.compat_no_group)
+        # We decided to remove the info box
+        # self.assertTrue(self.widget.Information.compat_no_group.is_shown())
