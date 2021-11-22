@@ -24,6 +24,8 @@ requirements:
   run:
     - python
     - orange3 >=3.28
+    - orange-canvas-core >=0.1.20
+    - orange-widget-base >=4.14.1
     - scipy >=0.14.0
     - spectral >=0.18
     - serverfiles >=0.2
@@ -36,6 +38,7 @@ requirements:
     - pillow
     - lmfit >=1.0.2
     - bottleneck
+    - pebble
 
 test:
   imports:
