@@ -79,8 +79,6 @@ class _AtmCorr(CommonDomainOrderUnknowns):
                         ((dhdy[:,r] - dhdy[:,p-1]) / (dh2[r] - dh2[p-1])) \
                             if p > 0 else (dhdy[:,r] / dh2[r])
             az = az * az / az.sum(0)
-            print('azz', az[:,0,:])
-            print('  sum', az[:,0,:].sum(0))
             for ia, atm in enumerate(atms):
                 for i in range(corr_ranges):
                     p, q = ranges[i]
