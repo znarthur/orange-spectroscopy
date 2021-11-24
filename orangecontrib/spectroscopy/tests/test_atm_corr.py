@@ -19,7 +19,17 @@ class TestAtmCorr(unittest.TestCase):
         sp = np.sin(wn*.005)**2 * (1-((wn-2400)/1600)**2)
         data = spectra_table(wn, [sp + .3 * atm(wn)])
         ref = spectra_table(awn, [atm(awn)])
-        method = AtmCorr(reference=ref, spline_co2=True, smooth_win=9)
+        method = AtmCorr(reference=ref, smooth_win=9)
+        process = method(data)
+        delta = ((data.X[0] - process.X[0])**2).sum()
+        assert 10 < delta < 11
+        method = AtmCorr(reference=ref, correct_ranges=[], spline_ranges=[])
+        process = method(data)
+        delta = ((data.X[0] - process.X[0])**2).sum()
+        assert delta == 0
+        # Test with multiple references
+        ref = spectra_table(awn, 3 * [atm(awn)])
+        method = AtmCorr(reference=ref, smooth_win=9, mean_reference=False)
         process = method(data)
         delta = ((data.X[0] - process.X[0])**2).sum()
         assert 10 < delta < 11

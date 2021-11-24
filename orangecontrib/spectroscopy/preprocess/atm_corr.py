@@ -12,11 +12,20 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
 
 class _AtmCorr(CommonDomainOrderUnknowns):
 
-    def __init__(self, reference, spline_co2, smooth_win, domain):
+    def __init__(self, reference, *, correct_ranges, spline_ranges,
+                 smooth_win, mean_reference, domain):
         super().__init__(domain)
         self.reference = reference
-        self.spline_co2 = spline_co2
+        if correct_ranges is not None:
+            self.correct_ranges = [[min(r), max(r)] for r in correct_ranges]
+        else:
+            self.correct_ranges = [[1300, 2100], [3410, 3850]]
+        if spline_ranges is not None:
+            self.spline_ranges = [[min(r), max(r)] for r in spline_ranges]
+        else:
+            self.spline_ranges = [[2190, 2480]]
         self.smooth_win = smooth_win
+        self.mean_reference = mean_reference
 
     def transformed(self, X, wavenumbers):
 
@@ -30,37 +39,53 @@ class _AtmCorr(CommonDomainOrderUnknowns):
         def find_wn_ranges(wn, ranges):
             # Find indexes of a list of ranges of wavenumbers.
             ranges = np.asarray(ranges)
-            return np.stack((np.searchsorted(wn, ranges[:,0]),
-                             np.searchsorted(wn, ranges[:,1], 'right')), 1)
+            r = np.stack((np.searchsorted(wn, ranges[:,0]),
+                          np.searchsorted(wn, ranges[:,1], 'right')), 1)
+            r[r == len(wn)] = len(wn) - 1
+            return r
 
-        # wavenumber have to be input as sorted
-        atm = np.atleast_2d(spectra_mean(self.reference.X))
-        atm = interpolate_to_data(getx(self.reference), atm).mean(0)
-
-        ranges = [[1300, 2100], [3410, 3850], [2190, 2480]]
-        ranges = find_wn_ranges(wavenumbers, ranges)
-        corr_ranges = 2 if self.spline_co2 else 3
-
-        # remove baseline in reference (skip this?)
-        for i in range(corr_ranges):
-            p, q = ranges[i]
-            if q - p < 2: continue
-            atm[p:q] -= interp1d(wavenumbers[[p,q-1]], atm[[p,q-1]])(wavenumbers[p:q])
-
-        # Basic removal of atmospheric spectrum
-        dh = atm[:-1] - atm[1:]
-        dy = X[:,:-1] - X[:,1:]
-        dh2 = np.cumsum(dh * dh)
-        dhdy = np.cumsum(dy * dh, 1)
-        az = np.zeros((len(X), corr_ranges))
         y = X.copy()
-        for i in range(corr_ranges):
-            p, q = ranges[i]
-            if q - p < 2: continue
-            r = q - 2 if q <= len(wavenumbers) else q - 1
-            az[:, i] = ((dhdy[:,r] - dhdy[:,p-1]) / (dh2[r] - dh2[p-1])
-                        ) if p > 0 else (dhdy[:,r] / dh2[r])
-            y[:, p:q] -= az[:, i, None] @ atm[None, p:q]
+
+        corr_ranges = len(self.correct_ranges)
+        if corr_ranges:
+            ranges = find_wn_ranges(wavenumbers, self.correct_ranges)
+
+            if self.mean_reference:
+                atms = np.atleast_2d(spectra_mean(self.reference.X))
+                atms = interpolate_to_data(getx(self.reference), atms)
+            else:
+                atms = np.atleast_2d(self.reference.X)
+                atms = interpolate_to_data(getx(self.reference), atms)
+
+
+            # remove baseline in reference (skip this?)
+            for i in range(corr_ranges):
+                p, q = ranges[i]
+                if q - p < 2: continue
+                atms[:, p:q] -= interp1d(wavenumbers[[p,q-1]], atms[:, [p,q-1]])(wavenumbers[p:q])
+
+            # Basic removal of atmospheric spectrum
+            dy = X[:,:-1] - X[:,1:]
+            az = np.zeros((len(atms), len(X), corr_ranges))
+            for ia, atm in enumerate(atms):
+                dh = atm[:-1] - atm[1:]
+                dh2 = np.cumsum(dh * dh)
+                dhdy = np.cumsum(dy * dh, 1)
+                for i in range(corr_ranges):
+                    p, q = ranges[i]
+                    if q - p < 2: continue
+                    r = q - 2 if q <= len(wavenumbers) else q - 1
+                    az[ia, :, i] = \
+                        ((dhdy[:,r] - dhdy[:,p-1]) / (dh2[r] - dh2[p-1])) \
+                            if p > 0 else (dhdy[:,r] / dh2[r])
+            az = az * az / az.sum(0)
+            print('azz', az[:,0,:])
+            print('  sum', az[:,0,:].sum(0))
+            for ia, atm in enumerate(atms):
+                for i in range(corr_ranges):
+                    p, q = ranges[i]
+                    if q - p < 2: continue
+                    y[:, p:q] -= az[ia, :, i, None] @ atm[None, p:q]
 
         # Smoothing of atmospheric regions
         if self.smooth_win > 3:
@@ -69,12 +94,16 @@ class _AtmCorr(CommonDomainOrderUnknowns):
                 if q - p >= self.smooth_win:
                     y[:, p:q] = savgol_filter(y[:, p:q], self.smooth_win, 3, axis=1)
 
-        # Replace CO2 region with spline
-        if self.spline_co2:
-            rng = np.array([[2190, 2260], [2410, 2480]])
+        # Replace (CO2) region(s) with spline(s)
+        # ranges = find_wn_ranges(wavenumbers, self.spline_ranges)
+        for srange in self.spline_ranges:
+            w = (srange[1] - srange[0]) * .24
+            rng = np.array([[srange[0], srange[0] + w],
+                            [srange[1] - w, srange[1]]])
             rngm = rng.mean(1)
             rngd = rngm[1] - rngm[0]
             cr = find_wn_ranges(wavenumbers, rng).flatten()
+
             if cr[1] - cr[0] > 2 and cr[3] - cr[2] > 2:
                 a = np.empty((4, len(y)))
                 a[0:2,:] = np.polyfit((wavenumbers[cr[0]:cr[1]]-rngm[0])/rngd,
@@ -92,17 +121,24 @@ class _AtmCorr(CommonDomainOrderUnknowns):
 
 class AtmCorr(Preprocess):
 
-    def __init__(self, reference=None, spline_co2=False, smooth_win=0):
+    def __init__(self, reference=None, correct_ranges=None,
+                 spline_ranges=None, smooth_win=0, mean_reference=True):
         if reference is None:
             raise MissingReferenceException()
         self.reference = reference
-        self.spline_co2 = spline_co2
+        self.correct_ranges = correct_ranges
+        self.spline_ranges = spline_ranges
         self.smooth_win = smooth_win
+        self.mean_reference = mean_reference
 
     def __call__(self, data):
         # creates function for transforming data
-        common = _AtmCorr(reference=self.reference, spline_co2=self.spline_co2,
-                          smooth_win=self.smooth_win, domain=data.domain)
+        common = _AtmCorr(reference=self.reference,
+                          correct_ranges=self.correct_ranges,
+                          spline_ranges=self.spline_ranges,
+                          smooth_win=self.smooth_win,
+                          mean_reference=self.mean_reference,
+                          domain=data.domain)
         # takes care of domain column-wise, by above transformation function
         atts = [a.copy(compute_value=SelectColumn(i, common))
                 for i, a in enumerate(data.domain.attributes)]
