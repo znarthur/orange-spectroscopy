@@ -28,7 +28,6 @@ class TestAtmCorrEditor(PreprocessorEditorTest):
 
     def test_interaction(self):
         self.send_signal(self.widget.Inputs.reference, SMALL_COLLAGEN)
-        self.editor.spline_button.click()
         self.editor.smooth_button.click()
         self.editor.smooth_win_spin.setValue(17)
         self.widget.unconditional_commit()
