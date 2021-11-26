@@ -167,10 +167,7 @@ class OWBin(OWWidget):
 
     def _init_interface_data(self, args):
         data = args[0]
-        same_domain = (self.data and data and
-                       data.domain == self.data.domain)
-        if not same_domain:
-            self._init_attr_values(data)
+        self._init_attr_values(data)
         self._init_attrs()
 
     def _update_attrs(self):

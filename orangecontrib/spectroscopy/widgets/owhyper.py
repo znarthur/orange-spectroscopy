@@ -699,10 +699,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_ids = {}
 
     def init_interface_data(self, data):
-        same_domain = (self.data and data and
-                       data.domain == self.data.domain)
-        if not same_domain:
-            self.init_attr_values(data)
+        self.init_attr_values(data)
 
     def help_event(self, ev):
         pos = self.plot.vb.mapSceneToView(ev.scenePos())
@@ -1168,10 +1165,7 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self.imageplot.set_visible_image_opacity(self.visible_image_opacity)
 
     def init_interface_data(self, data):
-        same_domain = (self.data and data and
-                       data.domain == self.data.domain)
-        if not same_domain:
-            self.init_attr_values(data)
+        self.init_attr_values(data)
         self.init_visible_images(data)
 
     def output_image_selection(self):
