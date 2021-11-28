@@ -89,8 +89,7 @@ class _AtmCorr(CommonDomainOrderUnknowns):
                 dh = atm[:-1] - atm[1:]
                 dh2 = np.cumsum(dh * dh)
                 dhdy = np.cumsum(dy * dh, 1)
-                for i in range(len(ranges)):
-                    p, q = ranges[i]
+                for i, (p, q) in enumerate(ranges):
                     r = q - 2
                     az[ia, :, i] = \
                         ((dhdy[:,r] - dhdy[:,p-1]) / (dh2[r] - dh2[p-1])) \
@@ -98,8 +97,7 @@ class _AtmCorr(CommonDomainOrderUnknowns):
             az2sum = (az * az).sum(0)
             az = az**3 / az2sum
             for ia, atm in enumerate(atms):
-                for i in range(len(ranges)):
-                    p, q = ranges[i]
+                for i, (p, q) in enumerate(ranges):
                     y[:, p:q] -= az[ia, :, i, None] @ atm[None, p:q]
 
         # Smoothing of atmospheric regions

@@ -96,8 +96,8 @@ class AtmCorrEditor(BaseEditorOrange):
         parameters = super().parameters()
         return parameters
 
-    def set_reference_data(self, reference):
-        self.reference = reference
+    def set_reference_data(self, data):
+        self.reference = data
         self.update_reference_info()
 
     def set_preview_data(self, data):
