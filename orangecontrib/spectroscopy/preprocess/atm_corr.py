@@ -44,6 +44,7 @@ class _AtmCorr(CommonDomainOrderUnknowns):
             self.spline_ranges = [[2190, 2480]]
         self.smooth_win = smooth_win
         self.spline_base_win = spline_base_win
+        self.spline_tukey_param = 0.2
         self.mean_reference = mean_reference
 
     def transformed(self, X, wavenumbers):
@@ -107,7 +108,6 @@ class _AtmCorr(CommonDomainOrderUnknowns):
                 y[:, p:q] = savgol_filter(y[:, p:q], self.smooth_win, 3, axis=1)
 
         # Replace (CO2) region(s) with spline(s)
-        tukey_smoothness = 0
         for srange in self.spline_ranges:
             P, Q = find_wn_ranges(wavenumbers, [srange]).flatten()
             Q = min(Q, len(wavenumbers) - 1)
@@ -128,7 +128,7 @@ class _AtmCorr(CommonDomainOrderUnknowns):
             t = np.interp(wavenumbers[P:Q+1], [Pw, Qw], [0, 1])
             tt = np.array([t**3-2*t**2+t, 2*t**3-3*t**2+1, t**3-t**2, -2*t**3+3*t**2])
             pt = a.T @ tt
-            y[:, P:Q+1] += (pt - y[:, P:Q+1]) * tukey(len(t), tukey_smoothness)
+            y[:, P:Q+1] += (pt - y[:, P:Q+1]) * tukey(len(t), self.spline_tukey_param)
 
         return y
 

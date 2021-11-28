@@ -10,7 +10,7 @@ and 2190-2480 cm<sup>-1</sup> for CO<sub>2</sub>.
 In each of these ranges (individually), the preprocessor either subtracts
 (or adds) as much of the reference spectrum as necessary to maximize the
 smoothness of the output (**Correct**), replaces the data with a smooth line
-(**Remove**) or does nothing (**Ignore**). Ranges to be corrected must not overlap.
+(**Bridge**) or does nothing (**No-op**). Ranges to be corrected must not overlap.
 
 For each range to be **Correct**ed and for each spectrum, the amount of reference
 subtracted from (or added to) the spectrum is chosen such that the sum of
@@ -25,9 +25,10 @@ references; this should be investigated and developed further.
 Optionally, the corrected ranges are smoothed with a Savitzky-Golay
 filter of user-defined **Savitzky-Golay window size** and polynomial order 3.
 
-For each range to be **Remove**d, data are replaced with a non-overshooting
-spline that merges gradually with the data at its edges (using a Tukey
-window with alpha=0.3).
+For each range to be **Bridge**d, data are replaced with a spline that merges
+gradually with the data at its edges. The spline is derived from the level and
+slope in a window of **Bridge base window size** points, while the transition
+between data and spline follows a Tukey window with alpha=0.2.
 
 **Reference spectrum**
 
