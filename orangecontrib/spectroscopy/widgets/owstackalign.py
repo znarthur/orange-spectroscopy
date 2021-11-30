@@ -183,7 +183,6 @@ class OWStackAlign(OWWidget):
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
-
     def _sanitize_ref_frame(self):
         if self.ref_frame_num > self.data.X.shape[1]:
             self.ref_frame_num = self.data.X.shape[1]
@@ -204,10 +203,7 @@ class OWStackAlign(OWWidget):
 
     def _init_interface_data(self, args):
         data = args[0]
-        same_domain = (self.data and data and
-                       data.domain == self.data.domain)
-        if not same_domain:
-            self._init_attr_values(data)
+        self._init_attr_values(data)
 
     def _update_attr(self):
         self.commit()
