@@ -51,8 +51,9 @@ Preprocessing Methods
 - Absorbance to Transmittance: convert absorbance spectra to transmittance.
 - Shift spectra: shift things around.
 - EMSC: special Norweigan method.
-- Spike Removal: Removes spikes in spectra through a modified z-score. [More...](SpikeRemoval.md).
-- Asymmetric Least Squares Smoothing: Three ALS methods which can be used for baseline subtraction. [More...](als.md) 
+- Spike Removal: Removes spikes in spectra through a modified z-score. [More...](SpikeRemoval.md)
+- Asymmetric Least Squares Smoothing: Three ALS methods which can be used for baseline subtraction. [More...](als.md)
+- Atmospheric gas correction: remove H20/CO2 contributions using a reference spectrum. [More...](atmcorr.md)
 
 Example
 -------

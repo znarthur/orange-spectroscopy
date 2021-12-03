@@ -376,3 +376,12 @@ class PreprocessorEditorTest(WidgetTest):
         editor = widget.flow_view.widgets()[-1]
         self.process_events()
         return editor
+
+    def get_preprocessor(self):
+        out = self.get_output(self.widget.Outputs.preprocessor)
+        return out.preprocessors[0]
+
+    def commit_get_preprocessor(self):
+        self.widget.unconditional_commit()
+        self.wait_until_finished()
+        return self.get_preprocessor()

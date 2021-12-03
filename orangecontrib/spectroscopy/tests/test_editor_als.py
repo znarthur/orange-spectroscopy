@@ -9,10 +9,6 @@ class A(unittest.TestCase): pass
 
 class TestALSEditor(PreprocessorEditorTest):
 
-    def get_preprocessor(self):
-        out = self.get_output(self.widget.Outputs.preprocessor)
-        return out.preprocessors[0]
-
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
         self.editor = self.add_editor(ALSEditor, self.widget)
