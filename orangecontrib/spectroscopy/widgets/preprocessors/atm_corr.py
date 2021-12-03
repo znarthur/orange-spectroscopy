@@ -131,13 +131,14 @@ class AtmCorrEditor(BaseEditorOrange):
     def createinstance(cls, params):
         cranges = []
         sranges = []
+        rdefs = cls.get_range_defaults()
         for b in range(len(cls.RANGES)):
-            r = [params.get(f'{a}_{b}') for a in ['low', 'high']]
+            r = [params.get(f'{a}_{b}', rdefs.get(f'{a}_{b}')) for a in ['low', 'high']]
             try:
                 r = [float(v) for v in r]
             except (ValueError, TypeError):
                 continue
-            cm = params.get(f'corrmode_{b}')
+            cm = params.get(f'corrmode_{b}', rdefs.get(f'corrmode_{b}'))
             if cm == 1:
                 cranges.append(r)
             elif cm == 2:
