@@ -58,7 +58,7 @@ class AtmCorrEditor(BaseEditorOrange):
         self.smooth_win_spin = gui.spin(self.controlArea, self, "smooth_win",
                  label="Savitzky-Golay window size", minv=5, maxv=35,
                  step=2, controlWidth=60, callback=self.edited.emit)
-        self.smooth_win_spin = gui.spin(self.controlArea, self, "bridge_win",
+        self.bridge_win_spin = gui.spin(self.controlArea, self, "bridge_win",
                  label="Bridge base window size", minv=3, maxv=35,
                  step=2, controlWidth=60, callback=self.edited.emit)
         gui.checkBox(self.controlArea, self, "mean_reference",
@@ -85,12 +85,12 @@ class AtmCorrEditor(BaseEditorOrange):
             self.user_changed = True
         self.smooth = params.get("smooth", self.SMOOTH)
         self.smooth_win = params.get("smooth_win", self.SMOOTH_WIN)
+        self.bridge_win = params.get("bridge_win", self.BRIDGE_WIN)
         self.update_reference_info()
         self.smooth_win_spin.setEnabled(self.smooth)
         for an, v in self.get_range_defaults().items():
             setattr(self, an, params.get(an, v))
         self.mean_reference = params.get("mean_reference", self.MEAN_REF)
-
 
     def parameters(self):
         parameters = super().parameters()

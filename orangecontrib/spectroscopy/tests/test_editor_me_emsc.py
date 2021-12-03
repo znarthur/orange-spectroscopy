@@ -10,10 +10,6 @@ from orangecontrib.spectroscopy.widgets.preprocessors.me_emsc import MeEMSCEdito
 
 class TestMeEMSCEditor(PreprocessorEditorTest):
 
-    def get_preprocessor(self):
-        out = self.get_output(self.widget.Outputs.preprocessor)
-        return out.preprocessors[0]
-
     def setUp(self):
         self.widget = self.create_widget(OWPreprocess)
         self.editor = self.add_editor(MeEMSCEditor, self.widget)  # type: MeEMSCEditor
@@ -21,11 +17,6 @@ class TestMeEMSCEditor(PreprocessorEditorTest):
         # FIXME: current ME-EMSC can not handle same data and reference
         self.data = SMALL_COLLAGEN[1:3]
         self.send_signal(self.widget.Inputs.data, self.data)
-
-    def commit_get_preprocessor(self):
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        return self.get_preprocessor()
 
     def test_no_interaction(self):
         reference = SMALL_COLLAGEN[:1]
