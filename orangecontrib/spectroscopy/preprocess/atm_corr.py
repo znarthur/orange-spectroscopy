@@ -68,6 +68,9 @@ class _AtmCorr(CommonDomainOrderUnknowns):
 
         y = X.copy()
 
+        if y.size == 0:
+            return y
+
         ranges = find_wn_ranges(wavenumbers, self.correct_ranges)
         ranges = [[p, q] for p, q in ranges if q - p > 1]
         if ranges:

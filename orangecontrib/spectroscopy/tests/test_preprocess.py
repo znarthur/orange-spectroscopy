@@ -152,7 +152,8 @@ PREPROCESSORS_INDEPENDENT_SAMPLES += list(
 
 # AtmCorr with different kinds of reference
 PREPROCESSORS_INDEPENDENT_SAMPLES += list(
-    add_edge_case_data_parameter(AtmCorr, "reference", SMALL_COLLAGEN[0:1]))
+    add_edge_case_data_parameter(AtmCorr, "reference", SMALL_COLLAGEN[0:1],
+                                 correct_ranges=[(1300, 2100)], smooth_win=5))
 
 PREPROCESSORS_INDEPENDENT_SAMPLES += \
     list(add_edge_case_data_parameter(NormalizeReference, "reference", SMALL_COLLAGEN[:1]))
