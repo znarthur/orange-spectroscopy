@@ -1,7 +1,7 @@
 [![DOI](https://zenodo.org/badge/53335377.svg)](https://zenodo.org/badge/latestdoi/53335377)
 
-Orange for spectral data
-========================
+Orange toolbox for spectral data analysis
+=========================================
 
 This is an add-on for [Orange3](http://orange.biolab.si) for the analysis
 of spectral data.
