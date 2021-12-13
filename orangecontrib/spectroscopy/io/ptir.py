@@ -9,7 +9,6 @@ class PTIRFileReader(FileFormat, SpectralFileFormat):
     """ Reader for .ptir HDF5 files from Photothermal systems"""
     EXTENSIONS = ('.ptir',)
     DESCRIPTION = 'PTIR Studio file'
-    PRIORITY = 1
 
     data_signal = ''
 
