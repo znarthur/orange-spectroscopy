@@ -3,7 +3,7 @@ import numpy as np
 from Orange.data import FileFormat, ContinuousVariable, Table, Domain
 from Orange.data.io import CSVReader
 
-from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.util import getx
 from orangecontrib.spectroscopy.io.util import SpectralFileFormat
 
 
