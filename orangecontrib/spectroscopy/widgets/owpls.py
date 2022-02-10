@@ -59,6 +59,7 @@ class OWPLS(OWBaseLearner):
             coef_table.name = "coefficients"
         self.Outputs.coefsdata.send(coef_table)
 
+    @OWBaseLearner.Inputs.data
     def set_data(self, data):
         self.Warning.sparse_data.clear()
         super().set_data(data)
