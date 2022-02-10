@@ -7,3 +7,4 @@ from . import emsc
 from . import me_emsc
 from . import normalize
 from . import spikeremoval
+from . import xas
