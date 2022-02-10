@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from Orange.widgets import gui
-# from orangecontrib.spectroscopy.widgets.gui import lineEditDecimalOrNone
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange, REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.preprocess.atm_corr import AtmCorr
@@ -16,6 +16,8 @@ class AtmCorrEditor(BaseEditorOrange):
        Atmospheric gas correction.
        Default ranges are two H2O regions (corrected) and one CO2 region (removed)
     """
+    name = "Atmospheric gas (CO2/H2O) correction"
+    qualname = "preprocessors.atm_corr"
 
     RANGES = [[1300, 2100, 1], [2190, 2480, 2],
               [3410, 3850, 1], ['', '', 0]]
@@ -156,3 +158,6 @@ class AtmCorrEditor(BaseEditorOrange):
                            spline_ranges=sranges, smooth_win=smooth_win,
                            spline_base_win=bridge_win,
                            mean_reference=mean_reference)
+
+
+preprocess_editors.register(AtmCorrEditor, 700)

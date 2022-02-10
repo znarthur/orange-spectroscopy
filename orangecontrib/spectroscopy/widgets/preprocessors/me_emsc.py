@@ -5,12 +5,16 @@ from PyQt5.QtWidgets import QVBoxLayout, QLabel, QFormLayout, QBoxLayout
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import REFERENCE_DATA_PARAM, \
     BaseEditorOrange
 from orangecontrib.spectroscopy.widgets.preprocessors.emsc import EMSCEditor
 
 
 class MeEMSCEditor(EMSCEditor):
+    name = "ME-EMSC"
+    qualname = "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc"
+
     MAX_ITER_DEFAULT = 30
     FIXED_ITER_DEFAULT = False
     OUTPUT_MODEL_DEFAULT = False
@@ -140,3 +144,6 @@ class MeEMSCEditor(EMSCEditor):
             return ME_EMSC(reference=reference, weights=weights, max_iter=max_iter,
                            fixed_iter=fixed_iter, ncomp=ncomp, n0=n0, a=a,
                            output_model=output_model)
+
+
+preprocess_editors.register(MeEMSCEditor, 325)

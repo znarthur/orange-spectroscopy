@@ -12,6 +12,10 @@ from orangecontrib.spectroscopy.data import getx
 
 class BaseEditor(BaseEditor):
 
+    name = "Unnamed"
+    qualname = None
+    icon = None
+
     def set_preview_data(self, data):
         """Handle the preview data (initialize parameters).
 

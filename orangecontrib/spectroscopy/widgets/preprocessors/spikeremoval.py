@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import QVBoxLayout
 from Orange.widgets import gui
+
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange
 from orangecontrib.spectroscopy.widgets.gui import lineEditDecimalOrNone
@@ -10,6 +12,9 @@ class SpikeRemovalEditor(BaseEditorOrange):
     """
     Spike Removal.
     """
+    name = "Spike Removal"
+    qualname = "preprocessors.spikeremoval"
+
     THRESHOLD = 7
     CUTOFF = 100
     DIS = 5
@@ -58,3 +63,6 @@ class SpikeRemovalEditor(BaseEditorOrange):
             cutoff = cls.CUTOFF
         dis = params.get('dis', cls.DIS)
         return Despike(threshold=float(threshold), cutoff=float(cutoff), dis=dis)
+
+
+preprocess_editors.register(SpikeRemovalEditor, 600)

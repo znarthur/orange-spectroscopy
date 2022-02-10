@@ -8,6 +8,7 @@ from Orange.widgets.data.utils.preprocess import blocked
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditor, SetXDoubleSpinBox
 
@@ -16,6 +17,8 @@ class IntegrateEditor(BaseEditor):
     """
     Editor to integrate defined regions.
     """
+    name = "Integrate"
+    qualname = "orangecontrib.infrared.integrate"
 
     Integrators_classes = Integrate.INTEGRALS
     Integrators = [a.name for a in Integrators_classes]
@@ -227,3 +230,6 @@ class LimitsBox(QHBoxLayout):
         while self.count():
             self.takeAt(0).widget().setParent(None)
         self.setParent(None)
+
+
+preprocess_editors.register(IntegrateEditor, 175)

@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QVBoxLayout, QFormLayout
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.widgets.gui import lineEditDecimalOrNone
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange
 from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 
@@ -9,6 +10,8 @@ class ALSEditor(BaseEditorOrange):
     """
        Asymmetric least squares subtraction.
     """
+    name = "Asymmetric Least Squares Smoothing"
+    qualname = "preprocessors.ALS"
 
     ALS_TYPE = 0
     LAM = 1E+6
@@ -103,3 +106,6 @@ class ALSEditor(BaseEditorOrange):
                           porder=porderairpls)
         else:
             raise Exception("unknown baseline type")
+
+
+preprocess_editors.register(ALSEditor, 625)

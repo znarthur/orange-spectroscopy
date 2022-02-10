@@ -5,14 +5,17 @@ from PyQt5.QtWidgets import QVBoxLayout, QFormLayout, QComboBox, QButtonGroup, Q
 from Orange.data import ContinuousVariable
 from Orange.widgets import gui
 from Orange.widgets.data.utils.preprocess import blocked
-from Orange.widgets.gui import OWComponent
+from Orange.widgets.data.owpreprocess import icon_path
 from Orange.widgets.utils.itemmodels import DomainModel
+
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference, NormalizePhaseReference
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import \
     BaseEditorOrange, SetXDoubleSpinBox, REFERENCE_DATA_PARAM
+
 
 NORMALIZE_BY_REFERENCE = 42
 PHASE_REFERENCE = 13
@@ -22,6 +25,10 @@ class NormalizeEditor(BaseEditorOrange):
     """
     Normalize spectra.
     """
+    name = "Normalize Spectra"
+    qualname = "orangecontrib.infrared.normalize"
+    icon = icon_path("Normalize.svg")
+
     # Normalization methods
     Normalizers = [
         ("Vector Normalization", Normalize.Vector),
@@ -231,3 +238,6 @@ class NormalizeEditor(BaseEditorOrange):
             edited = True
         if edited:
             self.edited.emit()
+
+
+preprocess_editors.register(NormalizeEditor, 150)

@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QFormLayout, QPushButton, QApplication,
 from Orange.widgets import gui
 from orangecontrib.spectroscopy.preprocess import LinearBaseline, RubberbandBaseline
 from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     PreviewMinMaxMixin, layout_widgets
 
@@ -14,6 +15,8 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
     """
     Baseline subtraction.
     """
+    name = "Baseline Correction"
+    qualname = "orangecontrib.infrared.baseline"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -164,3 +167,6 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
 
     def set_preview_data(self, data):
         self.preview_data = data
+
+
+preprocess_editors.register(BaselineEditor, 125)

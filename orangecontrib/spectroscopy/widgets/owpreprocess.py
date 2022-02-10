@@ -50,18 +50,10 @@ from orangecontrib.spectroscopy.preprocess.transform import SpecTypes
 from orangecontrib.spectroscopy.preprocess.utils import PreprocessException
 from orangecontrib.spectroscopy.widgets.owspectra import CurvePlot, NoSuchCurve
 from orangecontrib.spectroscopy.widgets.gui import lineEditFloatRange, MovableVline, connect_line, floatornone, round_virtual_pixels
-from orangecontrib.spectroscopy.widgets.preprocessors.baseline import BaselineEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.emsc import EMSCEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.me_emsc import MeEMSCEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.normalize import NormalizeEditor
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditor, BaseEditorOrange, \
     REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.widgets.gui import ValueTransform, connect_settings, float_to_str_decimals
-from orangecontrib.spectroscopy.widgets.preprocessors.spikeremoval import SpikeRemovalEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.als import ALSEditor
-from orangecontrib.spectroscopy.widgets.preprocessors.atm_corr import AtmCorrEditor
-
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 
 PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
 
@@ -253,6 +245,9 @@ class GaussianSmoothingEditor(BaseEditorOrange):
     Editor for GaussianSmoothing
     """
 
+    name = "Gaussian smoothing"
+    qualname = "orangecontrib.infrared.gaussian"
+
     DEFAULT_SD = 10.
     MINIMUM_SD = 10e-10
 
@@ -285,6 +280,8 @@ class CutEditor(BaseEditorOrange):
     """
     Editor for Cut
     """
+    name = "Cut (keep)"
+    qualname = "orangecontrib.infrared.cut"
 
     class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("Limits are out of range.")
@@ -362,6 +359,8 @@ class CutEditor(BaseEditorOrange):
 
 
 class CutEditorInverse(CutEditor):
+    name = "Cut (remove)"
+    qualname = "orangecontrib.infrared.cutinverse"
 
     @staticmethod
     def createinstance(params):
@@ -375,6 +374,8 @@ class SpSubtractEditor(BaseEditorOrange):
     """
     Editor for preprocess.SpSubtract
     """
+    name = "Spectrum subtraction"
+    qualname = "orangecontrib.spectroscopy.sp_subtract"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -435,6 +436,8 @@ class SavitzkyGolayFilteringEditor(BaseEditorOrange):
     """
     Editor for preprocess.savitzkygolayfiltering.
     """
+    name = "Savitzky-Golay Filter"
+    qualname = "orangecontrib.spectroscopy.savitzkygolay"
 
     DEFAULT_WINDOW = 5
     DEFAULT_POLYORDER = 2
@@ -515,6 +518,9 @@ class CurveShiftEditor(BaseEditorOrange):
     # TODO: the layout changes when I click the area of the preprocessor
     #       EFFECT: the sidebar snaps in
 
+    name = "Shift Spectra"
+    qualname = "orangecontrib.infrared.curveshift"
+
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
@@ -536,6 +542,8 @@ class CurveShiftEditor(BaseEditorOrange):
 
 
 class PCADenoisingEditor(BaseEditor):
+    name = "PCA denoising"
+    qualname = "orangecontrib.infrared.pca_denoising"
 
     def __init__(self, parent=None, **kwargs):
         BaseEditor.__init__(self, parent, **kwargs)
@@ -577,6 +585,8 @@ class PCADenoisingEditor(BaseEditor):
 
 
 class SpectralTransformEditor(BaseEditorOrange):
+    name = "Spectral Transformations"
+    qualname = "orangecontrib.spectroscopy.transforms"
 
     TRANSFORMS = [Absorbance,
                   Transmittance]
@@ -706,6 +716,8 @@ def init_bounds_hform(prepro_widget,
 
 
 class XASnormalizationEditor(BaseEditorOrange):
+    name = "XAS normalization"
+    qualname = "orangecontrib.infrared.xasnormalization"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -864,6 +876,8 @@ class E2K(ValueTransform):
 
 
 class ExtractEXAFSEditor(BaseEditorOrange):
+    name = "Polynomial EXAFS extraction"
+    qualname = "orangecontrib.infrared.extractexafs"
 
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -1009,120 +1023,6 @@ class ExtractEXAFSEditor(BaseEditorOrange):
 
         return ExtractEXAFS(edge=edge, extra_from=extra_from, extra_to=extra_to,
                             poly_deg=poly_deg, kweight=kweight, m=m)
-
-
-PREPROCESSORS = [
-    PreprocessAction(
-        "Cut (keep)", "orangecontrib.infrared.cut", "Cut",
-        Description("Cut (keep)",
-                    icon_path("Discretize.svg")),
-        CutEditor
-    ),
-    PreprocessAction(
-        "Cut (remove)", "orangecontrib.infrared.cutinverse", "Cut",
-        Description("Cut (remove)",
-                    icon_path("Discretize.svg")),
-        CutEditorInverse
-    ),
-    PreprocessAction(
-        "Gaussian smoothing", "orangecontrib.infrared.gaussian", "Gaussian smoothing",
-        Description("Gaussian smoothing",
-                    icon_path("Discretize.svg")),
-        GaussianSmoothingEditor
-    ),
-    PreprocessAction(
-        "Savitzky-Golay Filter", "orangecontrib.spectroscopy.savitzkygolay", "Smoothing",
-        Description("Savitzky-Golay Filter",
-                    icon_path("Discretize.svg")),
-        SavitzkyGolayFilteringEditor
-    ),
-    PreprocessAction(
-        "Baseline Correction", "orangecontrib.infrared.baseline", "Baseline Correction",
-        Description("Baseline Correction",
-                    icon_path("Discretize.svg")),
-        BaselineEditor
-    ),
-    PreprocessAction(
-        "Normalize Spectra", "orangecontrib.infrared.normalize", "Normalize Spectra",
-        Description("Normalize Spectra",
-                    icon_path("Normalize.svg")),
-        NormalizeEditor
-    ),
-    PreprocessAction(
-        "Integrate", "orangecontrib.infrared.integrate", "Integrate",
-        Description("Integrate",
-                    icon_path("Discretize.svg")),
-        IntegrateEditor
-    ),
-    PreprocessAction(
-        "PCA denoising", "orangecontrib.infrared.pca_denoising", "PCA denoising",
-        Description("PCA denoising",
-                    icon_path("Discretize.svg")),
-        PCADenoisingEditor
-    ),
-    PreprocessAction(
-        "Spectral Transformations",
-        "orangecontrib.spectroscopy.transforms",
-        "Spectral Transformations",
-        Description("Spectral Transformations",
-                    icon_path("Discretize.svg")),
-        SpectralTransformEditor
-    ),
-    PreprocessAction(
-        "Shift Spectra", "orangecontrib.infrared.curveshift", "Shift Spectra",
-        Description("Shift Spectra",
-                    icon_path("Discretize.svg")),
-        CurveShiftEditor
-    ),
-    PreprocessAction(
-        "Spectrum subtraction", "orangecontrib.spectroscopy.sp_subtract", "Subtraction",
-        Description("Spectrum subtraction",
-                    icon_path("Discretize.svg")),
-        SpSubtractEditor
-    ),
-    PreprocessAction(
-        "EMSC", "orangecontrib.spectroscopy.preprocess.emsc", "EMSC",
-        Description("EMSC",
-                    icon_path("Discretize.svg")),
-        EMSCEditor
-    ),
-    PreprocessAction(
-        "ME-EMSC", "orangecontrib.spectroscopy.preprocess.me_emsc.me_emsc", "ME-EMSC",
-        Description("ME-EMSC",
-                    icon_path("Discretize.svg")),
-        MeEMSCEditor
-    ),
-    PreprocessAction(
-        "XAS normalization", "orangecontrib.infrared.xasnormalization", "XAS normalization",
-        Description("XAS normalization",
-                    icon_path("Discretize.svg")),
-        XASnormalizationEditor
-    ),
-    PreprocessAction(
-        "EXAFS extraction", "orangecontrib.infrared.extractexafs", "EXAFS extraction",
-        Description("Polynomial EXAFS extraction",
-                    icon_path("Discretize.svg")),
-        ExtractEXAFSEditor
-    ),
-    PreprocessAction(
-        "Spike Removal", "preprocessors.spikeremoval", "Spike Removal",
-        Description("Spike Removal",
-                    icon_path("Discretize.svg")),
-        SpikeRemovalEditor
-    ),
-    PreprocessAction(
-        "ALS Correction", "preprocessors.ALS", "ALS Correction",
-        Description("Asymmetric Least Squares Smoothing",
-                    icon_path("Discretize.svg")),
-        ALSEditor
-    ),
-    PreprocessAction(
-        "Atmospheric Correction", "preprocessors.atm_corr", "Atmospheric Correction",
-        Description("Atmospheric gas (CO2/H2O) correction",
-                    icon_path("Discretize.svg")),
-        AtmCorrEditor
-    ),
-    ]
 
 
 class TimeoutLabel(QLabel):
@@ -1340,6 +1240,8 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
     # draw preview on top of current image
     preview_on_image = False
 
+    editor_registry = None
+
     _max_preview_spectra = 10
 
     class Error(OWWidget.Error):
@@ -1353,9 +1255,29 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
                                "the reference input.")
         preprocessor = Msg("Preprocessor warning: see the widget for details.")
 
+    def _build_preprocessor_list(self):
+        if self.editor_registry is None:
+            return
+        plist = []
+        qualnames = set()
+        for editor in self.editor_registry.sorted():
+            assert editor.qualname is not None
+            assert editor.qualname not in qualnames
+            pa = PreprocessAction(editor.name,
+                                  editor.qualname,
+                                  editor.name,
+                                  Description(editor.name,
+                                              editor.icon if editor.icon else
+                                              icon_path("Discretize.svg")),
+                                  editor)
+            qualnames.add(editor.qualname)
+            plist.append(pa)
+        self.PREPROCESSORS = plist
+
     def __init__(self):
         super().__init__()
         ConcurrentWidgetMixin.__init__(self)
+        self._build_preprocessor_list()
 
         self.preview_runner = PreviewRunner(self)
 
@@ -1733,7 +1655,7 @@ class OWPreprocess(SpectralPreprocessReference):
     settings_version = 8
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
-    PREPROCESSORS = PREPROCESSORS
+    editor_registry = preprocess_editors
 
     _max_preview_spectra = 100
 
@@ -1837,6 +1759,19 @@ class OWPreprocess(SpectralPreprocessReference):
             )
 
         super().migrate_settings(settings_, version)
+
+
+preprocess_editors.register(CutEditor, 25)
+preprocess_editors.register(CutEditorInverse, 50)
+preprocess_editors.register(GaussianSmoothingEditor, 75)
+preprocess_editors.register(SavitzkyGolayFilteringEditor, 100)
+preprocess_editors.register(PCADenoisingEditor, 200)
+preprocess_editors.register(SpectralTransformEditor, 225)
+preprocess_editors.register(CurveShiftEditor, 250)
+preprocess_editors.register(SpSubtractEditor, 275)
+
+preprocess_editors.register(XASnormalizationEditor, 900)
+preprocess_editors.register(ExtractEXAFSEditor, 925)
 
 
 if __name__ == "__main__":  # pragma: no cover
