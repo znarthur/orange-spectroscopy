@@ -9,7 +9,8 @@ from Orange.widgets.data.owpreprocess import icon_path
 from Orange.widgets.utils.itemmodels import DomainModel
 
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference, NormalizePhaseReference
+from orangecontrib.spectroscopy.preprocess import Normalize, Integrate, NormalizeReference, \
+    NormalizePhaseReference
 from orangecontrib.spectroscopy.widgets.gui import MovableVline
 from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.integrate import IntegrateEditor

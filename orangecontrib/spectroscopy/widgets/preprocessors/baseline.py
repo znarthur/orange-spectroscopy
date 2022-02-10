@@ -102,8 +102,9 @@ class BaselineEditor(BaseEditorOrange, PreviewMinMaxMixin):
         e.edited.connect(self.edited)
         e.focusIn.connect(self.activateOptions)
 
-        remove_button = QPushButton(QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
-                                    "", autoDefault=False)
+        remove_button = QPushButton(
+            QApplication.style().standardIcon(QStyle.SP_DockWidgetCloseButton),
+            "", autoDefault=False)
         remove_button.clicked.connect(lambda: self.delete_range(linelayout))
         linelayout.layout().addWidget(remove_button)
 
