@@ -65,9 +65,6 @@ class OWPLS(OWBaseLearner):
         if self.data and sp.issparse(self.data.X):
             self.Warning.sparse_data()
 
-    def handleNewSignals(self):
-        self.apply()
-
     def create_learner(self):
         common_args = {'preprocessors': self.preprocessors}
         return PLSRegressionLearner(n_components=self.n_components,
