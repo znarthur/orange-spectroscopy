@@ -483,9 +483,9 @@ class VerticalPeakLine(pg.InfiniteLine):
     """
 
     def __init__(self, pos=None, angle=90, pen=None, movable=True,
-                 bounds=None, label=None, span=None):
+                 bounds=None, label=None):
 
-        super().__init__(pos, angle, pen, movable, bounds, span)
+        super().__init__(pos, angle, pen, movable, bounds, span=(0.02, 0.98))
 
         if label is None:
             self.label = pg.InfLineLabel(self, text="", position=(1))
@@ -493,47 +493,6 @@ class VerticalPeakLine(pg.InfiniteLine):
 
         self.sigDragged.connect(self.updateLabel)
         self.selection = 0
-        self.span = span
-
-    def setSpan(self, mn, mx):
-        if self.span != (mn, mx):
-            self.span = (mn, mx)
-            self.update()
-
-    def _computeBoundingRect(self):
-        vr = self.viewRect()
-        if vr is None:
-            return QtCore.QRectF()
-
-        px = self.pixelLength(direction=Point(1, 0), ortho=True)
-        if px is None:
-            px = 0
-        pw = max(self.pen.width() / 2, self.hoverPen.width() / 2)
-        w = max(4, 0 + pw) + 1
-        w = w * px
-        br = QtCore.QRectF(vr)
-        br.setBottom(-w)
-        br.setTop(w)
-        left = self.span[0] #left = br.left() + length * self.span[0]
-        right = self.span[1] #right = br.left() + length * self.span[1]
-        #right and left changed to only go from min to max values of data
-        br.setLeft(left)
-        br.setRight(right)
-        br = br.normalized()
-
-        vs = self.getViewBox().size()
-        if self.mouseDragEvent:
-            left = self.span[0] - self.getYPos()
-
-        if self._bounds != br or self._lastViewSize != vs:
-            self._bounds = br
-            self._lastViewSize = vs
-            self.prepareGeometryChange()
-
-        self._endPoints = (left, right)
-        self._lastViewRect = vr
-
-        return self._bounds
 
     def mouseClickEvent(self, ev):
         if ev.button() == QtCore.Qt.LeftButton and not self.moving and self.selection == 0:

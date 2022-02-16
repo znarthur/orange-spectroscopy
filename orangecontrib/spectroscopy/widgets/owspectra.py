@@ -681,8 +681,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.clear_data()
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
-        self.minium_point = None
-        self.maximum_point = None
         self.peak_positions = []
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
@@ -814,7 +812,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.reset_labels = QPushButton('Delete all Labels', self)
         self.delete_labels = QPushButton('Delete Selected Labels', self)
         self.save_labels = QPushButton('Save Plotted Labels', self)
-        self.single_peak.clicked.connect(self.find_peak_variables)
         self.single_peak.clicked.connect(self.peak_apply)
         self.reset_labels.clicked.connect(self.delete_all_labels)
         self.delete_labels.clicked.connect(self.delete_selected_labels)
@@ -836,7 +833,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         layout.addWidget(self.delete_labels, 5, 0)
         layout.addWidget(self.save_labels)
         self.apply_button = QPushButton("Automatic label", self)
-        self.apply_button.clicked.connect(self.find_peak_variables)
         self.apply_button.clicked.connect(self.set_auto_peaks)
         layout.addWidget(self.apply_button, 4, 1)
         peak_action.setDefaultWidget(prominence_box)
@@ -1049,43 +1045,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.showGrid(self.show_grid, self.show_grid, alpha=0.3)
         self.show_grid_a.setChecked(self.show_grid)
 
-    def find_peak_variables(self):
-        if np.size(self.curves_plotted) > 0:
-            data = self.curves_plotted[0][1:]
-            data = data[0]
-        else:
-            data = self.data.X[:, self.data_xsind]
-
-        self.maximum_point = data[argrelmax(data)]
-        if self.maximum_point.size == 0:
-            self.maximum_point = np.infty
-        else:
-            self.maximum_point = np.nanmax(self.maximum_point)
-
-        self.minimum_point = data[argrelmin(data)]
-        if self.minimum_point.size == 0:
-            self.minimum_point = 0
-        else:
-            self.minimum_point = np.nanmin(self.minimum_point)
-
-        self.start_point = np.mean(self.plot.viewRange()[0])
-
     def peak_apply(self, position):
-        span = None
-        if np.size(position) == 2:
-            span = position[1]
-            position = position[0]
         if self.viewtype == INDIVIDUAL:
             label_line = VerticalPeakLine()
             label_line.setMovable(True)
             label_line.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
-            if span is None:
-                label_line.setSpan(mn=self.minimum_point, mx=self.maximum_point)
-            else:
-                label_line.setSpan(mn=span[0], mx=span[1])
             label_line.label.setColor(color=QColor(Qt.black))
             label_line.label.setMovable(True)
-            label_line.setPos(position if position else self.start_point)
+            label_line.setPos(position if position else np.mean(self.plot.viewRange()[0]))
             self.peak_positions.append(label_line)
             self.plotview.addItem(label_line)
             label_line.updateLabel()
