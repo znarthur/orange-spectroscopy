@@ -1084,16 +1084,11 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             else:
                 label_line.setSpan(mn=span[0], mx=span[1])
             label_line.label.setColor(color=QColor(Qt.black))
-            label_line.label.setPosition(1)
             label_line.label.setMovable(True)
-            if position:
-                label_line.setPos(position)
-                label_line.label.setText(str(round(position, 3)))
-            else:
-                label_line.setPos(self.start_point)
-                label_line.label.setText(str(round(self.start_point, 3)))
+            label_line.setPos(position if position else self.start_point)
             self.peak_positions.append(label_line)
             self.plotview.addItem(label_line)
+            label_line.updateLabel()
 
     def peak_apply_auto(self, prominence, minHeight, maxHeight, line_overlap):
         if self.viewtype == INDIVIDUAL:
