@@ -4,11 +4,10 @@ from abc import ABCMeta, abstractmethod
 
 from AnyQt.QtCore import QLocale, Qt, QSize
 from AnyQt.QtGui import QDoubleValidator, QIntValidator, QValidator, QColor
-from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QSizePolicy
+from AnyQt.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QSizePolicy, QMenu, QAction
 from AnyQt.QtCore import pyqtSignal as Signal
 
 import pyqtgraph as pg
-from pyqtgraph import Point, QtCore
 
 from Orange.widgets.utils import getdeepattr
 from Orange.widgets.widget import OWComponent
@@ -479,35 +478,29 @@ class XPosLineEdit(QWidget, OWComponent):
 
 class VerticalPeakLine(pg.InfiniteLine):
 
-    """pyqtgraph.InfiniteLine with adjustments for spectra analysis
-    """
+    sigDeleteRequested = Signal(object)
 
-    def __init__(self, pos=None, angle=90, pen=None, movable=True,
-                 bounds=None, label=None):
+    def __init__(self, pos=None, label=None):
+        super().__init__(pos, angle=90, movable=True, span=(0.02, 0.98))
 
-        super().__init__(pos, angle, pen, movable, bounds, span=(0.02, 0.98))
+        self.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
 
         if label is None:
             self.label = pg.InfLineLabel(self, text="", position=(1))
             self.updateLabel()
+        self.label.setColor(color=QColor(Qt.black))
+        self.label.setMovable(True)
 
         self.sigDragged.connect(self.updateLabel)
-        self.selection = 0
 
-    def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.LeftButton and not self.moving and self.selection == 0:
-            self.setPen(pg.mkPen(color=QColor(Qt.blue), width=2, style=Qt.DotLine))
-            self.update()
-            self.selection = 1
-        else:
-            self.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
-            self.update()
-            self.selection = 0
-
-    def delete_line(self):
-        if self.selection == 1:
-            self.hide()
-            self.update()
+    def contextMenuEvent(self, ev):
+        menu = QMenu()
+        delete = QAction(
+            "Delete", self, shortcut=Qt.Key_Delete, checkable=False,
+            triggered=lambda x: self.sigDeleteRequested.emit(self)
+        )
+        menu.addAction(delete)
+        menu.exec(ev.screenPos())
 
     def updateLabel(self):
         v = self.value()
