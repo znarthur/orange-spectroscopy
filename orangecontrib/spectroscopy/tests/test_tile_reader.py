@@ -8,7 +8,7 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy import get_sample_datasets_dir
 from orangecontrib.spectroscopy.tests.test_preprocess import PREPROCESSORS_INDEPENDENT_SAMPLES
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, \
     create_preprocessor
 
 from orangecontrib.spectroscopy.widgets.owtilefile import OWTilefile
@@ -70,8 +70,7 @@ class TestTileReaderWidget(WidgetTest):
         """ Test that loading a preprocessor signal in the widget works """
         # OWPreprocess test setup from test_owpreprocess.test_allpreproc_indv
         self.preproc_widget = self.create_widget(OWPreprocess)
-        pp = PREPROCESSORS[0]
-        self.preproc_widget.add_preprocessor(pp)
+        self.preproc_widget.add_preprocessor(self.preproc_widget.PREPROCESSORS[0])
         self.preproc_widget.unconditional_commit()
         pp_out = self.get_output("Preprocessor", widget=self.preproc_widget)
         self.send_signal("Preprocessor", pp_out, widget=self.widget)

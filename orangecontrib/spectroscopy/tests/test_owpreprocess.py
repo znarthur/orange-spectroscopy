@@ -7,11 +7,16 @@ from Orange.preprocess.preprocess import Preprocess
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.tests import spectral_preprocess
 from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor, wait_for_preview
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, PREPROCESSORS, \
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
+from orangecontrib.spectroscopy.widgets.preprocessors.misc import \
     CutEditor, SavitzkyGolayFilteringEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     REFERENCE_DATA_PARAM
 from orangecontrib.spectroscopy.tests.util import smaller_data
+
+
+PREPROCESSORS = list(map(pack_editor, preprocess_editors.sorted()))
 
 
 SMALL_COLLAGEN = smaller_data(Orange.data.Table("collagen"), 70, 4)

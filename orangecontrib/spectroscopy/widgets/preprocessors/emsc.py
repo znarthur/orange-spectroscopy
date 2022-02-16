@@ -10,11 +10,15 @@ from orangecontrib.spectroscopy.preprocess import EMSC
 from orangecontrib.spectroscopy.preprocess.emsc import SelectionFunction, SmoothedSelectionFunction
 from orangecontrib.spectroscopy.preprocess.npfunc import Sum
 from orangecontrib.spectroscopy.widgets.gui import XPosLineEdit, lineEditFloatOrNone
+from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 from orangecontrib.spectroscopy.widgets.preprocessors.utils import BaseEditorOrange, \
     PreviewMinMaxMixin, layout_widgets, REFERENCE_DATA_PARAM
 
 
 class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
+    name = "EMSC"
+    qualname = "orangecontrib.spectroscopy.preprocess.emsc"
+
     ORDER_DEFAULT = 2
     SCALING_DEFAULT = True
     OUTPUT_MODEL_DEFAULT = False
@@ -256,3 +260,6 @@ class EMSCEditor(BaseEditorOrange, PreviewMinMaxMixin):
                 pair[0] = pmin
                 pair[1] = pmax
             self.edited.emit()
+
+
+preprocess_editors.register(EMSCEditor, 300)

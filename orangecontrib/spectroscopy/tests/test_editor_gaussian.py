@@ -2,7 +2,8 @@ from orangecontrib.spectroscopy.preprocess import GaussianSmoothing
 
 from orangecontrib.spectroscopy.tests.test_owpreprocess import PreprocessorEditorTest
 from orangecontrib.spectroscopy.tests.test_preprocess import SMALL_COLLAGEN
-from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess, GaussianSmoothingEditor
+from orangecontrib.spectroscopy.widgets.preprocessors.misc import GaussianSmoothingEditor
+from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
 
 
 class TestGaussianEditor(PreprocessorEditorTest):
