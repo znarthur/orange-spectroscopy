@@ -654,7 +654,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     line_overlap = Setting(None, schema_only=True)
     peak_min = Setting(None, schema_only=True)
     peak_max = Setting(None, schema_only=True)
-    peak_labels = Setting([], schema_only=True)
+    peak_labels_saved = Setting([], schema_only=True)
     feature_color = ContextSetting(None)
     color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
     invertX = Setting(False)
@@ -681,7 +681,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.clear_data()
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
-        self.peak_positions = []
 
         self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
@@ -696,6 +695,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.plot.getAxis(pos).setStyle(showValues=False)
 
         self.markings = []
+        self.peak_labels = []
+
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.plot.scene().sigMouseMoved.connect(self.mouse_moved_viewhelpers)
@@ -728,6 +729,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.MOUSE_RADIUS = 20
 
         self.clear_graph()
+
+        self.load_peak_labels()
 
         # interface settings
         self.location = True  # show current position
@@ -805,15 +808,13 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         prominence_box.setFocusPolicy(Qt.TabFocus)
         self.single_peak = QAction(
             None, self, shortcut=Qt.Key_P, checkable=False,
-            triggered=self.peak_apply
+            triggered=self.add_peak_label
         )
         self.single_peak.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         self.single_peak = QPushButton("Add Single Line", self)
         self.reset_labels = QPushButton('Delete all Labels', self)
-        self.save_labels = QPushButton('Save Plotted Labels', self)
-        self.single_peak.clicked.connect(self.peak_apply)
+        self.single_peak.clicked.connect(self.add_peak_label)
         self.reset_labels.clicked.connect(self.delete_all_labels)
-        self.save_labels.clicked.connect(self.save_peak_labels)
         self.prominence_box = lineEditDecimalOrNone(None, self, 'prominence', bottom=0)
         self.peak_height_min = lineEditDecimalOrNone(None, self, 'peak_min')
         self.peak_height_max = lineEditDecimalOrNone(None, self, 'peak_max')
@@ -828,7 +829,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         layout.addWidget(self.peak_height_max, 2, 1)
         layout.addWidget(self.peak_label_distance, 3, 1)
         layout.addWidget(self.reset_labels, 5, 1)
-        layout.addWidget(self.save_labels)
         self.apply_button = QPushButton("Automatic label", self)
         self.apply_button.clicked.connect(self.set_auto_peaks)
         layout.addWidget(self.apply_button, 4, 1)
@@ -1042,14 +1042,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.plot.showGrid(self.show_grid, self.show_grid, alpha=0.3)
         self.show_grid_a.setChecked(self.show_grid)
 
-    def peak_apply(self, position):
-        if self.viewtype == INDIVIDUAL:
-            label_line = VerticalPeakLine()
-            label_line.setPos(position if position else np.mean(self.plot.viewRange()[0]))
-            label_line.sigDeleteRequested.connect(self.delete_label)
-            self.peak_positions.append(label_line)
-            self.plotview.addItem(label_line)
-            label_line.updateLabel()
+    def add_peak_label(self, position=None):
+        label_line = VerticalPeakLine()
+        label_line.setPos(position if position else np.mean(self.plot.viewRange()[0]))
+        label_line.sigDeleteRequested.connect(self.delete_label)
+        self.peak_labels.append(label_line)
+        self.plotview.addItem(label_line, ignore_bounds=True)
+        label_line.updateLabel()  # rounding
+        return label_line
 
     def peak_apply_auto(self, prominence, minHeight, maxHeight, line_overlap):
         if self.viewtype == INDIVIDUAL:
@@ -1082,26 +1082,23 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                     peak_locations.append(val)
                     # used for first value computation as it isn't in the array
             for i, val in enumerate(peak_locations):
-                self.peak_apply(position=val)
+                self.add_peak_label(position=val)
 
     def delete_label(self, label):
-        self.peak_positions.remove(label)
+        self.peak_labels.remove(label)
         self.plotview.removeItem(label)
 
     def delete_all_labels(self):
-        for label in list(self.peak_positions):
+        for label in list(self.peak_labels):
             self.delete_label(label)
 
     def save_peak_labels(self):
-        for peak in self.peak_positions:
-            # Saves the position and the adjusted max span
-            self.peak_labels.append([peak.pos()[0], (peak.span[0],
-                                                     peak.span[1]+peak.pos()[1])])
+        self.peak_labels_saved = [p.save_info() for p in self.peak_labels]
 
-    def replot_labels(self):
-        for label in self.peak_labels:
-            self.peak_apply(position=label)
-
+    def load_peak_labels(self):
+        for info in self.peak_labels_saved:
+            peak_label = self.add_peak_label()
+            peak_label.load_info(info)
 
     def invertX_changed(self):
         self.invertX = not self.invertX
@@ -1164,10 +1161,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.sampled_indices_inverse = {}
         self.sampling = None
         self.new_sampling.emit(None)
-        self.replot_labels()
 
         for m in self.markings:
             self.plot.addItem(m, ignoreBounds=True)
+
+        for p in self.peak_labels:
+            self.plot.addItem(p, ignoreBounds=True)
 
     def resized(self):
         self.important_decimals = pixel_decimals(self.plot.vb)
@@ -1681,6 +1680,7 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
     def __init__(self):
         super().__init__()
         SelectionOutputsMixin.__init__(self)
+        self.settingsAboutToBePacked.connect(self.prepare_special_settings)
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.curveplot.new_sampling.connect(self._showing_sample_info)
@@ -1718,6 +1718,9 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
     def save_graph(self):
         # directly call save_graph so it hides axes
         self.curveplot.save_graph()
+
+    def prepare_special_settings(self):
+        self.curveplot.save_peak_labels()
 
     def onDeleteWidget(self):
         self.curveplot.shutdown()

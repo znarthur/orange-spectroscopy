@@ -480,18 +480,26 @@ class VerticalPeakLine(pg.InfiniteLine):
 
     sigDeleteRequested = Signal(object)
 
-    def __init__(self, pos=None, label=None):
+    def __init__(self, pos=None):
         super().__init__(pos, angle=90, movable=True, span=(0.02, 0.98))
 
         self.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
 
-        if label is None:
-            self.label = pg.InfLineLabel(self, text="", position=(1))
-            self.updateLabel()
+        self.label = pg.InfLineLabel(self, text="", position=1)
         self.label.setColor(color=QColor(Qt.black))
         self.label.setMovable(True)
+        self.updateLabel()
 
         self.sigDragged.connect(self.updateLabel)
+
+    def save_info(self):
+        return self.pos()[0], self.label.orthoPos
+
+    def load_info(self, info):
+        pos, textpos = info
+        self.setPos(pos)
+        self.label.setPosition(textpos)
+        self.updateLabel()
 
     def contextMenuEvent(self, ev):
         menu = QMenu()
