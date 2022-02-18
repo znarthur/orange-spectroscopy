@@ -497,11 +497,14 @@ class VerticalPeakLine(pg.InfiniteLine):
         self.label.setPosition(textpos)
         self.label.setText(text)
 
+    def request_deletion(self):
+        self.sigDeleteRequested.emit(self)
+
     def contextMenuEvent(self, ev):
         menu = QMenu()
         delete = QAction(
             "Delete", self, shortcut=Qt.Key_Delete, checkable=False,
-            triggered=lambda x: self.sigDeleteRequested.emit(self)
+            triggered=lambda x: self.request_deletion()
         )
         menu.addAction(delete)
         menu.exec(ev.screenPos())

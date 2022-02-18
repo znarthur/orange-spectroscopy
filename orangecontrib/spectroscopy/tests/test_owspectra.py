@@ -511,6 +511,17 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual(label_text, label_text_loaded)
         self.assertEqual(label_text2, label_text2_loaded)
 
+    def test_peakline_remove(self):
+        self.widget.curveplot.add_peak_label()
+        self.send_signal("Data", self.collagen)
+        self.widget.curveplot.add_peak_label()
+        self.widget.curveplot.peak_labels[0].request_deletion()
+        self.assertEqual(len(self.widget.curveplot.peak_labels), 1)
+        info = self.widget.curveplot.peak_labels[0].save_info()
+        self.assertAlmostEqual(info[0], 1351.9123)
+        self.widget.curveplot.peak_labels[0].request_deletion()
+        self.assertEqual(len(self.widget.curveplot.peak_labels), 0)
+
     def test_filter_unknowns(self):
         self.send_signal("Data", self.unknown_pts)
         curves_cont = self.widget.curveplot.curves_cont
