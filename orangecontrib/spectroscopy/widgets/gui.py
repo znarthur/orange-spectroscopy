@@ -482,24 +482,20 @@ class VerticalPeakLine(pg.InfiniteLine):
 
     def __init__(self, pos=None):
         super().__init__(pos, angle=90, movable=True, span=(0.02, 0.98))
-
         self.setPen(pg.mkPen(color=QColor(Qt.black), width=2, style=Qt.DotLine))
-
         self.label = pg.InfLineLabel(self, text="", position=1)
         self.label.setColor(color=QColor(Qt.black))
         self.label.setMovable(True)
-        self.updateLabel()
-
         self.sigDragged.connect(self.updateLabel)
 
     def save_info(self):
-        return self.pos()[0], self.label.orthoPos
+        return self.value(), self.label.orthoPos, self.label.toPlainText()
 
     def load_info(self, info):
-        pos, textpos = info
+        pos, textpos, text = info
         self.setPos(pos)
         self.label.setPosition(textpos)
-        self.updateLabel()
+        self.label.setText(text)
 
     def contextMenuEvent(self, ev):
         menu = QMenu()
