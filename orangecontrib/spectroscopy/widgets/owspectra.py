@@ -43,6 +43,9 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_de
 from orangecontrib.spectroscopy.widgets.utils import \
     SelectionGroupMixin, SelectionOutputsMixin
 
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+from Orange.widgets.visualize.utils.customizableplot import Updater, \
+    CommonParameterSetter
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -74,6 +77,38 @@ def selection_modifiers():
     add_group = bool(keys & Qt.ShiftModifier)
     remove = bool(keys & Qt.AltModifier)
     return add_to_group, add_group, remove
+
+
+class ParameterSetter(CommonParameterSetter):
+    MEAN_LABEL = "Mean"
+    LINE_LABEL = "Lines"
+    SEL_LINE_LABEL = "Selected lines"
+    RANGE_LABEL = "Range"
+    SEL_RANGE_LABEL = "Selected range"
+
+    def __init__(self, master):
+        super().__init__()
+        self.master = master # how does this come here?
+
+    def update_setters(self):
+        self.initial_settings = {
+            self.ANNOT_BOX: {
+                self.TITLE_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.X_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.Y_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+            },
+            self.LABELS_BOX: {
+                self.FONT_FAMILY_LABEL: self.FONT_FAMILY_SETTING,
+                self.TITLE_LABEL: self.FONT_SETTING,
+                self.AXIS_TITLE_LABEL: self.FONT_SETTING,
+                self.AXIS_TICKS_LABEL: self.FONT_SETTING,
+                self.LEGEND_LABEL: self.FONT_SETTING,
+            },
+        }
+
+    @property
+    def title_item(self):
+        return self.master.getPlotItem().titleLabel
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -655,8 +690,10 @@ class NoSuchCurve(ValueError):
     pass
 
 
-class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
-    sample_seed = Setting(0, schema_only=True)
+class CurvePlot(QWidget, OWComponent, SelectionGroupMixin, PlotWidget): # like this it complains that I put the class
+# class CurvePlot(QWidget, OWComponent, SelectionGroupMixin): # it complains like this
+
+        sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
     label_xaxis = Setting("")
     label_yaxis = Setting("")
@@ -939,6 +976,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.legend = self._create_legend()
         self.viewhelpers_show()
+
+        self.parameter_setter = ParameterSetter(self)
 
     def _update_connected_views(self):
         for w in self.connected_views:
@@ -1644,6 +1683,7 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
     settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
+    visual_settings = Setting({}, schema_only=True)
 
     graph_name = "curveplot.plotview"  # need to be defined for the save button to be shown
 
@@ -1662,6 +1702,7 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
         self.curveplot.new_sampling.connect(self._showing_sample_info)
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
+        VisualSettingsDialog(self, self.curveplot.parameter_setter.initial_settings)
 
     @Inputs.data
     def set_data(self, data):
@@ -1677,6 +1718,10 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
     @Inputs.data_subset
     def set_subset(self, data):
         self.curveplot.set_data_subset(data.ids if data else None, auto_update=False)
+
+    def set_visual_settings(self, key, value):
+        self.curveplot.parameter_setter.set_parameter(key, value)
+        self.visual_settings[key] = value
 
     def handleNewSignals(self):
         self.curveplot.update_view()
