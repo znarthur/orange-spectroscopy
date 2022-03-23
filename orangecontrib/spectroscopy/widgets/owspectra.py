@@ -17,8 +17,10 @@ import bottleneck
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
-
 from pyqtgraph import Point, GraphicsObject
+
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+
 import Orange.data
 from Orange.data import DiscreteVariable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
@@ -32,7 +34,7 @@ from Orange.widgets.utils import saveplot
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate, PlotWidget
-
+from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import apply_columns_numpy
@@ -43,9 +45,6 @@ from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_de
 from orangecontrib.spectroscopy.widgets.utils import \
     SelectionGroupMixin, SelectionOutputsMixin
 
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
-from Orange.widgets.visualize.utils.customizableplot import Updater, \
-    CommonParameterSetter
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -80,15 +79,10 @@ def selection_modifiers():
 
 
 class ParameterSetter(CommonParameterSetter):
-    MEAN_LABEL = "Mean"
-    LINE_LABEL = "Lines"
-    SEL_LINE_LABEL = "Selected lines"
-    RANGE_LABEL = "Range"
-    SEL_RANGE_LABEL = "Selected range"
 
     def __init__(self, master):
         super().__init__()
-        self.master = master # how does this come here?
+        self.master = master
 
     def update_setters(self):
         self.initial_settings = {
@@ -108,7 +102,19 @@ class ParameterSetter(CommonParameterSetter):
 
     @property
     def title_item(self):
-        return self.master.getPlotItem().titleLabel
+        return self.master.plot.titleLabel
+
+    @property
+    def axis_items(self):
+        return [value["item"] for value in self.master.plot.axes.values()]
+
+    @property
+    def getAxis(self):
+        return self.master.plot.getAxis
+
+    @property
+    def legend_items(self):
+        return self.master.legend.items
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -690,10 +696,9 @@ class NoSuchCurve(ValueError):
     pass
 
 
-class CurvePlot(QWidget, OWComponent, SelectionGroupMixin, PlotWidget): # like this it complains that I put the class
-# class CurvePlot(QWidget, OWComponent, SelectionGroupMixin): # it complains like this
+class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
-        sample_seed = Setting(0, schema_only=True)
+    sample_seed = Setting(0, schema_only=True)
     label_title = Setting("")
     label_xaxis = Setting("")
     label_yaxis = Setting("")
@@ -1052,7 +1057,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin, PlotWidget): # like t
         y2 = self.range_y2 if self.range_y2 is not None else vr.bottom()
         self.plot.vb.setXRange(x1, x2)
         self.plot.vb.setYRange(y1, y2)
-
     def labels_changed(self):
         self.plot.setTitle(self.label_title)
         if not self.label_title:
