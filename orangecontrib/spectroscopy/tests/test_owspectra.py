@@ -1,7 +1,9 @@
 import os
+import unittest
 from unittest.mock import Mock, patch
 
 from AnyQt.QtCore import QRectF, Qt
+from AnyQt.QtGui import QFont
 from AnyQt.QtTest import QSignalSpy
 import numpy as np
 import pyqtgraph as pg
@@ -564,3 +566,76 @@ class TestOWSpectra(WidgetTest):
         self.assertTrue(self.widget.compat_no_group)
         # We decided to remove the info box
         # self.assertTrue(self.widget.Information.compat_no_group.is_shown())
+
+    def test_visual_settings(self, timeout=5):
+        graph = self.widget.curveplot
+        font = QFont()
+        font.setItalic(True)
+        font.setFamily("Helvetica")
+
+        self.send_signal(self.widget.Inputs.data, self.iris)
+        self.wait_until_finished(timeout=timeout)
+        graph.cycle_color_attr()
+        self.assertEqual(graph.feature_color, self.iris.domain.class_var)
+
+        key, value = ("Fonts", "Font family", "Font family"), "Helvetica"
+        self.widget.set_visual_settings(key, value)
+
+        key, value = ("Fonts", "Title", "Font size"), 20
+        self.widget.set_visual_settings(key, value)
+        key, value = ("Fonts", "Title", "Italic"), True
+        self.widget.set_visual_settings(key, value)
+        font.setPointSize(20)
+        self.assertFontEqual(graph.parameter_setter.title_item.item.font(), font)
+
+        key, value = ("Fonts", "Axis title", "Font size"), 14
+        self.widget.set_visual_settings(key, value)
+        key, value = ("Fonts", "Axis title", "Italic"), True
+        self.widget.set_visual_settings(key, value)
+        font.setPointSize(14)
+        for ax in ["bottom", "left"]:
+            axis = graph.parameter_setter.getAxis(ax)
+            self.assertFontEqual(axis.label.font(), font)
+
+        key, value = ('Fonts', 'Axis ticks', 'Font size'), 15
+        self.widget.set_visual_settings(key, value)
+        key, value = ('Fonts', 'Axis ticks', 'Italic'), True
+        self.widget.set_visual_settings(key, value)
+        font.setPointSize(15)
+        for ax in ["bottom", "left"]:
+            axis = graph.parameter_setter.getAxis(ax)
+            self.assertFontEqual(axis.style["tickFont"], font)
+
+        key, value = ("Fonts", "Legend", "Font size"), 16
+        self.widget.set_visual_settings(key, value)
+        key, value = ("Fonts", "Legend", "Italic"), True
+        self.widget.set_visual_settings(key, value)
+        font.setPointSize(16)
+        legend_item = list(graph.parameter_setter.legend_items)[0]
+        self.assertFontEqual(legend_item[1].item.font(), font)
+
+        key, value = ("Annotations", "Title", "Title"), "Foo"
+        self.widget.set_visual_settings(key, value)
+        self.assertEqual(graph.parameter_setter.title_item.item.toPlainText(), "Foo")
+        self.assertEqual(graph.parameter_setter.title_item.text, "Foo")
+
+        key, value = ("Annotations", "x-axis title", "Title"), "Foo2"
+        self.widget.set_visual_settings(key, value)
+        axis = graph.parameter_setter.getAxis("bottom")
+        self.assertEqual(axis.label.toPlainText().strip(), "Foo2")
+        self.assertEqual(axis.labelText, "Foo2")
+
+        key, value = ("Annotations", "y-axis title", "Title"), "Foo3"
+        self.widget.set_visual_settings(key, value)
+        axis = graph.parameter_setter.getAxis("left")
+        self.assertEqual(axis.label.toPlainText().strip(), "Foo3")
+        self.assertEqual(axis.labelText, "Foo3")
+
+    def assertFontEqual(self, font1, font2):
+        self.assertEqual(font1.family(), font2.family())
+        self.assertEqual(font1.pointSize(), font2.pointSize())
+        self.assertEqual(font1.italic(), font2.italic())
+
+
+if __name__ == "__main__":
+    unittest.main()
