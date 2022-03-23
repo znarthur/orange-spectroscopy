@@ -636,6 +636,21 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual(font1.pointSize(), font2.pointSize())
         self.assertEqual(font1.italic(), font2.italic())
 
+    def test_migrate_visual_setttings(self):
+        settings = {"curveplot":
+                        {"label_title": "title",
+                         "label_xaxis": "x",
+                         "label_yaxis": "y"}
+                    }
+        OWSpectra.migrate_settings(settings, 4)
+        self.assertEqual(settings["visual_settings"],
+                         {('Annotations', 'Title', 'Title'): 'title',
+                          ('Annotations', 'x-axis title', 'Title'): 'x',
+                          ('Annotations', 'y-axis title', 'Title'): 'y'})
+        settings = {}
+        OWSpectra.migrate_settings(settings, 4)
+        self.assertNotIn("visual_settings", settings)
+
 
 if __name__ == "__main__":
     unittest.main()

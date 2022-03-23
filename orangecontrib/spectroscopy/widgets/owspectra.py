@@ -699,9 +699,6 @@ class NoSuchCurve(ValueError):
 class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     sample_seed = Setting(0, schema_only=True)
-    label_title = Setting("")
-    label_xaxis = Setting("")
-    label_yaxis = Setting("")
     range_x1 = Setting(None)
     range_x2 = Setting(None)
     range_y1 = Setting(None)
@@ -951,25 +948,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         cycle_colors = QShortcut(Qt.Key_C, self, self.cycle_color_attr, context=Qt.WidgetWithChildrenShortcut)
 
-        labels_action = QWidgetAction(self)
-        layout = QGridLayout()
-        labels_box = gui.widgetBox(self, margin=5, orientation=layout)
-        t = gui.lineEdit(None, self, "label_title", label="Title:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("Title:"), 0, 0, Qt.AlignRight)
-        layout.addWidget(t, 0, 1)
-        t = gui.lineEdit(None, self, "label_xaxis", label="X-axis:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("X-axis:"), 1, 0, Qt.AlignRight)
-        layout.addWidget(t, 1, 1)
-        t = gui.lineEdit(None, self, "label_yaxis", label="Y-axis:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("Y-axis:"), 2, 0, Qt.AlignRight)
-        layout.addWidget(t, 2, 1)
-        labels_action.setDefaultWidget(labels_box)
-        view_menu.addAction(labels_action)
-        self.labels_changed()  # apply saved labels
-
         self.waterfall_apply()
         self.grid_apply()
         self.invertX_apply()
@@ -1057,16 +1035,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         y2 = self.range_y2 if self.range_y2 is not None else vr.bottom()
         self.plot.vb.setXRange(x1, x2)
         self.plot.vb.setYRange(y1, y2)
-    def labels_changed(self):
-        self.plot.setTitle(self.label_title)
-        if not self.label_title:
-            self.plot.setTitle(None)
-        self.plot.setLabels(bottom=self.label_xaxis)
-        self.plot.showLabel("bottom", bool(self.label_xaxis))
-        self.plot.getAxis("bottom").resizeEvent()  # align text
-        self.plot.setLabels(left=self.label_yaxis)
-        self.plot.showLabel("left", bool(self.label_yaxis))
-        self.plot.getAxis("left").resizeEvent()  # align text
 
     def grid_changed(self):
         self.show_grid = not self.show_grid
@@ -1683,7 +1651,7 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
 
     want_control_area = False
 
-    settings_version = 4
+    settings_version = 5
     settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
@@ -1753,8 +1721,24 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
 
     @classmethod
     def migrate_settings(cls, settings, version):
+
+        def migrate_to_visual_settings():
+            cs = settings["curveplot"]
+            translate = {'label_title': ('Annotations', 'Title', 'Title'),
+                         'label_xaxis': ('Annotations', 'x-axis title', 'Title'),
+                         'label_yaxis': ('Annotations', 'y-axis title', 'Title')}
+
+            for from_, to_ in translate.items():
+                if cs.get(from_):
+                    if "visual_settings" not in settings:
+                        settings["visual_settings"] = {}
+                    settings["visual_settings"][to_] = cs.get(from_)
+
         if "curveplot" in settings:
             CurvePlot.migrate_settings_sub(settings["curveplot"], version)
+            if version < 5:
+                migrate_to_visual_settings()
+
         if version < 3:
             settings["compat_no_group"] = True
 
