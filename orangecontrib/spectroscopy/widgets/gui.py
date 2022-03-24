@@ -489,7 +489,7 @@ class VerticalPeakLine(pg.InfiniteLine):
         self.sigDragged.connect(self.updateLabel)
 
     def save_info(self):
-        return self.value(), self.label.orthoPos, self.label.toPlainText()
+        return self.value(), self.label.orthoPos, self.label.textItem.toPlainText()
 
     def load_info(self, info):
         pos, textpos, text = info
