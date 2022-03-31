@@ -131,7 +131,7 @@ if __name__ == '__main__':
             'spectral>=0.18',
             'serverfiles>=0.2',
             'AnyQt>=0.0.6',
-            'pyqtgraph>=0.11.1',
+            'pyqtgraph>=0.11.1,!=0.12.4',  # https://github.com/pyqtgraph/pyqtgraph/issues/2237
             'colorcet',
             'h5py',
             'extranormal3',
