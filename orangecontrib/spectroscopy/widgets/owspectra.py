@@ -9,10 +9,9 @@ from xml.sax.saxutils import escape
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
-from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence
+from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence, QFontDatabase
 from AnyQt.QtCore import Qt, QRectF, QPointF, QObject
 from AnyQt.QtCore import pyqtSignal
-from AnyQt.QtGui import QFont
 
 import bottleneck
 import numpy as np
@@ -711,7 +710,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.label = pg.TextItem("", anchor=(1, 0), fill="#FFFFFFBB")
         self.label.setText("", color=(0, 0, 0))
-        self.label.setFont(QFont("Courier"))
+        font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        self.label.setFont(font)
         self.label.setZValue(100000)
 
         self.discrete_palette = None
