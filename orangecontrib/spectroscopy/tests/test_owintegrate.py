@@ -22,7 +22,7 @@ class TestOWIntegrate(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
             wait_for_preview(self.widget)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
 
     def test_allint_indv_empty(self):
         data = Orange.data.Table("peach_juice.dpt")[:0]
@@ -31,7 +31,7 @@ class TestOWIntegrate(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
             wait_for_preview(self.widget)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
         # no attributes
         data = Orange.data.Table("peach_juice.dpt")
         data = data.transform(
@@ -43,7 +43,7 @@ class TestOWIntegrate(WidgetTest):
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
             wait_for_preview(self.widget)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
 
     def test_saving_preview_position(self):
         self.send_signal("Data", Orange.data.Table("iris.tab"))
@@ -67,7 +67,7 @@ class TestOWIntegrate(WidgetTest):
         self.widget.output_metas = True
         self.send_signal(OWIntegrate.Inputs.data, data)
         self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         out_data = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(len(data.domain.attributes), len(out_data.domain.attributes))
         self.assertEqual(1, len(out_data.domain.metas))
@@ -81,7 +81,7 @@ class TestOWIntegrate(WidgetTest):
         data = Orange.data.Table("iris.tab")
         self.send_signal(self.widget.Inputs.data, data)
         self.widget.add_preprocessor(self.widget.PREPROCESSORS[0])
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         out_data = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(1, len(out_data.domain.attributes))
         self.assertEqual(0, len(out_data.domain.metas))

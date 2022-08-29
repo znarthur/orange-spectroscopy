@@ -20,9 +20,7 @@ class TestEMSCEditor(PreprocessorEditorTest):
     def test_no_interaction(self):
         reference = SMALL_COLLAGEN
         self.send_signal(self.widget.Inputs.reference, reference)
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
+        p = self.commit_get_preprocessor()
         self.assertIsInstance(p, EMSC)
 
     def test_add_range(self):

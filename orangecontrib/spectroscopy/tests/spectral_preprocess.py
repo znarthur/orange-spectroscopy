@@ -109,7 +109,7 @@ class TestWarning(WidgetTest):
     def test_exception_apply(self):
         self.editor.raise_exception = True
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         self.assertTrue(self.widget.Error.applying.is_shown())
         self.assertIsNone(self.get_output(self.widget.Outputs.preprocessed_data))
@@ -117,7 +117,7 @@ class TestWarning(WidgetTest):
 
         self.editor.raise_exception = False
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         self.assertFalse(self.widget.Error.applying.is_shown())
         self.assertIsNotNone(self.get_output(self.widget.Outputs.preprocessed_data))

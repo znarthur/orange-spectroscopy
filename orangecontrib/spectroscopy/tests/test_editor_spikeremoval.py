@@ -15,9 +15,7 @@ class TestSpikeRemovalEditor(PreprocessorEditorTest):
         self.wait_for_preview()  # ensure initialization with preview data
 
     def test_no_interaction(self):
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
+        p = self.commit_get_preprocessor()
         self.assertIsInstance(p, Despike)
         self.assertEqual(p.dis, 5)
         self.assertEqual(p.cutoff, 100)
@@ -28,10 +26,7 @@ class TestSpikeRemovalEditor(PreprocessorEditorTest):
         self.editor.cutoff = 101
         self.editor.threshold = 8
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
-        self.process_events()
+        p = self.commit_get_preprocessor()
         self.assertEqual(p.dis, 6)
         self.assertEqual(p.cutoff, 101)
         self.assertEqual(p.threshold, 8)
@@ -41,10 +36,7 @@ class TestSpikeRemovalEditor(PreprocessorEditorTest):
         self.editor.cutoff = None
         self.editor.threshold = None
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
-        self.process_events()
+        p = self.commit_get_preprocessor()
         self.assertEqual(p.dis, 6)
         self.assertEqual(p.cutoff, 100)
         self.assertEqual(p.threshold, 7)
