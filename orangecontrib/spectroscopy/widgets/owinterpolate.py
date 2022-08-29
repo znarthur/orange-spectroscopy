@@ -85,6 +85,7 @@ class OWInterpolate(OWWidget):
         gui.auto_commit(self.controlArea, self, "autocommit", "Interpolate")
         self._change_input()
 
+    @gui.deferred
     def commit(self):
         out = None
         self.Error.dxzero.clear()
@@ -119,7 +120,7 @@ class OWInterpolate(OWWidget):
         self.xmin_edit.setDisabled(self.input_radio != 1)
         self.xmax_edit.setDisabled(self.input_radio != 1)
         self.dx_edit.setDisabled(self.input_radio != 1)
-        self.commit()
+        self.commit.deferred()
 
     @Inputs.data
     def set_data(self, data):
@@ -131,7 +132,7 @@ class OWInterpolate(OWWidget):
         else:
             self.xmin_edit.setPlaceholderText("")
             self.xmax_edit.setPlaceholderText("")
-        self.commit()
+        self.commit.now()
 
     @Inputs.points
     def set_points(self, data):
@@ -147,18 +148,6 @@ class OWInterpolate(OWWidget):
         self._change_input()
 
 
-def main(argv=sys.argv):
-    from AnyQt.QtWidgets import QApplication
-    app = QApplication(list(argv))
-    ow = OWInterpolate()
-    ow.show()
-    ow.raise_()
-
-    dataset = Orange.data.Table("collagen")
-    ow.set_data(dataset)
-    ow.handleNewSignals()
-    app.exec_()
-    return 0
-
 if __name__=="__main__":
-    sys.exit(main())
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWInterpolate).run(Orange.data.Table("collagen"))

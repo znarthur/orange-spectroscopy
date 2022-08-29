@@ -38,18 +38,18 @@ class TestOWInterpolate(WidgetTest):
         out = self.get_output("Interpolated data")
         np.testing.assert_almost_equal(np.arange(499.53234, 4000.1161, 10), getx(out))
         self.widget.dx = 0
-        self.widget.commit()
+        self.widget.commit.now()
         self.assertTrue(self.widget.Error.dxzero.is_shown())
         self.widget.dx = 0.001
-        self.widget.commit()
+        self.widget.commit.now()
         self.assertTrue(self.widget.Error.too_many_points.is_shown())
         self.widget.dx = 10
-        self.widget.commit()
+        self.widget.commit.now()
         self.assertFalse(self.widget.Error.dxzero.is_shown())
         self.assertFalse(self.widget.Error.too_many_points.is_shown())
         self.widget.xmin = 4000.1161
         self.widget.xmax = 499.53234
-        self.widget.commit()
+        self.widget.commit.now()
         out2 = self.get_output("Interpolated data")
         np.testing.assert_almost_equal(getx(out2), getx(out))
         self.send_signal("Data", None)
