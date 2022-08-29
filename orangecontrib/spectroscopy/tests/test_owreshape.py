@@ -27,14 +27,14 @@ class TestOWReshape(WidgetTest):
         self.send_signal("Data", self.collagen)
         self.widget.xpoints = 1
         self.widget.ypoints = 731
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         np.testing.assert_equal(m[:, "X"].metas[:, 0], 0)
         np.testing.assert_equal(m[:, "Y"].metas[:, 0], range(len(self.collagen)))
         # the other direction
         self.widget.ypoints = 1
         self.widget.xpoints = 731
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         np.testing.assert_equal(m[:, "Y"].metas[:, 0], 0)
         np.testing.assert_equal(m[:, "X"].metas[:, 0], range(len(self.collagen)))
@@ -44,7 +44,7 @@ class TestOWReshape(WidgetTest):
         self.widget.xpoints = 2
         self.widget.ypoints = 400
         self.widget.le1_changed()  # get warnings activated
-        self.widget.commit()
+        self.widget.commit.now()
         self.assertTrue(self.widget.Warning.wrong_div.is_shown())
         self.assertIsNone(self.get_output("Map data"))
 
@@ -53,7 +53,7 @@ class TestOWReshape(WidgetTest):
         self.widget.xpoints = 5
         self.widget.le1_changed()
         self.assertEqual(self.widget.ypoints, 100)
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         self.assertEqual(m[1]["X"].value, 1)
         self.assertEqual(m[1]["Y"].value, 0)
@@ -67,7 +67,7 @@ class TestOWReshape(WidgetTest):
         self.assertEqual(self.widget.ypoints, 100)
         self.widget.invert_x = True
         self.widget.invert_y = True
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         self.assertEqual(m[1]["X"].value, 3)
         self.assertEqual(m[1]["Y"].value, 99)
@@ -78,10 +78,10 @@ class TestOWReshape(WidgetTest):
         self.send_signal("Data", self.collagen[:500])
         self.widget.xpoints = 5
         self.widget.le1_changed()
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         self.send_signal("Data", m)
-        self.widget.commit()
+        self.widget.commit.now()
         m = self.get_output("Map data")
         np.testing.assert_equal(m[:, "X"].metas[:, 0], m[:, "X (1)"].metas[:, 0])
         np.testing.assert_equal(m[:, "Y"].metas[:, 0], m[:, "Y (1)"].metas[:, 0])

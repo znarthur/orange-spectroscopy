@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 
 import Orange.data
@@ -63,13 +62,15 @@ class OWReshape(OWWidget):
         self.le3 = lineEditIntOrNone(box, self, "ypoints", callback=self.le3_changed)
         formlayout.addRow("Y dimension", self.le3)
 
-        gui.checkBox(box, self, "invert_x", "Invert X axis", callback=lambda: self.commit())
-        gui.checkBox(box, self, "invert_y", "Invert Y axis", callback=lambda: self.commit())
+        gui.checkBox(box, self, "invert_x", "Invert X axis",
+                     callback=lambda: self.commit.deferred())
+        gui.checkBox(box, self, "invert_y", "Invert Y axis",
+                     callback=lambda: self.commit.deferred())
+
+        gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
         self.data = None
         self.set_data(self.data)  # show warning
-
-        gui.auto_commit(self.controlArea, self, "autocommit", "Send Data")
 
     @Inputs.data
     def set_data(self, dataset):
@@ -79,7 +80,7 @@ class OWReshape(OWWidget):
             self.data = dataset
         else:
             self.Warning.nodata()
-        self.commit()
+        self.commit.now()
 
     # maybe doable with one callback...
     def le1_changed(self): # X dimension
@@ -88,7 +89,7 @@ class OWReshape(OWWidget):
             ytemp = len(self.data.X)//self.xpoints
             if len(self.data.X) % self.xpoints == 0:
                 self.ypoints = ytemp
-                self.commit()
+                self.commit.deferred()
             else:
                 self.Warning.wrong_div(len(self.data.X))
 
@@ -98,11 +99,12 @@ class OWReshape(OWWidget):
             xtemp = len(self.data.X)//self.ypoints
             if len(self.data.X) % self.ypoints == 0:
                 self.xpoints = xtemp
-                self.commit()
+                self.commit.deferred()
             else:
                 self.Warning.wrong_div(len(self.data.X))
                 # it would be nice to turn the bkg red at this point
 
+    @gui.deferred
     def commit(self):
         map_data = None
         if self.data and self.xpoints is not None and self.ypoints is not None \
@@ -135,17 +137,6 @@ class OWReshape(OWWidget):
             return
 
 
-def main(argv=sys.argv):
-    from AnyQt.QtWidgets import QApplication
-    app = QApplication(list(argv))
-    ow = OWReshape()
-    ow.show()
-    ow.raise_()
-    dataset = Orange.data.Table("collagen.csv")
-    ow.set_data(dataset)
-    app.exec_()
-    return 0
-
-
 if __name__=="__main__":
-    sys.exit(main())
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    WidgetPreview(OWReshape).run(Orange.data.Table("collagen"))
