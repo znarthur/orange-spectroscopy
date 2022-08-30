@@ -299,7 +299,6 @@ class OWFFT(OWWidget):
             self.check_metadata()
             self.dataBox.setDisabled(False)
             self.optionsBox.setDisabled(False)
-            self.commit()
         else:
             self.data = None
             self.spectra_table = None
@@ -316,39 +315,42 @@ class OWFFT(OWWidget):
         """
         if dataset is not None:
             self.stored_phase = dataset
-            self.commit()
         else:
             self.stored_phase = None
 
+    def handleNewSignals(self):
+        self.commit.now()
+
     def setting_changed(self):
-        self.commit()
+        self.commit.deferred()
 
     def out_limit_changed(self):
         values = [float(self.out_limit1), float(self.out_limit2)]
         minX, maxX = min(values), max(values)
         self.out_limit1 = minX
         self.out_limit2 = maxX
-        self.commit()
+        self.commit.deferred()
 
     def sweeps_changed(self):
         self.controls.sweeps.setDisabled(self.auto_sweeps)
         self.determine_sweeps()
         if not self.peak_search_enable:
             self.controls.zpd2.setDisabled(self.sweeps == 0)
-        self.commit()
+        self.commit.deferred()
 
     def dx_changed(self):
         self.dx_edit.setDisabled(self.dx_HeNe)
         if self.dx_HeNe is True:
             self.dx = 1.0 / self.laser_wavenumber / 2.0
-        self.commit()
+        self.commit.deferred()
 
     def peak_search_changed(self):
         self.controls.peak_search.setEnabled(self.peak_search_enable)
         self.controls.zpd1.setDisabled(self.peak_search_enable)
         self.controls.zpd2.setDisabled(self.peak_search_enable or self.sweeps == 0)
-        self.commit()
+        self.commit.deferred()
 
+    @gui.deferred
     def commit(self):
         if self.data is not None:
             self.calculateFFT()

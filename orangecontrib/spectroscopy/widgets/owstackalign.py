@@ -189,10 +189,10 @@ class OWStackAlign(OWWidget):
 
     def _ref_frame_changed(self):
         self._sanitize_ref_frame()
-        self.commit()
+        self.commit.deferred()
 
     def _sobel_changed(self):
-        self.commit()
+        self.commit.deferred()
 
     def _init_attr_values(self, data):
         domain = data.domain if data is not None else None
@@ -206,7 +206,7 @@ class OWStackAlign(OWWidget):
         self._init_attr_values(data)
 
     def _update_attr(self):
-        self.commit()
+        self.commit.deferred()
 
     @Inputs.data
     def set_data(self, dataset):
@@ -219,8 +219,9 @@ class OWStackAlign(OWWidget):
             self.data = None
         self.Error.nan_in_image.clear()
         self.Error.invalid_axis.clear()
-        self.commit()
+        self.commit.now()
 
+    @gui.deferred
     def commit(self):
         new_stack = None
 

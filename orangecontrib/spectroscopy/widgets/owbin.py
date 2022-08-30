@@ -122,12 +122,12 @@ class OWBin(OWWidget):
 
     def _attr_changed(self):
         self._update_attrs()
-        self.commit()
+        self.commit.deferred()
 
     def _bin_changed(self):
         self._update_bins()
         self._sanitize_bin_value()
-        self.commit()
+        self.commit.deferred()
 
     def _dim_changed(self):
         while len(self.bin_shape) != self.ndim:
@@ -140,7 +140,7 @@ class OWBin(OWWidget):
         self._update_bins()
         self._update_attrs()
         self._update_cb_attr()
-        self.commit()
+        self.commit.deferred()
 
     def _init_bins(self):
         for i, bin in enumerate(self.bin_shape):
@@ -196,8 +196,9 @@ class OWBin(OWWidget):
         self.Warning.nan_in_image.clear()
         self.Error.invalid_axis.clear()
         self.Error.invalid_block.clear()
-        self.commit()
+        self.commit.now()
 
+    @gui.deferred
     def commit(self):
         bin_data = None
 

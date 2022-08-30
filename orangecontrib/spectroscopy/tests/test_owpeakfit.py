@@ -76,7 +76,7 @@ class TestOWPeakFit(WidgetTest):
         self.send_signal("Data", self.data)
         self.widget.add_preprocessor(PREPROCESSORS[0])
         wait_for_preview(self.widget)
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished(timeout=10000)
         fit_params = self.get_output(self.widget.Outputs.fit_params, wait=10000)
         fits = self.get_output(self.widget.Outputs.fits)
@@ -140,7 +140,7 @@ class TestOWPeakFit(WidgetTest):
         # fixing getx output type fixes the bug
         self.assertEqual(getx(data).dtype, np.float_)
         self.widget.add_preprocessor(pack_model_editor(GaussianModelEditor))
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         wait_for_preview(self.widget, 10000)
 
     def tearDown(self):
@@ -244,7 +244,7 @@ class TestVoigtEditor(ModelEditorTest):
     EDITOR = VoigtModelEditor
 
     def test_no_interaction(self):
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         self.assertIsInstance(self.editor, self.EDITOR)
         m = self.get_model_single()
@@ -308,7 +308,7 @@ class TestVoigtEditorMulti(ModelEditorTest):
         self.model, self.params = self.matched_models()
 
     def test_no_change(self):
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
 
     def matched_models(self):

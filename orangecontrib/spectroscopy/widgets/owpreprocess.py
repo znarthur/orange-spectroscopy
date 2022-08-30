@@ -652,7 +652,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
             self.__update_size_constraint()
 
         # output the preprocessor even if there is no input data
-        self.unconditional_commit()
+        self.commit.now()
 
     def load(self, saved):
         """Load a preprocessor list from a dict."""
@@ -715,7 +715,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
 
     def on_modelchanged(self):
         self.show_preview()
-        self.commit()
+        self.commit.deferred()
 
     @Inputs.data
     @check_sql_input
@@ -725,7 +725,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
 
     def handleNewSignals(self):
         self.show_preview(True)
-        self.unconditional_commit()
+        self.commit.now()
 
     def add_preprocessor(self, action):
         item = QStandardItem()
@@ -737,6 +737,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
     def create_outputs(self):
         raise NotImplementedError()
 
+    @gui.deferred
     def commit(self):
         self.show_preview()
         self.Error.applying.clear()

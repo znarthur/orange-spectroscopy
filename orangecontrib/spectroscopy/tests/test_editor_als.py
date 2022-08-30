@@ -16,9 +16,7 @@ class TestALSEditor(PreprocessorEditorTest):
         self.send_signal(self.widget.Inputs.data, self.data)
 
     def test_no_interaction(self):
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
+        p = self.commit_get_preprocessor()
         self.assertIsInstance(p, ALSP)
         self.assertEqual(p.itermax, 10)
         self.assertEqual(p.p, 0.1)
@@ -41,9 +39,7 @@ class TestALSEditor(PreprocessorEditorTest):
         self.editor.lam = 42
         self.editor.itermax = 2
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
+        p = self.commit_get_preprocessor()
         self.process_events()
         self.assertIsInstance(p, ARPLS)
         self.assertEqual(p.itermax, 2)
@@ -56,9 +52,7 @@ class TestALSEditor(PreprocessorEditorTest):
         self.editor.lam = 41
         self.editor.itermax = 3
         self.editor.edited.emit()
-        self.widget.unconditional_commit()
-        self.wait_until_finished()
-        p = self.get_preprocessor()
+        p = self.commit_get_preprocessor()
         self.process_events()
         self.assertIsInstance(p, AIRPLS)
         self.assertEqual(p.itermax, 3)

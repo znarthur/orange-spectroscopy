@@ -71,7 +71,7 @@ class TestTileReaderWidget(WidgetTest):
         # OWPreprocess test setup from test_owpreprocess.test_allpreproc_indv
         self.preproc_widget = self.create_widget(OWPreprocess)
         self.preproc_widget.add_preprocessor(self.preproc_widget.PREPROCESSORS[0])
-        self.preproc_widget.unconditional_commit()
+        self.preproc_widget.commit.now()
         pp_out = self.get_output("Preprocessor", widget=self.preproc_widget)
         self.send_signal("Preprocessor", pp_out, widget=self.widget)
         self.assertEqual(self.widget.preprocessor, pp_out)

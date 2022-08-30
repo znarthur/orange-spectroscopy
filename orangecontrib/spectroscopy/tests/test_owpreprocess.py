@@ -31,7 +31,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
             wait_for_preview(self.widget)
             self.wait_until_finished(timeout=10000)
 
@@ -41,7 +41,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data[:0])
             self.widget.add_preprocessor(p)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
             wait_for_preview(self.widget)
             self.wait_until_finished(timeout=10000)
         # no attributes
@@ -53,7 +53,7 @@ class TestAllPreprocessors(WidgetTest):
             self.widget = self.create_widget(OWPreprocess)
             self.send_signal("Data", data)
             self.widget.add_preprocessor(p)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
             wait_for_preview(self.widget)
             self.wait_until_finished(timeout=10000)
 
@@ -64,7 +64,7 @@ class TestAllPreprocessors(WidgetTest):
             self.send_signal("Data", data)
             self.send_signal("Reference", data)
             self.widget.add_preprocessor(p)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
             wait_for_preview(self.widget)
             self.wait_until_finished(timeout=10000)
 
@@ -77,7 +77,7 @@ class TestAllPreprocessors(WidgetTest):
             self.send_signal("Data", data)
             self.send_signal("Reference", data)
             self.widget.add_preprocessor(p)
-            self.widget.unconditional_commit()
+            self.widget.commit.now()
             wait_for_preview(self.widget, timeout=10000)
             self.wait_until_finished(timeout=10000)
 
@@ -127,13 +127,13 @@ class TestOWPreprocess(WidgetTest):
 
     def test_output_preprocessor_without_data(self):
         self.widget.add_preprocessor(pack_editor(CutEditor))
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         out = self.get_output(self.widget.Outputs.preprocessor)
         self.assertIsInstance(out, Preprocess)
 
     def test_empty_no_inputs(self):
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         p = self.get_output(self.widget.Outputs.preprocessor)
         d = self.get_output(self.widget.Outputs.preprocessed_data)
@@ -143,7 +143,7 @@ class TestOWPreprocess(WidgetTest):
     def test_no_preprocessors(self):
         data = SMALL_COLLAGEN
         self.send_signal(self.widget.Inputs.data, data)
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         d = self.get_output(self.widget.Outputs.preprocessed_data)
         self.assertEqual(SMALL_COLLAGEN, d)
@@ -153,7 +153,7 @@ class TestOWPreprocess(WidgetTest):
         self.send_signal(self.widget.Inputs.data, data)
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.add_preprocessor(pack_editor(SavitzkyGolayFilteringEditor))
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         p = self.get_output(self.widget.Outputs.preprocessor)
         d = self.get_output(self.widget.Outputs.preprocessed_data)
@@ -272,7 +272,7 @@ class TestSampling(WidgetTest):
         self.send_signal("Data", data)
         self.widget.preview_curves = 3
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         self.assertEqual(len(data), len(RememberData.data))
 
@@ -289,7 +289,7 @@ class TestReference(WidgetTest):
         self.send_signal("Reference", data)
         self.widget.add_preprocessor(pack_editor(CutEditor))
         self.widget.add_preprocessor(pack_editor(RememberDataEditor))
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         processed = getx(RememberData.reference)
         original = getx(data)
@@ -329,7 +329,7 @@ class TestReference(WidgetTest):
         wait_for_preview(self.widget)
         self.assertIs(data, RememberData.reference)
         self.assertTrue(self.widget.Warning.reference_compat.is_shown())
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         self.assertIs(data, RememberData.reference)
         self.assertTrue(self.widget.Warning.reference_compat.is_shown())
@@ -387,6 +387,6 @@ class PreprocessorEditorTest(WidgetTest):
         return out.preprocessors[0]
 
     def commit_get_preprocessor(self):
-        self.widget.unconditional_commit()
+        self.widget.commit.now()
         self.wait_until_finished()
         return self.get_preprocessor()

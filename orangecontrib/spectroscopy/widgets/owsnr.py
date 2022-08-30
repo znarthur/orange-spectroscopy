@@ -46,7 +46,6 @@ class OWSNR(OWWidget):
         super().__init__()
 
         self.data = None
-        self.set_data(self.data)  # show warning
 
         self.group_x = None
         self.group_y = None
@@ -72,6 +71,8 @@ class OWSNR(OWWidget):
         # prepare interface according to the new context
         self.contextAboutToBeOpened.connect(lambda x: self.init_attr_values(x[0]))
 
+        self.set_data(self.data)  # show warning
+
     def init_attr_values(self, domain):
         self.xy_model.set_domain(domain)
         self.group_x = None
@@ -88,7 +89,7 @@ class OWSNR(OWWidget):
         else:
             self.openContext(dataset.domain)
 
-        self.commit()
+        self.commit.now()
 
     def calc_table_np(self, array):
         if len(array) == 0:
@@ -121,11 +122,10 @@ class OWSNR(OWWidget):
         return new_table
 
     def grouping_changed(self):
-        """Calls commit() indirectly to respect auto_commit setting."""
-        self.commit()
+        self.commit.deferred()
 
     def out_choice_changed(self):
-        self.commit()
+        self.commit.deferred()
 
     def select_2coordinates(self, attr_x, attr_y):
         xat = self.data.domain[attr_x]
@@ -225,6 +225,7 @@ class OWSNR(OWWidget):
 
         return final_data
 
+    @gui.deferred
     def commit(self):
         final_data = None
         if self.data is not None:
