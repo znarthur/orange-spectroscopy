@@ -286,12 +286,11 @@ class ImageColorSettingMixin:
                                      labelWidth=50, orientation=Qt.Horizontal)
         self.color_cb.setIconSize(QSize(64, 16))
         palettes = _color_palettes
-        self.palette_index = min(self.palette_index, len(palettes) - 1)
         model = color_palette_model(palettes, self.color_cb.iconSize())
         model.setParent(self)
         self.color_cb.setModel(model)
+        self.palette_index = min(self.palette_index, len(palettes) - 1)
         self.color_cb.activated.connect(self.update_color_schema)
-        self.color_cb.setCurrentIndex(self.palette_index)
 
         gui.checkBox(box, self, "show_legend", label="Show legend",
                      callback=self.update_legend_visible)
