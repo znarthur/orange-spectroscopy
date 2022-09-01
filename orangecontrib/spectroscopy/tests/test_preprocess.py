@@ -422,7 +422,8 @@ class TestCommon(unittest.TestCase):
         """ Preprocessors should not crash when there are no input samples. """
         data = SMALL_COLLAGEN[:0]
         for proc in PREPROCESSORS:
-            _ = proc(data)
+            with self.subTest(proc):
+                _ = proc(data)
 
     def test_no_attributes(self):
         """ Preprocessors should not crash when samples have no attributes. """
@@ -431,63 +432,68 @@ class TestCommon(unittest.TestCase):
                                                  class_vars=data.domain.class_vars,
                                                  metas=data.domain.metas))
         for proc in PREPROCESSORS:
-            _ = proc(data)
+            with self.subTest(proc):
+                _ = proc(data)
 
     def test_all_nans(self):
         """ Preprocessors should not crash when there are all-nan samples. """
         for proc in PREPROCESSORS:
-            data = preprocessor_data(proc).copy()
-            with data.unlocked():
-                data.X[0, :] = np.nan
-            try:
-                _ = proc(data)
-            except PreprocessException:
-                continue  # allow explicit preprocessor exception
+            with self.subTest(proc):
+                data = preprocessor_data(proc).copy()
+                with data.unlocked():
+                    data.X[0, :] = np.nan
+                try:
+                    _ = proc(data)
+                except PreprocessException:
+                    continue  # allow explicit preprocessor exception
 
     def test_unordered_features(self):
         for proc in PREPROCESSORS:
-            data = preprocessor_data(proc)
-            data_reversed = reverse_attr(data)
-            data_shuffle = shuffle_attr(data)
-            pdata = proc(data)
-            X = pdata.X[:, np.argsort(getx(pdata))]
-            pdata_reversed = proc(data_reversed)
-            X_reversed = pdata_reversed.X[:, np.argsort(getx(pdata_reversed))]
-            np.testing.assert_almost_equal(X, X_reversed, err_msg="Preprocessor " + str(proc))
-            pdata_shuffle = proc(data_shuffle)
-            X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
-            np.testing.assert_almost_equal(X, X_shuffle, err_msg="Preprocessor " + str(proc))
+            with self.subTest(proc):
+                data = preprocessor_data(proc)
+                data_reversed = reverse_attr(data)
+                data_shuffle = shuffle_attr(data)
+                pdata = proc(data)
+                X = pdata.X[:, np.argsort(getx(pdata))]
+                pdata_reversed = proc(data_reversed)
+                X_reversed = pdata_reversed.X[:, np.argsort(getx(pdata_reversed))]
+                np.testing.assert_almost_equal(X, X_reversed, err_msg="Preprocessor " + str(proc))
+                pdata_shuffle = proc(data_shuffle)
+                X_shuffle = pdata_shuffle.X[:, np.argsort(getx(pdata_shuffle))]
+                np.testing.assert_almost_equal(X, X_shuffle, err_msg="Preprocessor " + str(proc))
 
     def test_unknown_no_propagate(self):
         for proc in PREPROCESSORS:
-            data = preprocessor_data(proc).copy()
-            # one unknown in line
-            with data.unlocked():
-                for i in range(min(len(data), len(data.domain.attributes))):
-                    data.X[i, i] = np.nan
+            with self.subTest(proc):
+                data = preprocessor_data(proc).copy()
+                # one unknown in line
+                with data.unlocked():
+                    for i in range(min(len(data), len(data.domain.attributes))):
+                        data.X[i, i] = np.nan
 
-            if hasattr(proc, "skip_add_zeros"):
-                continue
-            pdata = proc(data)
-            sumnans = np.sum(np.isnan(pdata.X), axis=1)
-            self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
+                if hasattr(proc, "skip_add_zeros"):
+                    continue
+                pdata = proc(data)
+                sumnans = np.sum(np.isnan(pdata.X), axis=1)
+                self.assertFalse(np.any(sumnans > 1), msg="Preprocessor " + str(proc))
 
     def test_no_infs(self):
         """ Preprocessors should not return (-)inf """
         for proc in PREPROCESSORS:
-            data = preprocessor_data(proc).copy()
-            # add some zeros to the dataset
-            with data.unlocked():
-                for i in range(min(len(data), len(data.domain.attributes))):
-                    data.X[i, i] = 0
-                data.X[0, :] = 0
-                data.X[:, 0] = 0
-            try:
-                pdata = proc(data)
-            except PreprocessException:
-                continue  # allow explicit preprocessor exception
-            anyinfs = np.any(np.isinf(pdata.X))
-            self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
+            with self.subTest(proc):
+                data = preprocessor_data(proc).copy()
+                # add some zeros to the dataset
+                with data.unlocked():
+                    for i in range(min(len(data), len(data.domain.attributes))):
+                        data.X[i, i] = 0
+                    data.X[0, :] = 0
+                    data.X[:, 0] = 0
+                try:
+                    pdata = proc(data)
+                except PreprocessException:
+                    continue  # allow explicit preprocessor exception
+                anyinfs = np.any(np.isinf(pdata.X))
+                self.assertFalse(anyinfs, msg="Preprocessor " + str(proc))
 
 
 class TestPCADenoising(unittest.TestCase):

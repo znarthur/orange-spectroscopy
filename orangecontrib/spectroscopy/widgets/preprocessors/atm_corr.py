@@ -103,7 +103,10 @@ class AtmCorrEditor(BaseEditorOrange):
         self.update_reference_info()
 
     def set_preview_data(self, data):
-        self.preview_data_max = spectra_mean(data.X).max()
+        try:
+            self.preview_data_max = np.nanmax(spectra_mean(data.X))
+        except ValueError:  # if sequence is empty
+            self.preview_data_max = 1
         self.update_reference_info()
 
     def update_reference_info(self):

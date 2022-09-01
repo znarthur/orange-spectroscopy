@@ -28,58 +28,63 @@ class TestAllPreprocessors(WidgetTest):
     def test_allpreproc_indv(self):
         data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
-            self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data)
-            self.widget.add_preprocessor(p)
-            self.widget.commit.now()
-            wait_for_preview(self.widget)
-            self.wait_until_finished(timeout=10000)
+            with self.subTest(p.viewclass):
+                self.widget = self.create_widget(OWPreprocess)
+                self.send_signal("Data", data)
+                self.widget.add_preprocessor(p)
+                self.widget.commit.now()
+                wait_for_preview(self.widget)
+                self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_empty(self):
         data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
-            self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data[:0])
-            self.widget.add_preprocessor(p)
-            self.widget.commit.now()
-            wait_for_preview(self.widget)
-            self.wait_until_finished(timeout=10000)
+            with self.subTest(p.viewclass):
+                self.widget = self.create_widget(OWPreprocess)
+                self.send_signal("Data", data[:0])
+                self.widget.add_preprocessor(p)
+                self.widget.commit.now()
+                wait_for_preview(self.widget)
+                self.wait_until_finished(timeout=10000)
         # no attributes
         data = data.transform(
             Orange.data.Domain([],
                                class_vars=data.domain.class_vars,
                                metas=data.domain.metas))
         for p in PREPROCESSORS:
-            self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data)
-            self.widget.add_preprocessor(p)
-            self.widget.commit.now()
-            wait_for_preview(self.widget)
-            self.wait_until_finished(timeout=10000)
+            with self.subTest(p.viewclass, type="no attributes"):
+                self.widget = self.create_widget(OWPreprocess)
+                self.send_signal("Data", data)
+                self.widget.add_preprocessor(p)
+                self.widget.commit.now()
+                wait_for_preview(self.widget)
+                self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_ref(self):
         data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
-            self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data)
-            self.send_signal("Reference", data)
-            self.widget.add_preprocessor(p)
-            self.widget.commit.now()
-            wait_for_preview(self.widget)
-            self.wait_until_finished(timeout=10000)
+            with self.subTest(p.viewclass):
+                self.widget = self.create_widget(OWPreprocess)
+                self.send_signal("Data", data)
+                self.send_signal("Reference", data)
+                self.widget.add_preprocessor(p)
+                self.widget.commit.now()
+                wait_for_preview(self.widget)
+                self.wait_until_finished(timeout=10000)
 
     def test_allpreproc_indv_ref_multi(self):
         """Test that preprocessors can handle references with multiple instances"""
         # len(data) must be > maximum preview size (10) to ensure test failure
         data = SMALLER_COLLAGEN
         for p in PREPROCESSORS:
-            self.widget = self.create_widget(OWPreprocess)
-            self.send_signal("Data", data)
-            self.send_signal("Reference", data)
-            self.widget.add_preprocessor(p)
-            self.widget.commit.now()
-            wait_for_preview(self.widget, timeout=10000)
-            self.wait_until_finished(timeout=10000)
+            with self.subTest(p.viewclass):
+                self.widget = self.create_widget(OWPreprocess)
+                self.send_signal("Data", data)
+                self.send_signal("Reference", data)
+                self.widget.add_preprocessor(p)
+                self.widget.commit.now()
+                wait_for_preview(self.widget, timeout=10000)
+                self.wait_until_finished(timeout=10000)
 
 
 class TestOWPreprocess(WidgetTest):
