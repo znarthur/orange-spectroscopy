@@ -73,6 +73,13 @@ class CommonDomain:
     def transformed(self, data):
         raise NotImplemented
 
+    def __eq__(self, other):
+        return type(self) is type(other) \
+               and self.domain == other.domain
+
+    def __hash__(self):
+        return hash((type(self), self.domain))
+
 
 class CommonDomainRef(CommonDomain):
     """CommonDomain which also ensures reference domain transformation"""
