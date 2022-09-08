@@ -52,6 +52,13 @@ class SelectColumn(SharedComputeValue):
     def compute(self, data, common):
         return common[:, self.feature]
 
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.feature == other.feature
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.feature))
+
 
 class CommonDomain:
     """A utility class that helps constructing common transformation for

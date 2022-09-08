@@ -179,6 +179,21 @@ class TestInterpolate(unittest.TestCase):
         v, n = nan_extend_edges_and_interpolate(xsm, ysm)
         np.testing.assert_equal(v[:, mix], exp)
 
+    def test_eq(self):
+        data = Orange.data.Table("iris")
+        i1 = Interpolate([0, 1])(data)
+        i2 = Interpolate([0, 1])(data)
+        self.assertEqual(i1.domain, i2.domain)
+        i3 = Interpolate([0, 1.1])(data)
+        self.assertNotEqual(i1.domain[0], i3.domain[0])
+        i4 = Interpolate([0, 1], kind="quadratic")(data)
+        self.assertNotEqual(i1.domain[0], i4.domain[0])
+
+        # different domain
+        titanic = Orange.data.Table("titanic")
+        it1 = Interpolate([0, 1])(titanic)
+        self.assertNotEqual(i1.domain[0], it1.domain[0])
+
 
 class TestInterpolateToDomain(unittest.TestCase):
 

@@ -412,7 +412,7 @@ def features_with_interpolation(points, kind="linear", domain=None, handle_nans=
 
 
 class InterpolatedFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _InterpolateCommon:
@@ -448,6 +448,18 @@ class _InterpolateCommon:
             else:
                 interpfn = interp1d_wo_unknowns_scipy
         return interpfn(x, ys, self.points, kind=self.kind)
+
+    def __eq__(self, other):
+        return type(self) is type(other) \
+               and np.all(self.points == other.points) \
+               and self.kind == other.kind \
+               and self.domain == other.domain \
+               and self.handle_nans == other.handle_nans \
+               and self.interpfn == other.interpfn
+
+    def __hash__(self):
+        return hash((type(self), tuple(self.points[:5]), self.kind,
+                     self.domain, self.handle_nans, self.interpfn))
 
 
 class Interpolate(Preprocess):
