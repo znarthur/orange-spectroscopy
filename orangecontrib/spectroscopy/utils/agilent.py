@@ -1,4 +1,4 @@
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 import configparser
 from pathlib import Path
@@ -8,35 +8,58 @@ import numpy as np
 
 DEBUG = False
 
-def _check_files(filename, exts):
+def base_data_path(path: Path) -> Path:
+    """
+    Find the correct base for data files
+
+    For example, folder with ["ab9.dmt", "AB9_0000_0000.dmd"] should return "AB9"
+    """
+    if path.suffix == ".dmt":
+        for child in path.parent.iterdir():
+            if child.suffix == ".dmt":
+                continue
+            elif child.stem.casefold() == (path.stem + "_0000_0000").casefold():
+                return child.with_name(child.stem.split("_0000_0000")[0])
+    else:
+        return path
+
+def bsp_path(path: Path) -> Path:
+    """
+    Find the correct Path for the bsp file
+
+    Necessary as bsp can be equal to .dat/.seq, or lowercase
+    """
+    bsp = path.with_suffix(".bsp")
+    if bsp.is_file():
+        return bsp
+    else:
+        return path.parent.joinpath(bsp.name.lower())
+
+def check_files(filename, exts):
     """
     takes filename string and list of extensions, checks that they all exist and
     returns a Path
     """
-    #TODO test whether IOError (deprecated) or OSError is better handled by Orange
     p = Path(filename)
-    if p.suffix == ".dmt":
-        for child in p.parent.iterdir():
-            if child.suffix == ".dmt":
-                continue
-            elif child.stem.casefold() == p.stem.casefold():
-                p = child
-                break
-            elif child.stem.casefold() == (p.stem + "_0000_0000").casefold():
-                p = child.with_name(child.stem.split("_0000_0000")[0] + p.suffix)
-                break
+    p = base_data_path(p)
     for ext in exts:
         if ext == ".dmt":
             # Always lowercase
-            ps = p.parent.joinpath(p.with_suffix(ext).name.lower())
+            ps = dmt_path(p)
         elif ext in [".drd", ".dmd"]:
             # Always has at least _0000_0000 tile
             ps = p.parent.joinpath(p.stem + "_0000_0000" + ext)
+        elif ext == ".bsp":
+            # Can be lowercase (if reprocessed, for example)
+            ps = bsp_path(p)
         else:
             ps = p.with_suffix(ext)
         if not ps.is_file():
             raise OSError('File "{}" was not found.'.format(ps))
     return p
+
+def dmt_path(path: Path) -> Path:
+    return path.parent.joinpath(path.with_suffix(".dmt").name.lower())
 
 def _readint(f):
     return struct.unpack("i", f.read(4))[0]
@@ -290,7 +313,7 @@ class agilentImage(DataObject):
 
     def __init__(self, filename, MAT=False):
         super().__init__()
-        p = _check_files(filename, [".dat", ".bsp"])
+        p = check_files(filename, [".dat", ".bsp"])
         self.MAT = MAT
         self._get_bsp_info(p)
         self._get_dat(p)
@@ -298,11 +321,11 @@ class agilentImage(DataObject):
         self.wavenumbers = self.info['wavenumbers']
         self.width = self.data.shape[0]
         self.height = self.data.shape[1]
-        self.filename = p.with_suffix(".bsp").as_posix()
+        self.filename = bsp_path(p).as_posix()
         self.acqdate = self.info['Time Stamp']
 
     def _get_bsp_info(self, p_in):
-        p = p_in.with_suffix(".bsp")
+        p = bsp_path(p_in)
         with p.open(mode='rb') as f:
             self.info.update(_get_wavenumbers(f))
             self.info.update(_get_params(f))
@@ -337,7 +360,7 @@ class agilentMosaicTiles(DataObject):
 
     def __init__(self, filename, MAT=False):
         super().__init__()
-        p = _check_files(filename, [".dmt", ".dmd"])
+        p = check_files(filename, [".dmt", ".dmd"])
         self.MAT = MAT
         self._get_dmt_info(p)
         self._get_tiles(p)
@@ -345,14 +368,14 @@ class agilentMosaicTiles(DataObject):
         self.wavenumbers = self.info['wavenumbers']
         self.width = self.tiles.shape[0] * self.info['fpasize']
         self.height = self.tiles.shape[1] * self.info['fpasize']
-        self.filename = p.with_suffix(".dmt").as_posix()
+        self.filename = dmt_path(p).as_posix()
         self.acqdate = self.info['Time Stamp']
 
         self.vis = get_visible_images(p)
 
     def _get_dmt_info(self, p_in):
         # .dmt is always lowercase
-        p = p_in.parent.joinpath(p_in.with_suffix(".dmt").name.lower())
+        p = dmt_path(p_in)
         with p.open(mode='rb') as f:
             self.info.update(_get_wavenumbers(f))
             self.info.update(_get_params(f))
@@ -463,15 +486,15 @@ class agilentImageIFG(DataObject):
 
     def __init__(self, filename, MAT=False):
         super().__init__()
-        p = _check_files(filename, [".seq", ".bsp"])
+        p = check_files(filename, [".seq", ".bsp"])
         self.MAT = MAT
         self._get_bsp_info(p)
         self._get_seq(p)
 
-        self.filename = p.with_suffix(".bsp").as_posix()
+        self.filename = bsp_path(p).as_posix()
 
     def _get_bsp_info(self, p_in):
-        p = p_in.with_suffix(".bsp")
+        p = bsp_path(p_in)
         with p.open(mode='rb') as f:
             self.info.update(_get_ifg_params(f))
             self.info.update(_get_params(f))
@@ -507,16 +530,16 @@ class agilentMosaicIFGTiles(DataObject):
 
     def __init__(self, filename, MAT=False):
         super().__init__()
-        p = _check_files(filename, [".dmt", ".drd"])
+        p = check_files(filename, [".dmt", ".drd"])
         self.MAT = MAT
         self._get_dmt_info(p)
         self._get_tiles(p)
 
-        self.filename = p.with_suffix(".dmt").as_posix()
+        self.filename = dmt_path(p).as_posix()
 
     def _get_dmt_info(self, p_in):
         # .dmt is always lowercase
-        p = p_in.parent.joinpath(p_in.with_suffix(".dmt").name.lower())
+        p = dmt_path(p_in)
         with p.open(mode='rb') as f:
             self.info.update(_get_ifg_params(f))
             self.info.update(_get_params(f))
