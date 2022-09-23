@@ -133,7 +133,7 @@ if __name__ == '__main__':
             'orange-widget-base>=4.16.1',
             'scipy>=1.4.0',
             'scikit-learn>0.23.0',
-            'spectral>=0.18',
+            'spectral>=0.18,!=0.23',
             'serverfiles>=0.2',
             'AnyQt>=0.0.6',
             'pyqtgraph>=0.11.1,!=0.12.4',  # https://github.com/pyqtgraph/pyqtgraph/issues/2237
