@@ -69,6 +69,35 @@ class TestIntegrate(unittest.TestCase):
         np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1],
                                 [[1, 1, 1, 1, 1, 1]])
 
+    def test_separate_baseline(self):
+        data = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1],
+                                       [1, 2, 3, 1, np.nan, 1],
+                                       [1, 2, 3, 1, 1, np.nan]])
+
+        # baseline spans the whole region
+        i = Integrate(methods=Integrate.Separate, limits=[[0, 5, 0, 5]])(data)
+        self.assertEqual(i[0][0], 3)
+        self.assertEqual(i[1][0], 3)
+        self.assertEqual(i[2][0], 3)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 1)
+
+        # baseline is outside of integral
+        i = Integrate(methods=Integrate.Separate, limits=[[1, 2, 0, 5]])(data)
+        self.assertEqual(i[0][0], 1.5)
+        self.assertEqual(i[1][0], 1.5)
+        self.assertEqual(i[2][0], 1.5)
+        np.testing.assert_equal(i.domain[0].compute_value.baseline(data)[1], 1)
+
+        # baseline is inside the interval
+        i = Integrate(methods=Integrate.Separate, limits=[[0, 3, 1, 2]])(data)
+        self.assertEqual(i[0][0], -1.5)
+        self.assertEqual(i[1][0], -1.5)
+        self.assertEqual(i[2][0], -1.5)
+        bx, by = i.domain[0].compute_value.baseline(data)
+        # baseline is computed on common parts: [min(limits), max(limits)]
+        np.testing.assert_equal(bx, [0, 1, 2, 3])
+        np.testing.assert_equal(by, [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]])
+
     def test_empty_interval(self):
         data = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1]])
         i = Integrate(methods=Integrate.Simple, limits=[[10, 16]])(data)
@@ -81,6 +110,8 @@ class TestIntegrate(unittest.TestCase):
         self.assertEqual(i[0][0], np.nan)
         i = Integrate(methods=Integrate.PeakAt, limits=[[10, 16]])(data)
         self.assertEqual(i[0][0], 1)  # get the rightmost one
+        i = Integrate(methods=Integrate.Separate, limits=[[10, 16, 10, 16]])(data)
+        self.assertEqual(i[0][0], 0)
 
     def test_different_integrals(self):
         data = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1]])
