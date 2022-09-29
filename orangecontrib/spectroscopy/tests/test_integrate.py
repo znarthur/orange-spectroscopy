@@ -123,10 +123,11 @@ class TestIntegrate(unittest.TestCase):
 
     def test_names(self):
         data = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1]])
-        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
-                      limits=[[0, 5], [0, 6]])(data)
+        i = Integrate(methods=[Integrate.Simple, Integrate.Baseline, Integrate.Separate],
+                      limits=[[0, 5], [0, 6], [1, 2, 0, 6]])(data)
         self.assertEqual(i.domain[0].name, "0 - 5")
         self.assertEqual(i.domain[1].name, "0 - 6")
+        self.assertEqual(i.domain[2].name, "1 - 2 [baseline 0 - 6]")
         i = Integrate(methods=[Integrate.Simple, Integrate.Baseline],
                       limits=[[0, 5], [0, 6]], names=["simple", "baseline"])(data)
         self.assertEqual(i.domain[0].name, "simple")

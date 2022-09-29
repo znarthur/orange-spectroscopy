@@ -300,7 +300,12 @@ class Integrate(Preprocess):
                 methods = [methods] * len(self.limits)
             names = self.names
             if not names:
-                names = [" - ".join("{0}".format(e) for e in l) for l in self.limits]
+                names = []
+                for l, m in zip(self.limits, methods):
+                    if m in [IntegrateFeatureSeparateBaseline]:
+                        names.append("{0} - {1} [baseline {2} - {3}]".format(*l))
+                    else:
+                        names.append(" - ".join("{0}".format(e) for e in l))
             # no names in data should be repeated
             used_names = [var.name for var in data.domain.variables + data.domain.metas]
             for i, n in enumerate(names):
