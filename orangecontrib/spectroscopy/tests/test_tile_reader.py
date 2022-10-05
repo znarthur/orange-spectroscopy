@@ -2,6 +2,8 @@ import os.path
 import unittest
 
 import Orange
+import numpy as np
+from Orange.data import Table
 from Orange.data.io import FileFormat
 from Orange.preprocess.preprocess import PreprocessorList
 from Orange.widgets.tests.base import WidgetTest
@@ -31,6 +33,15 @@ class TestTileReaders(unittest.TestCase):
         path = os.path.join(get_sample_datasets_dir(), AGILENT_TILE)
         reader = OWTilefile.get_tile_reader(path)
         reader.read()
+
+    def test_match_not_tiled(self):
+        path = os.path.join(get_sample_datasets_dir(), AGILENT_TILE)
+        reader = OWTilefile.get_tile_reader(path)
+        t = reader.read()
+        t_orig = Table(path)
+        np.testing.assert_array_equal(t.X, t_orig.X)
+        np.testing.assert_array_equal(t[:, ["map_x", "map_y"]].metas,
+                                      t_orig[:, ["map_x", "map_y"]].metas)
 
 
 class TestTilePreprocessors(unittest.TestCase):
