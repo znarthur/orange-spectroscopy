@@ -20,7 +20,7 @@ class IntegrateEditor(BaseEditor):
     name = "Integrate"
     qualname = "orangecontrib.infrared.integrate"
 
-    Integrators_classes = Integrate.INTEGRALS
+    Integrators_classes = Integrate.INTEGRALS[:-1]  # without SeparateBaseline
     Integrators = [a.name for a in Integrators_classes]
 
     def __init__(self, parent=None, **kwargs):
@@ -29,6 +29,14 @@ class IntegrateEditor(BaseEditor):
         self._limits = []
 
         self.setLayout(QVBoxLayout())
+
+        deprecation_info = QLabel(
+            "This preprocessor is deprecated and will be removed in the future. "
+            "Use the Integrate widget instead.", self)
+        deprecation_info.setWordWrap(True)
+        deprecation_info.setStyleSheet("color: red")
+        self.layout().addWidget(deprecation_info)
+
         self.form_set = QFormLayout()
         self.form_lim = QFormLayout()
         self.layout().addLayout(self.form_set)

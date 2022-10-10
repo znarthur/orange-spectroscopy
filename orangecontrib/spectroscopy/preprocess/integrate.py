@@ -10,8 +10,9 @@ from Orange.preprocess.preprocess import Preprocess
 from AnyQt.QtCore import Qt
 
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.preprocess.utils import nan_extend_edges_and_interpolate, CommonDomain, \
-    edge_baseline
+from orangecontrib.spectroscopy.preprocess.utils import nan_extend_edges_and_interpolate, \
+    CommonDomain, \
+    edge_baseline, linear_baseline
 
 INTEGRATE_DRAW_CURVE_WIDTH = 2
 INTEGRATE_DRAW_EDGE_WIDTH = 1
@@ -94,6 +95,48 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
         return [("curve", (x, self.compute_baseline(x, ys), INTEGRATE_DRAW_BASELINE_PENARGS)),
                 ("curve", (x, ys, INTEGRATE_DRAW_BASELINE_PENARGS)),
                 ("fill", ((x, self.compute_baseline(x, ys)), (x, ys)))]
+
+
+class IntegrateFeatureSeparateBaseline(IntegrateFeature):
+
+    name = "Integral from separate baseline"
+
+    @staticmethod
+    def parameters():
+        return (("Low limit", "Low limit for integration (inclusive)"),
+                ("High limit", "High limit for integration (inclusive)"),
+                ("Low limit (baseline)", "Low limit for baseline (inclusive)"),
+                ("High limit (baseline)", "High limit for baseline (inclusive)"),
+                )
+
+    def compute_baseline(self, x_s, y_s):
+        if np.any(np.isnan(y_s)):
+            y_s, _ = nan_extend_edges_and_interpolate(x_s, y_s)
+        return linear_baseline(x_s, y_s, zero_points=[self.limits[2], self.limits[3]])
+
+    def limit_region(self, x_s, y_s):
+        lim_min, lim_max = min(self.limits[:2]), max(self.limits[:2])
+        lim_min = np.searchsorted(x_s, lim_min, side="left")
+        lim_max = np.searchsorted(x_s, lim_max, side="right")
+        x_s = x_s[lim_min:lim_max]
+        y_s = y_s[:, lim_min:lim_max]
+        return x_s, y_s
+
+    def compute_integral(self, x_s, y_s):
+        y_s = y_s - self.compute_baseline(x_s, y_s)
+        x_s, y_s = self.limit_region(x_s, y_s)
+
+        if np.any(np.isnan(y_s)):
+            # interpolate unknowns as trapz can not handle them
+            y_s, _ = nan_extend_edges_and_interpolate(x_s, y_s)
+
+        return np.trapz(y_s, x_s, axis=1)
+
+    def compute_draw_info(self, x_s, y_s):
+        xl, ysl = self.limit_region(x_s, y_s)
+        return [("curve", (x_s, self.compute_baseline(x_s, y_s), INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("curve", (xl, ysl, INTEGRATE_DRAW_BASELINE_PENARGS)),
+                ("fill", (self.limit_region(x_s, self.compute_baseline(x_s, y_s)), (xl, ysl)))]
 
 
 class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
@@ -236,10 +279,11 @@ class Integrate(Preprocess):
                  IntegrateFeaturePeakEdgeBaseline,
                  IntegrateFeatureAtPeak,
                  IntegrateFeaturePeakXSimple,
-                 IntegrateFeaturePeakXEdgeBaseline]
+                 IntegrateFeaturePeakXEdgeBaseline,
+                 IntegrateFeatureSeparateBaseline]
 
     # Integration methods
-    Simple, Baseline, PeakMax, PeakBaseline, PeakAt, PeakX, PeakXBaseline = INTEGRALS
+    Simple, Baseline, PeakMax, PeakBaseline, PeakAt, PeakX, PeakXBaseline, Separate = INTEGRALS
 
     def __init__(self, methods=Baseline, limits=None, names=None, metas=False):
         self.methods = methods
@@ -256,7 +300,12 @@ class Integrate(Preprocess):
                 methods = [methods] * len(self.limits)
             names = self.names
             if not names:
-                names = [" - ".join("{0}".format(e) for e in l) for l in self.limits]
+                names = []
+                for l, m in zip(self.limits, methods):
+                    if m in [IntegrateFeatureSeparateBaseline]:
+                        names.append("{0} - {1} [baseline {2} - {3}]".format(*l))
+                    else:
+                        names.append(" - ".join("{0}".format(e) for e in l))
             # no names in data should be repeated
             used_names = [var.name for var in data.domain.variables + data.domain.metas]
             for i, n in enumerate(names):

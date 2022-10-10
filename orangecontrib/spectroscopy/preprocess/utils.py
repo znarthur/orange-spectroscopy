@@ -236,6 +236,8 @@ def edge_baseline(x, y):
 
 
 def linear_baseline(x, y, zero_points=None):
+    if len(x) == 0:
+        return 0
     values_zero_points = interp1d(x, y, axis=1, fill_value="extrapolate")(zero_points)
     return interp1d(zero_points, values_zero_points, axis=1, fill_value="extrapolate")(x)
 

@@ -127,8 +127,8 @@ class IntegrateSimpleEditor(IntegrateOneEditor):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                self.set_value("Low limit", min(x))
-                self.set_value("High limit", max(x))
+                self.set_value("Low limit", min(x), user=False)
+                self.set_value("High limit", max(x), user=False)
                 self.edited.emit()
         super().set_preview_data(data)
 
@@ -148,7 +148,7 @@ class IntegratePeakMaxBaselineEditor(IntegrateSimpleEditor):
     integrator = Integrate.PeakBaseline
 
 
-class IntegrateAtEditor(IntegrateSimpleEditor):
+class IntegrateAtEditor(IntegrateOneEditor):
     qualname = "orangecontrib.infrared.integrate.closest"
     integrator = Integrate.PeakAt
 
@@ -156,7 +156,7 @@ class IntegrateAtEditor(IntegrateSimpleEditor):
         if not self.user_changed:
             x = getx(data)
             if len(x):
-                self.set_value("Closest to", min(x))
+                self.set_value("Closest to", min(x), user=False)
                 self.edited.emit()
         super().set_preview_data(data)
 
@@ -171,6 +171,22 @@ class IntegratePeakXBaselineEditor(IntegrateSimpleEditor):
     integrator = Integrate.PeakXBaseline
 
 
+class IntegrateSeparateBaselineEditor(IntegrateSimpleEditor):
+    qualname = "orangecontrib.infrared.integrate.baseline_separate"
+    integrator = Integrate.Separate
+
+    def set_preview_data(self, data):
+        if not self.user_changed:
+            x = getx(data)
+            if len(x):
+                self.set_value("Low limit (baseline)", min(x), user=False)
+                self.set_value("High limit (baseline)", max(x), user=False)
+                self.set_value("Low limit", min(x), user=False)
+                self.set_value("High limit", max(x), user=False)
+                self.edited.emit()
+        super().set_preview_data(data)
+
+
 PREPROCESSORS = [
     PreprocessAction(
         "Integrate", c.qualname, "Integration",
@@ -183,7 +199,8 @@ PREPROCESSORS = [
         IntegratePeakMaxBaselineEditor,
         IntegrateAtEditor,
         IntegratePeakXEditor,
-        IntegratePeakXBaselineEditor
+        IntegratePeakXBaselineEditor,
+        IntegrateSeparateBaselineEditor,
     ]
 ]
 
