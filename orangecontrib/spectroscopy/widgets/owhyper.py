@@ -23,6 +23,7 @@ from PIL import Image
 import Orange.data
 from Orange.preprocess.transformation import Identity
 from Orange.data import Domain, DiscreteVariable, ContinuousVariable
+from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
 from Orange.widgets import gui
 from Orange.widgets.settings import \
@@ -32,12 +33,15 @@ from Orange.widgets.utils import saveplot
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import GraphicsView, PlotItem, AxisItem
 
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+
 from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan, split_to_size
 
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox, \
     MenuFocus, CurvePlot, SELECTONE, SELECTMANY, INDIVIDUAL, AVERAGE, \
-    HelpEventDelegate, selection_modifiers
+    HelpEventDelegate, selection_modifiers, \
+    ParameterSetter as SpectraParameterSetter
 
 from orangecontrib.spectroscopy.widgets.gui import MovableVline, lineEditDecimalOrNone,\
     pixels_to_decimals, float_to_str_decimals
@@ -572,6 +576,41 @@ class ImageColorLegend(GraphicsWidget):
             self.rect.setBrush(QBrush(self.gradient))
 
 
+class ImageParameterSetter(CommonParameterSetter):
+    IMAGE_ANNOT_BOX = "Image annotations"
+
+    def __init__(self, master):
+        super().__init__()
+        self.master = master
+
+    def update_setters(self):
+        self.initial_settings = {
+            self.IMAGE_ANNOT_BOX: {
+                self.TITLE_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.X_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.Y_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+            },
+        }
+
+        self._setters[self.IMAGE_ANNOT_BOX] = self._setters[self.ANNOT_BOX]
+
+    @property
+    def title_item(self):
+        return self.master.plot.titleLabel
+
+    @property
+    def axis_items(self):
+        return [value["item"] for value in self.master.plot.axes.values()]
+
+    @property
+    def getAxis(self):
+        return self.master.plot.getAxis
+
+    @property
+    def legend_items(self):
+        return self.master.legend.items
+
+
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
                 ImageColorSettingMixin, ImageRGBSettingMixin,
                 ImageZoomMixin, ConcurrentMixin):
@@ -591,6 +630,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         ImageZoomMixin.__init__(self)
         ConcurrentMixin.__init__(self)
         self.parent = parent
+
+        self.parameter_setter = ImageParameterSetter(self)
 
         self.selection_type = SELECTMANY
         self.saving_enabled = True
@@ -995,6 +1036,8 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     lowlimb = Setting(None)
     highlimb = Setting(None)
 
+    visual_settings = Setting({}, schema_only=True)
+
     graph_name = "imageplot.plotview"  # defined so that the save button is shown
 
     class Warning(OWWidget.Warning):
@@ -1129,6 +1172,17 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
 
         # prepare interface according to the new context
         self.contextAboutToBeOpened.connect(lambda x: self.init_interface_data(x[0]))
+
+        self._setup_plot_parameters()
+
+    def _setup_plot_parameters(self):
+        parts_from_spectra = [SpectraParameterSetter.ANNOT_BOX]
+        self.imageplot.parameter_setter.initial_settings[SpectraParameterSetter.ANNOT_BOX] = \
+            self.curveplot.parameter_setter.initial_settings[SpectraParameterSetter.ANNOT_BOX]
+        self.imageplot.parameter_setter.initial_settings[SpectraParameterSetter.LABELS_BOX] = \
+            self.curveplot.parameter_setter.initial_settings[SpectraParameterSetter.LABELS_BOX]
+
+        VisualSettingsDialog(self, self.imageplot.parameter_setter.initial_settings)
 
     def setup_visible_image_controls(self):
         self.visbox = gui.widgetBox(self.controlArea, True)
@@ -1346,6 +1400,15 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self.imageplot.update_view()
         self.output_image_selection()
         self.update_visible_image()
+
+    def set_visual_settings(self, key, value):
+        im_setter = self.imageplot.parameter_setter
+        cv_setter = self.curveplot.parameter_setter
+        if key[0] not in ["Annotations"] and key[0] in im_setter.initial_settings:
+            im_setter.set_parameter(key, value)
+        if key[0] in cv_setter.initial_settings:
+            cv_setter.set_parameter(key, value)
+        self.visual_settings[key] = value
 
     def _init_integral_boundaries(self):
         # requires data in curveplot
