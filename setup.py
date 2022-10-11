@@ -139,7 +139,7 @@ if __name__ == '__main__':
             'pyqtgraph>=0.11.1,!=0.12.4',  # https://github.com/pyqtgraph/pyqtgraph/issues/2237
             'colorcet',
             'h5py',
-            'extranormal3',
+            'extranormal3 >=0.0.3',
             'renishawWiRE>=0.1.8',
             'pillow',
             'lmfit>=1.0.2',
