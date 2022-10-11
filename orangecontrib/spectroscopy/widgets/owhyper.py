@@ -600,7 +600,8 @@ class ImageParameterSetter(CommonParameterSetter):
 
     @property
     def axis_items(self):
-        return [value["item"] for value in self.master.plot.axes.values()]
+        return [value["item"] for value in self.master.plot.axes.values()] \
+               + [self.master.legend.axis]
 
     @property
     def getAxis(self):
@@ -608,7 +609,7 @@ class ImageParameterSetter(CommonParameterSetter):
 
     @property
     def legend_items(self):
-        return self.master.legend.items
+        return []
 
 
 class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
