@@ -604,13 +604,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
 
 
 if __name__ == "__main__":
-    import sys
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
     from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
-    import orangecontrib.spectroscopy  #load readers
-    a = QApplication(sys.argv)
     preproc = PreprocessorList([LinearBaseline(), Cut(lowlim=2000, highlim=2006)])
-    ow = OWTilefile()
-    ow.update_preprocessor(preproc)
-    ow.show()
-    a.exec_()
-    ow.saveSettings()
+    WidgetPreview(OWTilefile).run(preproc)
