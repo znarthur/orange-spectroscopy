@@ -607,4 +607,4 @@ if __name__ == "__main__":
     from Orange.widgets.utils.widgetpreview import WidgetPreview
     from orangecontrib.spectroscopy.preprocess import Cut, LinearBaseline
     preproc = PreprocessorList([LinearBaseline(), Cut(lowlim=2000, highlim=2006)])
-    WidgetPreview(OWTilefile).run(preproc)
+    WidgetPreview(OWTilefile).run(insert_preprocessor=(0, preproc))
