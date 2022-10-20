@@ -486,16 +486,17 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
                     pstrings.append(str(pp))
             else:
                 pstrings.append(str(i))
-        return "\n".join(pstrings)
+        return "\n".join(ps for ps in pstrings if ps != "None")
 
     def warn_preprocessor(self):
         self.Warning.no_preprocessor.clear()
-        if not any([self._is_preproc(p) for p in self.preprocessor.preprocessors]):
+        if not any(self._is_preproc(p) for p in self.preprocessor.preprocessors):
             self.info_preproc.setText("No preprocessor on input.")
             self.Warning.no_preprocessor()
             return True
         self.info_preproc.setText("New preprocessor, reload file to use.\n" +
                                   self._format_preproc_str(self.preprocessor))
+        return False
 
     @Inputs.preprocessor.insert
     def insert_preprocessor(self, index: int, preprocessor: Preprocess):
