@@ -105,8 +105,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
     ]
 
     def __init__(self):
-        self.preprocessor = None
-        self.preprocessors: List[Preprocess] = []
+        self.preprocessor = PreprocessorList()
         super().__init__()
         ### owfile init code-copy ###
         RecentPathsWComboMixin.__init__(self)
@@ -479,51 +478,42 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
         return not(p is None or (isinstance(p, PreprocessorList) and len(p.preprocessors) == 0))
 
     @staticmethod
-    def _format_preproc_str(p):
-        pstring = str()
-        if isinstance(p, PreprocessorList):
-            for preproc in p.preprocessors:
-                pstring += "\n{0}".format(preproc)
-        else:
-            pstring = str(p)
-        return pstring
+    def _format_preproc_str(preprocessor):
+        pstrings = []
+        for i in preprocessor.preprocessors:
+            if isinstance(i, PreprocessorList):
+                for pp in i.preprocessors:
+                    pstrings.append(str(pp))
+            else:
+                pstrings.append(str(i))
+        return "\n".join(pstrings)
 
-    @classmethod
-    def list_to_pplist(cls, preprocessors: List[Preprocess]):
-        pp = []
-        for input in preprocessors:
-            if cls._is_preproc(input):
-                pp.extend([p for p in input.preprocessors] if isinstance(input, PreprocessorList) else [input])
-        return PreprocessorList(pp) if len(pp) != 0 else None
-
-    def update_preprocessor(self):
+    def warn_preprocessor(self):
         self.Warning.no_preprocessor.clear()
-        preproc = self.list_to_pplist(self.preprocessors)
-        if not self._is_preproc(preproc):
+        if not any([self._is_preproc(p) for p in self.preprocessor.preprocessors]):
             self.info_preproc.setText("No preprocessor on input.")
             self.Warning.no_preprocessor()
-        elif self.preprocessor is not preproc:
-            self.info_preproc.setText("New preprocessor, reload file to use." +
-                self._format_preproc_str(preproc))
-        self.preprocessor = preproc
+            return True
+        self.info_preproc.setText("New preprocessor, reload file to use.\n" +
+                                  self._format_preproc_str(self.preprocessor))
 
     @Inputs.preprocessor.insert
     def insert_preprocessor(self, index: int, preprocessor: Preprocess):
         """Insert a Preprocessor or PreprocessorList at index"""
-        self.preprocessors.insert(index, preprocessor)
-        self.update_preprocessor()
+        self.preprocessor.preprocessors.insert(index, preprocessor)
+        self.warn_preprocessor()
 
     @Inputs.preprocessor
     def set_preprocessor(self, index: int, preprocessor: Preprocess):
         """Set the input preprocessor at index"""
-        self.preprocessors[index] = preprocessor
-        self.update_preprocessor()
+        self.preprocessor.preprocessors[index] = preprocessor
+        self.warn_preprocessor()
 
     @Inputs.preprocessor.remove
     def remove_preprocessor(self, index: int):
         """Remove a preprocessor at index"""
-        del self.preprocessors[index]
-        self.update_preprocessor()
+        del self.preprocessor.preprocessors[index]
+        self.warn_preprocessor()
 
     def browse_file(self, in_demos=False):
         if in_demos:
@@ -547,8 +537,8 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
 
         self.source = self.LOCAL_FILE
 
-        if not self._is_preproc(self.preprocessor):
-            return self.Warning.no_preprocessor()
+        if self.warn_preprocessor():
+            return
         self.load_data()
 
     @classmethod
@@ -592,7 +582,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
                 reader.set_preprocessor(self.preprocessor)
                 if self.preprocessor is not None:
                     self.info_preproc.setText(
-                        self._format_preproc_str(self.preprocessor).lstrip("\n"))
+                        self._format_preproc_str(self.preprocessor))
             else:
                 # only allow readers with tile-by-tile support to run.
                 reader = None

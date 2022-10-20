@@ -87,10 +87,10 @@ class TestTileReaderWidget(WidgetTest):
         pp_out = self.get_output("Preprocessor", widget=self.preproc_widget)
         self.send_signal("Preprocessor", pp_out, widget=self.widget)
         # Single Input
-        self.assertEqual(self.widget.preprocessor.preprocessors, pp_out.preprocessors)
+        self.assertEqual(self.widget.preprocessor.preprocessors[0], pp_out)
         # Preprocessor members match editor model
         pp_from_model = create_preprocessor(self.preproc_widget.preprocessormodel.item(0), None)
-        pp_tile = self.widget.preprocessor.preprocessors[0]
+        pp_tile = self.widget.preprocessor.preprocessors[0].preprocessors[0]
         self.assertIsInstance(pp_tile, type(pp_from_model))
         # MultiInput with OWIntegrate
         self.int_widget = self.create_widget(OWIntegrate)
@@ -99,4 +99,4 @@ class TestTileReaderWidget(WidgetTest):
         pp_out_2 = self.get_output("Preprocessor", widget=self.int_widget)
         self.send_signal("Preprocessor", pp_out_2, 2, widget=self.widget)
         self.assertEqual(self.widget.preprocessor.preprocessors,
-                         pp_out.preprocessors + pp_out_2.preprocessors)
+                         [pp_out, pp_out_2])
