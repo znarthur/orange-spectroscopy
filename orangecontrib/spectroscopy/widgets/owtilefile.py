@@ -21,7 +21,7 @@ from Orange.widgets.settings import Setting, ContextSetting, \
     PerfectDomainContextHandler, SettingProvider
 from Orange.widgets.utils.domaineditor import DomainEditor
 from Orange.widgets.utils.filedialogs import RecentPathsWComboMixin, open_filename_dialog
-from Orange.widgets.widget import Input, Msg, Output
+from Orange.widgets.widget import MultiInput, Msg, Output
 
 # Backward compatibility (from owfile): class RecentPath used to be defined in this module,
 # and it is used in saved (pickled) settings. It must be imported into the
@@ -43,7 +43,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
     replaces = ["orangecontrib.protospec.widgets.owtilefile.OWTilefile"]
 
     class Inputs:
-        preprocessor = Input("Preprocessor", Preprocess)
+        preprocessor = MultiInput("Preprocessor", Preprocess)
 
     class Outputs:
         data = Output("Data", Table,
@@ -106,6 +106,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
 
     def __init__(self):
         self.preprocessor = None
+        self.preprocessors: List[Preprocess] = []
         super().__init__()
         ### owfile init code-copy ###
         RecentPathsWComboMixin.__init__(self)
@@ -487,9 +488,17 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
             pstring = str(p)
         return pstring
 
-    @Inputs.preprocessor
-    def update_preprocessor(self, preproc):
+    @classmethod
+    def list_to_pplist(cls, preprocessors: List[Preprocess]):
+        pp = []
+        for input in preprocessors:
+            if cls._is_preproc(input):
+                pp.extend([p for p in input.preprocessors] if isinstance(input, PreprocessorList) else [input])
+        return PreprocessorList(pp) if len(pp) != 0 else None
+
+    def update_preprocessor(self):
         self.Warning.no_preprocessor.clear()
+        preproc = self.list_to_pplist(self.preprocessors)
         if not self._is_preproc(preproc):
             self.info_preproc.setText("No preprocessor on input.")
             self.Warning.no_preprocessor()
@@ -497,6 +506,24 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
             self.info_preproc.setText("New preprocessor, reload file to use." +
                 self._format_preproc_str(preproc))
         self.preprocessor = preproc
+
+    @Inputs.preprocessor.insert
+    def insert_preprocessor(self, index: int, preprocessor: Preprocess):
+        """Insert a Preprocessor or PreprocessorList at index"""
+        self.preprocessors.insert(index, preprocessor)
+        self.update_preprocessor()
+
+    @Inputs.preprocessor
+    def set_preprocessor(self, index: int, preprocessor: Preprocess):
+        """Set the input preprocessor at index"""
+        self.preprocessors[index] = preprocessor
+        self.update_preprocessor()
+
+    @Inputs.preprocessor.remove
+    def remove_preprocessor(self, index: int):
+        """Remove a preprocessor at index"""
+        del self.preprocessors[index]
+        self.update_preprocessor()
 
     def browse_file(self, in_demos=False):
         if in_demos:
