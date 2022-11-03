@@ -229,7 +229,7 @@ class OWIntegrate(SpectralPreprocess):
     def __init__(self):
         self.markings_list = []
         super().__init__()
-        cb = gui.checkBox(self.output_box, self, "output_metas", "Output as metas", callback=self.commit)
+        cb = gui.checkBox(self.output_box, self, "output_metas", "Output as metas", callback=self.commit.deferred)
         self.output_box.layout().insertWidget(0, cb)  # move to top of the box
         self.curveplot.selection_type = SELECTONE
         self.curveplot.select_at_least_1 = True
