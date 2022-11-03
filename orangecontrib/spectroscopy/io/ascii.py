@@ -20,7 +20,8 @@ class AsciiColReader(FileFormat, SpectralFileFormat):
         delimiters = [None, ";", ":", ","]
         for d in delimiters:
             try:
-                tbl = np.loadtxt(self.filename, ndmin=2, delimiter=d)
+                comments = [a for a in [";", "#"] if a != d]
+                tbl = np.loadtxt(self.filename, ndmin=2, delimiter=d, comments=comments)
                 break
             except ValueError:
                 pass
