@@ -114,7 +114,7 @@ class OWSNR(OWWidget):
         with new_table.unlocked():
             for var in cont_vars:
                 index = data_table.domain.index(var)
-                col, _ = data_table.get_column_view(index)
+                col = data_table.get_column(index)
                 val = var.to_val(new_table[0, var])
                 if not np.all(col == val):
                     new_table[0, var] = Orange.data.Unknown

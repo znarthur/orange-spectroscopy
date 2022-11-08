@@ -2,14 +2,16 @@ import Orange.data
 import os.path
 
 
-# a no-op workaround so that table unlocking does not crash with older Orange
-# remove when the minimum supported version is 3.31
-from Orange.data import Table
-from contextlib import nullcontext
-if not hasattr(Table, "unlocked"):
-    Table.unlocked = nullcontext
-    Table.unlocked_reference = nullcontext
+# Remove this when we require Orange 3.34
+if not hasattr(Orange.data.Table, "get_column"):
+    print("WORKAROUND")
+    def get_column(self, column):
+        col, _ = self.get_column_view(column)
+        if self.domain[column].is_primitive():
+            col = col.astype(float)
+        return col
 
+    Orange.data.Table.get_column = get_column
 
 from . import io  # register file formats
 
