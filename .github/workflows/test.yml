@@ -93,6 +93,12 @@ jobs:
       - name: Test with Tox
         run: |
           tox -e ${{ matrix.tox_env }}
+        env:
+          # Raise deprecations as errors in our tests only when testing orange-oldest and orange-released.
+          ORANGE_DEPRECATIONS_ERROR: "${{ matrix.tox_env != 'py-orange-latest' && '1' || '' }}"
+          # Need this otherwise unittest installs a warning filter that overrides
+          # our desire to have OrangeDeprecationWarnings raised
+          PYTHONWARNINGS: module
 
       - name: Upload code coverage
         if: |
