@@ -4,7 +4,6 @@ import os.path
 
 # Remove this when we require Orange 3.34
 if not hasattr(Orange.data.Table, "get_column"):
-    print("WORKAROUND")
     def get_column(self, column):
         col, _ = self.get_column_view(column)
         if self.domain[column].is_primitive():
