@@ -970,7 +970,7 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     curveplot = SettingProvider(CurvePlotHyper)
 
     integration_method = Setting(0)
-    integration_methods = Integrate.INTEGRALS
+    integration_methods = Integrate.INTEGRALS[:-1]  # without SeparateBaseline
     value_type = Setting(0)
     attr_value = ContextSetting(None)
     rgb_red_value = ContextSetting(None)
