@@ -399,6 +399,26 @@ class TestNormalize(unittest.TestCase):
         p = Normalize(method=Normalize.SNV, lower=0, upper=2)(data)
         np.testing.assert_equal(p.X, q)
 
+    def test_eq(self):
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
+        p1 = Normalize(method=Normalize.MinMax)(data)
+        p2 = Normalize(method=Normalize.SNV)(data)
+        p3 = Normalize(method=Normalize.MinMax)(data)
+        self.assertNotEqual(p1.domain, p2.domain)
+        self.assertEqual(p1.domain, p3.domain)
+
+        p1 = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax,
+                       lower=0, upper=4)(data)
+        p2 = Normalize(method=Normalize.Area, int_method=Integrate.Baseline,
+                       lower=0, upper=4)(data)
+        p3 = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax,
+                       lower=1, upper=4)(data)
+        p4 = Normalize(method=Normalize.Area, int_method=Integrate.PeakMax,
+                       lower=0, upper=4)(data)
+        self.assertNotEqual(p1.domain, p2.domain)
+        self.assertNotEqual(p1.domain, p3.domain)
+        self.assertEqual(p1.domain, p4.domain)
+
 
 class TestNormalizeReference(unittest.TestCase):
 

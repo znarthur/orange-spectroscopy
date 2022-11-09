@@ -276,7 +276,7 @@ class LinearBaseline(Preprocess):
 
 
 class NormalizeFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _NormalizeCommon(CommonDomain):
@@ -332,6 +332,18 @@ class _NormalizeCommon(CommonDomain):
                 data.X = data.X / (max - min)
                 replace_infs(data.X)
         return data.X
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.method == other.method \
+               and self.lower == other.lower \
+               and self.upper == other.upper \
+               and self.int_method == other.int_method \
+               and self.attr == other.attr
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.method, self.lower,
+                     self.upper, self.int_method, self.attr))
 
 
 class Normalize(Preprocess):
