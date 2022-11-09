@@ -242,6 +242,24 @@ class TestSavitzkyGolay(unittest.TestCase):
         np.testing.assert_almost_equal(fdata.X,
                                        [[4.86857143, 3.47428571, 1.49428571, 0.32857143]])
 
+    def test_eq(self):
+        data = Table.from_numpy(None, [[2, 1, 2, 2, 3]])
+        p1 = SavitzkyGolayFiltering(window=5, polyorder=2, deriv=0)(data)
+        p2 = SavitzkyGolayFiltering(window=5, polyorder=2, deriv=1)(data)
+        p3 = SavitzkyGolayFiltering(window=5, polyorder=3, deriv=0)(data)
+        p4 = SavitzkyGolayFiltering(window=7, polyorder=2, deriv=0)(data)
+        self.assertNotEqual(p1.domain, p2.domain)
+        self.assertNotEqual(p1.domain, p3.domain)
+        self.assertNotEqual(p1.domain, p4.domain)
+
+        s1 = SavitzkyGolayFiltering(window=5, polyorder=2, deriv=0)(data)
+        self.assertEqual(p1.domain, s1.domain)
+
+        # even if the data set is different features should be the same
+        data2 = Table.from_numpy(None, [[2, 1, 3, 4, 3]])
+        s2 = SavitzkyGolayFiltering(window=5, polyorder=2, deriv=0)(data2)
+        self.assertEqual(p1.domain, s2.domain)
+
 
 class TestGaussian(unittest.TestCase):
 

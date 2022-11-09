@@ -131,7 +131,7 @@ class Cut(Preprocess):
 
 
 class SavitzkyGolayFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _SavitzkyGolayCommon(CommonDomainOrderUnknowns):
@@ -146,6 +146,15 @@ class _SavitzkyGolayCommon(CommonDomainOrderUnknowns):
         return savgol_filter(X, window_length=self.window,
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.window == other.window \
+               and self.polyorder == other.polyorder \
+               and self.deriv == other.deriv
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.window, self.polyorder, self.deriv))
 
 
 class SavitzkyGolayFiltering(Preprocess):
