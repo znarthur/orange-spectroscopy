@@ -14,7 +14,7 @@ from Orange.data import DiscreteVariable, Domain, Table
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.spectroscopy.data import _spectra_from_image, build_spec_table
-from orangecontrib.spectroscopy.preprocess.integrate import IntegrateFeaturePeakSimple
+from orangecontrib.spectroscopy.preprocess.integrate import IntegrateFeaturePeakSimple, Integrate
 from orangecontrib.spectroscopy.widgets import owhyper
 from orangecontrib.spectroscopy.widgets.owhyper import \
     OWHyper
@@ -134,6 +134,24 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(self.widget.rgb_red_value, attr1)
         self.assertEqual(self.widget.rgb_green_value, attr1)
         self.assertEqual(self.widget.rgb_blue_value, attr1)
+
+    def test_integral_lines(self):
+        w = self.widget
+        self.send_signal(OWHyper.Inputs.data, self.iris)
+        icombo = w.controls.integration_method
+        for i in range(icombo.count()):
+            icombo.setCurrentIndex(i)
+            icombo.activated.emit(i)
+            wait_for_image(w)
+            imethod = w.integration_methods[w.integration_method]
+            if imethod == Integrate.PeakAt:
+                correct = [False, False, True, False, False]
+            elif imethod == Integrate.Separate:
+                correct = [True, True, False, True, True]
+            else:
+                correct = [True, True, False, False, False]
+            visible = [a.isVisible() for a in [w.line1, w.line2, w.line3, w.line4, w.line5]]
+            self.assertEqual(visible, correct)
 
     def try_big_selection(self):
         self.widget.imageplot.select_square(QPointF(-100, -100), QPointF(100, 100))
