@@ -970,7 +970,7 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     curveplot = SettingProvider(CurvePlotHyper)
 
     integration_method = Setting(0)
-    integration_methods = Integrate.INTEGRALS[:-1]  # without SeparateBaseline
+    integration_methods = Integrate.INTEGRALS
     value_type = Setting(0)
     attr_value = ContextSetting(None)
     rgb_red_value = ContextSetting(None)
@@ -985,6 +985,8 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     lowlim = Setting(None)
     highlim = Setting(None)
     choose = Setting(None)
+    lowlimb = Setting(None)
+    highlimb = Setting(None)
 
     graph_name = "imageplot.plotview"  # defined so that the save button is shown
 
@@ -1099,7 +1101,11 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self.line2.sigMoved.connect(lambda v: setattr(self, "highlim", v))
         self.line3 = MovableVline(position=self.choose, label="", report=self.curveplot)
         self.line3.sigMoved.connect(lambda v: setattr(self, "choose", v))
-        for line in [self.line1, self.line2, self.line3]:
+        self.line4 = MovableVline(position=self.choose, label="baseline", report=self.curveplot)
+        self.line4.sigMoved.connect(lambda v: setattr(self, "lowlimb", v))
+        self.line5 = MovableVline(position=self.choose, label="baseline", report=self.curveplot)
+        self.line5.sigMoved.connect(lambda v: setattr(self, "highlimb", v))
+        for line in [self.line1, self.line2, self.line3, self.line4, self.line5]:
             line.sigMoveFinished.connect(self.changed_integral_range)
             self.curveplot.add_marking(line)
             line.hide()
@@ -1228,7 +1234,11 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         if self.value_type == 0:  # integrals
             imethod = self.integration_methods[self.integration_method]
 
-            if imethod != Integrate.PeakAt:
+            if imethod == Integrate.Separate:
+                return Integrate(methods=imethod,
+                                 limits=[[self.lowlim, self.highlim,
+                                          self.lowlimb, self.highlimb]])
+            elif imethod != Integrate.PeakAt:
                 return Integrate(methods=imethod,
                                  limits=[[self.lowlim, self.highlim]])
             else:
@@ -1263,6 +1273,8 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self.line1.hide()
         self.line2.hide()
         self.line3.hide()
+        self.line4.hide()
+        self.line5.hide()
         if self.value_type == 0:
             self.box_values_spectra.setDisabled(False)
             self.box_values_feature.setDisabled(True)
@@ -1272,6 +1284,9 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
                 self.line2.show()
             else:
                 self.line3.show()
+            if self.integration_methods[self.integration_method] == Integrate.Separate:
+                self.line4.show()
+                self.line5.show()
         elif self.value_type == 1:
             self.box_values_spectra.setDisabled(True)
             self.box_values_feature.setDisabled(False)
@@ -1348,6 +1363,15 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         elif self.choose > maxx:
             self.choose = maxx
         self.line3.setValue(self.choose)
+
+        if self.lowlimb is None or not minx <= self.lowlimb <= maxx:
+            self.lowlimb = minx
+        self.line4.setValue(self.lowlimb)
+
+        if self.highlimb is None or not minx <= self.highlimb <= maxx:
+            self.highlimb = maxx
+        self.line5.setValue(self.highlimb)
+
         self.disable_integral_range = False
 
     def save_graph(self):
