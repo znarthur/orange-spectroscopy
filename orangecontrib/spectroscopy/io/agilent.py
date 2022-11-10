@@ -172,13 +172,6 @@ class agilentMosaicTileReader(FileFormat, TileFileFormat):
     def set_preprocessor(self, preprocessor):
         self.preprocessor = preprocessor
 
-    def preprocess(self, table):
-        if self.preprocessor is not None:
-            return self.preprocessor(table)
-        else:
-            return table
-
-
     def read_tile(self):
         am = agilentMosaicTiles(self.filename)
         info = am.info

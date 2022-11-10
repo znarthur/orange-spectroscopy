@@ -64,6 +64,13 @@ class TestTilePreprocessors(unittest.TestCase):
         t = reader.read()
         assert len(t.domain.attributes) == 3
 
+    def test_preprocessor_list_empty(self):
+        path = os.path.join(get_sample_datasets_dir(), AGILENT_TILE)
+        reader = OWTilefile.get_tile_reader(path)
+        pp = PreprocessorList()
+        reader.set_preprocessor(pp)
+        t = reader.read()
+
 
 class TestTileReaderWidget(WidgetTest):
 
@@ -100,3 +107,7 @@ class TestTileReaderWidget(WidgetTest):
         self.send_signal("Preprocessor", pp_out_2, 2, widget=self.widget)
         self.assertEqual(self.widget.preprocessor.preprocessors,
                          [pp_out, pp_out_2])
+
+    def test_preproc_none(self):
+        self.send_signal("Preprocessor", None, widget=self.widget)
+        self.widget.load_data()

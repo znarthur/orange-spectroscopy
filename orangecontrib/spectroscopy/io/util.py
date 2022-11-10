@@ -1,5 +1,6 @@
 import numpy as np
 from Orange.data import Domain, ContinuousVariable, Table
+from Orange.preprocess import PreprocessorList
 
 
 class SpectralFileFormat:
@@ -87,6 +88,15 @@ def build_spec_table(domvals, data, additional_table=None):
         return ret_data
 
 
+def is_preproc(p):
+    """
+    Tests that a preprocessor is not None or empty PreprocessorList
+    """
+    return not(p is None or (isinstance(p, PreprocessorList) and
+                             (len(p.preprocessors) == 0 or
+                              all(pp is None for pp in p.preprocessors))))
+
+
 class TileFileFormat:
 
     def read_tile(self):
@@ -96,6 +106,12 @@ class TileFileFormat:
         Return a generator of Tables, where each Table is a chunk of the total.
         Tables should already have appropriate meta-data (i.e. map_x/map_y)
         """
+
+    def preprocess(self, table):
+        if is_preproc(self.preprocessor):
+            return self.preprocessor(table)
+        else:
+            return table
 
     def read(self):
         ret_table = None

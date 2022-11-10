@@ -29,6 +29,7 @@ from Orange.widgets.widget import MultiInput, Msg, Output
 from Orange.widgets.utils.filedialogs import RecentPath
 
 from orangecontrib.spectroscopy import get_sample_datasets_dir
+from orangecontrib.spectroscopy.io.util import is_preproc
 
 
 log = logging.getLogger(__name__)
@@ -471,14 +472,6 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
         self.update_file_list(key, value, oldvalue)
     #### End code copy ####
 
-
-    @staticmethod
-    def _is_preproc(p):
-        """
-        Tests that a preprocessor is not None or empty PreprocessorList
-        """
-        return not(p is None or (isinstance(p, PreprocessorList) and len(p.preprocessors) == 0))
-
     @staticmethod
     def _format_preproc_str(preprocessor):
         pstrings = []
@@ -493,7 +486,7 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
     def warn_preprocessor(self):
         self.Warning.no_preprocessor.clear()
         self.Warning.new_preprocessor.clear()
-        if not any(self._is_preproc(p) for p in self.preprocessor.preprocessors):
+        if not any(is_preproc(p) for p in self.preprocessor.preprocessors):
             self.info_preproc.setText("No preprocessor on input.")
             self.Warning.no_preprocessor()
             return True
