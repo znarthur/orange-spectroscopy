@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from Orange.data import Table, Domain
 from Orange.data.util import SharedComputeValue
@@ -105,8 +107,13 @@ class CommonDomainRef(CommonDomain):
         X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
         return X
 
-    # TODO: reference is a Table and therefor __eq__ and __hash__ should take
-    # this into account. As of now, Table does not have __eq__ or __hash__
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and reference_eq_X(self.reference, other.reference)
+
+    def __hash__(self):
+        domain = self.reference.domain if self.reference is not None else None
+        return hash((super().__hash__(), domain))
 
 
 class CommonDomainOrder(CommonDomain):
@@ -184,6 +191,16 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
     def __hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
+
+
+def reference_eq_X(first: Optional[Table], second: Optional[Table]):
+    if first is second:
+        return True
+    elif first is None or second is None:
+        return False
+    else:
+        return first.domain.attributes == second.domain.attributes \
+               and np.array_equal(first.X, second.X)
 
 
 def nan_extend_edges_and_interpolate(xs, X):

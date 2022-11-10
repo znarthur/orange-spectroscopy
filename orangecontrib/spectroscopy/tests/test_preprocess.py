@@ -202,6 +202,22 @@ class TestTransmittance(unittest.TestCase):
         calcdata = Absorbance()(Transmittance()(data))
         np.testing.assert_allclose(data.X, calcdata.X)
 
+    def test_eq(self):
+        data = SMALL_COLLAGEN
+        t1 = Transmittance()(data)
+        t2 = Transmittance()(data)
+        self.assertEqual(t1.domain, t2.domain)
+        data2 = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        t3 = Transmittance()(data2)
+        self.assertNotEqual(t1.domain, t3.domain)
+        t4 = Transmittance(reference=data2)(data)
+        self.assertNotEqual(t1.domain, t4.domain)
+        t5 = Transmittance(reference=data2)(data[:1])
+        self.assertGreater(len(t4), len(t5))
+        self.assertEqual(t4.domain, t5.domain)
+        a = Absorbance()(data)
+        self.assertNotEqual(a.domain, t1.domain)
+
 
 class TestAbsorbance(unittest.TestCase):
 
@@ -220,6 +236,20 @@ class TestAbsorbance(unittest.TestCase):
         data = Transmittance()(SMALL_COLLAGEN)
         calcdata = Transmittance()(Absorbance()(data))
         np.testing.assert_allclose(data.X, calcdata.X)
+
+    def test_eq(self):
+        data = SMALL_COLLAGEN
+        t1 = Absorbance()(data)
+        t2 = Absorbance()(data)
+        self.assertEqual(t1.domain, t2.domain)
+        data2 = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        t3 = Absorbance()(data2)
+        self.assertNotEqual(t1.domain, t3.domain)
+        t4 = Absorbance(reference=data2)(data)
+        self.assertNotEqual(t1.domain, t4.domain)
+        t5 = Absorbance(reference=data2)(data[:1])
+        self.assertGreater(len(t4), len(t5))
+        self.assertEqual(t4.domain, t5.domain)
 
 
 class TestSavitzkyGolay(unittest.TestCase):
