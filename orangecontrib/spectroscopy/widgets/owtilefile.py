@@ -498,13 +498,15 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
     @Inputs.preprocessor.insert
     def insert_preprocessor(self, index: int, preprocessor: Preprocess):
         """Insert a Preprocessor or PreprocessorList at index"""
-        self.preprocessor.preprocessors.insert(index, preprocessor)
+        if preprocessor is not None:
+            self.preprocessor.preprocessors.insert(index, preprocessor)
         self.warn_preprocessor()
 
     @Inputs.preprocessor
     def set_preprocessor(self, index: int, preprocessor: Preprocess):
         """Set the input preprocessor at index"""
-        self.preprocessor.preprocessors[index] = preprocessor
+        if preprocessor is not None:
+            self.preprocessor.preprocessors[index] = preprocessor
         self.warn_preprocessor()
 
     @Inputs.preprocessor.remove

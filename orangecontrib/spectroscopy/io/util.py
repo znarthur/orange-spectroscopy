@@ -92,9 +92,7 @@ def is_preproc(p):
     """
     Tests that a preprocessor is not None or empty PreprocessorList
     """
-    return not(p is None or (isinstance(p, PreprocessorList) and
-                             (len(p.preprocessors) == 0 or
-                              all(pp is None for pp in p.preprocessors))))
+    return not(p is None or (isinstance(p, PreprocessorList) and len(p.preprocessors) == 0))
 
 
 class TileFileFormat:
