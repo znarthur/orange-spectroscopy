@@ -1101,9 +1101,11 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self.line2.sigMoved.connect(lambda v: setattr(self, "highlim", v))
         self.line3 = MovableVline(position=self.choose, label="", report=self.curveplot)
         self.line3.sigMoved.connect(lambda v: setattr(self, "choose", v))
-        self.line4 = MovableVline(position=self.choose, label="baseline", report=self.curveplot)
+        self.line4 = MovableVline(position=self.choose, label="baseline", report=self.curveplot,
+                                  color=(255, 140, 26))
         self.line4.sigMoved.connect(lambda v: setattr(self, "lowlimb", v))
-        self.line5 = MovableVline(position=self.choose, label="baseline", report=self.curveplot)
+        self.line5 = MovableVline(position=self.choose, label="baseline", report=self.curveplot,
+                                  color=(255, 140, 26))
         self.line5.sigMoved.connect(lambda v: setattr(self, "highlimb", v))
         for line in [self.line1, self.line2, self.line3, self.line4, self.line5]:
             line.sigMoveFinished.connect(self.changed_integral_range)

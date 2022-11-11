@@ -59,7 +59,11 @@ class IntegrateOneEditor(BaseEditorOrange):
             self.__editors[name] = e
             layout.addRow(name, e)
 
-            l = MovableVline(position=v, label=name)
+            color = (225, 0, 0)
+            if "baseline" in name:
+                color = (255, 140, 26)
+
+            l = MovableVline(position=v, label=name, color=color)
             def set_rounded(_, line=l, name=name):
                 cf(float(line.rounded_value()), name)
             l.sigMoved.connect(set_rounded)
