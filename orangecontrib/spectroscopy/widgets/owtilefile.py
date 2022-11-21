@@ -82,6 +82,8 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
     class Warning(widget.OWWidget.Warning):
         no_preprocessor = Msg("No preprocessor on input."
                               " Press Reload to load anyway.")
+        new_preprocessor = Msg("Preprocessor has changed."
+                               " Press Reload to apply.")
         file_too_big = widget.Msg("The file is too large to load automatically."
                                   " Press Reload to load.")
         load_warning = widget.Msg("Read warning:\n{}")
@@ -490,12 +492,14 @@ class OWTilefile(widget.OWWidget, RecentPathsWComboMixin):
 
     def warn_preprocessor(self):
         self.Warning.no_preprocessor.clear()
+        self.Warning.new_preprocessor.clear()
         if not any(self._is_preproc(p) for p in self.preprocessor.preprocessors):
             self.info_preproc.setText("No preprocessor on input.")
             self.Warning.no_preprocessor()
             return True
         self.info_preproc.setText("New preprocessor, reload file to use.\n" +
                                   self._format_preproc_str(self.preprocessor))
+        self.Warning.new_preprocessor()
         return False
 
     @Inputs.preprocessor.insert
