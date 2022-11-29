@@ -1,7 +1,7 @@
 import sys
 
-from PyQt5.QtCore import pyqtSignal as Signal, QObject
-from PyQt5.QtWidgets import QVBoxLayout, QFormLayout, QComboBox, QPushButton, \
+from AnyQt.QtCore import pyqtSignal as Signal, QObject
+from AnyQt.QtWidgets import QVBoxLayout, QFormLayout, QComboBox, QPushButton, \
     QSizePolicy, QHBoxLayout, QLabel, QApplication, QStyle
 
 from Orange.widgets.data.utils.preprocess import blocked
