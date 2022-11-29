@@ -373,11 +373,11 @@ class TestOWSpectra(WidgetTest):
         data = self.collagen[:100]
         self.send_signal("Data", data)
         self.widget.curveplot.make_selection([1])
-        with hold_modifiers(self.widget, Qt.ControlModifier):
+        with hold_modifiers(self.widget, Qt.ShiftModifier):
             self.widget.curveplot.make_selection([2])
         with hold_modifiers(self.widget, Qt.ShiftModifier):
             self.widget.curveplot.make_selection([3])
-        with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
+        with hold_modifiers(self.widget, Qt.ControlModifier):
             self.widget.curveplot.make_selection([4])
         out = self.get_output(self.widget.Outputs.annotated_data)
         self.assertEqual(len(out), 100)  # have a data table at the output

@@ -1,7 +1,6 @@
 import itertools
 import sys
 from collections import defaultdict
-import gc
 import random
 import warnings
 from xml.sax.saxutils import escape
@@ -9,7 +8,8 @@ from xml.sax.saxutils import escape
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
-from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence, QFontDatabase
+from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence, QFontDatabase, \
+    QPalette
 from AnyQt.QtCore import Qt, QRectF, QPointF, QObject
 from AnyQt.QtCore import pyqtSignal
 
@@ -71,8 +71,8 @@ COLORBREWER_SET1 = [(228, 26, 28), (55, 126, 184), (77, 175, 74), (152, 78, 163)
 
 def selection_modifiers():
     keys = QApplication.keyboardModifiers()
-    add_to_group = bool(keys & Qt.ControlModifier and keys & Qt.ShiftModifier)
-    add_group = bool(keys & Qt.ControlModifier or keys & Qt.ShiftModifier)
+    add_to_group = bool(keys & Qt.ControlModifier)
+    add_group = bool(keys & Qt.ShiftModifier)
     remove = bool(keys & Qt.AltModifier)
     return add_to_group, add_group, remove
 
@@ -363,8 +363,13 @@ class InteractiveViewBox(ViewBox):
     def update_selection_tooltip(self, modifiers=Qt.NoModifier):
         if not self.tiptexts:
             self._create_select_tooltip()
-        modifiers &= Qt.ShiftModifier + Qt.ControlModifier + Qt.AltModifier
-        text = self.tiptexts.get(int(modifiers), self.tiptexts[0])
+        text = self.tiptexts[Qt.NoModifier]
+        for mod in [Qt.ControlModifier,
+                    Qt.ShiftModifier,
+                    Qt.AltModifier]:
+            if modifiers & mod:
+                text = self.tiptexts.get(mod)
+                break
         self.tip_textitem.setHtml(text)
         if self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON]:
             self.scene().select_tooltip.show()
@@ -374,27 +379,33 @@ class InteractiveViewBox(ViewBox):
     def _create_select_tooltip(self):
         scene = self.scene()
         tip_parts = [
-            (Qt.ShiftModifier, "Shift: Add group"),
-            (Qt.ShiftModifier + Qt.ControlModifier,
-             "Shift-{}: Append to group".
+            (Qt.ControlModifier,
+             "{}: Append to group".
              format("Cmd" if sys.platform == "darwin" else "Ctrl")),
+            (Qt.ShiftModifier, "Shift: Add group"),
             (Qt.AltModifier, "Alt: Remove")
         ]
-        all_parts = ", ".join(part for _, part in tip_parts)
+        all_parts = "<center>" + \
+                    ", ".join(part for _, part in tip_parts) + \
+                    "</center>"
         self.tiptexts = {
-            int(modifier): all_parts.replace(part, "<b>{}</b>".format(part))
+            modifier: all_parts.replace(part, "<b>{}</b>".format(part))
             for modifier, part in tip_parts
         }
-        self.tiptexts[0] = all_parts
-        self.tip_textitem = text = QGraphicsTextItem()
+        self.tiptexts[Qt.NoModifier] = all_parts
 
+        self.tip_textitem = text = QGraphicsTextItem()
         # Set to the longest text
-        text.setHtml(self.tiptexts[Qt.ShiftModifier + Qt.ControlModifier])
+        text.setHtml(self.tiptexts[Qt.ControlModifier])
         text.setPos(4, 2)
         r = text.boundingRect()
+        text.setTextWidth(r.width())
         rect = QGraphicsRectItem(0, 0, r.width() + 8, r.height() + 4)
-        rect.setBrush(QColor(224, 224, 224, 212))
+        color = self.graph.palette().color(QPalette.Disabled, QPalette.Window)
+        color.setAlpha(212)
+        rect.setBrush(color)
         rect.setPen(QPen(Qt.NoPen))
+
         scene.select_tooltip = scene.createItemGroup([rect, text])
         scene.select_tooltip.hide()
         self.position_tooltip()
@@ -1665,27 +1676,8 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
             CurvePlot.migrate_context_sub_feature_color(context.values["curveplot"], version)
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
-    argv = list(argv)
-    app = QApplication(argv)
-    w = OWSpectra()
-    w.show()
-    from orangecontrib.spectroscopy.tests.bigdata import dust
-    # data = Orange.data.Table(dust())
-    data = Orange.data.Table("collagen.csv")
-    w.set_data(data)
-    w.set_subset(data[:40])
-    w.handleNewSignals()
-    rval = app.exec_()
-    w.saveSettings()
-    w.deleteLater()
-    del w
-    app.processEvents()
-    gc.collect()
-    return rval
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == "__main__":  # pragma: no cover
+    from Orange.widgets.utils.widgetpreview import WidgetPreview
+    collagen = Orange.data.Table("collagen.csv")
+    WidgetPreview(OWSpectra).run(set_data=collagen,
+                                 set_subset=collagen[:40])
