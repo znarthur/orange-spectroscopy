@@ -64,7 +64,7 @@ class IntegrateEditor(BaseEditor):
     def activateOptions(self):
         self.parent_widget.curveplot.clear_markings()
         for row in range(self.form_lim.count()):
-            limitbox = self.form_lim.itemAt(row, 1)
+            limitbox = self.form_lim.itemAt(row, QFormLayout.FieldRole)
             if limitbox:
                 self.parent_widget.curveplot.add_marking(limitbox.line1)
                 self.parent_widget.curveplot.add_marking(limitbox.line2)
@@ -94,7 +94,7 @@ class IntegrateEditor(BaseEditor):
     def remove_limit(self, limitbox):
         row, role = self.form_lim.getLayoutPosition(limitbox)
         for r in range(row, len(self._limits)):
-            limitbox = self.form_lim.itemAt(r, 1)
+            limitbox = self.form_lim.itemAt(r, QFormLayout.FieldRole)
             limitbox.removeLayout()
         self._limits.pop(row)
         self.set_all_limits(self._limits)
@@ -115,7 +115,7 @@ class IntegrateEditor(BaseEditor):
             self.user_changed = True
         self._limits = limits
         for row in range(len(limits)):
-            limitbox = self.form_lim.itemAt(row, 1)
+            limitbox = self.form_lim.itemAt(row, QFormLayout.FieldRole)
             if limitbox is None:
                 limitbox = self.add_limit(row=row)
             with blocked(limitbox):
