@@ -243,11 +243,11 @@ class TestOWHyper(WidgetTest):
         self.send_signal("Data", data)
         wait_for_image(self.widget)
         self.widget.imageplot.select_by_click(QPointF(1, 2))
-        with hold_modifiers(self.widget, Qt.ControlModifier):
+        with hold_modifiers(self.widget, Qt.ShiftModifier):
             self.widget.imageplot.select_by_click(QPointF(2, 2))
         with hold_modifiers(self.widget, Qt.ShiftModifier):
             self.widget.imageplot.select_by_click(QPointF(3, 2))
-        with hold_modifiers(self.widget, Qt.ShiftModifier | Qt.ControlModifier):
+        with hold_modifiers(self.widget, Qt.ControlModifier):
             self.widget.imageplot.select_by_click(QPointF(4, 2))
         out = self.get_output(self.widget.Outputs.annotated_data)
         self.assertEqual(len(out), 20000)  # have a data table at the output
