@@ -267,6 +267,8 @@ class OWSpectralSeries(OWWidget, SelectionOutputsMixin):
 
     imageplot = SettingProvider(LineScanPlot)
 
+    want_control_area = False
+
     value_type = 0  # TODO: temporary because ImagePlot uses it
 
     graph_name = "imageplot.plotview"  # defined so that the save button is shown
