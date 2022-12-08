@@ -75,6 +75,16 @@ class TestDat(unittest.TestCase):
             d2 = Orange.data.Table(fn)
             np.testing.assert_equal(d1.X, d2.X)
 
+    def test_semicolon_comments(self):
+        with named_file("15 500;comment1\n30 650; comment2\n", suffix=".dpt") as fn:
+            d = Orange.data.Table(fn)
+            np.testing.assert_equal(d.X, [[500., 650.]])
+
+    def test_semicolon_delimiter(self):
+        with named_file("15;500\n30;650\n", suffix=".dpt") as fn:
+            d = Orange.data.Table(fn)
+            np.testing.assert_equal(d.X, [[500., 650.]])
+
     def test_comma_delim(self):
         with named_file("15,500\n30,650\n", suffix=".dpt") as fn:
             d = Orange.data.Table(fn)

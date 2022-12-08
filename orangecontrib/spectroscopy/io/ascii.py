@@ -17,7 +17,7 @@ class AsciiColReader(FileFormat, SpectralFileFormat):
 
     def read_spectra(self):
         tbl = None
-        delimiters = [None, ";", ":", ","]
+        delimiters = [";", None, ":", ","]
         for d in delimiters:
             try:
                 comments = [a for a in [";", "#"] if a != d]
