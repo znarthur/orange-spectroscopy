@@ -1338,8 +1338,12 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     def add_curves(self, x, ys, addc=True):
         """ Add multiple curves with the same x domain. """
         if len(ys) > MAX_INSTANCES_DRAWN:
-            sample_selection = \
-                random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
+            if hasattr(ys, 'chunks'):
+                # random sampling is slow for dask
+                sample_selection = list(range(MAX_INSTANCES_DRAWN))
+            else:
+                sample_selection = \
+                    random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
 
             # with random selection also show at most MAX_INSTANCES_DRAW elements from the subset
             subset = set(np.where(self.subset_indices)[0])
@@ -1357,6 +1361,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         ys = self.data.X[self.sampled_indices][:, self.data_xsind]
         ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
         self.new_sampling.emit(len(self.sampled_indices))
+
+        # Plotted selection is always small, compute to ndarray
+        if hasattr(ys, 'chunks'):
+                ys = ys.compute()
         self.curves.append((x, ys))
 
         # add curves efficiently
