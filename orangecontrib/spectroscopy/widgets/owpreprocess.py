@@ -16,7 +16,6 @@ from Orange.widgets.data.owpreprocess import (
 )
 from Orange.widgets.utils.sql import check_sql_input
 from Orange.widgets.utils.overlay import OverlayWidget
-from Orange.widgets.utils.colorpalette import DefaultColorBrewerPalette
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin, ConcurrentMixin
 
 from AnyQt.QtCore import (
@@ -40,7 +39,9 @@ from orangecontrib.spectroscopy.widgets.preprocessors.utils import REFERENCE_DAT
 from orangecontrib.spectroscopy.widgets.preprocessors.registry import preprocess_editors
 
 
-PREVIEW_COLORS = [QColor(*a).name() for a in DefaultColorBrewerPalette[8]]
+BREWER_PALETTE8 = [(127, 201, 127), (190, 174, 212), (253, 192, 134), (255, 255, 153),
+                   (56, 108, 176), (240, 2, 127), (191, 91, 23), (102, 102, 102)]
+PREVIEW_COLORS = [QColor(*a).name() for a in BREWER_PALETTE8]
 
 
 class ViewController(Controller):

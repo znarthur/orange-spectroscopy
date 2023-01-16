@@ -26,7 +26,6 @@ from Orange.widgets import gui
 from Orange.widgets.settings import \
     Setting, ContextSetting, DomainContextHandler, SettingProvider
 from Orange.widgets.utils.itemmodels import DomainModel
-from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from Orange.widgets.utils.plot import \
     SELECT, PANNING, ZOOMING
 from Orange.widgets.utils import saveplot
@@ -1413,9 +1412,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.legend.clear()
         palette, legend = False, False
         if color_var is not None:
-            colors = color_var.colors
-            discrete_palette = ColorPaletteGenerator(
-                number_of_colors=len(colors), rgb_colors=colors)
+            discrete_palette = color_var.palette
             palette = [(v, discrete_palette[color_var.to_val(v)]) for v in color_var.values]
             legend = True
         elif self.color_individual:
