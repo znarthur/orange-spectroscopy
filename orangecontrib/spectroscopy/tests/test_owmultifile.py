@@ -40,6 +40,11 @@ class TestOWMultifile(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWMultifile)  # type: OWMultifile
 
+    def tearDown(self):
+        super().tearDown()
+        # clear FileFormat cache so the optional new classes are thrown out
+        FileFormat._ext_to_attr_if_attr2.cache_clear()
+
     def test_load_unload(self):
         # just to load the widget (it has no inputs)
         pass
@@ -199,8 +204,23 @@ class TestOWMultifile(WidgetTest):
             self.assertEqual(CountSPAReader.read_count, 0)
             self.assertEqual(CountSPAReader.read_spectra_count, 1)
             self.assertEqual(CountTabReader.read_count, 1)
-            # clear cache so the new classes are thrown out
+
+    def test_spectra_almost_same_wavenumbers(self):
+
+        class ReadImaginaryFile(SPAReader):
+            read_count = -1
+
+            def read_spectra(self):
+                type(self).read_count += 1
+                if type(self).read_count == 0:
+                    return np.array([1, 2]), np.array([[42, 42]]), None
+                return np.array([1, 2 + 1e-10]), np.array([[43, 43]]), None
+
+        with patch.object(FileFormat, "registry", {"SPAReader": ReadImaginaryFile}):
+            # clear LRU cache so that new classes get use
             FileFormat._ext_to_attr_if_attr2.cache_clear()
+            self.load_files("sample1.spa", "sample1.spa")
+            out = self.get_output("Data")
 
     def test_report_on_empty(self):
         self.widget.send_report()
