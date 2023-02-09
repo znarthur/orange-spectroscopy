@@ -18,7 +18,8 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.io import SPAReader
 from orangecontrib.spectroscopy.io.ascii import AsciiColReader
 from orangecontrib.spectroscopy.io.util import SpectralFileFormat
-from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order
+from orangecontrib.spectroscopy.widgets.owmultifile import OWMultifile, numpy_union_keep_order, \
+    wns_to_unique_str, decimals_neeeded_for_unique_str
 
 
 class TestOWFilesAuxiliary(unittest.TestCase):
@@ -33,6 +34,29 @@ class TestOWFilesAuxiliary(unittest.TestCase):
         np.testing.assert_equal(numpy_union_keep_order(A, B), [2, 1, 3, 5, 4, 6])
         A = np.array([])
         np.testing.assert_equal(numpy_union_keep_order(A, B), [5, 4, 6, 3])
+
+    def test_decimals_neeeded_for_unique_str(self):
+        fn = decimals_neeeded_for_unique_str
+        self.assertEqual(fn([1, 2]), 0)
+        self.assertEqual(fn([10, 20]), 0)
+        self.assertEqual(fn([10.0, 10.1]), 2)
+        self.assertEqual(fn([10.0, 10.2]), 1)
+        self.assertEqual(fn([10.00000001, 10.00000002]), 9)
+        self.assertEqual(fn([10.00000001, 10.000000015, 10.00000002]), 9)
+        self.assertEqual(fn([10.00000001, 10.000000014, 10.00000002]), 9)
+        self.assertEqual(fn([10.00000001, 10.000000013, 10.00000002]), 9)
+        self.assertEqual(fn([10.00000001, 10.000000012, 10.00000002]), 9)
+        self.assertEqual(fn([10.00000001, 10.000000011, 10.00000002]), 10)
+
+    def test_wns_to_unique_str(self):
+        names = wns_to_unique_str([1, 2, 2 + 1e-10, 3])
+        self.assertEqual(names, ['1.000000', '2.0000000000', '2.0000000001', '3.000000'])
+        names = wns_to_unique_str([1, 2, 2 + 0.99e-10, 3])
+        self.assertEqual(names, ['1.000000', '2.00000000000', '2.00000000010', '3.000000'])
+        names = wns_to_unique_str([4, 1, 2, 2 + 0.99e-10, 3])
+        self.assertEqual(names, ['4.000000', '1.000000', '2.00000000000', '2.00000000010', '3.000000'])
+        names = wns_to_unique_str([2+2e-10, 1, 2, 2 + 1e-10, 3])
+        self.assertEqual(names, ['2.0000000002', '1.000000', '2.0000000000', '2.0000000001', '3.000000'])
 
 
 class TestOWMultifile(WidgetTest):
@@ -213,14 +237,18 @@ class TestOWMultifile(WidgetTest):
             def read_spectra(self):
                 type(self).read_count += 1
                 if type(self).read_count == 0:
-                    return np.array([1, 2]), np.array([[42, 42]]), None
-                return np.array([1, 2 + 1e-10]), np.array([[43, 43]]), None
+                    return np.array([1, 2]), np.array([[42, 41]]), None
+                return np.array([1, 2 + 1e-10]), np.array([[43, 44]]), None
 
         with patch.object(FileFormat, "registry", {"SPAReader": ReadImaginaryFile}):
             # clear LRU cache so that new classes get use
             FileFormat._ext_to_attr_if_attr2.cache_clear()
             self.load_files("sample1.spa", "sample1.spa")
             out = self.get_output("Data")
+            np.testing.assert_equal(out.X, [[42, 41, np.nan],
+                                            [43, np.nan, 44]])
+            self.assertEqual([a.name for a in out.domain.attributes],
+                             ['1.000000', '2.0000000000', '2.0000000001'])
 
     def test_report_on_empty(self):
         self.widget.send_report()
