@@ -37,7 +37,9 @@ class TestOWFilesAuxiliary(unittest.TestCase):
 
     def test_decimals_neeeded_for_unique_str(self):
         fn = decimals_neeeded_for_unique_str
-        self.assertEqual(fn([1, 2]), 0)
+        self.assertEqual(fn([1, 2]), 1)
+        self.assertEqual(fn([1.5, 2.5]), 1)
+        self.assertEqual(fn([1.49, 2.51]), 0)
         self.assertEqual(fn([10, 20]), 0)
         self.assertEqual(fn([10.0, 10.1]), 2)
         self.assertEqual(fn([10.0, 10.2]), 1)
@@ -50,13 +52,13 @@ class TestOWFilesAuxiliary(unittest.TestCase):
 
     def test_wns_to_unique_str(self):
         names = wns_to_unique_str([1, 2, 2 + 1e-10, 3])
-        self.assertEqual(names, ['1.000000', '2.0000000000', '2.0000000001', '3.000000'])
+        self.assertEqual(names, ['1.000000', '2.000000000000', '2.000000000100', '3.000000'])
         names = wns_to_unique_str([1, 2, 2 + 0.99e-10, 3])
-        self.assertEqual(names, ['1.000000', '2.00000000000', '2.00000000010', '3.000000'])
+        self.assertEqual(names, ['1.000000', '2.000000000000', '2.000000000099', '3.000000'])
         names = wns_to_unique_str([4, 1, 2, 2 + 0.99e-10, 3])
-        self.assertEqual(names, ['4.000000', '1.000000', '2.00000000000', '2.00000000010', '3.000000'])
+        self.assertEqual(names, ['4.000000', '1.000000', '2.000000000000', '2.000000000099', '3.000000'])
         names = wns_to_unique_str([2+2e-10, 1, 2, 2 + 1e-10, 3])
-        self.assertEqual(names, ['2.0000000002', '1.000000', '2.0000000000', '2.0000000001', '3.000000'])
+        self.assertEqual(names, ['2.000000000200', '1.000000', '2.000000000000', '2.000000000100', '3.000000'])
 
 
 class TestOWMultifile(WidgetTest):
@@ -248,7 +250,7 @@ class TestOWMultifile(WidgetTest):
             np.testing.assert_equal(out.X, [[42, 41, np.nan],
                                             [43, np.nan, 44]])
             self.assertEqual([a.name for a in out.domain.attributes],
-                             ['1.000000', '2.0000000000', '2.0000000001'])
+                             ['1.000000', '2.000000000000', '2.000000000100'])
 
     def test_report_on_empty(self):
         self.widget.send_report()

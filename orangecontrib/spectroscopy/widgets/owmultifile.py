@@ -45,6 +45,13 @@ def numpy_union_keep_order(A, B):
 def decimals_neeeded_for_unique_str(l):
     min_diff = min(np.abs(np.diff(sorted(l))))
     log_diff = math.log(min_diff, 10)
+    # We need to avoid possible degenerate cases like (1.5, 2.5):
+    # the log of the difference (1.0) is 0, but rounded to zero
+    # decimals we would get (2, 2) due to floating point rounding behavior.
+    # Therefore, slightly increase the number of needed decimals.
+    # The number was selected such that (1.5, 2.5) returned 1 decimal,
+    # and (1.49, 2.51) returned 0.
+    log_diff = log_diff - 0.008
     decimals = max(0, math.ceil(-log_diff))
     return decimals
 
@@ -69,7 +76,11 @@ def wns_to_unique_str(l):
         if len(same[n]) == 1:
             decimals[n] = default_decimals
         else:
-            decimals[n] = decimals_neeeded_for_unique_str(same[n])
+            # add one decimal place because without it the error could be too big
+            # for example, (1.49, 2.51) would round to 1 and 3, with an added decimal
+            # it will show (1.5, 2.5). Max error before was 0.5*last_decimal_place,
+            # which seems too big.
+            decimals[n] = decimals_neeeded_for_unique_str(same[n]) + 1
 
     return [("%0." + str(decimals[default_format % wn]) + "f") % wn for wn in l]
 
