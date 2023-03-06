@@ -31,7 +31,7 @@ from Orange.widgets.utils.plot import \
 from Orange.widgets.utils import saveplot
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
-from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate
+from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate, PlotWidget
 
 
 from orangecontrib.spectroscopy.data import getx
@@ -686,7 +686,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.subset = None  # current subset input, an array of indices
         self.subset_indices = None  # boolean index array with indices in self.data
 
-        self.plotview = pg.PlotWidget(background="w", viewBox=InteractiveViewBoxC(self))
+        self.plotview = PlotWidget(viewBox=InteractiveViewBoxC(self))
         self.plot = self.plotview.getPlotItem()
         self.plot.hideButtons()  # hide the autorange button
         self.plot.setDownsampling(auto=True, mode="peak")

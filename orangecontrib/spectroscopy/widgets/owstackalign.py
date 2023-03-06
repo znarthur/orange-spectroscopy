@@ -13,6 +13,7 @@ from Orange.widgets.settings import DomainContextHandler, ContextSetting
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Input, Output, Msg
 from Orange.widgets import gui, settings
+from Orange.widgets.visualize.utils.plotutils import PlotWidget
 
 from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.io.util import _spectra_from_image
@@ -175,7 +176,7 @@ class OWStackAlign(OWWidget):
         gui.rubber(self.controlArea)
 
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
-        self.plotview = pg.PlotWidget(background="w")
+        self.plotview = PlotWidget()
         plot_box.layout().addWidget(self.plotview)
         # TODO:  resize widget to make it a bit smaller
 
