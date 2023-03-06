@@ -30,6 +30,7 @@ from Orange.widgets.settings import \
 from Orange.widgets.utils.itemmodels import DomainModel, PyListModel
 from Orange.widgets.utils import saveplot
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
+from Orange.widgets.visualize.utils.plotutils import GraphicsView, PlotItem, AxisItem
 
 from orangecontrib.spectroscopy.preprocess import Integrate
 from orangecontrib.spectroscopy.utils import values_to_linspace, index_values_nan, split_to_size
@@ -525,7 +526,7 @@ class ImageColorLegend(GraphicsWidget):
         self.setMinimumWidth(self.width_bar)
         self.setMaximumWidth(self.width_bar)
         self.rect = QGraphicsRectItem(QRectF(0, 0, self.width_bar, 100), self)
-        self.axis = pg.AxisItem('right', parent=self)
+        self.axis = AxisItem('right', parent=self)
         self.axis.setX(self.width_bar)
         self.axis.geometryChanged.connect(self._update_width)
         self.adapt_to_size()
@@ -601,12 +602,14 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = None
         self.data_valid_positions = None
 
-        self.plotview = pg.GraphicsLayoutWidget()
-        self.plot = pg.PlotItem(background="w", viewBox=InteractiveViewBox(self))
-        self.plotview.addItem(self.plot)
+        self.plotview = GraphicsView()
+        ci = pg.GraphicsLayout()
+        self.plot = PlotItem(viewBox=InteractiveViewBox(self))
+        self.plotview.setCentralItem(ci)
+        ci.addItem(self.plot)
 
         self.legend = ImageColorLegend()
-        self.plotview.addItem(self.legend)
+        ci.addItem(self.legend)
 
         self.plot.scene().installEventFilter(
             HelpEventDelegate(self.help_event, self))
