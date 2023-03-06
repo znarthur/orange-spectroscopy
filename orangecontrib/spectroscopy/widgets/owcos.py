@@ -11,10 +11,17 @@ from AnyQt.QtCore import QRectF, Qt
 # put calculation widgets outside of the class for easier reuse without the Orange framework or scripting
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 
+def sort_data(data):
+    wn = getx(data)
+    wn_sorting = np.argsort(wn)
+    d = data[:, wn_sorting]
+    return d
 
 def calc_cos(table1, table2):
 
     ## TODO make selection in panel for dynamic (subtract mean) / static
+    table1 = sort_data(table1)
+    table2 = sort_data(table2)
 
     series1 = table1.X - table1.X.mean()
     series2 = table2.X - table2.X.mean()
@@ -55,9 +62,9 @@ class OWCos(OWWidget):
         data1 = Input("Data 1", Orange.data.Table, default=True)
         data2 = Input("Data 2", Orange.data.Table, default=True)
 
-    # TODO think about whether the correlation matrix could be used for further data mining (clustering, etc)
-    # class Outputs:
-    #     averages = Output("Averages", Orange.data.Table, default=True)
+    class Outputs:
+        # pass
+        output = Output("2D correlation matrix", Orange.data.Table, default=True)
 
     settingsHandler = settings.DomainContextHandler()
     selector = settings.Setting(0)
@@ -113,7 +120,7 @@ class OWCos(OWWidget):
         self.top_plot.vb.setMouseEnabled(x=False, y=False)
         # self.top_plot.vb.setMouseMode(pg.ViewBox.RectMode)
         # self.top_plot.vb.enableAutoRange(axis=pg.ViewBox.YAxis)
-        # self.top_plot.enableAutoRange(axis='y')
+        self.top_plot.enableAutoRange(axis='y')
         # self.top_plot.setAutoVisible(y=True)
         self.top_plot.showAxis("right")
         self.top_plot.showAxis("top")
@@ -223,6 +230,17 @@ if __name__ == "__main__":  # pragma: no cover
 
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=Orange.data.Table("collagen"))
-    WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test.dat"),
-                             set_data2=Orange.data.Table("/Users/borondics/2dcos-test.dat"))
+    t = 'rand'
+    if t=='normal':
+        print('reading normal')
+        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test.dat"),
+                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test.dat"))
+    elif t=='updown':
+        print('reading up-down')
+        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-ud.dat"),
+                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test-ud.dat"))
+    elif t=='rand':
+        print('reading randomized')
+        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-rand.dat"),
+                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test-rand.dat"))
 
