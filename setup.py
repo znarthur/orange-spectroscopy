@@ -128,11 +128,11 @@ if __name__ == '__main__':
             'setuptools>=36.3',  # same as for Orange 3.28
             'pip>=9.0',  # same as for Orange 3.28
             'numpy>=1.18.0',
-            'Orange3>=3.31.0',
+            'Orange3>=3.32.0',
             'orange-canvas-core>=0.1.24',
             'orange-widget-base>=4.16.1',
             'scipy>=1.4.0',
-            'scikit-learn>0.23.0',
+            'scikit-learn>=1.0.1',
             'spectral>=0.18,!=0.23',
             'serverfiles>=0.2',
             'AnyQt>=0.0.6',
