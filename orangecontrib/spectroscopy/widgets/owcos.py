@@ -6,7 +6,7 @@ from Orange.widgets import gui, settings
 import pyqtgraph as pg
 import colorcet
 from orangecontrib.spectroscopy.data import getx
-from AnyQt.QtCore import QRectF
+from AnyQt.QtCore import QRectF, Qt
 
 # put calculation widgets outside of the class for easier reuse without the Orange framework or scripting
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
@@ -22,11 +22,11 @@ def calc_cos(table1, table2):
     sync = series1.T @ series2 / (len(series1) - 1)
 
     # Hilbert-Noda transformation matrix
-    noda=np.zeros((len(series1),len(series1)))
+    noda = np.zeros((len(series1),len(series1)))
     for i in range(len(series1)):
         for j in range(len(series1)):
-            if i!=j:
-                noda[i,j]=1/np.pi/(j-i)
+            if i != j:
+                noda[i,j] = 1 / np.pi / (j-i)
 
     # asynchronous correlation
     asyn = series1.T @ noda @ series2 / (len(series1) - 1)
@@ -88,9 +88,11 @@ class OWCos(OWWidget):
 
         # plots
         self.plotview = pg.GraphicsLayoutWidget()
-        self.plotview.ci.layout.setColumnStretchFactor(0, 0.9)
-        self.plotview.ci.layout.setRowStretchFactor(0, 0.9)
-        self.plotview.ci.layout.setColumnFixedWidth(2, 40)
+        self.plotview.ci.layout.setColumnStretchFactor(0, 1)
+        self.plotview.ci.layout.setRowStretchFactor(0, 1)
+        self.plotview.ci.layout.setColumnStretchFactor(1, 5)
+        self.plotview.ci.layout.setRowStretchFactor(1, 5)
+        # self.plotview.ci.layout.setColumnFixedWidth(2, 90) # not good add padding on left
         # self.plotview.setAspectLocked(True)
 
         self.COS2Dplot = pg.PlotItem(viewBox=COS2DViewBox())
@@ -100,6 +102,7 @@ class OWCos(OWWidget):
         self.COS2Dplot.showAxis("right")
         self.COS2Dplot.getAxis("top").setStyle(showValues=False)
         self.COS2Dplot.getAxis("right").setStyle(showValues=False)
+        self.COS2Dplot.getAxis("bottom").setStyle(showValues=False)
         self.COS2Dplot.vb.border = 1
         self.COS2Dplot.vb.setAspectLocked(lock=True, ratio=1)
         self.COS2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
@@ -128,11 +131,10 @@ class OWCos(OWWidget):
         self.left_plot.setAutoVisible(x=True)
         self.left_plot.getAxis("right").setStyle(showValues=False)
         self.left_plot.getAxis("top").setStyle(showValues=False)
+        self.left_plot.getAxis("bottom").setStyle(showValues=False)
 
         self.cbarCOS = ImageColorLegend()
-        self.plotview.ci.layout.addItem(self.cbarCOS, 0, 3, 2, 1) # TODO need to calculate the cbar size for both sync and async and use bigger
-
-        self.plotview.ci.setSpacing(0.)
+        self.plotview.ci.layout.addItem(self.cbarCOS, 1, 3, 1, 1, alignment=Qt.AlignLeft)
 
         self.mainArea.layout().addWidget(self.plotview)
 
@@ -146,6 +148,8 @@ class OWCos(OWWidget):
         #  scroll back a lot to unzoom
     # TODO - zooming would be better with no scrolling but rather selecting a range on top or lef or a square on 2D plot
     # TODO - implement cross-hair like it is on Spectra but showing the same positions between the three plots
+    # [x] TODO - make sure that the orientation of the left/top spectra correspond to the matrix!
+    # TODO - implement rescale Y after zoom
 
     @Inputs.data1
     def set_data1(self, dataset):
@@ -218,4 +222,7 @@ if __name__ == "__main__":  # pragma: no cover
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("iris"))
 
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
-    WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=Orange.data.Table("collagen"))
+    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=Orange.data.Table("collagen"))
+    WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test.dat"),
+                             set_data2=Orange.data.Table("/Users/borondics/2dcos-test.dat"))
+
