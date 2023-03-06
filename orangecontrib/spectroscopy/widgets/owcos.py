@@ -29,18 +29,17 @@ def calc_cos(table1, table2):
     sync = series1.T @ series2 / (len(series1) - 1)
 
     # Hilbert-Noda transformation matrix
-    noda = np.zeros((len(series1),len(series1)))
+    HN = np.zeros((len(series1),len(series1)))
     for i in range(len(series1)):
         for j in range(len(series1)):
             if i != j:
-                noda[i,j] = 1 / np.pi / (j-i)
+                HN[i,j] = 1 / np.pi / (j-i)
 
     # asynchronous correlation
-    asyn = series1.T @ noda @ series2 / (len(series1) - 1)
+    asyn = series1.T @ HN @ series2 / (len(series1) - 1)
 
     return sync, asyn, series1, series2, getx(table1), getx(table2)
-# TODO sort the matrices and wn - is it necessary?
-# TODO handle non continuous data (after cut widget)
+    # TODO handle non continuous data (after cut widget)
 
 class COS2DViewBox(pg.ViewBox):
     def suggestPadding(self, axis):
@@ -55,6 +54,7 @@ class OWCos(OWWidget):
     description = (
         "Perform 2D correlation analysis with series spectra")
 
+    # TODO needs icon
     icon = "icons/average.svg"
 
     # Define inputs and outputs
@@ -63,7 +63,7 @@ class OWCos(OWWidget):
         data2 = Input("Data 2", Orange.data.Table, default=True)
 
     class Outputs:
-        # pass
+        # TODO implement outputting the matrix
         output = Output("2D correlation matrix", Orange.data.Table, default=True)
 
     settingsHandler = settings.DomainContextHandler()
@@ -93,7 +93,7 @@ class OWCos(OWWidget):
                          callback=self.plotCOS)
         gui.rubber(box)
 
-        # plots
+        # plotting
         self.plotview = pg.GraphicsLayoutWidget()
         self.plotview.ci.layout.setColumnStretchFactor(0, 1)
         self.plotview.ci.layout.setRowStretchFactor(0, 1)
@@ -103,6 +103,7 @@ class OWCos(OWWidget):
         # self.plotview.setAspectLocked(True)
 
         self.COS2Dplot = pg.PlotItem(viewBox=COS2DViewBox())
+        self.COS2Dplot.buttonsHidden = True
         self.plotview.addItem(self.COS2Dplot, row=1, col=1)
         self.COS2Dplot.getAxis("left").setStyle(showValues=False)
         self.COS2Dplot.showAxis("top")
@@ -115,13 +116,14 @@ class OWCos(OWWidget):
         self.COS2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
 
         self.top_plot = pg.PlotItem()
+        self.top_plot.buttonsHidden = True
         self.top_plot.setXLink(self.COS2Dplot)
         self.plotview.addItem(self.top_plot, row=0, col=1)
         self.top_plot.vb.setMouseEnabled(x=False, y=False)
         # self.top_plot.vb.setMouseMode(pg.ViewBox.RectMode)
         # self.top_plot.vb.enableAutoRange(axis=pg.ViewBox.YAxis)
-        self.top_plot.enableAutoRange(axis='y')
-        # self.top_plot.setAutoVisible(y=True)
+        self.top_plot.enableAutoRange(axis='x')
+        self.top_plot.setAutoVisible(x=True)
         self.top_plot.showAxis("right")
         self.top_plot.showAxis("top")
         self.top_plot.getAxis("left").setStyle(showValues=False)
@@ -129,6 +131,7 @@ class OWCos(OWWidget):
         self.top_plot.getAxis("bottom").setStyle(showValues=False)
 
         self.left_plot = pg.PlotItem()
+        self.left_plot.buttonsHidden = True
         self.plotview.addItem(self.left_plot, row=1, col=0)
         self.left_plot.setYLink(self.COS2Dplot)
         self.left_plot.getViewBox().invertX(True)
@@ -226,8 +229,6 @@ class OWCos(OWWidget):
 
 if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
-    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("iris"))
-
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
     # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=Orange.data.Table("collagen"))
     t = 'rand'
