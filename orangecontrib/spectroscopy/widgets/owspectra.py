@@ -429,7 +429,8 @@ class InteractiveViewBox(ViewBox):
             ev.ignore()
             super().mouseDragEvent(ev, axis=axis)
         elif self.action in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
-                and ev.button() == Qt.LeftButton and self.graph.selection_type:
+                and ev.button() == Qt.LeftButton \
+                and hasattr(self.graph, "selection_type") and self.graph.selection_type:
             pos = self.childGroup.mapFromParent(ev.pos())
             start = self.childGroup.mapFromParent(ev.buttonDownPos())
             if self.current_selection is None:
@@ -509,7 +510,8 @@ class InteractiveViewBox(ViewBox):
             ev.accept()
             self.autoRange()
         if self.action != ZOOMING and self.action not in [SELECT, SELECT_SQUARE, SELECT_POLYGON] \
-                and ev.button() == Qt.LeftButton and self.graph.selection_type:
+                and ev.button() == Qt.LeftButton and \
+                hasattr(self.graph, "selection_type") and self.graph.selection_type:
             pos = self.childGroup.mapFromParent(ev.pos())
             self.graph.select_by_click(pos)
             ev.accept()

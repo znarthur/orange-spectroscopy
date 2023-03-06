@@ -25,6 +25,9 @@ from orangecontrib.spectroscopy.utils import NanInsideHypercube, InvalidAxisExce
 # the following line imports the copied code so that
 # we do not need to depend on scikit-learn
 from orangecontrib.spectroscopy.utils.skimage.register_translation import register_translation
+from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
+
+
 # instead of from skimage.feature import register_translation
 
 # stack alignment code originally from: https://github.com/jpacold/STXM_live
@@ -176,7 +179,8 @@ class OWStackAlign(OWWidget):
         gui.rubber(self.controlArea)
 
         plot_box = gui.widgetBox(self.mainArea, "Shift curves")
-        self.plotview = PlotWidget()
+        self.plotview = PlotWidget(viewBox=InteractiveViewBox(self))
+        self.plotview.plotItem.buttonsHidden = True
         plot_box.layout().addWidget(self.plotview)
         # TODO:  resize widget to make it a bit smaller
 

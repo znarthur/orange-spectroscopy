@@ -605,6 +605,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.plotview = GraphicsView()
         ci = pg.GraphicsLayout()
         self.plot = PlotItem(viewBox=InteractiveViewBox(self))
+        self.plot.buttonsHidden = True
         self.plotview.setCentralItem(ci)
         ci.addItem(self.plot)
 
