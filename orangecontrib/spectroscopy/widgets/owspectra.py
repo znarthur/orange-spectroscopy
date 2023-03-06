@@ -324,7 +324,7 @@ class InteractiveViewBox(ViewBox):
         self.zoomstartpoint = None
         self.current_selection = None
         self.action = PANNING
-        self.y_padding = 0.02
+        self.y_padding = 0
         self.x_padding = 0
 
         # line for marking selection
@@ -628,6 +628,10 @@ class InteractiveViewBox(ViewBox):
 
 
 class InteractiveViewBoxC(InteractiveViewBox):
+
+    def __init__(self, graph):
+        super().__init__(graph)
+        self.y_padding = 0.02
 
     def wheelEvent(self, ev, axis=None):
         # separate axis handling with modifier keys
