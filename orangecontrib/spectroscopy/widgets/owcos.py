@@ -6,6 +6,7 @@ from Orange.widgets import gui, settings
 import pyqtgraph as pg
 import colorcet
 from orangecontrib.spectroscopy.data import getx
+from AnyQt.QtCore import QRectF
 
 # put calculation widgets outside of the class for easier reuse without the Orange framework or scripting
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
@@ -38,7 +39,6 @@ class COS2DViewBox(pg.ViewBox):
     def suggestPadding(self, axis):
         return 0
 
-# class
 
 class OWCos(OWWidget):
     # Widget's name as displayed in the canvas
@@ -130,7 +130,7 @@ class OWCos(OWWidget):
         self.left_plot.getAxis("top").setStyle(showValues=False)
 
         self.cbarCOS = ImageColorLegend()
-        self.plotview.ci.layout.addItem(self.cbarCOS, 0, 3, 2, 1)
+        self.plotview.ci.layout.addItem(self.cbarCOS, 0, 3, 2, 1) # TODO need to calculate the cbar size for both sync and async and use bigger
 
         self.plotview.ci.setSpacing(0.)
 
@@ -182,9 +182,10 @@ class OWCos(OWWidget):
         COSimage.setLevels([-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max()])
         COSimage.setLookupTable(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
         COSimage.setOpts(axisOrder='row-major')
-        COSimage.translate(leftSPwn.min(), topSPwn.min())
-        COSimage.scale((leftSPwn.max() - leftSPwn.min()) / cosmat.shape[0],
-                       (topSPwn.max() - topSPwn.min()) / cosmat.shape[1])
+        COSimage.setRect(QRectF(leftSPwn.min(),
+                                leftSPwn.min(),
+                                (leftSPwn.max() - leftSPwn.min()),
+                                (leftSPwn.max() - leftSPwn.min())))
 
         self.COS2Dplot.addItem(COSimage)
         # self.COS2Dplot.setLimits(xMin=leftSPwn.min(),
