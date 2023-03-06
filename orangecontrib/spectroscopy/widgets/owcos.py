@@ -1,16 +1,20 @@
 import numpy as np
-
-import Orange.data
-from Orange.widgets.widget import OWWidget, Msg, Input, Output
-from Orange.widgets import gui, settings
 import pyqtgraph as pg
 import colorcet
-from orangecontrib.spectroscopy.data import getx
+
+import Orange.data
+from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView
+from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.widgets import gui, settings
+
 from AnyQt.QtCore import QRectF, Qt
 
-# put calculation widgets outside of the class for easier reuse without the Orange framework or scripting
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
+from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
 
+
+# put calculation widgets outside the class for easier reuse without the Orange framework or scripting
 def sort_data(data):
     wn = getx(data)
     wn_sorting = np.argsort(wn)
@@ -41,7 +45,14 @@ def calc_cos(table1, table2):
     return sync, asyn, series1, series2, getx(table1), getx(table2)
     # TODO handle non continuous data (after cut widget)
 
-class COS2DViewBox(pg.ViewBox):
+class COS2DViewBox(InteractiveViewBox):
+    def autoRange2(self):
+        if self is not self.graph.COS2Dplot.vb:
+            super().autoRange()
+            self.graph.COS2Dplot.vb.autoRange()
+        else:
+            super().autoRange()
+
     def suggestPadding(self, axis):
         return 0
 
@@ -94,17 +105,19 @@ class OWCos(OWWidget):
         gui.rubber(box)
 
         # plotting
-        self.plotview = pg.GraphicsLayoutWidget()
-        self.plotview.ci.layout.setColumnStretchFactor(0, 1)
-        self.plotview.ci.layout.setRowStretchFactor(0, 1)
-        self.plotview.ci.layout.setColumnStretchFactor(1, 5)
-        self.plotview.ci.layout.setRowStretchFactor(1, 5)
-        # self.plotview.ci.layout.setColumnFixedWidth(2, 90) # not good add padding on left
-        # self.plotview.setAspectLocked(True)
+        self.plotview = GraphicsView()
+        ci = pg.GraphicsLayout()
 
-        self.COS2Dplot = pg.PlotItem(viewBox=COS2DViewBox())
+        self.plotview.setCentralItem(ci)
+
+        ci.layout.setColumnStretchFactor(0, 1)
+        ci.layout.setRowStretchFactor(0, 1)
+        ci.layout.setColumnStretchFactor(1, 5)
+        ci.layout.setRowStretchFactor(1, 5)
+
+        self.COS2Dplot = PlotItem(viewBox=COS2DViewBox(self))
         self.COS2Dplot.buttonsHidden = True
-        self.plotview.addItem(self.COS2Dplot, row=1, col=1)
+        ci.addItem(self.COS2Dplot, row=1, col=1)
         self.COS2Dplot.getAxis("left").setStyle(showValues=False)
         self.COS2Dplot.showAxis("top")
         self.COS2Dplot.showAxis("right")
@@ -115,36 +128,43 @@ class OWCos(OWWidget):
         self.COS2Dplot.vb.setAspectLocked(lock=True, ratio=1)
         self.COS2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
 
-        self.top_plot = pg.PlotItem()
-        self.top_plot.buttonsHidden = True
-        self.top_plot.setXLink(self.COS2Dplot)
-        self.plotview.addItem(self.top_plot, row=0, col=1)
-        self.top_plot.vb.setMouseEnabled(x=False, y=False)
-        # self.top_plot.vb.setMouseMode(pg.ViewBox.RectMode)
-        # self.top_plot.vb.enableAutoRange(axis=pg.ViewBox.YAxis)
-        self.top_plot.enableAutoRange(axis='x')
-        self.top_plot.setAutoVisible(x=True)
+        # top spectrum plot
+        self.top_plot = PlotItem(viewBox=COS2DViewBox(self))
+        ci.addItem(self.top_plot, row=0, col=1)
+        # visual settings
         self.top_plot.showAxis("right")
         self.top_plot.showAxis("top")
         self.top_plot.getAxis("left").setStyle(showValues=False)
         self.top_plot.getAxis("right").setStyle(showValues=False)
         self.top_plot.getAxis("bottom").setStyle(showValues=False)
+        # interactive behavior settings
+        self.top_plot.vb.setMouseEnabled(x=True, y=False)
+        self.top_plot.enableAutoRange(axis='x')
+        self.top_plot.setAutoVisible(x=True)
+        self.top_plot.buttonsHidden = True
+        self.top_plot.setXLink(self.COS2Dplot)
+        # self.top_plot.vb.setMouseMode(pg.ViewBox.RectMode)
+        # self.top_plot.vb.enableAutoRange(axis=pg.ViewBox.YAxis)
 
-        self.left_plot = pg.PlotItem()
-        self.left_plot.buttonsHidden = True
-        self.plotview.addItem(self.left_plot, row=1, col=0)
-        self.left_plot.setYLink(self.COS2Dplot)
-        self.left_plot.getViewBox().invertX(True)
+        # left spectrum plot
+        self.left_plot = PlotItem(viewBox=COS2DViewBox(self))
+        ci.addItem(self.left_plot, row=1, col=0)
+        # visual settings
         self.left_plot.showAxis("right")
         self.left_plot.showAxis("top")
-        self.left_plot.enableAutoRange(axis='x')
-        self.left_plot.setAutoVisible(x=True)
         self.left_plot.getAxis("right").setStyle(showValues=False)
         self.left_plot.getAxis("top").setStyle(showValues=False)
         self.left_plot.getAxis("bottom").setStyle(showValues=False)
+        # interactive behavior settings
+        self.left_plot.vb.setMouseEnabled(x=False, y=True)
+        self.left_plot.enableAutoRange(axis='y')
+        self.left_plot.setAutoVisible(y=True)
+        self.left_plot.buttonsHidden = True
+        self.left_plot.setYLink(self.COS2Dplot)
+        self.left_plot.getViewBox().invertX(True)
 
         self.cbarCOS = ImageColorLegend()
-        self.plotview.ci.layout.addItem(self.cbarCOS, 1, 3, 1, 1, alignment=Qt.AlignLeft)
+        ci.layout.addItem(self.cbarCOS, 1, 3, 1, 1, alignment=Qt.AlignLeft)
 
         self.mainArea.layout().addWidget(self.plotview)
 
@@ -202,27 +222,14 @@ class OWCos(OWWidget):
                                 (leftSPwn.max() - leftSPwn.min())))
 
         self.COS2Dplot.addItem(COSimage)
-        # self.COS2Dplot.setLimits(xMin=leftSPwn.min(),
-        #                         xMax=leftSPwn.max(),
-        #                         minXRange=(leftSPwn.max()-leftSPwn.min())*0.01)
-        # self.COS2Dplot.setLimits(yMin=topSPwn.min(),
-        #                         yMax=topSPwn.max(),
-        #                         minYRange=(topSPwn.max()-topSPwn.min())*0.01)
 
 
         self.cbarCOS.set_range(-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max())
         self.cbarCOS.set_colors(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
         self.left_plot.plot(leftSP.mean(axis=0), leftSPwn, pen=p)
-        # self.left_plot.setLimits(xMin=leftSPwn.min()-(leftSPwn.max()-leftSPwn.min())*0.1,
-        #                          xMax=leftSPwn.max()+(leftSPwn.max()-leftSPwn.min())*0.1,
-        #                          minXRange=(leftSPwn.max()-leftSPwn.min())*0.01)
 
         self.top_plot.plot(topSPwn, topSP.mean(axis=0), pen=p)
-        # self.top_plot.setLimits(xMin=topSPwn.min()-(topSPwn.max()-topSPwn.min())*0.1,
-        #                          xMax=topSPwn.max()+(topSPwn.max()-topSPwn.min())*0.1,
-        #                          minXRange=(topSPwn.max()-topSPwn.min())*0.01)
-
 
     def commit(self):
             self.plotCOS()
