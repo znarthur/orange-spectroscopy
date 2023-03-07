@@ -3,27 +3,29 @@ import pyqtgraph as pg
 import colorcet
 
 import Orange.data
-from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView
+from AnyQt.QtGui import QFontDatabase
+from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView, AxisItem
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
+from orangewidget.utils import saveplot
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
+from orangecontrib.spectroscopy.widgets.gui import float_to_str_decimals as strdec, pixel_decimals
 
 
 # put calculation widgets outside the class for easier reuse without the Orange framework or scripting
 def sort_data(data):
     wn = getx(data)
     wn_sorting = np.argsort(wn)
-    d = data[:, wn_sorting]
-    return d
+    return data[:, wn_sorting]
 
 def calc_cos(table1, table2):
 
-    ## TODO make selection in panel for dynamic (subtract mean) / static
+    ## TODO make selection in panel for dynamic / static (subtract mean)
     table1 = sort_data(table1)
     table2 = sort_data(table2)
 
@@ -45,6 +47,7 @@ def calc_cos(table1, table2):
     return sync, asyn, series1, series2, getx(table1), getx(table2)
     # TODO handle non continuous data (after cut widget)
 
+
 class COS2DViewBox(InteractiveViewBox):
     def autoRange2(self):
         if self is not self.graph.COS2Dplot.vb:
@@ -65,8 +68,10 @@ class OWCos(OWWidget):
     description = (
         "Perform 2D correlation analysis with series spectra")
 
-    # TODO needs icon
+    # TODO - needs icon
     icon = "icons/average.svg"
+
+    graph_name = "plotview" # need this to show the save button
 
     # Define inputs and outputs
     class Inputs:
@@ -99,14 +104,20 @@ class OWCos(OWWidget):
 
         #control area
         box = gui.widgetBox(self.controlArea, "Settings")
-
-        gui.radioButtons(box, self, "selector", label="Plot type", btnLabels=("Synchronous", "Asynchronous"), box=box,
+        gui.radioButtons(box, self, "selector", label="Plot type",
+                         btnLabels=("Synchronous", "Asynchronous"), box=box,
                          callback=self.plotCOS)
         gui.rubber(box)
+        self.cursorPos = gui.label(self.controlArea, self, "", box="Crosshair")
+        # font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        # self.cursorPos.setFont(font)
 
         # plotting
+        crosspen = pg.mkPen(color=(155, 155, 155), width=0.7)
+
         self.plotview = GraphicsView()
-        ci = pg.GraphicsLayout()
+        self.ci = ci = pg.GraphicsLayout()
+        self.plotview.scene().sigMouseMoved.connect(self.mouse_moved_viewhelpers)
 
         self.plotview.setCentralItem(ci)
 
@@ -115,7 +126,10 @@ class OWCos(OWWidget):
         ci.layout.setColumnStretchFactor(1, 5)
         ci.layout.setRowStretchFactor(1, 5)
 
-        self.COS2Dplot = PlotItem(viewBox=COS2DViewBox(self))
+        # image
+        self.COS2Dplot = PlotItem(viewBox=COS2DViewBox(self),
+                                 axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
+                                            "right": AxisItem("right"), "top": AxisItem("top")})
         self.COS2Dplot.buttonsHidden = True
         ci.addItem(self.COS2Dplot, row=1, col=1)
         self.COS2Dplot.getAxis("left").setStyle(showValues=False)
@@ -127,9 +141,15 @@ class OWCos(OWWidget):
         self.COS2Dplot.vb.border = 1
         self.COS2Dplot.vb.setAspectLocked(lock=True, ratio=1)
         self.COS2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
+        # crosshair initialization
+        self.vLine = pg.InfiniteLine(angle=90, movable=False, pen=crosspen)
+        self.hLine = pg.InfiniteLine(angle=0, movable=False, pen=crosspen)
+        self.vLine.setZValue(1000)
 
         # top spectrum plot
-        self.top_plot = PlotItem(viewBox=COS2DViewBox(self))
+        self.top_plot = PlotItem(viewBox=COS2DViewBox(self),
+                                 axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
+                                            "right": AxisItem("right"), "top": AxisItem("top")})
         ci.addItem(self.top_plot, row=0, col=1)
         # visual settings
         self.top_plot.showAxis("right")
@@ -143,16 +163,20 @@ class OWCos(OWWidget):
         self.top_plot.setAutoVisible(x=True)
         self.top_plot.buttonsHidden = True
         self.top_plot.setXLink(self.COS2Dplot)
-        # self.top_plot.vb.setMouseMode(pg.ViewBox.RectMode)
-        # self.top_plot.vb.enableAutoRange(axis=pg.ViewBox.YAxis)
+        # crosshair
+        self.top_vLine = pg.InfiniteLine(angle=90, movable=False, pen=crosspen)
+        self.top_vLine.setZValue(1000)
 
         # left spectrum plot
-        self.left_plot = PlotItem(viewBox=COS2DViewBox(self))
+        self.left_plot = PlotItem(viewBox=COS2DViewBox(self),
+                                 axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
+                                            "right": AxisItem("right"), "top": AxisItem("top")})
         ci.addItem(self.left_plot, row=1, col=0)
         # visual settings
         self.left_plot.showAxis("right")
         self.left_plot.showAxis("top")
         self.left_plot.getAxis("right").setStyle(showValues=False)
+        # self.left_plot.getAxis("right").setPen(color='k')
         self.left_plot.getAxis("top").setStyle(showValues=False)
         self.left_plot.getAxis("bottom").setStyle(showValues=False)
         # interactive behavior settings
@@ -162,11 +186,21 @@ class OWCos(OWWidget):
         self.left_plot.buttonsHidden = True
         self.left_plot.setYLink(self.COS2Dplot)
         self.left_plot.getViewBox().invertX(True)
+        # crosshair
+        self.left_hLine = pg.InfiniteLine(angle=0, movable=False, pen=crosspen)
+        self.left_hLine.setZValue(1000)
 
+        # colorbar
         self.cbarCOS = ImageColorLegend()
         ci.layout.addItem(self.cbarCOS, 1, 3, 1, 1, alignment=Qt.AlignLeft)
 
+        # moving, resizing and zooming events handling
+        self.COS2Dplot.vb.sigRangeChanged.connect(self.update_crosshair)
+        self.COS2Dplot.vb.sigResized.connect(self.update_crosshair)
+
         self.mainArea.layout().addWidget(self.plotview)
+
+        self.important_decimals = 1, 1
 
         # gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
     # TODO subclass ViewBox for the 2D and spectral plots so that zooming is better
@@ -180,6 +214,8 @@ class OWCos(OWWidget):
     # TODO - implement cross-hair like it is on Spectra but showing the same positions between the three plots
     # [x] TODO - make sure that the orientation of the left/top spectra correspond to the matrix!
     # TODO - implement rescale Y after zoom
+    # TODO make crosshair a black/white double line for better visibility
+    # TODO save images with higher resolution by default
 
     @Inputs.data1
     def set_data1(self, dataset):
@@ -199,6 +235,36 @@ class OWCos(OWWidget):
 
         self.commit()
 
+    def mouse_moved_viewhelpers(self, pos):
+        if self.COS2Dplot.sceneBoundingRect().contains(pos):
+            mousePoint = self.COS2Dplot.vb.mapSceneToView(pos)
+            self.setCrosshairPos(mousePoint.x(), mousePoint.y())
+
+        if self.left_plot.sceneBoundingRect().contains(pos):
+            mousePoint = self.left_plot.vb.mapSceneToView(pos)
+            self.setCrosshairPos(None, mousePoint.y())
+
+        if self.top_plot.sceneBoundingRect().contains(pos):
+            mousePoint = self.top_plot.vb.mapSceneToView(pos)
+            self.setCrosshairPos(mousePoint.x(), None)
+
+    def setCrosshairPos(self, x, y):
+        if x is not None:
+            self.vLine.setPos(x)
+            self.top_vLine.setPos(x)
+
+        if y is not None:
+            self.left_hLine.setPos(y)
+            self.hLine.setPos(y)
+
+        x = 'None' if x is None else strdec(x, self.important_decimals[0])
+        y = 'None' if y is None else strdec(y, self.important_decimals[1])
+
+        self.cursorPos.setText(f"{x}, {y}")
+
+    def update_crosshair(self):
+        self.important_decimals = pixel_decimals(self.COS2Dplot.vb)
+
     def plot_type_change(self):
         self.commit()
 
@@ -210,6 +276,7 @@ class OWCos(OWWidget):
         leftSPwn = self.cosmat[5]
 
         p = pg.mkPen('r', width=3)
+
         self.COS2Dplot.clear()
 
         COSimage = pg.ImageItem(image=cosmat)
@@ -222,14 +289,17 @@ class OWCos(OWWidget):
                                 (leftSPwn.max() - leftSPwn.min())))
 
         self.COS2Dplot.addItem(COSimage)
-
+        self.COS2Dplot.addItem(self.vLine, ignoreBounds=True)
+        self.COS2Dplot.addItem(self.hLine, ignoreBounds=True)
 
         self.cbarCOS.set_range(-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max())
         self.cbarCOS.set_colors(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
         self.left_plot.plot(leftSP.mean(axis=0), leftSPwn, pen=p)
+        self.left_plot.addItem(self.left_hLine)
 
         self.top_plot.plot(topSPwn, topSP.mean(axis=0), pen=p)
+        self.top_plot.addItem(self.top_vLine)
 
     def commit(self):
             self.plotCOS()
