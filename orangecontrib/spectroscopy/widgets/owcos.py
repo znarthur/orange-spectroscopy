@@ -85,10 +85,12 @@ class ParameterSetter(CommonParameterSetter):
         def update_top_axis(**settings):
             top_axis = self.master.top_plot.getAxis("top")
             top_axis.setLabel(settings[self.TOP_AXIS_LABEL])
+            top_axis.resizeEvent(None)
 
         def update_left_axis(**settings):
             left_axis = self.master.left_plot.getAxis("left")
             left_axis.setLabel(settings[self.LEFT_AXIS_LABEL])
+            left_axis.resizeEvent(None)
 
         def update_axes_fontsize(**settings):
             top_axis = self.master.left_plot.getAxis("top")
@@ -105,6 +107,7 @@ class ParameterSetter(CommonParameterSetter):
         def update_figtitle(**settings):
             title = self.master.fig_title
             title.setText(settings[self.FIGTITLE_LABEL])
+            title.resizeEvent(None)
 
         self._setters[self.PLOT_BOX] = {
             self.FIGTITLE_LABEL: update_figtitle,
@@ -417,6 +420,9 @@ class OWCos(OWWidget):
 
             self.top_plot.plot(topSPwn, topSP.mean(axis=0), pen=p)
             self.top_plot.addItem(self.top_vLine)
+
+    def save_graph(self):
+        print("saving")
 
     def commit(self):
         self.plotCOS()
