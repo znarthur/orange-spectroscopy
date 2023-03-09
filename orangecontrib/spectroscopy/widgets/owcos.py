@@ -4,15 +4,12 @@ import colorcet
 from pyqtgraph import LabelItem
 
 import Orange.data
-from Orange.widgets.visualize.owscatterplotgraph import ScatterBaseParameterSetter
 from Orange.widgets.visualize.utils.customizableplot import Updater, CommonParameterSetter
 from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView, AxisItem
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
-from AnyQt.QtWidgets import QLabel
-from AnyQt.QtGui import QFont
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
@@ -238,8 +235,7 @@ class OWCos(OWWidget):
         # top spectrum plot
         self.top_plot = PlotItem(viewBox=COS2DViewBox(self),
                                  axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
-                                            "right": AxisItem("right"), "top": AxisItem("top")},
-                                 labels={"top": "Wavenumber / cm<sup>-1</sup>"})
+                                            "right": AxisItem("right"), "top": AxisItem("top")})
         ci.addItem(self.top_plot, row=0, col=1)
         # visual settings
         self.top_plot.showAxis("right")
@@ -260,8 +256,7 @@ class OWCos(OWWidget):
         # left spectrum plot
         self.left_plot = PlotItem(viewBox=COS2DViewBox(self),
                                   axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
-                                             "right": AxisItem("right"), "top": AxisItem("top")},
-                                  labels={"left": "Average spectrum"})
+                                             "right": AxisItem("right"), "top": AxisItem("top")})
         ci.addItem(self.left_plot, row=1, col=0)
         # visual settings
         self.left_plot.showAxis("right")
@@ -297,7 +292,6 @@ class OWCos(OWWidget):
         # figure title
         # TODO Orange should implement dark mode change for LabelItem
         self.fig_title = LabelItem(color=(0, 0, 0))
-        self.fig_title.setText("gjwieogjewio") # delete later
         self.plotview.addItem(self.fig_title)
 
         # gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
