@@ -15,7 +15,7 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
 from orangecontrib.spectroscopy.widgets.gui import float_to_str_decimals as strdec, pixel_decimals
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog, SettingsType
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
 
 
 # put calculation widgets outside the class for easier reuse without the Orange framework or scripting
@@ -319,7 +319,6 @@ class OWCos(OWWidget):
         self.parameter_setter.set_parameter(key, value)
         self.visual_settings[key] = value
 
-    # clean this up!!!! two inputs vs one input - should also work if data2 is connected WRITE TEST
     def handleNewSignals(self):
         self.COS2Dplot.clear()
         self.cosmat = None
@@ -375,14 +374,14 @@ class OWCos(OWWidget):
         self.left_plot.clear()
         self.top_plot.clear()
 
+        p = pg.mkPen('r', width=2)
+
         if self.cosmat is not None:
             cosmat = self.cosmat[self.selector]
             topSP = self.cosmat[2]
             leftSP = self.cosmat[3]
             topSPwn = self.cosmat[4]
             leftSPwn = self.cosmat[5]
-
-            p = pg.mkPen('r', width=2)
 
             COSimage = pg.ImageItem(image=cosmat)
             COSimage.setLevels([-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max()])
@@ -392,8 +391,9 @@ class OWCos(OWWidget):
             self.COS2Dplot.addItem(self.vLine, ignoreBounds=True)
             self.COS2Dplot.addItem(self.hLine, ignoreBounds=True)
 
-            # add contours
-            # TODO add setting to change the number of levels from 0 to 10 (?)
+            # adding iso curves
+            # TODO make this multi threaded because big images slow the widget down very much
+            #   good example in owtranspose
             level_max = np.max([np.abs(np.min(cosmat)), np.abs(np.max(cosmat))])
             levels = np.linspace(start=0, stop=level_max, num=self.isonum+2)
             iso_pen_pos = pg.mkPen(color=(50, 50, 50), width=1)
