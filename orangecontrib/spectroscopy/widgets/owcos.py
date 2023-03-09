@@ -15,6 +15,7 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
 from orangecontrib.spectroscopy.widgets.gui import float_to_str_decimals as strdec, pixel_decimals
+from orangewidget.utils import saveplot
 from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
 
 
@@ -421,8 +422,24 @@ class OWCos(OWWidget):
             self.top_plot.plot(topSPwn, topSP.mean(axis=0), pen=p)
             self.top_plot.addItem(self.top_vLine)
 
+    def hideitems_for_saving(self):
+        self.hLine.hide()
+        self.vLine.hide()
+        self.left_hLine.hide()
+        self.top_vLine.hide()
+
+    def showitems(self):
+        self.hLine.show()
+        self.vLine.show()
+        self.left_hLine.show()
+        self.top_vLine.show()
+
     def save_graph(self):
-        print("saving")
+        try:
+            self.hideitems_for_saving()
+            saveplot.save_plot(self.plotview, self.graph_writers)
+        finally:
+            self.showitems()
 
     def commit(self):
         self.plotCOS()
