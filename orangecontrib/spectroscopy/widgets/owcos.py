@@ -86,7 +86,7 @@ class ParameterSetter(CommonParameterSetter):
         }
 
         def update_top_axis(**settings):
-            top_axis = self.master.left_plot.getAxis("top")
+            top_axis = self.master.top_plot.getAxis("top")
             top_axis.setLabel(settings[self.TOP_AXIS_LABEL])
 
         def update_left_axis(**settings):
@@ -106,7 +106,8 @@ class ParameterSetter(CommonParameterSetter):
             pass
 
         def update_figtitle(**settings):
-            pass
+            title = self.master.fig_title
+            title.setText(settings[self.FIGTITLE_LABEL])
 
         self._setters[self.PLOT_BOX] = {
             self.FIGTITLE_LABEL: update_figtitle,
@@ -293,14 +294,11 @@ class OWCos(OWWidget):
 
         self.important_decimals = 1, 1
 
-        # figure title - using Qt because GraphicsView doesn't allow labels
-        # TODO doesn't save! use an empty plotitem with only a title?
-        # self.fig_title = QLabel("", self.plotview)
-        # self.fig_title.setMargin(10)
-        # self.fig_title.setText("Figure Title") # delete later to make dynamic
-        self.fig_title = LabelItem()
-        self.fig_title.setText("gjwieogjewio")
-        self.plotview.addItem((self.fig_title))
+        # figure title
+        # TODO Orange should implement dark mode change for LabelItem
+        self.fig_title = LabelItem(color=(0, 0, 0))
+        self.fig_title.setText("gjwieogjewio") # delete later
+        self.plotview.addItem(self.fig_title)
 
         # gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
 
