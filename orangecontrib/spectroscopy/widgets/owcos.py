@@ -1,31 +1,35 @@
 import numpy as np
 import pyqtgraph as pg
 import colorcet
+
 from pyqtgraph import LabelItem
 
 import Orange.data
-from Orange.widgets.visualize.utils.customizableplot import Updater, CommonParameterSetter
+from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView, AxisItem
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
 
+from orangewidget.utils import saveplot
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
 from orangecontrib.spectroscopy.widgets.gui import float_to_str_decimals as strdec, pixel_decimals
-from orangewidget.utils import saveplot
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
 
 
-# put calculation widgets outside the class for easier reuse without the Orange framework or scripting
+# put calculation widgets outside the class for easier reuse
+#   without the Orange framework or scripting
 def sort_data(data):
     wn = getx(data)
     wn_sorting = np.argsort(wn)
     return data[:, wn_sorting]
 
-# TODO check and use scikit-spectra from https://github.com/hughesadam87/scikit-spectra/tree/master/skspec
+
+# TODO check and use scikit-spectra from
+#   https://github.com/hughesadam87/scikit-spectra/tree/master/skspec
 #   also verify with corr2D R package  / doi: 10.18637/jss.v090.i03
 def calc_cos(table1, table2):
     # TODO make selection in panel for dynamic / static (subtract mean)
@@ -63,7 +67,6 @@ class ParameterSetter(CommonParameterSetter):
         super().__init__()
         self.master: OWCos = master
 
-
     def update_setters(self):
         self.initial_settings = {
             self.PLOT_BOX: {
@@ -94,9 +97,8 @@ class ParameterSetter(CommonParameterSetter):
             left_axis.resizeEvent(None)
 
         def update_axes_fontsize(**settings):
-            top_axis = self.master.left_plot.getAxis("top")
-            left_axis = self.master.left_plot.getAxis("left")
-
+            # top_axis = self.master.left_plot.getAxis("top")
+            # left_axis = self.master.left_plot.getAxis("left")
             pass
 
         def update_tick_fontsize(**settings):
@@ -196,9 +198,9 @@ class OWCos(OWWidget):
                          btnLabels=("Synchronous", "Asynchronous"), box="Plot type",
                          callback=self.plotCOS)
         self.isocurve_spin = gui.spin(self.controlArea, self, "isonum",
-                         minv=0, maxv=9, step=1,
-                         label="Number of curves", box="Isocurves",
-                         callback=self.plotCOS)
+                                      minv=0, maxv=9, step=1,
+                                      label="Number of curves", box="Isocurves",
+                                      callback=self.plotCOS)
         gui.rubber(self.controlArea)
         self.cursorPos = gui.label(self.controlArea, self, "", box="Crosshair")
 
@@ -301,9 +303,11 @@ class OWCos(OWWidget):
         # gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
 
     # TODO - implement the aspect ratio lock for the 2D plot
-    #   initialize the widget with the right aspect ratio so that the pixel is square
-    #   keep the pixels always square, especially when changing the widget size
-    # TODO - zooming would be better with no scrolling but rather selecting a range on top or lef or a square on 2D plot
+    #   initialize the widget with the right aspect ratio so that
+    #   the pixel is square keep the pixels always square, especially
+    #   when changing the widget size
+    # TODO - zooming would be better with no scrolling but rather selecting
+    #   a range on top or lef or a square on 2D plot
     # TODO - implement rescale Y after zoom
     # TODO make crosshair a black/white double line for better visibility
     # TODO save images with higher resolution by default
@@ -399,7 +403,7 @@ class OWCos(OWWidget):
             # TODO make this multi threaded because big images slow the widget down very much
             #   good example in owtranspose
             level_max = np.max([np.abs(np.min(cosmat)), np.abs(np.max(cosmat))])
-            levels = np.linspace(start=0, stop=level_max, num=self.isonum+2)
+            levels = np.linspace(start=0, stop=level_max, num=self.isonum + 2)
             iso_pen_pos = pg.mkPen(color=(50, 50, 50), width=1)
             iso_pen_neg = pg.mkPen(color=(50, 50, 50), width=1, style=Qt.DashLine)
             for level in levels[1:]:
@@ -448,30 +452,4 @@ class OWCos(OWWidget):
 if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
 
-    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
-    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=Orange.data.Table("collagen"))
-    t = 'shift'
-    if t == 'normal':
-        print('reading normal')
-        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test1.dat"),
-                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test2.dat"))
-    elif t == 'updown':
-        print('reading up-down')
-        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test1-ud.dat"),
-                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test2-ud.dat"))
-
-    elif t == 'broad':
-        print('reading band broadening')
-        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-lineBroad.dat"),
-                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test-lineBroad.dat"))
-
-    elif t == 'rand':
-        print('reading randomized')
-        WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-rand.dat"),
-                                 set_data2=Orange.data.Table("/Users/borondics/2dcos-test-rand.dat"))
-
-    elif t == 'shift':
-            print('reading band shift')
-            WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-lShift2.dat"),
-                                     set_data2=Orange.data.Table("/Users/borondics/2dcos-test-lShift2b.dat"))
-
+    WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
