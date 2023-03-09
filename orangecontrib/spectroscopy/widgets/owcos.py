@@ -137,9 +137,9 @@ class ParameterSetter(CommonParameterSetter):
 
 class COS2DViewBox(InteractiveViewBox):
     def autoRange2(self):
-        if self is not self.graph.COS2Dplot.vb:
+        if self is not self.graph.cos2Dplot.vb:
             super().autoRange()
-            self.graph.COS2Dplot.vb.autoRange()
+            self.graph.cos2Dplot.vb.autoRange()
         else:
             super().autoRange()
 
@@ -219,20 +219,20 @@ class OWCos(OWWidget):
         ci.layout.setRowStretchFactor(1, 5)
 
         # image
-        self.COS2Dplot = PlotItem(viewBox=COS2DViewBox(self),
+        self.cos2Dplot = PlotItem(viewBox=COS2DViewBox(self),
                                   axisItems={"left": AxisItem("left"), "bottom": AxisItem("bottom"),
                                              "right": AxisItem("right"), "top": AxisItem("top")})
-        self.COS2Dplot.buttonsHidden = True
-        ci.addItem(self.COS2Dplot, row=1, col=1)
-        self.COS2Dplot.getAxis("left").setStyle(showValues=False)
-        self.COS2Dplot.showAxis("top")
-        self.COS2Dplot.showAxis("right")
-        self.COS2Dplot.getAxis("top").setStyle(showValues=False)
-        self.COS2Dplot.getAxis("right").setStyle(showValues=False)
-        self.COS2Dplot.getAxis("bottom").setStyle(showValues=False)
-        self.COS2Dplot.vb.border = 1
-        self.COS2Dplot.vb.setAspectLocked(lock=True, ratio=1)
-        self.COS2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
+        self.cos2Dplot.buttonsHidden = True
+        ci.addItem(self.cos2Dplot, row=1, col=1)
+        self.cos2Dplot.getAxis("left").setStyle(showValues=False)
+        self.cos2Dplot.showAxis("top")
+        self.cos2Dplot.showAxis("right")
+        self.cos2Dplot.getAxis("top").setStyle(showValues=False)
+        self.cos2Dplot.getAxis("right").setStyle(showValues=False)
+        self.cos2Dplot.getAxis("bottom").setStyle(showValues=False)
+        self.cos2Dplot.vb.border = 1
+        self.cos2Dplot.vb.setAspectLocked(lock=True, ratio=1)
+        self.cos2Dplot.vb.setMouseMode(pg.ViewBox.RectMode)
         # crosshair initialization
         self.vLine = pg.InfiniteLine(angle=90, movable=False, pen=crosspen)
         self.hLine = pg.InfiniteLine(angle=0, movable=False, pen=crosspen)
@@ -254,7 +254,7 @@ class OWCos(OWWidget):
         self.top_plot.enableAutoRange(axis='x')
         self.top_plot.setAutoVisible(x=True)
         self.top_plot.buttonsHidden = True
-        self.top_plot.setXLink(self.COS2Dplot)
+        self.top_plot.setXLink(self.cos2Dplot)
         # crosshair
         self.top_vLine = pg.InfiniteLine(angle=90, movable=False, pen=crosspen)
         self.top_vLine.setZValue(1000)
@@ -277,7 +277,7 @@ class OWCos(OWWidget):
         self.left_plot.enableAutoRange(axis='y')
         self.left_plot.setAutoVisible(y=True)
         self.left_plot.buttonsHidden = True
-        self.left_plot.setYLink(self.COS2Dplot)
+        self.left_plot.setYLink(self.cos2Dplot)
         self.left_plot.getViewBox().invertX(True)
         # crosshair
         self.left_hLine = pg.InfiniteLine(angle=0, movable=False, pen=crosspen)
@@ -288,8 +288,8 @@ class OWCos(OWWidget):
         ci.layout.addItem(self.cbarCOS, 1, 3, 1, 1, alignment=Qt.AlignLeft)
 
         # moving, resizing and zooming events handling
-        self.COS2Dplot.vb.sigRangeChanged.connect(self.update_crosshair)
-        self.COS2Dplot.vb.sigResized.connect(self.update_crosshair)
+        self.cos2Dplot.vb.sigRangeChanged.connect(self.update_crosshair)
+        self.cos2Dplot.vb.sigResized.connect(self.update_crosshair)
 
         self.mainArea.layout().addWidget(self.plotview)
 
@@ -328,7 +328,7 @@ class OWCos(OWWidget):
         self.visual_settings[key] = value
 
     def handleNewSignals(self):
-        self.COS2Dplot.clear()
+        self.cos2Dplot.clear()
         self.cosmat = None
 
         d1 = self.data1
@@ -345,8 +345,8 @@ class OWCos(OWWidget):
         self.commit()
 
     def mouse_moved_viewhelpers(self, pos):
-        if self.COS2Dplot.sceneBoundingRect().contains(pos):
-            mousePoint = self.COS2Dplot.vb.mapSceneToView(pos)
+        if self.cos2Dplot.sceneBoundingRect().contains(pos):
+            mousePoint = self.cos2Dplot.vb.mapSceneToView(pos)
             self.setCrosshairPos(mousePoint.x(), mousePoint.y())
 
         if self.left_plot.sceneBoundingRect().contains(pos):
@@ -372,13 +372,13 @@ class OWCos(OWWidget):
         self.cursorPos.setText(f"{x}, {y}")
 
     def update_crosshair(self):
-        self.important_decimals = pixel_decimals(self.COS2Dplot.vb)
+        self.important_decimals = pixel_decimals(self.cos2Dplot.vb)
 
     def plot_type_change(self):
         self.commit()
 
     def plotCOS(self):
-        self.COS2Dplot.clear()
+        self.cos2Dplot.clear()
         self.left_plot.clear()
         self.top_plot.clear()
 
@@ -395,9 +395,9 @@ class OWCos(OWWidget):
             COSimage.setLevels([-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max()])
             COSimage.setLookupTable(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
-            self.COS2Dplot.addItem(COSimage)
-            self.COS2Dplot.addItem(self.vLine, ignoreBounds=True)
-            self.COS2Dplot.addItem(self.hLine, ignoreBounds=True)
+            self.cos2Dplot.addItem(COSimage)
+            self.cos2Dplot.addItem(self.vLine, ignoreBounds=True)
+            self.cos2Dplot.addItem(self.hLine, ignoreBounds=True)
 
             # adding iso curves
             # TODO make this multi threaded because big images slow the widget down very much
@@ -450,6 +450,7 @@ class OWCos(OWWidget):
 
 
 if __name__ == "__main__":  # pragma: no cover
+    # pylint: disable=ungrouped-imports
     from Orange.widgets.utils.widgetpreview import WidgetPreview
 
     WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
