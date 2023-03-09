@@ -167,7 +167,7 @@ class OWCos(OWWidget):
 
     class Outputs:
         # TODO implement outputting the matrix
-        output = Output("2D correlation matrix", Orange.data.Table, default=True)
+        corr_matrix = Output("2D correlation matrix", Orange.misc.DistMatrix, dynamic=False)
 
     settingsHandler = settings.DomainContextHandler()
     selector = settings.Setting(0)
