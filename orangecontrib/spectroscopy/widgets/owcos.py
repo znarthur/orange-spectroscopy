@@ -1,6 +1,7 @@
 import numpy as np
 import pyqtgraph as pg
 import colorcet
+from pyqtgraph import LabelItem
 
 import Orange.data
 from Orange.widgets.visualize.owscatterplotgraph import ScatterBaseParameterSetter
@@ -11,12 +12,13 @@ from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
 from AnyQt.QtWidgets import QLabel
+from AnyQt.QtGui import QFont
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.widgets.owhyper import ImageColorLegend
 from orangecontrib.spectroscopy.widgets.owspectra import InteractiveViewBox
 from orangecontrib.spectroscopy.widgets.gui import float_to_str_decimals as strdec, pixel_decimals
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog, SettingsType
 
 
 # put calculation widgets outside the class for easier reuse without the Orange framework or scripting
@@ -52,59 +54,67 @@ def calc_cos(table1, table2):
 
 
 class ParameterSetter(CommonParameterSetter):
-    DEFAULT_ALPHA_GRID = 80, True
-    TITLE_LABEL = "Figure title"
-    TITLE_LABEL2 = "Figure title2"
-    LEFT_AXIS_LABEL, TOP_AXIS_LABEL = "Left axis", "Top axis"
-    IS_VERTICAL_LABEL = "Vertical ticks"
-    LEFT_AXIS_LABEL_SIZE = "Font size"
+    LEFT_AXIS_LABEL, TOP_AXIS_LABEL = "Left axis title", "Top axis title"
+    AXIS_LABEL_SIZE = "Axes font size"
+    FIGTITLE_LABEL = "Figure title"
+    FIGTITLE_LABEL_SIZE = "Title font size"
+    AXIS_TICKS_LABEL_SIZE = "Axes ticks label size"
+    PLOT_BOX = "Figure and axes"
 
     def __init__(self, master):
         super().__init__()
+        self.master: OWCos = master
+
 
     def update_setters(self):
         self.initial_settings = {
-
-            self.ANNOT_BOX: {
-                self.TITLE_LABEL: {self.TITLE_LABEL: ("", ""),},
+            self.PLOT_BOX: {
+                self.FIGTITLE_LABEL: {self.FIGTITLE_LABEL: ("", "")},
+                self.FIGTITLE_LABEL_SIZE: self.FONT_SETTING,
+                self.TOP_AXIS_LABEL: {
+                    self.TOP_AXIS_LABEL: ("", ""),
+                },
+                self.LEFT_AXIS_LABEL: {
+                    self.LEFT_AXIS_LABEL: ("", ""),
+                },
+                self.AXIS_LABEL_SIZE: self.FONT_SETTING,
+                self.AXIS_TICKS_LABEL_SIZE: self.FONT_SETTING,
             },
             self.LABELS_BOX: {
                 self.FONT_FAMILY_LABEL: self.FONT_FAMILY_SETTING,
-                self.TITLE_LABEL: self.FONT_SETTING,
-                self.AXIS_TITLE_LABEL: self.FONT_SETTING,
-                self.AXIS_TICKS_LABEL: self.FONT_SETTING,
-                self.LEGEND_LABEL: self.FONT_SETTING,
-            },
-            self.PLOT_BOX: {
-                self.LEFT_AXIS_LABEL: {
-                    self.LEFT_AXIS_LABEL_SIZE: self.FONT_SETTING,
-                    self.LEFT_AXIS_LABEL: ("", ""),
-                    # self.FONT_FAMILY_LABEL: self.FONT_FAMILY_SETTING,
-                },
             },
         }
 
-        def update_grid(**settings):
-            self.grid_settings.update(**settings)
-            self.master.showGrid(y=self.grid_settings[self.SHOW_GRID_LABEL],
-                          alpha=self.grid_settings[Updater.ALPHA_LABEL] / 255)
+        def update_top_axis(**settings):
+            top_axis = self.master.left_plot.getAxis("top")
+            top_axis.setLabel(settings[self.TOP_AXIS_LABEL])
 
         def update_left_axis(**settings):
-            axis = self.master.getAxis("bottom")
-            axis.setRotateTicks(settings[self.IS_VERTICAL_LABEL])
+            left_axis = self.master.left_plot.getAxis("left")
+            left_axis.setLabel(settings[self.LEFT_AXIS_LABEL])
 
-        def update_fontsize(**settings):
+        def update_axes_fontsize(**settings):
+            top_axis = self.master.left_plot.getAxis("top")
+            left_axis = self.master.left_plot.getAxis("left")
+
             pass
 
-        def update_top_axis(**settings):
-            axis = self.master.top_axis
-            axis.setRotateTicks(settings[self.IS_VERTICAL_LABEL])
+        def update_tick_fontsize(**settings):
+            pass
+
+        def update_title_fontsize(**settings):
+            pass
+
+        def update_figtitle(**settings):
+            pass
 
         self._setters[self.PLOT_BOX] = {
-            # self.GRID_LABEL: update_grid,
+            self.FIGTITLE_LABEL: update_figtitle,
+            self.FIGTITLE_LABEL_SIZE: update_title_fontsize,
             self.LEFT_AXIS_LABEL: update_left_axis,
             self.TOP_AXIS_LABEL: update_top_axis,
-            self.LEFT_AXIS_LABEL_SIZE: update_fontsize,
+            self.AXIS_LABEL_SIZE: update_axes_fontsize,
+            self.AXIS_TICKS_LABEL_SIZE: update_tick_fontsize,
         }
 
     @property
@@ -284,9 +294,13 @@ class OWCos(OWWidget):
         self.important_decimals = 1, 1
 
         # figure title - using Qt because GraphicsView doesn't allow labels
-        self.fig_title = QLabel("", self.plotview)
-        self.fig_title.setMargin(10)
-        self.fig_title.setText("Figure Title") # delete later to make dynamic
+        # TODO doesn't save! use an empty plotitem with only a title?
+        # self.fig_title = QLabel("", self.plotview)
+        # self.fig_title.setMargin(10)
+        # self.fig_title.setText("Figure Title") # delete later to make dynamic
+        self.fig_title = LabelItem()
+        self.fig_title.setText("gjwieogjewio")
+        self.plotview.addItem((self.fig_title))
 
         # gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
 
@@ -310,7 +324,7 @@ class OWCos(OWWidget):
         self.data2 = dataset
 
     def set_visual_settings(self, key, value):
-        self.graph.parameter_setter.set_parameter(key, value)
+        self.parameter_setter.set_parameter(key, value)
         self.visual_settings[key] = value
 
     # clean this up!!!! two inputs vs one input - should also work if data2 is connected WRITE TEST
