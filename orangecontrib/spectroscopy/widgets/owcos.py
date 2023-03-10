@@ -1,13 +1,16 @@
 import numpy as np
 import pyqtgraph as pg
 import colorcet
+from typing import Optional, Union
 
 from pyqtgraph import LabelItem
 
 import Orange.data
-from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
+from Orange.data import Table, Variable
+from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter, Updater
 from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView, AxisItem
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
@@ -55,13 +58,38 @@ def calc_cos(table1, table2):
     # TODO handle non continuous data (after cut widget)
 
 
+# class to multithread the isocurve calculation
+def run(data: Table,
+        variable: Optional[Union[Variable, bool]],
+        feature_name: str,
+        remove_redundant_inst: bool,
+        state: TaskState
+        ) -> Table:
+    if not data:
+        return None
+
+    def callback(i: float, status=""):
+        state.set_progress_value(i * 100)
+        if status:
+            state.set_status(status)
+        if state.is_interruption_requested():
+            raise Exception
+
+    # the isocurve calculation needs to happen here
+    return Table.transpose(data, variable, feature_name=feature_name,
+                           remove_redundant_inst=remove_redundant_inst,
+                           progress_callback=callback)
+
+
+
 class ParameterSetter(CommonParameterSetter):
     LEFT_AXIS_LABEL, TOP_AXIS_LABEL = "Left axis title", "Top axis title"
-    AXIS_LABEL_SIZE = "Axes font size"
-    FIGTITLE_LABEL = "Figure title"
     FIGTITLE_LABEL_SIZE = "Title font size"
-    AXIS_TICKS_LABEL_SIZE = "Axes ticks label size"
     PLOT_BOX = "Figure and axes"
+
+    @property
+    def title_item(self):
+        return self.master.fig_title
 
     def __init__(self, master):
         super().__init__()
@@ -70,7 +98,7 @@ class ParameterSetter(CommonParameterSetter):
     def update_setters(self):
         self.initial_settings = {
             self.PLOT_BOX: {
-                self.FIGTITLE_LABEL: {self.FIGTITLE_LABEL: ("", "")},
+                self.TITLE_LABEL: {"Title": ("", "")},
                 self.FIGTITLE_LABEL_SIZE: self.FONT_SETTING,
                 self.TOP_AXIS_LABEL: {
                     self.TOP_AXIS_LABEL: ("", ""),
@@ -78,8 +106,8 @@ class ParameterSetter(CommonParameterSetter):
                 self.LEFT_AXIS_LABEL: {
                     self.LEFT_AXIS_LABEL: ("", ""),
                 },
-                self.AXIS_LABEL_SIZE: self.FONT_SETTING,
-                self.AXIS_TICKS_LABEL_SIZE: self.FONT_SETTING,
+                self.AXIS_TITLE_LABEL: self.FONT_SETTING,
+                self.AXIS_TICKS_LABEL: self.FONT_SETTING,
             },
             self.LABELS_BOX: {
                 self.FONT_FAMILY_LABEL: self.FONT_FAMILY_SETTING,
@@ -96,43 +124,38 @@ class ParameterSetter(CommonParameterSetter):
             left_axis.setLabel(settings[self.LEFT_AXIS_LABEL])
             left_axis.resizeEvent(None)
 
-        def update_axes_fontsize(**settings):
-            # top_axis = self.master.left_plot.getAxis("top")
-            # left_axis = self.master.left_plot.getAxis("left")
-            pass
-
-        def update_tick_fontsize(**settings):
-            pass
-
-        def update_title_fontsize(**settings):
-            pass
+        def update_plot_title_font(**settings):
+            font = Updater.change_font(self.title_item.item.font(), settings)
+            self.title_item.item.setFont(font)
+            self.title_item.item.setPlainText(self.title_item.text)
 
         def update_figtitle(**settings):
             title = self.master.fig_title
-            title.setText(settings[self.FIGTITLE_LABEL])
+            title.setText(settings[self.TITLE_LABEL])
             title.resizeEvent(None)
 
+        def update_axes_titles(**settings):
+            Updater.update_axes_titles_font(self.axis_items, **settings)
+
+        def update_axes_ticks(**settings):
+            Updater.update_axes_ticks_font(self.axis_items, **settings)
+
         self._setters[self.PLOT_BOX] = {
-            self.FIGTITLE_LABEL: update_figtitle,
-            self.FIGTITLE_LABEL_SIZE: update_title_fontsize,
+            self.TITLE_LABEL: update_figtitle,
+            self.FIGTITLE_LABEL_SIZE: update_plot_title_font,
             self.LEFT_AXIS_LABEL: update_left_axis,
             self.TOP_AXIS_LABEL: update_top_axis,
-            self.AXIS_LABEL_SIZE: update_axes_fontsize,
-            self.AXIS_TICKS_LABEL_SIZE: update_tick_fontsize,
+            self.AXIS_TITLE_LABEL: update_axes_titles,
+            self.AXIS_TICKS_LABEL: update_axes_ticks,
         }
 
     @property
-    def title_item(self):
-        return self.master.getPlotItem().titleLabel
-
-    @property
     def axis_items(self):
-        return [value["item"] for value in
-                self.master.getPlotItem().axes.values()]
+        return [self.master.left_plot.getAxis("left"),
+                self.master.top_plot.getAxis("top"),
+                self.master.cbarCOS.axis]
 
-    @property
-    def legend_items(self):
-        return self.master.legend.items
+
 
 
 class COS2DViewBox(InteractiveViewBox):
