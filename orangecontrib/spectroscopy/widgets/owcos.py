@@ -140,6 +140,10 @@ class ParameterSetter(CommonParameterSetter):
         def update_axes_ticks(**settings):
             Updater.update_axes_ticks_font(self.axis_items, **settings)
 
+        def update_font_family(**settings):
+            for setter in update_plot_title_font, update_axes_titles, update_axes_ticks:
+                setter(**settings)
+
         self._setters[self.PLOT_BOX] = {
             self.TITLE_LABEL: update_figtitle,
             self.FIGTITLE_LABEL_SIZE: update_plot_title_font,
@@ -147,7 +151,9 @@ class ParameterSetter(CommonParameterSetter):
             self.TOP_AXIS_LABEL: update_top_axis,
             self.AXIS_TITLE_LABEL: update_axes_titles,
             self.AXIS_TICKS_LABEL: update_axes_ticks,
-            # self.FONT_FAMILY_LABEL:
+        }
+        self._setters[self.LABELS_BOX] = {
+            self.FONT_FAMILY_LABEL: update_font_family,
         }
 
     @property
