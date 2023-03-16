@@ -147,6 +147,7 @@ class ParameterSetter(CommonParameterSetter):
             self.TOP_AXIS_LABEL: update_top_axis,
             self.AXIS_TITLE_LABEL: update_axes_titles,
             self.AXIS_TICKS_LABEL: update_axes_ticks,
+            # self.FONT_FAMILY_LABEL:
         }
 
     @property
@@ -154,8 +155,6 @@ class ParameterSetter(CommonParameterSetter):
         return [self.master.left_plot.getAxis("left"),
                 self.master.top_plot.getAxis("top"),
                 self.master.cbarCOS.axis]
-
-
 
 
 class COS2DViewBox(InteractiveViewBox):
@@ -443,8 +442,14 @@ class OWCos(OWWidget):
             self.cbarCOS.set_range(-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max())
             self.cbarCOS.set_colors(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
+            for s in leftSP:
+                self.left_plot.plot(s, leftSPwn, pen=pg.mkPen(color=(50, 50, 50), width=0.5))
+
             self.left_plot.plot(leftSP.mean(axis=0), leftSPwn, pen=p)
             self.left_plot.addItem(self.left_hLine)
+
+            for s in topSP:
+                self.top_plot.plot(topSPwn, s, pen=pg.mkPen(color=(50, 50, 50), width=0.5))
 
             self.top_plot.plot(topSPwn, topSP.mean(axis=0), pen=p)
             self.top_plot.addItem(self.top_vLine)
@@ -477,3 +482,4 @@ if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
 
     WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
+    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-lShift2b_large.dat"), set_data2=None)
