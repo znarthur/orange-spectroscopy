@@ -3,7 +3,7 @@ import numpy as np
 
 import Orange.data
 from Orange.data.filter import SameValue, FilterDiscrete, Values
-from Orange.widgets.widget import OWWidget, Msg, Input, Output
+from Orange.widgets.widget import OWWidget, Input, Output
 from Orange.widgets import gui, settings
 from Orange.widgets.utils.itemmodels import DomainModel
 
@@ -33,14 +33,9 @@ class OWAverage(OWWidget):
     want_main_area = False
     resizing_enabled = False
 
-    class Warning(OWWidget.Warning):
-        nodata = Msg("No useful data on input!")
-
     def __init__(self):
         super().__init__()
-
         self.data = None
-        self.set_data(self.data)  # show warning
 
         self.group_vars = DomainModel(
             placeholder="None", separators=False,
@@ -51,20 +46,16 @@ class OWAverage(OWWidget):
 
         gui.auto_commit(self.controlArea, self, "autocommit", "Apply")
 
-
     @Inputs.data
     def set_data(self, dataset):
-        self.Warning.nodata.clear()
         self.closeContext()
         self.data = dataset
         self.group_var = None
-        if dataset is None:
-            self.Warning.nodata()
-        else:
+        if dataset is not None:
             self.group_vars.set_domain(dataset.domain)
             self.openContext(dataset.domain)
 
-        self.commit()
+        self.commit.now()
 
     @staticmethod
     def average_table(table):
@@ -106,8 +97,9 @@ class OWAverage(OWWidget):
 
     def grouping_changed(self):
         """Calls commit() indirectly to respect auto_commit setting."""
-        self.commit()
+        self.commit.deferred()
 
+    @gui.deferred
     def commit(self):
         averages = None
         if self.data is not None:
