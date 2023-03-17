@@ -231,8 +231,8 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     yp = array[1][:, xmin:xmax + 2]
 
     # convert to distances in pixels
-    xp = ((xp - x) / xpixel)
-    yp = ((yp - y) / ypixel)
+    xp = (xp - x) / xpixel
+    yp = (yp - y) / ypixel
 
     # add edge point so that distance_curves works if there is just one point
     xp = np.hstack((xp, float("nan")))
