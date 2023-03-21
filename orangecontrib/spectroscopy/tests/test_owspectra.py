@@ -529,6 +529,16 @@ class TestOWSpectra(WidgetTest):
             self.assertTrue(np.isfinite(obj.yData).all())
             self.assertTrue(np.isfinite(obj.xData).all())
 
+    def test_waterfall(self):
+        self.send_signal("Data", self.iris)
+        vb = self.widget.curveplot.plot.vb
+        self.widget.curveplot.waterfall = False
+        self.widget.curveplot.update_view()
+        self.assertTrue(vb.targetRect().bottom() < 10)
+        self.widget.curveplot.waterfall_changed()
+        self.assertTrue(vb.targetRect().bottom() < 1000)
+        self.assertTrue(vb.targetRect().bottom() > 800)
+
     def test_migrate_context_feature_color(self):
         c = self.widget.settingsHandler.new_context(self.iris.domain,
                                                     None, self.iris.domain.class_vars)

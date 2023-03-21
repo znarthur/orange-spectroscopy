@@ -669,6 +669,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
     invertX = Setting(False)
     viewtype = Setting(INDIVIDUAL)
+    waterfall = Setting(False)
     show_grid = Setting(False)
 
     selection_changed = pyqtSignal()
@@ -803,6 +804,13 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.view_average_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
         actions.append(self.view_average_menu)
 
+        self.view_waterfall_menu = QAction(
+            "Waterfall plot", self, shortcut=Qt.Key_W, checkable=True,
+            triggered=lambda x: self.waterfall_changed()
+        )
+        self.view_waterfall_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        actions.append(self.view_waterfall_menu)
+
         self.show_grid_a = QAction(
             "Show grid", self, shortcut=Qt.Key_G, checkable=True,
             triggered=self.grid_changed
@@ -917,6 +925,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu.addAction(labels_action)
         self.labels_changed()  # apply saved labels
 
+        self.waterfall_apply()
         self.grid_apply()
         self.invertX_apply()
         self.color_individual_apply()
@@ -944,7 +953,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.feature_color = self.feature_color_model[0] if self.feature_color_model else None
 
     def line_select_start(self):
-        if self.viewtype == INDIVIDUAL:
+        if self.viewtype == INDIVIDUAL and self.waterfall is False:
             self.plot.vb.set_mode_select()
 
     def help_event(self, ev):
@@ -1353,15 +1362,31 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             if len(subset_to_show) > subset_additional:
                 subset_to_show = \
                     random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
-            self.sampled_indices = sorted(sample_selection + list(subset_to_show))
+            sampled_indices = sorted(sample_selection + list(subset_to_show))
             self.sampling = True
         else:
-            self.sampled_indices = list(range(len(ys)))
-        random.Random(self.sample_seed).shuffle(self.sampled_indices)  # for sequential classes#
-        self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
-        ys = self.data.X[self.sampled_indices][:, self.data_xsind]
+            sampled_indices = list(range(len(ys)))
+        ys = self.data.X[sampled_indices][:, self.data_xsind]
         ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
+
+        if self.waterfall:
+            waterfall_constant = 0.1
+            miny = bottleneck.nanmin(ys)
+            maxy = bottleneck.nanmax(ys)
+            space = (maxy - miny) * waterfall_constant
+            mul = (np.arange(len(ys))*space + 1).reshape(-1, 1)
+            ys = ys * mul
+
+        # shuffle the data before drawing because classes often appear sequentially
+        # and the last class would then seem the most prevalent if colored
+        indices = list(range(len(sampled_indices)))
+        random.Random(self.sample_seed).shuffle(indices)
+        sampled_indices = [sampled_indices[i] for i in indices]
+        self.sampled_indices = sampled_indices
+        self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
         self.new_sampling.emit(len(self.sampled_indices))
+        ys = ys[indices]  # ys was already subsampled
+
         self.curves.append((x, ys))
 
         # add curves efficiently
@@ -1481,6 +1506,14 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         else:
             self.viewtype = AVERAGE
         self.update_view()
+
+    def waterfall_changed(self):
+        self.waterfall = not self.waterfall
+        self.waterfall_apply()
+        self.update_view()
+
+    def waterfall_apply(self):
+        self.view_waterfall_menu.setChecked(self.waterfall)
 
     def show_average(self):
         self.show_average_thread.show_average()
