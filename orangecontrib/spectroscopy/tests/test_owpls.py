@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, skipIf
 
 import numpy as np
 
@@ -7,6 +7,7 @@ from sklearn.cross_decomposition import PLSRegression
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest, WidgetLearnerTestMixin, ParameterMapping
 
+import Orange.version
 from orangecontrib.spectroscopy.widgets.owpls import OWPLS
 from orangecontrib.spectroscopy.models.pls import PLSRegressionLearner
 
@@ -67,3 +68,14 @@ class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
         self.parameters = [
             ParameterMapping('max_iter', self.widget.n_iters),
             ParameterMapping('n_components', self.widget.ncomps_spin)]
+
+    skip_reason = "orange-widget-base changed apply button, which resulted in " \
+                  "test failures (but was otherwise benign)"
+
+    @skipIf(Orange.version.version < "3.35.0", skip_reason)
+    def test_output_learner(self):
+        super().test_output_learner()
+
+    @skipIf(Orange.version.version < "3.35.0", skip_reason)
+    def test_output_learner_name(self):
+        super().test_output_learner_name()
