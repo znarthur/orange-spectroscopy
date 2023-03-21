@@ -6,7 +6,7 @@ import warnings
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
+    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence, QFontDatabase, \
     QPalette
@@ -40,11 +40,11 @@ from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import apply_columns_numpy
 from orangecontrib.spectroscopy.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
+from orangecontrib.spectroscopy.widgets.gui import pixel_decimals, \
     VerticalPeakLine, float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import \
     SelectionGroupMixin, SelectionOutputsMixin
-
+from orangecontrib.spectroscopy.widgets.visual_settings import FloatOrUndefined
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -80,6 +80,8 @@ def selection_modifiers():
 
 class ParameterSetter(CommonParameterSetter):
 
+    VIEW_RANGE_BOX = "View Range"
+
     def __init__(self, master):
         super().__init__()
         self.master = master
@@ -98,7 +100,29 @@ class ParameterSetter(CommonParameterSetter):
                 self.AXIS_TICKS_LABEL: self.FONT_SETTING,
                 self.LEGEND_LABEL: self.FONT_SETTING,
             },
+            self.VIEW_RANGE_BOX: {
+                "X": {"xMin": (FloatOrUndefined(), None), "xMax": (FloatOrUndefined(), None)},
+                "Y": {"yMin": (FloatOrUndefined(), None), "yMax": (FloatOrUndefined(), None)}
+            }
         }
+
+        def set_limits(**args):
+            for a, v in args.items():
+                if a == "xMin":
+                    self.viewbox.fixed_range_x[0] = v
+                if a == "xMax":
+                    self.viewbox.fixed_range_x[1] = v
+                if a == "yMin":
+                    self.viewbox.fixed_range_y[0] = v
+                if a == "yMax":
+                    self.viewbox.fixed_range_y[1] = v
+            self.viewbox.setRange(self.viewbox.viewRect())
+
+        self._setters[self.VIEW_RANGE_BOX] = {"X": set_limits, "Y": set_limits}
+
+    @property
+    def viewbox(self):
+        return self.master.plot.vb
 
     @property
     def title_item(self):
@@ -388,6 +412,9 @@ class InteractiveViewBox(ViewBox):
         self.sigRangeChanged.connect(self.resized)
         self.sigResized.connect(self.resized)
 
+        self.fixed_range_x = [None, None]
+        self.fixed_range_y = [None, None]
+
         self.tiptexts = None
 
     def resized(self):
@@ -618,6 +645,42 @@ class InteractiveViewBox(ViewBox):
         self.pad_current_view_y()
         self.pad_current_view_x()
 
+    def setRange(self, rect=None, xRange=None, yRange=None, **kwargs):
+        """ Always respect limitations in fixed_range_x and _y. """
+
+        if all(a is None for a in self.fixed_range_x + self.fixed_range_y):
+            super().setRange(rect=rect, xRange=xRange, yRange=yRange, **kwargs)
+
+        # if any limit is defined disregard padding
+        kwargs["padding"] = 0
+
+        if rect is not None:
+            rect = QRectF(rect)
+            if self.fixed_range_x[0] is not None:
+                rect.setLeft(self.fixed_range_x[0])
+            if self.fixed_range_x[1] is not None:
+                rect.setRight(self.fixed_range_x[1])
+            if self.fixed_range_y[0] is not None:
+                rect.setTop(self.fixed_range_y[0])
+            if self.fixed_range_y[1] is not None:
+                rect.setBottom(self.fixed_range_y[1])
+
+        if xRange is not None:
+            xRange = list(xRange)
+            if self.fixed_range_x[0] is not None:
+                xRange[0] = self.fixed_range_x[0]
+            if self.fixed_range_x[1] is not None:
+                xRange[1] = self.fixed_range_x[1]
+
+        if yRange is not None:
+            yRange = list(yRange)
+            if self.fixed_range_y[0] is not None:
+                yRange[0] = self.fixed_range_y[0]
+            if self.fixed_range_y[1] is not None:
+                yRange[1] = self.fixed_range_y[1]
+
+        super().setRange(rect=rect, xRange=xRange, yRange=yRange, **kwargs)
+
     def cancel_zoom(self):
         self.setMouseMode(self.PanMode)
         self.rbScaleBox.hide()
@@ -699,10 +762,6 @@ class NoSuchCurve(ValueError):
 class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     sample_seed = Setting(0, schema_only=True)
-    range_x1 = Setting(None)
-    range_x2 = Setting(None)
-    range_y1 = Setting(None)
-    range_y2 = Setting(None)
     peak_labels_saved = Setting([], schema_only=True)
     feature_color = ContextSetting(None)
     color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
@@ -885,29 +944,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             save_graph.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             actions.append(save_graph)
 
-        range_menu = MenuFocus("Define view range", self)
-        range_action = QWidgetAction(self)
-        layout = QGridLayout()
-        range_box = gui.widgetBox(self, margin=5, orientation=layout)
-        range_box.setFocusPolicy(Qt.TabFocus)
-        self.range_e_x1 = lineEditFloatOrNone(None, self, "range_x1")
-        range_box.setFocusProxy(self.range_e_x1)
-        self.range_e_x2 = lineEditFloatOrNone(None, self, "range_x2")
-        layout.addWidget(QLabel("X"), 0, 0, Qt.AlignRight)
-        layout.addWidget(self.range_e_x1, 0, 1)
-        layout.addWidget(QLabel("-"), 0, 2)
-        layout.addWidget(self.range_e_x2, 0, 3)
-        self.range_e_y1 = lineEditFloatOrNone(None, self, "range_y1")
-        self.range_e_y2 = lineEditFloatOrNone(None, self, "range_y2")
-        layout.addWidget(QLabel("Y"), 1, 0, Qt.AlignRight)
-        layout.addWidget(self.range_e_y1, 1, 1)
-        layout.addWidget(QLabel("-"), 1, 2)
-        layout.addWidget(self.range_e_y2, 1, 3)
-        b = gui.button(None, self, "Apply", callback=self.set_limits)
-        layout.addWidget(b, 2, 3, Qt.AlignRight)
-        range_action.setDefaultWidget(range_box)
-        range_menu.addAction(range_action)
-
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("Menu", self.plotview)
@@ -918,7 +954,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu = MenuFocus(self)
         self.button.setMenu(view_menu)
         view_menu.addActions(actions)
-        view_menu.addMenu(range_menu)
         self.addActions(actions)
         for a in actions:
             a.setShortcutVisibleInContextMenu(True)
@@ -1026,15 +1061,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         next = (currentind + 1) % len(self.feature_color_model)
         self.feature_color = elements[next]
         self.update_view()
-
-    def set_limits(self):
-        vr = self.plot.vb.viewRect()
-        x1 = self.range_x1 if self.range_x1 is not None else vr.left()
-        x2 = self.range_x2 if self.range_x2 is not None else vr.right()
-        y1 = self.range_y1 if self.range_y1 is not None else vr.top()
-        y2 = self.range_y2 if self.range_y2 is not None else vr.bottom()
-        self.plot.vb.setXRange(x1, x2)
-        self.plot.vb.setYRange(y1, y2)
 
     def grid_changed(self):
         self.show_grid = not self.show_grid
@@ -1145,11 +1171,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.label.setPos(vr.bottomLeft())
         else:
             self.label.setPos(vr.bottomRight())
-        xd, yd = self.important_decimals
-        self.range_e_x1.setPlaceholderText(strdec(vr.left(), xd))
-        self.range_e_x2.setPlaceholderText(strdec(vr.right(), xd))
-        self.range_e_y1.setPlaceholderText(strdec(vr.top(), yd))
-        self.range_e_y2.setPlaceholderText(strdec(vr.bottom(), yd))
 
     def make_selection(self, data_indices):
         add_to_group, add_group, remove = selection_modifiers()

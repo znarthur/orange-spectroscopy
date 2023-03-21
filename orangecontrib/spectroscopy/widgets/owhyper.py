@@ -1177,11 +1177,12 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         self._setup_plot_parameters()
 
     def _setup_plot_parameters(self):
-        parts_from_spectra = [SpectraParameterSetter.ANNOT_BOX]
-        self.imageplot.parameter_setter.initial_settings[SpectraParameterSetter.ANNOT_BOX] = \
-            self.curveplot.parameter_setter.initial_settings[SpectraParameterSetter.ANNOT_BOX]
-        self.imageplot.parameter_setter.initial_settings[SpectraParameterSetter.LABELS_BOX] = \
-            self.curveplot.parameter_setter.initial_settings[SpectraParameterSetter.LABELS_BOX]
+        parts_from_spectra = [SpectraParameterSetter.ANNOT_BOX,
+                              SpectraParameterSetter.LABELS_BOX,
+                              SpectraParameterSetter.VIEW_RANGE_BOX]
+        for cp in parts_from_spectra:
+            self.imageplot.parameter_setter.initial_settings[cp] = \
+                self.curveplot.parameter_setter.initial_settings[cp]
 
         VisualSettingsDialog(self, self.imageplot.parameter_setter.initial_settings)
 
@@ -1405,7 +1406,9 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     def set_visual_settings(self, key, value):
         im_setter = self.imageplot.parameter_setter
         cv_setter = self.curveplot.parameter_setter
-        if key[0] not in ["Annotations"] and key[0] in im_setter.initial_settings:
+        skip_im_setter = [SpectraParameterSetter.ANNOT_BOX,
+                          SpectraParameterSetter.VIEW_RANGE_BOX]
+        if key[0] not in skip_im_setter and key[0] in im_setter.initial_settings:
             im_setter.set_parameter(key, value)
         if key[0] in cv_setter.initial_settings:
             cv_setter.set_parameter(key, value)

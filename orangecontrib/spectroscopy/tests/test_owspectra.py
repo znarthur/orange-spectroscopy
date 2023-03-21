@@ -233,14 +233,6 @@ class TestOWSpectra(WidgetTest):
         curves_plotted = self.widget.curveplot.curves_plotted
         self.assertEqual(numcurves(curves_plotted), 150)
 
-    def test_limits(self):
-        self.send_signal("Data", self.iris)
-        vr = self.widget.curveplot.plot.viewRect()
-        # there should ne no change
-        self.widget.curveplot.set_limits()
-        vr2 = self.widget.curveplot.plot.viewRect()
-        self.assertEqual(vr, vr2)
-
     def test_line_intersection(self):
         data = self.collagen
         x = getx(data)
@@ -630,6 +622,22 @@ class TestOWSpectra(WidgetTest):
         axis = graph.parameter_setter.getAxis("left")
         self.assertEqual(axis.label.toPlainText().strip(), "Foo3")
         self.assertEqual(axis.labelText, "Foo3")
+
+        key, value = ("View Range", "X", "xMin"), 1.
+        self.widget.set_visual_settings(key, value)
+        key, value = ("View Range", "X", "xMax"), 3.
+        self.widget.set_visual_settings(key, value)
+        vr = graph.plot.vb.viewRect()
+        self.assertEqual(vr.left(), 1)
+        self.assertEqual(vr.right(), 3)
+
+        key, value = ("View Range", "Y", "yMin"), 2.
+        self.widget.set_visual_settings(key, value)
+        key, value = ("View Range", "Y", "yMax"), 42.
+        self.widget.set_visual_settings(key, value)
+        vr = graph.plot.vb.viewRect()
+        self.assertEqual(vr.top(), 2)
+        self.assertEqual(vr.bottom(), 42)
 
     def assertFontEqual(self, font1, font2):
         self.assertEqual(font1.family(), font2.family())
