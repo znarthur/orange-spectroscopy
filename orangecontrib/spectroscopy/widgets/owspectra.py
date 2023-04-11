@@ -881,12 +881,15 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu.addActions(actions)
         view_menu.addMenu(range_menu)
         self.addActions(actions)
+        for a in actions:
+            a.setShortcutVisibleInContextMenu(True)
 
         self.color_individual_menu = QAction(
             "Color individual curves", self, shortcut=Qt.Key_I, checkable=True,
             triggered=lambda x: self.color_individual_changed()
         )
         self.color_individual_menu.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.color_individual_menu.setShortcutVisibleInContextMenu(True)
         view_menu.addAction(self.color_individual_menu)
         self.addAction(self.color_individual_menu)
 
@@ -908,7 +911,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         labels_action = QWidgetAction(self)
         layout = QGridLayout()
-        labels_box = gui.widgetBox(self, margin=0, orientation=layout)
+        labels_box = gui.widgetBox(self, margin=5, orientation=layout)
         t = gui.lineEdit(None, self, "label_title", label="Title:",
                          callback=self.labels_changed, callbackOnType=self.labels_changed)
         layout.addWidget(QLabel("Title:"), 0, 0, Qt.AlignRight)
