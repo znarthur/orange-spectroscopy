@@ -448,6 +448,19 @@ class TestOWHyper(WidgetTest):
         OWHyper.migrate_settings(settings, 6)
         self.assertNotIn("visual_settings", settings)
 
+    def test_compat_no_group(self):
+        settings = {}
+        OWHyper.migrate_settings(settings, 6)
+        self.assertEqual(settings, {})
+        self.widget = self.create_widget(OWHyper, stored_settings=settings)
+        self.assertFalse(self.widget.compat_no_group)
+
+        settings = {}
+        OWHyper.migrate_settings(settings, 5)
+        self.assertEqual(settings, {"compat_no_group": True})
+        self.widget = self.create_widget(OWHyper, stored_settings=settings)
+        self.assertTrue(self.widget.compat_no_group)
+
 
 class TestVisibleImage(WidgetTest):
 
@@ -652,16 +665,3 @@ class TestVisibleImage(WidgetTest):
             self.assert_same_visible_image(data.attributes["visible_images"][0],
                                            w.imageplot.vis_img,
                                            mock_rect)
-
-    def test_compat_no_group(self):
-        settings = {}
-        OWHyper.migrate_settings(settings, 6)
-        self.assertEqual(settings, {})
-        self.widget = self.create_widget(OWHyper, stored_settings=settings)
-        self.assertFalse(self.widget.compat_no_group)
-
-        settings = {}
-        OWHyper.migrate_settings(settings, 5)
-        self.assertEqual(settings, {"compat_no_group": True})
-        self.widget = self.create_widget(OWHyper, stored_settings=settings)
-        self.assertTrue(self.widget.compat_no_group)
