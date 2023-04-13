@@ -677,7 +677,7 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         choose_xy = QWidgetAction(self)
         box = gui.vBox(self)
-        box.setContentsMargins(20, 0, 10, 0)
+        box.setContentsMargins(10, 0, 10, 0)
         box.setFocusPolicy(Qt.TabFocus)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
                                     valid_types=DomainModel.PRIMITIVE)
