@@ -116,6 +116,7 @@ class ParameterSetter(CommonParameterSetter):
                     self.viewbox.fixed_range_y[0] = v
                 if a == "yMax":
                     self.viewbox.fixed_range_y[1] = v
+            self.master.update_lock_indicators()
             self.viewbox.setRange(self.viewbox.viewRect())
 
         self._setters[self.VIEW_RANGE_BOX] = {"X": set_limits, "Y": set_limits}
@@ -645,11 +646,15 @@ class InteractiveViewBox(ViewBox):
         self.pad_current_view_y()
         self.pad_current_view_x()
 
+    def is_view_locked(self):
+        return not all(a is None for a in self.fixed_range_x + self.fixed_range_y)
+
     def setRange(self, rect=None, xRange=None, yRange=None, **kwargs):
         """ Always respect limitations in fixed_range_x and _y. """
 
-        if all(a is None for a in self.fixed_range_x + self.fixed_range_y):
+        if not self.is_view_locked():
             super().setRange(rect=rect, xRange=xRange, yRange=yRange, **kwargs)
+            return
 
         # if any limit is defined disregard padding
         kwargs["padding"] = 0
@@ -773,6 +778,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     selection_changed = pyqtSignal()
     new_sampling = pyqtSignal(object)
     highlight_changed = pyqtSignal()
+    locked_axes_changed = pyqtSignal(bool)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -996,6 +1002,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.viewhelpers_show()
 
         self.parameter_setter = ParameterSetter(self)
+
+    def update_lock_indicators(self):
+        self.locked_axes_changed.emit(self.plot.vb.is_view_locked())
 
     def _update_connected_views(self):
         for w in self.connected_views:
@@ -1682,6 +1691,7 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
 
     class Information(SelectionOutputsMixin.Information):
         showing_sample = Msg("Showing {} of {} curves.")
+        view_locked = Msg("Axes are locked in the visual settings dialog.")
 
     class Warning(OWWidget.Warning):
         no_x = Msg("No continuous features in input data.")
@@ -1693,6 +1703,8 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.curveplot.new_sampling.connect(self._showing_sample_info)
+        self.curveplot.locked_axes_changed.connect(
+            lambda locked: self.Information.view_locked(shown=locked))
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
         VisualSettingsDialog(self, self.curveplot.parameter_setter.initial_settings)

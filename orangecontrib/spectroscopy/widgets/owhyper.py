@@ -1049,6 +1049,7 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
 
     class Information(SelectionOutputsMixin.Information):
         not_shown = Msg("Undefined positions: {} data point(s) are not shown.")
+        view_locked = Msg("Axes are locked in the visual settings dialog.")
 
     @classmethod
     def migrate_settings(cls, settings_, version):
@@ -1145,6 +1146,8 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
         splitter.addWidget(self.imageplot)
         splitter.addWidget(self.curveplot)
         self.mainArea.layout().addWidget(splitter)
+        self.curveplot.locked_axes_changed.connect(
+            lambda locked: self.Information.view_locked(shown=locked))
 
         self.line1 = MovableVline(position=self.lowlim, label="", report=self.curveplot)
         self.line1.sigMoved.connect(lambda v: setattr(self, "lowlim", v))

@@ -623,6 +623,7 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual(axis.label.toPlainText().strip(), "Foo3")
         self.assertEqual(axis.labelText, "Foo3")
 
+        self.assertFalse(self.widget.Information.view_locked.is_shown())
         key, value = ("View Range", "X", "xMin"), 1.
         self.widget.set_visual_settings(key, value)
         key, value = ("View Range", "X", "xMax"), 3.
@@ -630,6 +631,7 @@ class TestOWSpectra(WidgetTest):
         vr = graph.plot.vb.viewRect()
         self.assertEqual(vr.left(), 1)
         self.assertEqual(vr.right(), 3)
+        self.assertTrue(self.widget.Information.view_locked.is_shown())
 
         key, value = ("View Range", "Y", "yMin"), 2.
         self.widget.set_visual_settings(key, value)
