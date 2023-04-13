@@ -1012,7 +1012,7 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
     replaces = ["orangecontrib.infrared.widgets.owhyper.OWHyper"]
     keywords = ["image", "spectral", "chemical", "imaging"]
 
-    settings_version = 6
+    settings_version = 7
     settingsHandler = DomainContextHandler()
 
     imageplot = SettingProvider(ImagePlot)
@@ -1073,6 +1073,10 @@ class OWHyper(OWWidget, SelectionOutputsMixin):
 
         if version < 6:
             settings_["compat_no_group"] = True
+
+        if version < 7:
+            from orangecontrib.spectroscopy.widgets.owspectra import OWSpectra
+            OWSpectra.migrate_to_visual_settings(settings_)
 
     @classmethod
     def migrate_context(cls, context, version):

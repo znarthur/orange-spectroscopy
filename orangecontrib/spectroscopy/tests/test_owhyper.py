@@ -433,6 +433,21 @@ class TestOWHyper(WidgetTest):
             target = [data.X[0, :3], data.X[1, :3]], [data.X[2, :3], data.X[3, :3]]
             np.testing.assert_equal(called, target)
 
+    def test_migrate_visual_setttings(self):
+        settings = {"curveplot":
+                        {"label_title": "title",
+                         "label_xaxis": "x",
+                         "label_yaxis": "y"}
+                    }
+        OWHyper.migrate_settings(settings, 6)
+        self.assertEqual(settings["visual_settings"],
+                         {('Annotations', 'Title', 'Title'): 'title',
+                          ('Annotations', 'x-axis title', 'Title'): 'x',
+                          ('Annotations', 'y-axis title', 'Title'): 'y'})
+        settings = {}
+        OWHyper.migrate_settings(settings, 6)
+        self.assertNotIn("visual_settings", settings)
+
 
 class TestVisibleImage(WidgetTest):
 

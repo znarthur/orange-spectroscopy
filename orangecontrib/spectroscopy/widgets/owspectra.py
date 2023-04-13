@@ -1753,9 +1753,8 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
         super().onDeleteWidget()
 
     @classmethod
-    def migrate_settings(cls, settings, version):
-
-        def migrate_to_visual_settings():
+    def migrate_to_visual_settings(cls, settings):
+        if "curveplot" in settings:
             cs = settings["curveplot"]
             translate = {'label_title': ('Annotations', 'Title', 'Title'),
                          'label_xaxis': ('Annotations', 'x-axis title', 'Title'),
@@ -1767,13 +1766,16 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
                         settings["visual_settings"] = {}
                     settings["visual_settings"][to_] = cs.get(from_)
 
+    @classmethod
+    def migrate_settings(cls, settings, version):
         if "curveplot" in settings:
             CurvePlot.migrate_settings_sub(settings["curveplot"], version)
-            if version < 5:
-                migrate_to_visual_settings()
 
         if version < 3:
             settings["compat_no_group"] = True
+
+        if version < 5:
+            cls.migrate_to_visual_settings(settings)
 
     @classmethod
     def migrate_context(cls, context, version):
