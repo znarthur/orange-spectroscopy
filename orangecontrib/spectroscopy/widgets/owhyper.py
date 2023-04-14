@@ -283,6 +283,7 @@ class ImageColorSettingMixin:
 
     def setup_color_settings_box(self):
         box = gui.vBox(self)
+        box.setContentsMargins(0, 0, 0, 5)
         self.color_cb = gui.comboBox(box, self, "palette_index", label="Color:",
                                      labelWidth=50, orientation=Qt.Horizontal)
         self.color_cb.setIconSize(QSize(64, 16))
@@ -295,7 +296,6 @@ class ImageColorSettingMixin:
 
         gui.checkBox(box, self, "show_legend", label="Show legend",
                      callback=self.update_legend_visible)
-
         form = QFormLayout(
             formAlignment=Qt.AlignLeft,
             labelAlignment=Qt.AlignLeft,
@@ -669,12 +669,15 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         view_menu.addActions(actions)
         self.addActions(actions)
+        for a in actions:
+            a.setShortcutVisibleInContextMenu(True)
 
         common_options = dict(
             labelWidth=50, orientation=Qt.Horizontal, sendSelectedValue=True)
 
         choose_xy = QWidgetAction(self)
         box = gui.vBox(self)
+        box.setContentsMargins(10, 0, 10, 0)
         box.setFocusPolicy(Qt.TabFocus)
         self.xy_model = DomainModel(DomainModel.METAS | DomainModel.CLASSES,
                                     valid_types=DomainModel.PRIMITIVE)
