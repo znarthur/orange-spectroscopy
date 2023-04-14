@@ -105,6 +105,6 @@ jobs:
           matrix.python-version == '3.8' &&  
           matrix.os == 'ubuntu-20.04' && 
           matrix.tox_env == 'py-orange-released'
-        run: |
-          pip install codecov
-          codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
