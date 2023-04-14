@@ -6,7 +6,7 @@ import warnings
 from xml.sax.saxutils import escape
 
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
-    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, QLabel, \
+    QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
 from AnyQt.QtGui import QColor, QPixmapCache, QPen, QKeySequence, QFontDatabase, \
     QPalette
@@ -17,8 +17,10 @@ import bottleneck
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.graphicsItems.ViewBox import ViewBox
-
 from pyqtgraph import Point, GraphicsObject
+
+from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+
 import Orange.data
 from Orange.data import DiscreteVariable
 from Orange.widgets.widget import OWWidget, Msg, OWComponent, Input
@@ -32,17 +34,17 @@ from Orange.widgets.utils import saveplot
 from Orange.widgets.visualize.owscatterplotgraph import LegendItem
 from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate, PlotWidget
-
+from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import apply_columns_numpy
 from orangecontrib.spectroscopy.widgets.line_geometry import \
     distance_curves, intersect_curves_chunked
-from orangecontrib.spectroscopy.widgets.gui import lineEditFloatOrNone, pixel_decimals, \
+from orangecontrib.spectroscopy.widgets.gui import pixel_decimals, \
     VerticalPeakLine, float_to_str_decimals as strdec
 from orangecontrib.spectroscopy.widgets.utils import \
     SelectionGroupMixin, SelectionOutputsMixin
-
+from orangecontrib.spectroscopy.widgets.visual_settings import FloatOrUndefined
 
 SELECT_SQUARE = 123
 SELECT_POLYGON = 124
@@ -74,6 +76,70 @@ def selection_modifiers():
     add_group = bool(keys & Qt.ShiftModifier)
     remove = bool(keys & Qt.AltModifier)
     return add_to_group, add_group, remove
+
+
+class ParameterSetter(CommonParameterSetter):
+
+    VIEW_RANGE_BOX = "View Range"
+
+    def __init__(self, master):
+        super().__init__()
+        self.master = master
+
+    def update_setters(self):
+        self.initial_settings = {
+            self.ANNOT_BOX: {
+                self.TITLE_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.X_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+                self.Y_AXIS_LABEL: {self.TITLE_LABEL: ("", "")},
+            },
+            self.LABELS_BOX: {
+                self.FONT_FAMILY_LABEL: self.FONT_FAMILY_SETTING,
+                self.TITLE_LABEL: self.FONT_SETTING,
+                self.AXIS_TITLE_LABEL: self.FONT_SETTING,
+                self.AXIS_TICKS_LABEL: self.FONT_SETTING,
+                self.LEGEND_LABEL: self.FONT_SETTING,
+            },
+            self.VIEW_RANGE_BOX: {
+                "X": {"xMin": (FloatOrUndefined(), None), "xMax": (FloatOrUndefined(), None)},
+                "Y": {"yMin": (FloatOrUndefined(), None), "yMax": (FloatOrUndefined(), None)}
+            }
+        }
+
+        def set_limits(**args):
+            for a, v in args.items():
+                if a == "xMin":
+                    self.viewbox.fixed_range_x[0] = v
+                if a == "xMax":
+                    self.viewbox.fixed_range_x[1] = v
+                if a == "yMin":
+                    self.viewbox.fixed_range_y[0] = v
+                if a == "yMax":
+                    self.viewbox.fixed_range_y[1] = v
+            self.master.update_lock_indicators()
+            self.viewbox.setRange(self.viewbox.viewRect())
+
+        self._setters[self.VIEW_RANGE_BOX] = {"X": set_limits, "Y": set_limits}
+
+    @property
+    def viewbox(self):
+        return self.master.plot.vb
+
+    @property
+    def title_item(self):
+        return self.master.plot.titleLabel
+
+    @property
+    def axis_items(self):
+        return [value["item"] for value in self.master.plot.axes.values()]
+
+    @property
+    def getAxis(self):
+        return self.master.plot.getAxis
+
+    @property
+    def legend_items(self):
+        return self.master.legend.items
 
 
 class MenuFocus(QMenu):  # menu that works well with subwidgets and focusing
@@ -190,8 +256,8 @@ def distancetocurves(array, x, y, xpixel, ypixel, r=5, cache=None):
     yp = array[1][:, xmin:xmax + 2]
 
     # convert to distances in pixels
-    xp = ((xp - x) / xpixel)
-    yp = ((yp - y) / ypixel)
+    xp = (xp - x) / xpixel
+    yp = (yp - y) / ypixel
 
     # add edge point so that distance_curves works if there is just one point
     xp = np.hstack((xp, float("nan")))
@@ -346,6 +412,9 @@ class InteractiveViewBox(ViewBox):
 
         self.sigRangeChanged.connect(self.resized)
         self.sigResized.connect(self.resized)
+
+        self.fixed_range_x = [None, None]
+        self.fixed_range_y = [None, None]
 
         self.tiptexts = None
 
@@ -577,6 +646,46 @@ class InteractiveViewBox(ViewBox):
         self.pad_current_view_y()
         self.pad_current_view_x()
 
+    def is_view_locked(self):
+        return not all(a is None for a in self.fixed_range_x + self.fixed_range_y)
+
+    def setRange(self, rect=None, xRange=None, yRange=None, **kwargs):
+        """ Always respect limitations in fixed_range_x and _y. """
+
+        if not self.is_view_locked():
+            super().setRange(rect=rect, xRange=xRange, yRange=yRange, **kwargs)
+            return
+
+        # if any limit is defined disregard padding
+        kwargs["padding"] = 0
+
+        if rect is not None:
+            rect = QRectF(rect)
+            if self.fixed_range_x[0] is not None:
+                rect.setLeft(self.fixed_range_x[0])
+            if self.fixed_range_x[1] is not None:
+                rect.setRight(self.fixed_range_x[1])
+            if self.fixed_range_y[0] is not None:
+                rect.setTop(self.fixed_range_y[0])
+            if self.fixed_range_y[1] is not None:
+                rect.setBottom(self.fixed_range_y[1])
+
+        if xRange is not None:
+            xRange = list(xRange)
+            if self.fixed_range_x[0] is not None:
+                xRange[0] = self.fixed_range_x[0]
+            if self.fixed_range_x[1] is not None:
+                xRange[1] = self.fixed_range_x[1]
+
+        if yRange is not None:
+            yRange = list(yRange)
+            if self.fixed_range_y[0] is not None:
+                yRange[0] = self.fixed_range_y[0]
+            if self.fixed_range_y[1] is not None:
+                yRange[1] = self.fixed_range_y[1]
+
+        super().setRange(rect=rect, xRange=xRange, yRange=yRange, **kwargs)
+
     def cancel_zoom(self):
         self.setMouseMode(self.PanMode)
         self.rbScaleBox.hide()
@@ -656,14 +765,8 @@ class NoSuchCurve(ValueError):
 
 
 class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
+
     sample_seed = Setting(0, schema_only=True)
-    label_title = Setting("")
-    label_xaxis = Setting("")
-    label_yaxis = Setting("")
-    range_x1 = Setting(None)
-    range_x2 = Setting(None)
-    range_y1 = Setting(None)
-    range_y2 = Setting(None)
     peak_labels_saved = Setting([], schema_only=True)
     feature_color = ContextSetting(None)
     color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
@@ -675,6 +778,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     selection_changed = pyqtSignal()
     new_sampling = pyqtSignal(object)
     highlight_changed = pyqtSignal()
+    locked_axes_changed = pyqtSignal(bool)
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -846,29 +950,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             save_graph.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             actions.append(save_graph)
 
-        range_menu = MenuFocus("Define view range", self)
-        range_action = QWidgetAction(self)
-        layout = QGridLayout()
-        range_box = gui.widgetBox(self, margin=5, orientation=layout)
-        range_box.setFocusPolicy(Qt.TabFocus)
-        self.range_e_x1 = lineEditFloatOrNone(None, self, "range_x1")
-        range_box.setFocusProxy(self.range_e_x1)
-        self.range_e_x2 = lineEditFloatOrNone(None, self, "range_x2")
-        layout.addWidget(QLabel("X"), 0, 0, Qt.AlignRight)
-        layout.addWidget(self.range_e_x1, 0, 1)
-        layout.addWidget(QLabel("-"), 0, 2)
-        layout.addWidget(self.range_e_x2, 0, 3)
-        self.range_e_y1 = lineEditFloatOrNone(None, self, "range_y1")
-        self.range_e_y2 = lineEditFloatOrNone(None, self, "range_y2")
-        layout.addWidget(QLabel("Y"), 1, 0, Qt.AlignRight)
-        layout.addWidget(self.range_e_y1, 1, 1)
-        layout.addWidget(QLabel("-"), 1, 2)
-        layout.addWidget(self.range_e_y2, 1, 3)
-        b = gui.button(None, self, "Apply", callback=self.set_limits)
-        layout.addWidget(b, 2, 3, Qt.AlignRight)
-        range_action.setDefaultWidget(range_box)
-        range_menu.addAction(range_action)
-
         layout = QGridLayout()
         self.plotview.setLayout(layout)
         self.button = QPushButton("Menu", self.plotview)
@@ -879,7 +960,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         view_menu = MenuFocus(self)
         self.button.setMenu(view_menu)
         view_menu.addActions(actions)
-        view_menu.addMenu(range_menu)
         self.addActions(actions)
         for a in actions:
             a.setShortcutVisibleInContextMenu(True)
@@ -909,25 +989,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         cycle_colors = QShortcut(Qt.Key_C, self, self.cycle_color_attr, context=Qt.WidgetWithChildrenShortcut)
 
-        labels_action = QWidgetAction(self)
-        layout = QGridLayout()
-        labels_box = gui.widgetBox(self, margin=5, orientation=layout)
-        t = gui.lineEdit(None, self, "label_title", label="Title:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("Title:"), 0, 0, Qt.AlignRight)
-        layout.addWidget(t, 0, 1)
-        t = gui.lineEdit(None, self, "label_xaxis", label="X-axis:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("X-axis:"), 1, 0, Qt.AlignRight)
-        layout.addWidget(t, 1, 1)
-        t = gui.lineEdit(None, self, "label_yaxis", label="Y-axis:",
-                         callback=self.labels_changed, callbackOnType=self.labels_changed)
-        layout.addWidget(QLabel("Y-axis:"), 2, 0, Qt.AlignRight)
-        layout.addWidget(t, 2, 1)
-        labels_action.setDefaultWidget(labels_box)
-        view_menu.addAction(labels_action)
-        self.labels_changed()  # apply saved labels
-
         self.waterfall_apply()
         self.grid_apply()
         self.invertX_apply()
@@ -939,6 +1000,11 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.legend = self._create_legend()
         self.viewhelpers_show()
+
+        self.parameter_setter = ParameterSetter(self)
+
+    def update_lock_indicators(self):
+        self.locked_axes_changed.emit(self.plot.vb.is_view_locked())
 
     def _update_connected_views(self):
         for w in self.connected_views:
@@ -1004,26 +1070,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         next = (currentind + 1) % len(self.feature_color_model)
         self.feature_color = elements[next]
         self.update_view()
-
-    def set_limits(self):
-        vr = self.plot.vb.viewRect()
-        x1 = self.range_x1 if self.range_x1 is not None else vr.left()
-        x2 = self.range_x2 if self.range_x2 is not None else vr.right()
-        y1 = self.range_y1 if self.range_y1 is not None else vr.top()
-        y2 = self.range_y2 if self.range_y2 is not None else vr.bottom()
-        self.plot.vb.setXRange(x1, x2)
-        self.plot.vb.setYRange(y1, y2)
-
-    def labels_changed(self):
-        self.plot.setTitle(self.label_title)
-        if not self.label_title:
-            self.plot.setTitle(None)
-        self.plot.setLabels(bottom=self.label_xaxis)
-        self.plot.showLabel("bottom", bool(self.label_xaxis))
-        self.plot.getAxis("bottom").resizeEvent()  # align text
-        self.plot.setLabels(left=self.label_yaxis)
-        self.plot.showLabel("left", bool(self.label_yaxis))
-        self.plot.getAxis("left").resizeEvent()  # align text
 
     def grid_changed(self):
         self.show_grid = not self.show_grid
@@ -1134,11 +1180,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.label.setPos(vr.bottomLeft())
         else:
             self.label.setPos(vr.bottomRight())
-        xd, yd = self.important_decimals
-        self.range_e_x1.setPlaceholderText(strdec(vr.left(), xd))
-        self.range_e_x2.setPlaceholderText(strdec(vr.right(), xd))
-        self.range_e_y1.setPlaceholderText(strdec(vr.top(), yd))
-        self.range_e_y2.setPlaceholderText(strdec(vr.bottom(), yd))
 
     def make_selection(self, data_indices):
         add_to_group, add_group, remove = selection_modifiers()
@@ -1640,15 +1681,17 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
 
     want_control_area = False
 
-    settings_version = 4
+    settings_version = 5
     settingsHandler = DomainContextHandler()
 
     curveplot = SettingProvider(CurvePlot)
+    visual_settings = Setting({}, schema_only=True)
 
     graph_name = "curveplot.plotview"  # need to be defined for the save button to be shown
 
     class Information(SelectionOutputsMixin.Information):
         showing_sample = Msg("Showing {} of {} curves.")
+        view_locked = Msg("Axes are locked in the visual settings dialog.")
 
     class Warning(OWWidget.Warning):
         no_x = Msg("No continuous features in input data.")
@@ -1660,8 +1703,11 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
         self.curveplot = CurvePlot(self, select=SELECTMANY)
         self.curveplot.selection_changed.connect(self.selection_changed)
         self.curveplot.new_sampling.connect(self._showing_sample_info)
+        self.curveplot.locked_axes_changed.connect(
+            lambda locked: self.Information.view_locked(shown=locked))
         self.mainArea.layout().addWidget(self.curveplot)
         self.resize(900, 700)
+        VisualSettingsDialog(self, self.curveplot.parameter_setter.initial_settings)
 
     @Inputs.data
     def set_data(self, data):
@@ -1677,6 +1723,10 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
     @Inputs.data_subset
     def set_subset(self, data):
         self.curveplot.set_data_subset(data.ids if data else None, auto_update=False)
+
+    def set_visual_settings(self, key, value):
+        self.curveplot.parameter_setter.set_parameter(key, value)
+        self.visual_settings[key] = value
 
     def handleNewSignals(self):
         self.curveplot.update_view()
@@ -1703,11 +1753,29 @@ class OWSpectra(OWWidget, SelectionOutputsMixin):
         super().onDeleteWidget()
 
     @classmethod
+    def migrate_to_visual_settings(cls, settings):
+        if "curveplot" in settings:
+            cs = settings["curveplot"]
+            translate = {'label_title': ('Annotations', 'Title', 'Title'),
+                         'label_xaxis': ('Annotations', 'x-axis title', 'Title'),
+                         'label_yaxis': ('Annotations', 'y-axis title', 'Title')}
+
+            for from_, to_ in translate.items():
+                if cs.get(from_):
+                    if "visual_settings" not in settings:
+                        settings["visual_settings"] = {}
+                    settings["visual_settings"][to_] = cs.get(from_)
+
+    @classmethod
     def migrate_settings(cls, settings, version):
         if "curveplot" in settings:
             CurvePlot.migrate_settings_sub(settings["curveplot"], version)
+
         if version < 3:
             settings["compat_no_group"] = True
+
+        if version < 5:
+            cls.migrate_to_visual_settings(settings)
 
     @classmethod
     def migrate_context(cls, context, version):
