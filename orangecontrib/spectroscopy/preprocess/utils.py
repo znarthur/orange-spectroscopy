@@ -1,5 +1,6 @@
 import bottleneck
 import numpy as np
+from Orange.data import Table, Domain
 from Orange.data.util import SharedComputeValue
 from scipy.interpolate import interp1d
 
@@ -247,3 +248,10 @@ def replace_infs(array):
     This should be used anywhere a divide-by-zero can happen (/, np.log10, etc)"""
     array[np.isinf(array)] = np.nan
     return array
+
+
+def replacex(data: Table, replacement: list):
+    assert len(data.domain.attributes) == len(replacement)
+    natts = [at.renamed(str(n)) for n, at in zip(replacement, data.domain.attributes)]
+    ndom = Domain(natts, data.domain.class_vars, data.domain.metas)
+    return data.transform(ndom)

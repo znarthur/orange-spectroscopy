@@ -17,6 +17,7 @@ from orangecontrib.spectroscopy.preprocess import Absorbance, Transmittance, \
 from orangecontrib.spectroscopy.preprocess.als import ALSP, ARPLS, AIRPLS
 from orangecontrib.spectroscopy.preprocess.me_emsc import ME_EMSC
 from orangecontrib.spectroscopy.preprocess.atm_corr import AtmCorr
+from orangecontrib.spectroscopy.preprocess.utils import replacex
 from orangecontrib.spectroscopy.tests.util import smaller_data
 
 
@@ -527,3 +528,29 @@ class TestCurveShift(unittest.TestCase):
         fdata = f(data)
         np.testing.assert_almost_equal(fdata.X,
                                        [[2.1, 3.1, 4.1, 5.1]])
+
+
+class TestUtils(unittest.TestCase):
+
+    def test_replacex(self):
+        data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        self.assertEqual(list(getx(data)), [0, 1, 2, 3])
+        dr = replacex(data, ["a", 1, 2, 3])
+        self.assertEqual([a.name for a in dr.domain.attributes],
+                         ["a", "1", "2", "3"])
+        dr = replacex(data, np.array([0.5, 1, 2, 3]))
+        self.assertEqual(list(getx(dr)), [0.5, 1, 2, 3])
+        np.testing.assert_equal(data.X, dr.X)
+
+    def test_replacex_transforms(self):
+        data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        dr = replacex(data, np.linspace(5, 8, 4))
+        self.assertEqual(list(getx(dr)), [5, 6, 7, 8])
+        np.testing.assert_equal(data.X, dr.X)
+        dt = data.transform(dr.domain)
+        np.testing.assert_equal(data.X, dt.X)
+
+    def test_replacex_invalid(self):
+        data = Table.from_numpy(None, [[1.0, 2.0, 3.0, 4.0]])
+        with self.assertRaises(AssertionError):
+            replacex(data, [1, 2, 3])
