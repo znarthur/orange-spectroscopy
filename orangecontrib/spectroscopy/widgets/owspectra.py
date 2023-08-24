@@ -1410,7 +1410,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.sampling = True
         else:
             sampled_indices = list(range(len(ys)))
-        ys = self.data.X[sampled_indices][:, self.data_xsind]
+        ys = np.asarray(self.data.X[sampled_indices][:, self.data_xsind])
         ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
 
         if self.waterfall:
