@@ -1032,7 +1032,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 index = self.sampled_indices[self.highlighted]
                 variables = self.data.domain.metas + self.data.domain.class_vars
                 text += "".join(
-                    '{} = {}\n'.format(attr.name, self.data[index][attr])
+                    '{} = {}\n'.format(attr.name, self.data[index, attr])
                     for attr in variables)
             elif self.viewtype == AVERAGE:
                 c = self.multiple_curves_info[self.highlighted]
