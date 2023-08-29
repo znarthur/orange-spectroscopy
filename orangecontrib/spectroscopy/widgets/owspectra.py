@@ -5,6 +5,12 @@ import random
 import warnings
 from xml.sax.saxutils import escape
 
+try:
+    import dask
+    import dask.array as da
+except ImportError:
+    dask = None
+
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
@@ -329,14 +335,20 @@ class ShowAverage(QObject, ConcurrentMixin):
                 elif part == "subset":
                     part_selection = indices & subset_indices
                 if np.any(part_selection):
-                    std = apply_columns_numpy(data.X,
-                                              lambda x: bottleneck.nanstd(x, axis=0),
-                                              part_selection,
-                                              callback=progress_interrupt)
-                    mean = apply_columns_numpy(data.X,
-                                               lambda x: bottleneck.nanmean(x, axis=0),
-                                               part_selection,
-                                               callback=progress_interrupt)
+                    if dask and isinstance(data.X, da.Array):
+                        subset = data.X[part_selection]
+                        std = da.nanstd(subset, axis=0)
+                        mean = da.nanmean(subset, axis=0)
+                        std, mean = dask.compute(std, mean)
+                    else:
+                        std = apply_columns_numpy(data.X,
+                                                  lambda x: bottleneck.nanstd(x, axis=0),
+                                                  part_selection,
+                                                  callback=progress_interrupt)
+                        mean = apply_columns_numpy(data.X,
+                                                   lambda x: bottleneck.nanmean(x, axis=0),
+                                                   part_selection,
+                                                   callback=progress_interrupt)
                     std = std[data_xsind]
                     mean = mean[data_xsind]
                     results.append((colorv, part, mean, std, part_selection))
