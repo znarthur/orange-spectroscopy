@@ -2,6 +2,12 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
+try:
+    import dask
+    from Orange.tests.test_dasktable import temp_dasktable
+except ImportError:
+    dask = None
+
 from AnyQt.QtCore import QRectF, Qt
 from AnyQt.QtGui import QFont
 from AnyQt.QtTest import QSignalSpy
@@ -307,7 +313,7 @@ class TestOWSpectra(WidgetTest):
         self.assertEqual(self.widget.curveplot.feature_color, None)
         self.widget.curveplot.feature_color = self.iris.domain.class_var
         iris_context = self.widget.settingsHandler.pack_data(self.widget)["context_settings"]
-        self.send_signal("Data", Table("housing"))
+        self.send_signal("Data", self.titanic)
         self.assertEqual(self.widget.curveplot.feature_color, None)
         # because previous settings match any domain, use only context for iris
         self.widget = self.create_widget(OWSpectra,
@@ -359,7 +365,7 @@ class TestOWSpectra(WidgetTest):
         out2 = self.get_output("Selection")
         self.assertEqual(len(out), 1)
         # while resending the same data as a different object should
-        self.send_signal("Data", Table("iris"))
+        self.send_signal("Data", self.iris.copy())
         out = self.get_output("Selection")
         self.assertIsNone(out, None)
 
@@ -437,7 +443,7 @@ class TestOWSpectra(WidgetTest):
             self.assertEqual(threshold + 1, clen())  # redraw curves as thick
 
     def test_unknown_feature_color(self):
-        data = Table("iris")
+        data = self.iris
         with data.unlocked():
             data[0][data.domain.class_var] = np.nan
         self.send_signal("Data", data)
@@ -660,6 +666,21 @@ class TestOWSpectra(WidgetTest):
         settings = {}
         OWSpectra.migrate_settings(settings, 4)
         self.assertNotIn("visual_settings", settings)
+
+
+@unittest.skipUnless(dask, "installed Orange does not support dask")
+class TestOWSpectraWithDask(TestOWSpectra):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.iris = temp_dasktable("iris")
+        cls.titanic = temp_dasktable("titanic")
+        cls.collagen = temp_dasktable("collagen")
+        cls.normal_data = [temp_dasktable(d) for d in cls.normal_data]
+        cls.unknown_last_instance = temp_dasktable(cls.unknown_last_instance)
+        cls.unknown_pts = temp_dasktable(cls.unknown_pts)
+        cls.only_inf = temp_dasktable(cls.only_inf)
+        cls.strange_data = [temp_dasktable(d) for d in cls.strange_data]
 
 
 if __name__ == "__main__":
