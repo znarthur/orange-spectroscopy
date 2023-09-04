@@ -6,7 +6,9 @@ def rolling_window(a, window):
     """
     Make an ndarray with a rolling window of the last dimension
 
-    Code from http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html
+    This used to use the trick from
+    http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html,
+    but numpy 1.20+ has newer primitives.
 
     Parameters
     ----------
@@ -33,13 +35,7 @@ def rolling_window(a, window):
            [ 6.,  7.,  8.]])
 
     """
-    if window < 1:
-        raise ValueError("`window` must be at least 1.")
-    if window > a.shape[-1]:
-        raise ValueError("`window` is too long.")
-    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-    strides = a.strides + (a.strides[-1],)
-    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    return np.lib.stride_tricks.sliding_window_view(a, window, axis=-1)
 
 
 def intersect_line_segments(x1, y1, x2, y2, x3, y3, x4, y4):
@@ -187,7 +183,7 @@ if __name__ == "__main__":
     print("sizeof ys", sys.getsizeof(ys))
 
     t = time.time()
-    intc = np.where(intersect_curves_chunked(x, ys, np.array([0, 1.0]), np.array([3000, 1.0])))
+    intc = np.where(intersect_curves(x, ys, np.array([0, 1.0]), np.array([3000, 1.0])))
     print(time.time()-t)
     print(intc)
 
@@ -196,4 +192,3 @@ if __name__ == "__main__":
     dists = distance_curves(x, ys, np.array([910, 1.0]))
     print(time.time() - t)
     print(dists)
-
