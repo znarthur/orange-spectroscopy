@@ -278,21 +278,21 @@ class InterruptException(Exception):
 
 class ShowAverage(QObject, ConcurrentMixin):
 
-    average_shown = pyqtSignal()
+    shown = pyqtSignal()
 
     def __init__(self, master):
         super().__init__(parent=master)
         ConcurrentMixin.__init__(self)
         self.master = master
 
-    def show_average(self):
+    def show(self):
         master = self.master
         master.clear_graph()  # calls cancel
         master.view_average_menu.setChecked(True)
         master.set_pen_colors()
         master.viewtype = AVERAGE
         if not master.data:
-            self.average_shown.emit()
+            self.shown.emit()
         else:
             color_var = master.feature_color
             self.start(self.compute_averages, master.data, color_var, master.subset_indices,
@@ -382,7 +382,93 @@ class ShowAverage(QObject, ConcurrentMixin):
         master.curves_cont.update()
         master.plot.vb.set_mode_panning()
 
-        self.average_shown.emit()
+        self.shown.emit()
+
+    def on_partial_result(self, result):
+        pass
+
+    def on_exception(self, ex: Exception):
+        if isinstance(ex, InterruptException):
+            return
+
+        raise ex
+
+
+class ShowIndividual(QObject, ConcurrentMixin):
+
+    shown = pyqtSignal()
+
+    def __init__(self, master):
+        super().__init__(parent=master)
+        ConcurrentMixin.__init__(self)
+        self.master = master
+
+    def show(self):
+        master = self.master
+        master.clear_graph()  # calls cancel
+        master.view_average_menu.setChecked(False)
+        master.set_pen_colors()
+        master.viewtype = INDIVIDUAL
+        if not master.data:
+            return
+        sampled_indices = master._compute_sample(master.data.X)
+        self.start(self.compute_curves, master.data_x, master.data.X,
+                   master.data_xsind, sampled_indices)
+
+    @staticmethod
+    def compute_curves(x, ys, data_xsind, sampled_indices, state: TaskState):
+        def progress_interrupt(i: float):
+            if state.is_interruption_requested():
+                raise InterruptException
+
+        progress_interrupt(0)
+        ys = np.asarray(ys[sampled_indices][:, data_xsind])
+        ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
+        progress_interrupt(0)
+        return x, ys, sampled_indices
+
+    def on_done(self, res):
+        x, ys, sampled_indices = res
+
+        master = self.master
+
+        if master.waterfall:
+            waterfall_constant = 0.1
+            miny = bottleneck.nanmin(ys)
+            maxy = bottleneck.nanmax(ys)
+            space = (maxy - miny) * waterfall_constant
+            mul = (np.arange(len(ys))*space + 1).reshape(-1, 1)
+            ys = ys * mul
+
+        # shuffle the data before drawing because classes often appear sequentially
+        # and the last class would then seem the most prevalent if colored
+        indices = list(range(len(sampled_indices)))
+        random.Random(master.sample_seed).shuffle(indices)
+        sampled_indices = [sampled_indices[i] for i in indices]
+        master.sampled_indices = sampled_indices
+        master.sampled_indices_inverse = {s: i for i, s in enumerate(master.sampled_indices)}
+        master.new_sampling.emit(len(master.sampled_indices))
+        ys = ys[indices]  # ys was already subsampled
+
+        master.curves.append((x, ys))
+
+        # add curves efficiently
+        for y in ys:
+            master.add_curve(x, y, ignore_bounds=True)
+
+        if x.size and ys.size:
+            bounding_rect = QGraphicsRectItem(QRectF(
+                QPointF(bottleneck.nanmin(x), bottleneck.nanmin(ys)),
+                QPointF(bottleneck.nanmax(x), bottleneck.nanmax(ys))))
+            bounding_rect.setPen(QPen(Qt.NoPen))  # prevents border of 1
+            master.curves_cont.add_bounds(bounding_rect)
+
+        master.curves_plotted.append((x, ys))
+        master.set_curve_pens()
+        master.curves_cont.update()
+        master.plot.vb.set_mode_panning()
+
+        self.shown.emit()
 
     def on_partial_result(self, result):
         pass
@@ -798,7 +884,10 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         SelectionGroupMixin.__init__(self)
 
         self.show_average_thread = ShowAverage(self)
-        self.show_average_thread.average_shown.connect(self.rescale)
+        self.show_average_thread.shown.connect(self.rescale)
+
+        self.show_individual_thread = ShowIndividual(self)
+        self.show_individual_thread.shown.connect(self.rescale)
 
         self.parent = parent
 
@@ -1148,6 +1237,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def clear_graph(self):
         self.show_average_thread.cancel()
+        self.show_individual_thread.cancel()
         self.highlighted = None
         # reset caching. if not, it is not cleared when view changing when zoomed
         self.curves_cont.setCacheMode(QGraphicsItem.NoCache)
@@ -1171,7 +1261,6 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.sampled_indices = []
         self.sampled_indices_inverse = {}
-        self.sampling = None
         self.new_sampling.emit(None)
 
         for m in self.markings:
@@ -1405,8 +1494,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.plot.scene().removeItem(v)
         self.connected_views = []
 
-    def add_curves(self, x, ys, addc=True):
-        """ Add multiple curves with the same x domain. """
+    def _compute_sample(self, ys):
         if len(ys) > MAX_INSTANCES_DRAWN:
             sample_selection = \
                 random.Random(self.sample_seed).sample(range(len(ys)), MAX_INSTANCES_DRAWN)
@@ -1419,44 +1507,9 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 subset_to_show = \
                     random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
             sampled_indices = sorted(sample_selection + list(subset_to_show))
-            self.sampling = True
         else:
             sampled_indices = list(range(len(ys)))
-        ys = np.asarray(self.data.X[sampled_indices][:, self.data_xsind])
-        ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
-
-        if self.waterfall:
-            waterfall_constant = 0.1
-            miny = bottleneck.nanmin(ys)
-            maxy = bottleneck.nanmax(ys)
-            space = (maxy - miny) * waterfall_constant
-            mul = (np.arange(len(ys))*space + 1).reshape(-1, 1)
-            ys = ys * mul
-
-        # shuffle the data before drawing because classes often appear sequentially
-        # and the last class would then seem the most prevalent if colored
-        indices = list(range(len(sampled_indices)))
-        random.Random(self.sample_seed).shuffle(indices)
-        sampled_indices = [sampled_indices[i] for i in indices]
-        self.sampled_indices = sampled_indices
-        self.sampled_indices_inverse = {s: i for i, s in enumerate(self.sampled_indices)}
-        self.new_sampling.emit(len(self.sampled_indices))
-        ys = ys[indices]  # ys was already subsampled
-
-        self.curves.append((x, ys))
-
-        # add curves efficiently
-        for y in ys:
-            self.add_curve(x, y, ignore_bounds=True)
-
-        if x.size and ys.size:
-            bounding_rect = QGraphicsRectItem(QRectF(
-                QPointF(bottleneck.nanmin(x), bottleneck.nanmin(ys)),
-                QPointF(bottleneck.nanmax(x), bottleneck.nanmax(ys))))
-            bounding_rect.setPen(QPen(Qt.NoPen))  # prevents border of 1
-            self.curves_cont.add_bounds(bounding_rect)
-
-        self.curves_plotted.append((x, ys))
+        return sampled_indices
 
     def add_curve(self, x, y, pen=None, ignore_bounds=False):
         c = FinitePlotCurveItem(x=x, y=y, pen=pen if pen else self.pen_normal[None])
@@ -1518,16 +1571,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.legend.setVisible(bool(self.legend.items))
 
     def show_individual(self):
-        self.clear_graph()
-        self.view_average_menu.setChecked(False)
-        self.set_pen_colors()
-        self.viewtype = INDIVIDUAL
-        if not self.data:
-            return
-        self.add_curves(self.data_x, self.data.X)
-        self.set_curve_pens()
-        self.curves_cont.update()
-        self.plot.vb.set_mode_panning()
+        self.show_individual_thread.show()
 
     def resample_curves(self, seed):
         self.sample_seed = seed
@@ -1572,7 +1616,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         self.view_waterfall_menu.setChecked(self.waterfall)
 
     def show_average(self):
-        self.show_average_thread.show_average()
+        self.show_average_thread.show()
 
     def update_view(self):
         if self.viewtype == INDIVIDUAL:

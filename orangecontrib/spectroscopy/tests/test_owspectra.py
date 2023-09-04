@@ -32,7 +32,7 @@ NAN = float("nan")
 def wait_for_graph(widget, timeout=5000):
     concurrent = widget.curveplot.show_average_thread
     if concurrent.task is not None:
-        spy = QSignalSpy(concurrent.average_shown)
+        spy = QSignalSpy(concurrent.shown)
         assert spy.wait(timeout), "Failed to update graph in the specified timeout"
 
 
