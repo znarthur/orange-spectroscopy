@@ -5,6 +5,12 @@ import random
 import warnings
 from xml.sax.saxutils import escape
 
+try:
+    import dask
+    import dask.array as da
+except ImportError:
+    dask = None
+
 from AnyQt.QtWidgets import QWidget, QGraphicsItem, QPushButton, QMenu, \
     QGridLayout, QAction, QVBoxLayout, QApplication, QWidgetAction, \
     QShortcut, QToolTip, QGraphicsRectItem, QGraphicsTextItem
@@ -329,14 +335,20 @@ class ShowAverage(QObject, ConcurrentMixin):
                 elif part == "subset":
                     part_selection = indices & subset_indices
                 if np.any(part_selection):
-                    std = apply_columns_numpy(data.X,
-                                              lambda x: bottleneck.nanstd(x, axis=0),
-                                              part_selection,
-                                              callback=progress_interrupt)
-                    mean = apply_columns_numpy(data.X,
-                                               lambda x: bottleneck.nanmean(x, axis=0),
-                                               part_selection,
-                                               callback=progress_interrupt)
+                    if dask and isinstance(data.X, da.Array):
+                        subset = data.X[part_selection]
+                        std = da.nanstd(subset, axis=0)
+                        mean = da.nanmean(subset, axis=0)
+                        std, mean = dask.compute(std, mean)
+                    else:
+                        std = apply_columns_numpy(data.X,
+                                                  lambda x: bottleneck.nanstd(x, axis=0),
+                                                  part_selection,
+                                                  callback=progress_interrupt)
+                        mean = apply_columns_numpy(data.X,
+                                                   lambda x: bottleneck.nanmean(x, axis=0),
+                                                   part_selection,
+                                                   callback=progress_interrupt)
                     std = std[data_xsind]
                     mean = mean[data_xsind]
                     results.append((colorv, part, mean, std, part_selection))
@@ -1032,7 +1044,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
                 index = self.sampled_indices[self.highlighted]
                 variables = self.data.domain.metas + self.data.domain.class_vars
                 text += "".join(
-                    '{} = {}\n'.format(attr.name, self.data[index][attr])
+                    '{} = {}\n'.format(attr.name, self.data[index, attr])
                     for attr in variables)
             elif self.viewtype == AVERAGE:
                 c = self.multiple_curves_info[self.highlighted]
@@ -1410,7 +1422,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             self.sampling = True
         else:
             sampled_indices = list(range(len(ys)))
-        ys = self.data.X[sampled_indices][:, self.data_xsind]
+        ys = np.asarray(self.data.X[sampled_indices][:, self.data_xsind])
         ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
 
         if self.waterfall:

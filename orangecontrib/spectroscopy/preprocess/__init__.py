@@ -358,11 +358,8 @@ class Normalize(Preprocess):
 class _NormalizeReferenceCommon(CommonDomainRef):
 
     def transformed(self, data):
-        if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
-            ref_X = self.interpolate_extend_to(self.reference, getx(data))
-            return replace_infs(data.X / ref_X)
-        else:
-            return data
+        ref_X = self.interpolate_extend_to(self.reference, getx(data))
+        return replace_infs(data.X / ref_X)
 
 
 class NormalizeReference(Preprocess):
@@ -817,12 +814,9 @@ class _SpSubtractCommon(CommonDomainRef):
         self.amount = amount
 
     def transformed(self, data):
-        if len(data):  # numpy does not like to divide shapes (0, b) by (a, b)
-            ref_X = self.interpolate_extend_to(self.reference, getx(data))
-            result = data.X - self.amount * ref_X
-            return result
-        else:
-            return data
+        ref_X = self.interpolate_extend_to(self.reference, getx(data))
+        result = data.X - self.amount * ref_X
+        return result
 
 
 class SpSubtract(Preprocess):

@@ -11,7 +11,7 @@ from Orange.tests import named_file
 from Orange.widgets.data.owfile import OWFile
 from orangecontrib.spectroscopy.data import getx, build_spec_table
 from orangecontrib.spectroscopy.io.neaspec import NeaReader, NeaReaderGSF
-from orangecontrib.spectroscopy.io.soleil import SelectColumnReader
+from orangecontrib.spectroscopy.io.soleil import SelectColumnReader, HDF5Reader_HERMES
 from orangecontrib.spectroscopy.preprocess import features_with_interpolation
 from orangecontrib.spectroscopy.io import SPAReader
 from orangecontrib.spectroscopy.io.agilent import agilentMosaicIFGReader
@@ -142,7 +142,9 @@ class TestOpusReader(unittest.TestCase):
 class TestHermesHDF5Reader(unittest.TestCase):
 
     def test_read(self):
-        d = Orange.data.Table("Hermes_HDF5/small_OK.hdf5")
+        reader = initialize_reader(HDF5Reader_HERMES,
+                                   "Hermes_HDF5/small_OK.hdf5")
+        d = reader.read()
         self.assertEqual(d[0, 0], 1000.1)
         self.assertEqual(d[1, 0], 2000.1)
         self.assertEqual(min(getx(d)), 100.1)
