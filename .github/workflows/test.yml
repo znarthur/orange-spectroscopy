@@ -108,9 +108,9 @@ jobs:
 
       - name: Upload code coverage
         if: |
-          matrix.python-version == '3.8' &&  
-          matrix.os == 'ubuntu-20.04' && 
-          matrix.tox_env == 'py-orange-released'
+          matrix.python-version == '3.9' &&
+          matrix.os == 'ubuntu-20.04' &&
+          matrix.tox_env == 'py-orange-dask'
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
