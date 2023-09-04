@@ -246,7 +246,7 @@ class TestOWSpectra(WidgetTest):
         x = x[sort]
         ys = data.X[:, sort]
         boola = intersect_curves(x, ys, np.array([0, 1.15]), np.array([3000, 1.15]))
-        intc = np.flatnonzero(boola)
+        intc = np.asarray(np.flatnonzero(boola))
         np.testing.assert_equal(intc, [191, 635, 638, 650, 712, 716, 717, 726])
 
     def test_line_point_distance(self):

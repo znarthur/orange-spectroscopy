@@ -1,6 +1,12 @@
 import bottleneck
 import numpy as np
 
+try:
+    import dask
+    import dask.array as da
+except ImportError:
+    dask = None
+
 
 def rolling_window(a, window):
     """
@@ -79,7 +85,7 @@ def intersect_curves(x, ys, q1, q2):
     return np.any(r, axis=1)
 
 
-def intersect_curves_chunked(x, ys, ys_sind, q1, q2, xmin, xmax):
+def intersect_curves_chunked_numpy(x, ys, ys_sind, q1, q2, xmin, xmax):
     """
     Processes data in chunks, othewise same as intersect
     curves. Decreases maximum memory use.
@@ -93,6 +99,20 @@ def intersect_curves_chunked(x, ys, ys_sind, q1, q2, xmin, xmax):
         rs.append(ic)
     ica = np.concatenate(rs)
     return ica
+
+
+def intersect_curves_chunked(x, ys, ys_sind, q1, q2, xmin, xmax):
+    if isinstance(ys, np.ndarray):
+        return intersect_curves_chunked_numpy(x, ys, ys_sind, q1, q2, xmin, xmax)
+    elif dask and isinstance(ys, da.Array):
+        x = x[xmin:xmax]
+        with dask.config.set(**{'array.slicing.split_large_chunks': True}):
+            ys = ys[:, ys_sind]
+        ys = ys[:, xmin:xmax]
+        ic = intersect_curves(x, ys, q1, q2)
+        return dask.compute(ic)
+    else:
+        raise RuntimeError("unsupported input type")
 
 
 def distance_line_segment(x1, y1, x2, y2, x3, y3):
@@ -119,6 +139,8 @@ def distance_curves(x, ys, q1):
     :param q1: a point to measure distance to.
     :return:
     """
+    if dask and isinstance(ys, da.Array):
+        raise RuntimeError("distance_curves does not support dask arrays")
 
     # convert curves into a series of startpoints and endpoints
     xp = rolling_window(x, 2)
