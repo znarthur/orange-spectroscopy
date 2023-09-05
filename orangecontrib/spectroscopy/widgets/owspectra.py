@@ -877,6 +877,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
     new_sampling = pyqtSignal(object)
     highlight_changed = pyqtSignal()
     locked_axes_changed = pyqtSignal(bool)
+    graph_shown = pyqtSignal()
 
     def __init__(self, parent: OWWidget, select=SELECTNONE):
         QWidget.__init__(self)
@@ -885,9 +886,11 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         self.show_average_thread = ShowAverage(self)
         self.show_average_thread.shown.connect(self.rescale)
+        self.show_average_thread.shown.connect(self.graph_shown.emit)
 
         self.show_individual_thread = ShowIndividual(self)
         self.show_individual_thread.shown.connect(self.rescale)
+        self.show_individual_thread.shown.connect(self.graph_shown.emit)
 
         self.parent = parent
 

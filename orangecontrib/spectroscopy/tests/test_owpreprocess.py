@@ -7,6 +7,7 @@ from Orange.preprocess.preprocess import Preprocess
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.tests import spectral_preprocess
 from orangecontrib.spectroscopy.tests.spectral_preprocess import pack_editor, wait_for_preview
+from orangecontrib.spectroscopy.tests.test_owspectra import wait_for_graph
 from orangecontrib.spectroscopy.widgets.owpreprocess import OWPreprocess
 from orangecontrib.spectroscopy.widgets.preprocessors.misc import \
     CutEditor, SavitzkyGolayFilteringEditor
@@ -100,6 +101,8 @@ class TestOWPreprocess(WidgetTest):
         data = SMALL_COLLAGEN
         self.send_signal("Data", data)
         wait_for_preview(self.widget)
+        wait_for_graph(self.widget.curveplot)
+        wait_for_graph(self.widget.curveplot_after)
         self.widget.curveplot.highlight(1)
         self.assertEqual(self.widget.curveplot_after.highlighted, 1)
         self.widget.curveplot.highlight(None)
