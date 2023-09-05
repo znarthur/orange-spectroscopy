@@ -7,6 +7,12 @@ from base64 import b64decode
 import numpy as np
 from PIL import Image
 
+try:
+    import dask
+    from Orange.tests.test_dasktable import temp_dasktable
+except ImportError:
+    dask = None
+
 from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
 import Orange
@@ -470,6 +476,20 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(settings, {"compat_no_group": True})
         self.widget = self.create_widget(OWHyper, stored_settings=settings)
         self.assertTrue(self.widget.compat_no_group)
+
+
+
+@unittest.skipUnless(dask, "installed Orange does not support dask")
+class TestOWHyperWithDask(TestOWHyper):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.iris = temp_dasktable("iris")
+        cls.whitelight = temp_dasktable("whitelight.gsf")
+        cls.whitelight_unknown = temp_dasktable(cls.whitelight_unknown)
+        cls.iris1 = temp_dasktable(cls.iris1)
+        cls.strange_data = [temp_dasktable(d) if d is not None else None
+                            for d in cls.strange_data]
 
 
 class TestVisibleImage(WidgetTest):
