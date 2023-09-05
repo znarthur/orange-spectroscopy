@@ -1703,6 +1703,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     def shutdown(self):
         self.show_average_thread.shutdown()
+        self.show_individual_thread.shutdown()
 
     @classmethod
     def migrate_settings_sub(cls, settings, version):
