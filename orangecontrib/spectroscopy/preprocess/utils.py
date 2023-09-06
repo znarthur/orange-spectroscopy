@@ -1,4 +1,3 @@
-import bottleneck
 import numpy as np
 from Orange.data import Table, Domain
 from Orange.data.util import SharedComputeValue
@@ -145,7 +144,7 @@ def nan_extend_edges_and_interpolate(xs, X):
     so that they do not propagate.
     """
     nans = None
-    if bottleneck.anynan(X):
+    if np.any(np.isnan(X)):
         nans = np.isnan(X)
         X = X.copy()
         xs, xsind, mon, X = transform_to_sorted_wavenumbers(xs, X)
@@ -174,8 +173,11 @@ def transform_back_to_features(xsind, mon, X):
 def fill_edges_1d(l):
     """Replace (inplace!) NaN at sides with the closest value"""
     loc = np.where(~np.isnan(l))[0]
-    if len(loc):
-        fi, li = loc[[0, -1]]
+    try:
+        fi, li = np.array(loc[[0, -1]])
+    except IndexError:
+        pass  # nothing to do, no valid value
+    else:
         l[:fi] = l[fi]
         l[li + 1:] = l[li]
 
@@ -188,7 +190,7 @@ def fill_edges(mat):
 
 def remove_whole_nan_ys(x, ys):
     """Remove whole NaN columns of ys with corresponding x coordinates."""
-    whole_nan_columns = bottleneck.allnan(ys, axis=0)
+    whole_nan_columns = np.isnan(ys).all(axis=0)
     if np.any(whole_nan_columns):
         x = x[~whole_nan_columns]
         ys = ys[:, ~whole_nan_columns]

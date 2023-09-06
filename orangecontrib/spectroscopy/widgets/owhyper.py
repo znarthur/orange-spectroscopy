@@ -86,6 +86,7 @@ def refresh_integral_markings(dis, markings_list, curveplot):
 
             if el[0] == "curve":
                 bs_x, bs_ys, penargs = el[1]
+                bs_x, bs_ys = np.asarray(bs_x), np.asarray(bs_ys)
                 curve = pg.PlotCurveItem()
                 curve.setPen(pg.mkPen(color=QColor(color), **penargs))
                 curve.setZValue(10)
@@ -94,6 +95,7 @@ def refresh_integral_markings(dis, markings_list, curveplot):
 
             elif el[0] == "fill":
                 (x1, ys1), (x2, ys2) = el[1]
+                bs_x, bs_ys = np.asarray(bs_x), np.asarray(bs_ys)
                 phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
                 plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
                 color = QColor(color)

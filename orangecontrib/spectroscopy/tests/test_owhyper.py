@@ -201,9 +201,11 @@ class TestOWHyper(WidgetTest):
         self.assertIsNone(self.get_output("Selection"), None)
 
     def test_unknown(self):
-        self.send_signal("Data", self.whitelight)
+        self.send_signal("Data", self.whitelight[:10])
+        wait_for_image(self.widget)
         levels = self.widget.imageplot.img.levels
-        self.send_signal("Data", self.whitelight_unknown)
+        self.send_signal("Data", self.whitelight_unknown[:10])
+        wait_for_image(self.widget)
         levelsu = self.widget.imageplot.img.levels
         np.testing.assert_equal(levelsu, levels)
 
@@ -271,7 +273,8 @@ class TestOWHyper(WidgetTest):
         oldvars = data.domain.variables + data.domain.metas
         group_at = [a for a in newvars if a not in oldvars][0]
         unselected = group_at.to_val("Unselected")
-        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != unselected)]
+        out = out[np.asarray(np.flatnonzero(
+            out.transform(Orange.data.Domain([group_at])).X != unselected))]
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o["map_x"].value for o in out], [1, 2, 3, 4])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
@@ -300,7 +303,7 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(self.widget.curveplot.feature_color.name, "iris")
 
     def test_set_variable_color(self):
-        data = Orange.data.Table("iris.tab")
+        data = self.iris
         ndom = Orange.data.Domain(data.domain.attributes[:-1], data.domain.class_var,
                                   metas=[data.domain.attributes[-1]])
         data = data.transform(ndom)
@@ -375,7 +378,7 @@ class TestOWHyper(WidgetTest):
             self.assertGreater(os.path.getsize(fname), 1000)
 
     def test_unknown_values_axes(self):
-        data = Orange.data.Table("iris")
+        data = self.iris.copy()
         with data.unlocked():
             data.Y[0] = np.nan
         self.send_signal("Data", data)
