@@ -17,6 +17,7 @@ class OWSNR(OWWidget):
         "Calculates Signal-to-Noise Ratio (SNR), Averages or Standard Deviation by coordinates.")
 
     icon = "icons/snr.svg"
+    keywords = ["signal", "noise", "standard", "deviation", "average"]
 
     # Define inputs and outputs
     class Inputs:
