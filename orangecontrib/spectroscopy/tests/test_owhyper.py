@@ -116,8 +116,16 @@ class TestOWHyper(WidgetTest):
         irisunknown = Interpolate(np.arange(20))(cls.iris)
         # dataset without any attributes, but XY
         whitelight0 = cls.whitelight.transform(
-            Orange.data.Domain([], None, metas=cls.whitelight.domain.metas))
-        cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0]
+            Orange.data.Domain([], None, metas=cls.whitelight.domain.metas))[:100]
+        unknowns = cls.iris.copy()
+        with unknowns.unlocked():
+            unknowns.X[:, :] = float("nan")
+        single_pixel = cls.iris[:50]  # all image coordinates map to one spot
+        unknown_pixel = single_pixel.copy()
+        with unknown_pixel.unlocked():
+            unknown_pixel.Y[:] = float("nan")
+        cls.strange_data = [None, cls.iris1, iris0, empty, irisunknown, whitelight0,
+                            unknowns, single_pixel, unknown_pixel]
 
     def setUp(self):
         self.widget = self.create_widget(OWHyper)  # type: OWHyper
@@ -159,7 +167,9 @@ class TestOWHyper(WidgetTest):
 
     def test_strange(self):
         for data in self.strange_data:
+            self.widget = self.create_widget(OWHyper)
             self.send_signal("Data", data)
+            wait_for_image(self.widget)
             self.try_big_selection()
 
     def test_context_not_open_invalid(self):

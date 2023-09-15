@@ -43,11 +43,14 @@ def values_to_linspace(vals):
 
 def location_values(vals, linspace):
     vals = np.asarray(vals)
-    if linspace[2] == 1:  # everything is the same value
+    if linspace is None or linspace[2] == 1:  # everything is the same value
         width = 1
     else:
         width = (linspace[1] - linspace[0]) / (linspace[2] - 1)
-    return (vals - linspace[0]) / width
+    start = 0
+    if linspace is not None:
+        start = linspace[0]
+    return (vals - start) / width
 
 
 def index_values(vals, linspace):
