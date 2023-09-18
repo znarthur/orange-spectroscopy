@@ -472,7 +472,7 @@ class Interpolate(Preprocess):
                                            self.handle_nans, interpfn=self.interpfn)
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
-        return data.from_table(domain, data)
+        return data.transform(domain)
 
 
 class NotAllContinuousException(Exception):
@@ -505,7 +505,7 @@ class InterpolateToDomain(Preprocess):
         domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
                                     data.domain.metas)
         data = data.transform(domain)
-        with data.unlocked(data.X):
+        with data.unlocked_reference(data.X):
             data.X = X
         return data
 
