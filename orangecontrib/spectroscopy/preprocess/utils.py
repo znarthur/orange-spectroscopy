@@ -162,10 +162,8 @@ def nan_extend_edges_and_interpolate(xs, X):
     nans = None
     if np.any(np.isnan(X)):
         nans = np.isnan(X)
-        X = X.copy()
         xs, xsind, mon, X = transform_to_sorted_wavenumbers(xs, X)
-        fill_edges(X)
-        X = interp1d_with_unknowns_numpy(xs[xsind], X, xs[xsind])
+        X = interp1d_with_unknowns_numpy(xs[xsind], X, xs[xsind], sides=None)
         X = transform_back_to_features(xsind, mon, X)
     return X, nans
 
@@ -219,7 +217,7 @@ def remove_whole_nan_ys(x, ys):
     return x, ys
 
 
-def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
+def interp1d_with_unknowns_numpy(x, ys, points, kind="linear", sides=np.nan):
     if kind != "linear":
         raise NotImplementedError
     out = full_like_type(ys, (len(ys), len(points)), np.nan)
@@ -232,7 +230,7 @@ def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
         yt = y[~nan]
         # do not interpolate unknowns at the edges
         if len(xt):  # check if all values are removed
-            out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
+            out[i] = np.interp(points, xt, yt, left=sides, right=sides)
     return out
 
 
