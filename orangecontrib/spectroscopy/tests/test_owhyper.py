@@ -119,11 +119,11 @@ class TestOWHyper(WidgetTest):
         # dataset without rows
         empty = cls.iris[:0]
         # dataset with large blank regions
-        irisunknown = Interpolate(np.arange(20))(cls.iris)
+        irisunknown = Interpolate(np.arange(20))(cls.iris)[:20]
         # dataset without any attributes, but XY
         whitelight0 = cls.whitelight.transform(
             Orange.data.Domain([], None, metas=cls.whitelight.domain.metas))[:100]
-        unknowns = cls.iris.copy()
+        unknowns = cls.iris[::10].copy()
         with unknowns.unlocked():
             unknowns.X[:, :] = float("nan")
         single_pixel = cls.iris[:50]  # all image coordinates map to one spot
