@@ -1,4 +1,5 @@
 import collections.abc
+import math
 from collections import OrderedDict
 from xml.sax.saxutils import escape
 
@@ -57,6 +58,10 @@ class InterruptException(Exception):
 
 
 class ImageTooBigException(Exception):
+    pass
+
+
+class UndefinedImageException(Exception):
     pass
 
 
@@ -125,7 +130,7 @@ def get_levels(img):
     while img.size > 2 ** 16:
         img = img[::2, ::2]
     mn, mx = bottleneck.nanmin(img), bottleneck.nanmax(img)
-    if mn == mx:
+    if mn == mx or math.isnan(mx) or math.isnan(mn):
         mn = 0
         mx = 255
     return [mn, mx]
@@ -793,6 +798,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             self.data_ids = {}
 
     def refresh_img_selection(self):
+        if self.lsx is None or self.lsy is None:
+            return
         selected_px = np.zeros((self.lsy[2], self.lsx[2]), dtype=np.uint8)
         selected_px[self.data_imagepixels[self.data_valid_positions, 0],
                     self.data_imagepixels[self.data_valid_positions, 1]] = \
@@ -867,12 +874,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         self.data_imagepixels = None
         self.data_valid_positions = None
 
-        if self.data and self.attr_x and self.attr_y:
-            self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
-                       self.parent.image_values(),
-                       self.parent.image_values_fixed_levels())
-        else:
-            self.image_updated.emit()
+        self.start(self.compute_image, self.data, self.attr_x, self.attr_y,
+                    self.parent.image_values(),
+                    self.parent.image_values_fixed_levels())
 
     def set_visible_image(self, img: np.ndarray, rect: QRectF):
         self.vis_img.setImage(img)
@@ -895,6 +899,9 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
     @staticmethod
     def compute_image(data: Orange.data.Table, attr_x, attr_y,
                       image_values, image_values_fixed_levels, state: TaskState):
+
+        if data is None or attr_x is None or attr_y is None:
+            raise UndefinedImageException
 
         def progress_interrupt(i: float):
             if state.is_interruption_requested():
@@ -922,17 +929,22 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         res.image_values_fixed_levels = image_values_fixed_levels
         progress_interrupt(0)
 
-        if lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
+        if lsx is not None and lsy is not None \
+                and lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
             raise ImageTooBigException((lsx[-1], lsy[-1]))
 
-        # the code below does this, but part-wise:
-        # d = image_values(data).X[:, 0]
-        parts = []
-        for slice in split_to_size(len(data), 10000):
-            part = image_values(data[slice]).X
-            parts.append(part)
-            progress_interrupt(0)
-        d = np.concatenate(parts)
+        if lsx is not None and lsy is not None:
+            # the code below does this, but part-wise:
+            # d = image_values(data).X[:, 0]
+            parts = []
+            for slice in split_to_size(len(data), 10000):
+                part = image_values(data[slice]).X
+                parts.append(part)
+                progress_interrupt(0)
+            d = np.concatenate(parts)
+        else:
+            # no need to compute integrals when nothing will be shown
+            d = np.full((data.X.shape[0], 1), float("nan"))
 
         res.d = d
         progress_interrupt(0)
@@ -957,25 +969,26 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
         if invalid_positions:
             self.parent.Information.not_shown(invalid_positions)
 
-        imdata = np.ones((lsy[2], lsx[2], d.shape[1])) * float("nan")
-        imdata[yindex[valid], xindex[valid]] = d[valid]
+        if lsx is not None and lsy is not None:
+            imdata = np.ones((lsy[2], lsx[2], d.shape[1])) * float("nan")
+            imdata[yindex[valid], xindex[valid]] = d[valid]
 
-        self.data_values = d
-        self.data_imagepixels = np.vstack((yindex, xindex)).T
-        self.img.setImage(imdata, autoLevels=False)
-        self.update_levels()
-        self.update_rgb_levels()
-        self.update_color_schema()
-        self.update_legend_visible()
+            self.data_values = d
+            self.data_imagepixels = np.vstack((yindex, xindex)).T
+            self.img.setImage(imdata, autoLevels=False)
+            self.update_levels()
+            self.update_rgb_levels()
+            self.update_color_schema()
+            self.update_legend_visible()
 
-        # shift centres of the pixels so that the axes are useful
-        shiftx = _shift(lsx)
-        shifty = _shift(lsy)
-        left = lsx[0] - shiftx
-        bottom = lsy[0] - shifty
-        width = (lsx[1]-lsx[0]) + 2*shiftx
-        height = (lsy[1]-lsy[0]) + 2*shifty
-        self.img.setRect(QRectF(left, bottom, width, height))
+            # shift centres of the pixels so that the axes are useful
+            shiftx = _shift(lsx)
+            shifty = _shift(lsy)
+            left = lsx[0] - shiftx
+            bottom = lsy[0] - shifty
+            width = (lsx[1]-lsx[0]) + 2*shiftx
+            height = (lsy[1]-lsy[0]) + 2*shifty
+            self.img.setRect(QRectF(left, bottom, width, height))
 
         self.refresh_img_selection()
         self.image_updated.emit()
@@ -989,6 +1002,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
 
         if isinstance(ex, ImageTooBigException):
             self.parent.Error.image_too_big(ex.args[0][0], ex.args[0][1])
+            self.image_updated.emit()
+        elif isinstance(ex, UndefinedImageException):
             self.image_updated.emit()
         else:
             raise ex
