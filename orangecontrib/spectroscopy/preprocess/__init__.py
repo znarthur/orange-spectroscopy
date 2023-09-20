@@ -440,7 +440,7 @@ class _InterpolateCommon:
             return np.ones((len(data), len(self.points))) * np.nan
         interpfn = self.interpfn
         if interpfn is None:
-            if self.handle_nans and bottleneck.anynan(ys):
+            if self.handle_nans and np.any(np.isnan(ys)):
                 if self.kind == "linear":
                     interpfn = interp1d_with_unknowns_numpy
                 else:
