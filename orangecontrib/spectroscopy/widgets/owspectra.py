@@ -296,11 +296,11 @@ class ShowAverage(QObject, ConcurrentMixin):
         else:
             color_var = master.feature_color
             self.start(self.compute_averages, master.data, color_var, master.subset_indices,
-                       master.selection_group, master.data_xsind, master.selection_type)
+                       master.selection_group, master.selection_type)
 
     @staticmethod
     def compute_averages(data: Orange.data.Table, color_var, subset_indices,
-                         selection_group, data_xsind, selection_type, state: TaskState):
+                         selection_group, selection_type, state: TaskState):
 
         def progress_interrupt(i: float):
             if state.is_interruption_requested():
@@ -349,9 +349,8 @@ class ShowAverage(QObject, ConcurrentMixin):
                                                    lambda x: bottleneck.nanmean(x, axis=0),
                                                    part_selection,
                                                    callback=progress_interrupt)
-                    std = std[data_xsind]
-                    mean = mean[data_xsind]
                     results.append((colorv, part, mean, std, part_selection))
+
         progress_interrupt(0)
         return results
 
@@ -364,6 +363,8 @@ class ShowAverage(QObject, ConcurrentMixin):
         x = master.data_x
 
         for colorv, part, mean, std, part_selection in res:
+            std = std[master.data_xsind]
+            mean = mean[master.data_xsind]
             if part is None:
                 pen = master.pen_normal if np.any(master.subset_indices) else master.pen_subset
             elif part == "selection" and master.selection_type:
@@ -413,16 +414,16 @@ class ShowIndividual(QObject, ConcurrentMixin):
             return
         sampled_indices = master._compute_sample(master.data.X)
         self.start(self.compute_curves, master.data_x, master.data.X,
-                   master.data_xsind, sampled_indices)
+                   sampled_indices)
 
     @staticmethod
-    def compute_curves(x, ys, data_xsind, sampled_indices, state: TaskState):
+    def compute_curves(x, ys, sampled_indices, state: TaskState):
         def progress_interrupt(i: float):
             if state.is_interruption_requested():
                 raise InterruptException
 
         progress_interrupt(0)
-        ys = np.asarray(ys[sampled_indices][:, data_xsind])
+        ys = np.asarray(ys[sampled_indices])
         ys[np.isinf(ys)] = np.nan  # remove infs that could ruin display
         progress_interrupt(0)
         return x, ys, sampled_indices
@@ -431,6 +432,7 @@ class ShowIndividual(QObject, ConcurrentMixin):
         x, ys, sampled_indices = res
 
         master = self.master
+        ys = ys[:, master.data_xsind]
 
         if master.waterfall:
             waterfall_constant = 0.1
