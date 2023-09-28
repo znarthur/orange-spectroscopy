@@ -388,12 +388,6 @@ class ShowAverage(QObject, ConcurrentMixin):
     def on_partial_result(self, result):
         pass
 
-    def on_exception(self, ex: Exception):
-        if isinstance(ex, InterruptException):
-            return
-
-        raise ex
-
 
 class ShowIndividual(QObject, ConcurrentMixin):
 
@@ -474,12 +468,6 @@ class ShowIndividual(QObject, ConcurrentMixin):
 
     def on_partial_result(self, result):
         pass
-
-    def on_exception(self, ex: Exception):
-        if isinstance(ex, InterruptException):
-            return
-
-        raise ex
 
 
 class InteractiveViewBox(ViewBox):
