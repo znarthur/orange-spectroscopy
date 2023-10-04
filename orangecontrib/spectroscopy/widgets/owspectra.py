@@ -1508,7 +1508,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             subset_additional = MAX_INSTANCES_DRAWN - (len(subset) - len(subset_to_show))
             if len(subset_to_show) > subset_additional:
                 subset_to_show = \
-                    random.Random(self.sample_seed).sample(subset_to_show, subset_additional)
+                    random.Random(self.sample_seed).sample(sorted(subset_to_show), subset_additional)
             sampled_indices = sorted(sample_selection + list(subset_to_show))
         else:
             sampled_indices = list(range(len(ys)))
