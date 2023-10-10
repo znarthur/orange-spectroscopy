@@ -224,7 +224,9 @@ def interp1d_with_unknowns_numpy(x, ys, points, kind="linear", sides=np.nan):
     sorti = np.argsort(x)
     x = x[sorti]
     for i, y in enumerate(ys):
-        y = y[sorti]
+        # the next line ensures numpy arrays
+        # for Dask, it would be much more efficient to work with larger sections
+        y = np.array(y[sorti])
         nan = np.isnan(y)
         xt = x[~nan]
         yt = y[~nan]
