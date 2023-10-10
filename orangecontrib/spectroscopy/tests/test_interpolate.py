@@ -15,6 +15,7 @@ from orangecontrib.spectroscopy.preprocess import Interpolate, \
     interp1d_wo_unknowns_scipy, InterpolateToDomain, NotAllContinuousException, \
     nan_extend_edges_and_interpolate
 from orangecontrib.spectroscopy.data import getx
+from orangecontrib.spectroscopy.tests.util import spectra_table
 
 
 class TestInterpolate(unittest.TestCase):
@@ -25,6 +26,9 @@ class TestInterpolate(unittest.TestCase):
         cls.iris = Orange.data.Table("iris")[:5].copy()
         cls.collagen = Orange.data.Table("collagen.csv")[:5]
         cls.titanic = Orange.data.Table("titanic")
+        ys = np.arange(16, dtype=float).reshape(4, 4)
+        np.fill_diagonal(ys, np.nan)
+        cls.range16 = spectra_table([0, 1, 2, 3], X=ys)
 
     def test_nofloatname(self):
         data = self.iris
@@ -158,6 +162,23 @@ class TestInterpolate(unittest.TestCase):
         np.testing.assert_allclose(interp, res)
         np.testing.assert_allclose(unknowns, resu)
 
+    def test_nan_extend_edges_and_interpolate_mixed(self):
+        data = self.range16
+
+        xs = getx(data)
+        ys = data.X
+        v, n = nan_extend_edges_and_interpolate(xs, ys)
+        exp = np.arange(16, dtype=float).reshape(4, 4)
+        exp[0, 0] = 1
+        exp[3, 3] = 14
+        np.testing.assert_equal(v, exp)
+
+        mix = np.array([0, 2, 1, 3])
+        xsm = xs[mix]
+        ysm = ys[:, mix]
+        v, n = nan_extend_edges_and_interpolate(xsm, ysm)
+        np.testing.assert_equal(v[:, mix], exp)
+
 
 class TestInterpolateToDomain(unittest.TestCase):
 
@@ -194,6 +215,7 @@ class TestInterpolateDask(TestInterpolate):
         super().setUpClass()
         cls.iris = temp_dasktable(cls.iris)
         cls.collagen = temp_dasktable(cls.collagen)
+        cls.range16 = temp_dasktable(cls.range16)
 
 
 @unittest.skipUnless(dask, "installed Orange does not support dask")
