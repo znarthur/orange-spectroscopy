@@ -29,7 +29,6 @@ class PLSModel(SklModel):
 
     def predict(self, X):
         vals = self.skl_model.predict(X)
-        assert vals.shape[1] == 1  # currently support only single class
         return vals.ravel()
 
     def __str__(self):

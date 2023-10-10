@@ -53,9 +53,10 @@ class OWPLS(OWBaseLearner):
         if self.model is not None:
             domain = Domain(
                 [ContinuousVariable("coef")], metas=[StringVariable("name")])
-            coefs = list(self.model.coefficients)
+            coefs = self.model.coefficients
+            coefs = coefs.reshape(-1, 1)
             waves = [[attr.name] for attr in self.model.domain.attributes]
-            coef_table = Table.from_numpy(domain, X=list(coefs), metas=waves)
+            coef_table = Table.from_numpy(domain, X=coefs, metas=waves)
             coef_table.name = "coefficients"
         self.Outputs.coefsdata.send(coef_table)
 
