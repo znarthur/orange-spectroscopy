@@ -9,9 +9,6 @@ from xml.sax.saxutils import escape
 try:
     import dask
     import dask.array as da
-    import dask.distributed
-    dask_client = dask.distributed.Client(processes=False, n_workers=2,
-                                          threads_per_worker=4, dashboard_address=None)
 except ImportError:
     dask = None
 
@@ -46,6 +43,7 @@ from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate, PlotWidget
 from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 
+from orangecontrib.spectroscopy import dask_client
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import apply_columns_numpy
 from orangecontrib.spectroscopy.widgets.line_geometry import \
