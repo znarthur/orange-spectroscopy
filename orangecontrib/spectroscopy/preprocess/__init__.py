@@ -440,7 +440,7 @@ class _InterpolateCommon:
             return np.ones((len(data), len(self.points))) * np.nan
         interpfn = self.interpfn
         if interpfn is None:
-            if self.handle_nans and bottleneck.anynan(ys):
+            if self.handle_nans and np.any(np.isnan(ys)):
                 if self.kind == "linear":
                     interpfn = interp1d_with_unknowns_numpy
                 else:
@@ -472,7 +472,7 @@ class Interpolate(Preprocess):
                                            self.handle_nans, interpfn=self.interpfn)
         domain = Orange.data.Domain(atts, data.domain.class_vars,
                                     data.domain.metas)
-        return data.from_table(domain, data)
+        return data.transform(domain)
 
 
 class NotAllContinuousException(Exception):
@@ -505,7 +505,7 @@ class InterpolateToDomain(Preprocess):
         domain = Orange.data.Domain(self.target.domain.attributes, data.domain.class_vars,
                                     data.domain.metas)
         data = data.transform(domain)
-        with data.unlocked(data.X):
+        with data.unlocked_reference(data.X):
             data.X = X
         return data
 

@@ -9,9 +9,6 @@ from xml.sax.saxutils import escape
 try:
     import dask
     import dask.array as da
-    import dask.distributed
-    dask_client = dask.distributed.Client(processes=False, n_workers=2,
-                                          threads_per_worker=4, dashboard_address=None)
 except ImportError:
     dask = None
 
@@ -46,6 +43,7 @@ from Orange.widgets.utils.concurrent import TaskState, ConcurrentMixin
 from Orange.widgets.visualize.utils.plotutils import HelpEventDelegate, PlotWidget
 from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter
 
+from orangecontrib.spectroscopy import dask_client
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.utils import apply_columns_numpy
 from orangecontrib.spectroscopy.widgets.line_geometry import \
@@ -1324,6 +1322,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
         old_sel_ci = current_selection()
 
+        changed = False
+
         if add_to_group:  # both keys - need to test it before add_group
             selnum = np.max(self.selection_group)
         elif add_group:
@@ -1333,15 +1333,20 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
         else:
             # remove the current selection
             redraw_curve_indices.update(old_sel_ci)
-            self.selection_group *= 0  # remove
+            if np.any(self.selection_group):
+                self.selection_group *= 0  # remove
+                changed = True
             selnum = 1
         # add new
         if data_indices is not None:
             self.selection_group[data_indices] = selnum
             redraw_curve_indices.update(
                 icurve for idata, icurve in invd.items() if idata in data_indices_set)
+            changed = True
 
         fixes = self.make_selection_valid()
+        if fixes:
+            changed = True
         redraw_curve_indices.update(
             icurve for idata, icurve in invd.items() if idata in fixes)
 
@@ -1353,7 +1358,8 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
             redraw_curve_indices.update(old_sel_ci)
 
         self.set_curve_pens(redraw_curve_indices)
-        self.selection_changed_confirm()
+        if changed:
+            self.selection_changed_confirm()
 
     def make_selection_valid(self):
         """ Make the selection valid and return the changed positions. """

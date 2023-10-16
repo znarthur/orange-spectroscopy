@@ -7,6 +7,12 @@ from base64 import b64decode
 import numpy as np
 from PIL import Image
 
+try:
+    import dask
+    from Orange.tests.test_dasktable import temp_dasktable
+except ImportError:
+    dask = None
+
 from AnyQt.QtCore import QPointF, Qt, QRectF
 from AnyQt.QtTest import QSignalSpy
 import Orange
@@ -113,11 +119,11 @@ class TestOWHyper(WidgetTest):
         # dataset without rows
         empty = cls.iris[:0]
         # dataset with large blank regions
-        irisunknown = Interpolate(np.arange(20))(cls.iris)
+        irisunknown = Interpolate(np.arange(20))(cls.iris)[:20]
         # dataset without any attributes, but XY
         whitelight0 = cls.whitelight.transform(
             Orange.data.Domain([], None, metas=cls.whitelight.domain.metas))[:100]
-        unknowns = cls.iris.copy()
+        unknowns = cls.iris[::10].copy()
         with unknowns.unlocked():
             unknowns.X[:, :] = float("nan")
         single_pixel = cls.iris[:50]  # all image coordinates map to one spot
@@ -195,9 +201,11 @@ class TestOWHyper(WidgetTest):
         self.assertIsNone(self.get_output("Selection"), None)
 
     def test_unknown(self):
-        self.send_signal("Data", self.whitelight)
+        self.send_signal("Data", self.whitelight[:10])
+        wait_for_image(self.widget)
         levels = self.widget.imageplot.img.levels
-        self.send_signal("Data", self.whitelight_unknown)
+        self.send_signal("Data", self.whitelight_unknown[:10])
+        wait_for_image(self.widget)
         levelsu = self.widget.imageplot.img.levels
         np.testing.assert_equal(levelsu, levels)
 
@@ -265,7 +273,8 @@ class TestOWHyper(WidgetTest):
         oldvars = data.domain.variables + data.domain.metas
         group_at = [a for a in newvars if a not in oldvars][0]
         unselected = group_at.to_val("Unselected")
-        out = out[np.flatnonzero(out.transform(Orange.data.Domain([group_at])).X != unselected)]
+        out = out[np.asarray(np.flatnonzero(
+            out.transform(Orange.data.Domain([group_at])).X != unselected))]
         self.assertEqual(len(out), 4)
         np.testing.assert_equal([o["map_x"].value for o in out], [1, 2, 3, 4])
         np.testing.assert_equal([o[group_at].value for o in out], ["G1", "G2", "G3", "G3"])
@@ -294,7 +303,7 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(self.widget.curveplot.feature_color.name, "iris")
 
     def test_set_variable_color(self):
-        data = Orange.data.Table("iris.tab")
+        data = self.iris
         ndom = Orange.data.Domain(data.domain.attributes[:-1], data.domain.class_var,
                                   metas=[data.domain.attributes[-1]])
         data = data.transform(ndom)
@@ -369,7 +378,7 @@ class TestOWHyper(WidgetTest):
             self.assertGreater(os.path.getsize(fname), 1000)
 
     def test_unknown_values_axes(self):
-        data = Orange.data.Table("iris")
+        data = self.iris.copy()
         with data.unlocked():
             data.Y[0] = np.nan
         self.send_signal("Data", data)
@@ -470,6 +479,20 @@ class TestOWHyper(WidgetTest):
         self.assertEqual(settings, {"compat_no_group": True})
         self.widget = self.create_widget(OWHyper, stored_settings=settings)
         self.assertTrue(self.widget.compat_no_group)
+
+
+
+@unittest.skipUnless(dask, "installed Orange does not support dask")
+class TestOWHyperWithDask(TestOWHyper):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.iris = temp_dasktable("iris")
+        cls.whitelight = temp_dasktable("whitelight.gsf")
+        cls.whitelight_unknown = temp_dasktable(cls.whitelight_unknown)
+        cls.iris1 = temp_dasktable(cls.iris1)
+        cls.strange_data = [temp_dasktable(d) if d is not None else None
+                            for d in cls.strange_data]
 
 
 class TestVisibleImage(WidgetTest):

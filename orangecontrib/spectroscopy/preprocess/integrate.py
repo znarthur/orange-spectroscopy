@@ -37,6 +37,11 @@ class IntegrateFeature(SharedComputeValue):
         if common is None:
             common = self.compute_shared(data)
         x_s, y_s = self.extract_data(data, common)
+        # draw_info is rarely called. The following assures
+        # that compute_draw_info will only need to work with numpy
+        # arrays, which then in turn are the assumed input in pyqtgraph
+        x_s = np.asarray(x_s)
+        y_s = np.asarray(y_s)
         return self.compute_draw_info(x_s, y_s)
 
     def extract_data(self, data, common):
@@ -85,10 +90,10 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
         return edge_baseline(x, y)
 
     def compute_integral(self, x, y_s):
-        y_s = y_s - self.compute_baseline(x, y_s)
         if np.any(np.isnan(y_s)):
             # interpolate unknowns as trapz can not handle them
             y_s, _ = nan_extend_edges_and_interpolate(x, y_s)
+        y_s = y_s - self.compute_baseline(x, y_s)
         return np.trapz(y_s, x, axis=1)
 
     def compute_draw_info(self, x, ys):
@@ -206,7 +211,7 @@ class IntegrateFeaturePeakXEdgeBaseline(IntegrateFeature):
             return np.zeros((y_s.shape[0],)) * np.nan
         # avoid whole nan rows
         whole_nan_rows = np.isnan(y_s).all(axis=1)
-        y_s[whole_nan_rows] = 0
+        y_s[whole_nan_rows, :] = 0
         # select positions
         pos = x_s[bottleneck.nanargmax(y_s, axis=1)]
         # set unknown results

@@ -86,6 +86,7 @@ def refresh_integral_markings(dis, markings_list, curveplot):
 
             if el[0] == "curve":
                 bs_x, bs_ys, penargs = el[1]
+                bs_x, bs_ys = np.asarray(bs_x), np.asarray(bs_ys)
                 curve = pg.PlotCurveItem()
                 curve.setPen(pg.mkPen(color=QColor(color), **penargs))
                 curve.setZValue(10)
@@ -94,6 +95,7 @@ def refresh_integral_markings(dis, markings_list, curveplot):
 
             elif el[0] == "fill":
                 (x1, ys1), (x2, ys2) = el[1]
+                bs_x, bs_ys = np.asarray(bs_x), np.asarray(bs_ys)
                 phigh = pg.PlotCurveItem(x1, ys1[0], pen=None)
                 plow = pg.PlotCurveItem(x2, ys2[0], pen=None)
                 color = QColor(color)
@@ -933,41 +935,43 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
                 and lsx[-1] * lsy[-1] > IMAGE_TOO_BIG:
             raise ImageTooBigException((lsx[-1], lsy[-1]))
 
+        ims = image_values(data[:1]).X
+        d = np.full((data.X.shape[0], ims.shape[1]), float("nan"))
+        res.d = d
+
+        step = 100000 if len(data) > 1e6 else 10000
+
         if lsx is not None and lsy is not None:
             # the code below does this, but part-wise:
             # d = image_values(data).X[:, 0]
-            parts = []
-            for slice in split_to_size(len(data), 10000):
+            for slice in split_to_size(len(data), step):
                 part = image_values(data[slice]).X
-                parts.append(part)
+                d[slice, :] = part
                 progress_interrupt(0)
-            d = np.concatenate(parts)
-        else:
-            # no need to compute integrals when nothing will be shown
-            d = np.full((data.X.shape[0], 1), float("nan"))
+                state.set_partial_result(res)
 
-        res.d = d
         progress_interrupt(0)
 
         return res
 
-    def on_done(self, res):
-
-        self.lsx, self.lsy = res.lsx, res.lsy
-        lsx, lsy = self.lsx, self.lsy
-
+    def draw(self, res, finished=False):
         d = res.d
+        lsx, lsy = res.lsx, res.lsy
 
         self.fixed_levels = res.image_values_fixed_levels
+        if finished:
+            self.lsx, self.lsy = lsx, lsy
+            self.data_points = res.data_points
 
-        self.data_points = res.data_points
-
-        xindex, xnan = index_values_nan(res.coorx, self.lsx)
-        yindex, ynan = index_values_nan(res.coory, self.lsy)
-        self.data_valid_positions = valid = np.logical_not(np.logical_or(xnan, ynan))
+        xindex, xnan = index_values_nan(res.coorx, lsx)
+        yindex, ynan = index_values_nan(res.coory, lsy)
+        valid = np.logical_not(np.logical_or(xnan, ynan))
         invalid_positions = len(d) - np.sum(valid)
-        if invalid_positions:
-            self.parent.Information.not_shown(invalid_positions)
+
+        if finished:
+            self.data_valid_positions = valid
+            if invalid_positions:
+                self.parent.Information.not_shown(invalid_positions)
 
         if lsx is not None and lsy is not None:
             imdata = np.ones((lsy[2], lsx[2], d.shape[1])) * float("nan")
@@ -990,11 +994,15 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
             height = (lsy[1]-lsy[0]) + 2*shifty
             self.img.setRect(QRectF(left, bottom, width, height))
 
-        self.refresh_img_selection()
-        self.image_updated.emit()
+        if finished:
+            self.refresh_img_selection()
+            self.image_updated.emit()
 
-    def on_partial_result(self, result):
-        pass
+    def on_done(self, res):
+        self.draw(res, finished=True)
+
+    def on_partial_result(self, res):
+        self.draw(res)
 
     def on_exception(self, ex: Exception):
         if isinstance(ex, InterruptException):

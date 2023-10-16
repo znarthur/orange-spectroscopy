@@ -1,4 +1,3 @@
-import bottleneck
 import numpy as np
 from Orange.data import Table, Domain
 from Orange.data.util import SharedComputeValue
@@ -7,8 +6,24 @@ from scipy.interpolate import interp1d
 from orangecontrib.spectroscopy.data import getx
 
 
+try:
+    import dask
+    import dask.array
+except ImportError:
+    dask = False
+
+
 def is_increasing(a):
     return np.all(np.diff(a) >= 0)
+
+
+def full_like_type(orig, shape, val):
+    if isinstance(orig, np.ndarray):
+        return np.full(shape, val)
+    elif dask and isinstance(orig, dask.array.Array):
+        return dask.array.full(shape, val)
+    else:
+        raise RuntimeError("Unknown matrix txpe")
 
 
 class PreprocessException(Exception):
@@ -145,12 +160,10 @@ def nan_extend_edges_and_interpolate(xs, X):
     so that they do not propagate.
     """
     nans = None
-    if bottleneck.anynan(X):
+    if np.any(np.isnan(X)):
         nans = np.isnan(X)
-        X = X.copy()
         xs, xsind, mon, X = transform_to_sorted_wavenumbers(xs, X)
-        fill_edges(X)
-        X = interp1d_with_unknowns_numpy(xs[xsind], X, xs[xsind])
+        X = interp1d_with_unknowns_numpy(xs[xsind], X, xs[xsind], sides=None)
         X = transform_back_to_features(xsind, mon, X)
     return X, nans
 
@@ -174,46 +187,57 @@ def transform_back_to_features(xsind, mon, X):
 def fill_edges_1d(l):
     """Replace (inplace!) NaN at sides with the closest value"""
     loc = np.where(~np.isnan(l))[0]
-    if len(loc):
-        fi, li = loc[[0, -1]]
+    try:
+        fi, li = np.array(loc[[0, -1]])
+    except IndexError:
+        # nothing to do, no valid value
+        return l
+    else:
         l[:fi] = l[fi]
         l[li + 1:] = l[li]
+        return l
 
 
 def fill_edges(mat):
     """Replace (inplace!) NaN at sides with the closest value"""
-    for l in mat:
-        fill_edges_1d(l)
+    for i, l in enumerate(mat):
+        if dask and isinstance(mat, dask.array.Array):
+            l = fill_edges_1d(l)
+            mat[i] = l
+        else:
+            fill_edges_1d(l)
 
 
 def remove_whole_nan_ys(x, ys):
     """Remove whole NaN columns of ys with corresponding x coordinates."""
-    whole_nan_columns = bottleneck.allnan(ys, axis=0)
+    whole_nan_columns = np.isnan(ys).all(axis=0)
     if np.any(whole_nan_columns):
         x = x[~whole_nan_columns]
         ys = ys[:, ~whole_nan_columns]
     return x, ys
 
 
-def interp1d_with_unknowns_numpy(x, ys, points, kind="linear"):
+def interp1d_with_unknowns_numpy(x, ys, points, kind="linear", sides=np.nan):
     if kind != "linear":
         raise NotImplementedError
-    out = np.zeros((len(ys), len(points)))*np.nan
+    out = full_like_type(ys, (len(ys), len(points)), np.nan)
     sorti = np.argsort(x)
     x = x[sorti]
     for i, y in enumerate(ys):
-        y = y[sorti]
+        # the next line ensures numpy arrays
+        # for Dask, it would be much more efficient to work with larger sections
+        y = np.array(y[sorti])
         nan = np.isnan(y)
         xt = x[~nan]
         yt = y[~nan]
         # do not interpolate unknowns at the edges
         if len(xt):  # check if all values are removed
-            out[i] = np.interp(points, xt, yt, left=np.nan, right=np.nan)
+            out[i] = np.interp(points, xt, yt, left=sides, right=sides)
     return out
 
 
 def interp1d_with_unknowns_scipy(x, ys, points, kind="linear"):
-    out = np.zeros((len(ys), len(points)))*np.nan
+    out = full_like_type(ys, (len(ys), len(points)), np.nan)
     sorti = np.argsort(x)
     x = x[sorti]
     for i, y in enumerate(ys):
