@@ -2,11 +2,8 @@ import numpy
 import numpy as np
 
 import Orange
-from Orange.data import dataset_dirs
-from Orange.data.io import FileFormat
 from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.spectroscopy.data import getx
-from orangecontrib.spectroscopy.io.neaspec import NeaReaderGSF
 from orangecontrib.spectroscopy.widgets.owcos import OWCos, calc_cos, sort_data
 
 
@@ -21,13 +18,7 @@ class TestOWCOS(WidgetTest):
 
     def setUp(self):
         self.widget = self.create_widget(OWCos)
-        # self.ifg_single = Orange.data.Table("IFG_single.dpt")
-        # self.ifg_seq = Orange.data.Table("agilent/4_noimage_agg256.seq")
-        # fn = 'NeaReaderGSF_test/NeaReaderGSF_test O2A raw.gsf'
-        # absolute_filename = FileFormat.locate(fn, dataset_dirs)
-        # self.ifg_gsf = NeaReaderGSF(absolute_filename).read()
 
-    #
     def test_calc_cos(self):
         cos = calc_cos(self.DATA1, self.DATA2)
         numpy.testing.assert_array_equal(cos[0], [[6., 6., 6.],

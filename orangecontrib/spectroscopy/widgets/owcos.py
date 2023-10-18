@@ -10,7 +10,7 @@ from Orange.data import Table, Variable
 from Orange.widgets.visualize.utils.customizableplot import CommonParameterSetter, Updater
 from Orange.widgets.visualize.utils.plotutils import PlotItem, GraphicsView, AxisItem
 from Orange.widgets.widget import OWWidget, Msg, Input, Output
-from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin
+# from Orange.widgets.utils.concurrent import TaskState, ConcurrentWidgetMixin
 from Orange.widgets import gui, settings
 
 from AnyQt.QtCore import QRectF, Qt
@@ -59,27 +59,26 @@ def calc_cos(table1, table2):
 
 
 # class to multithread the isocurve calculation
-def run(data: Table,
-        variable: Optional[Union[Variable, bool]],
-        feature_name: str,
-        remove_redundant_inst: bool,
-        state: TaskState
-        ) -> Table:
-    if not data:
-        return None
-
-    def callback(i: float, status=""):
-        state.set_progress_value(i * 100)
-        if status:
-            state.set_status(status)
-        if state.is_interruption_requested():
-            raise Exception
-
-    # the isocurve calculation needs to happen here
-    return Table.transpose(data, variable, feature_name=feature_name,
-                           remove_redundant_inst=remove_redundant_inst,
-                           progress_callback=callback)
-
+# def run(data: Table,
+#         variable: Optional[Union[Variable, bool]],
+#         feature_name: str,
+#         remove_redundant_inst: bool,
+#         state: TaskState
+#         ) -> Table:
+#     if not data:
+#         return None
+#
+#     def callback(i: float, status=""):
+#         state.set_progress_value(i * 100)
+#         if status:
+#             state.set_status(status)
+#         if state.is_interruption_requested():
+#             raise Exception
+#
+#     # the isocurve calculation needs to happen here
+#     return Table.transpose(data, variable, feature_name=feature_name,
+#                            remove_redundant_inst=remove_redundant_inst,
+ #                           progress_callback=callback)
 
 
 class ParameterSetter(CommonParameterSetter):
