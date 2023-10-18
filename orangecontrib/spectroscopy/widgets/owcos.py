@@ -182,8 +182,7 @@ class OWCos(OWWidget):
     description = (
         "Perform 2D correlation analysis with series spectra")
 
-    # TODO - needs icon
-    icon = "icons/average.svg"
+    icon = "icons/2dcos.svg"
 
     graph_name = "plotview"  # need this to show the save button
 
@@ -444,7 +443,8 @@ class OWCos(OWWidget):
                                     (topSPwn.max() - topSPwn.min()),
                                     (leftSPwn.max() - leftSPwn.min())))
 
-            self.cbarCOS.set_range(-1 * np.absolute(cosmat).max(), np.absolute(cosmat).max())
+            print(np.nanmax(np.absolute(cosmat)), np.nanmax(np.absolute(cosmat)))
+            self.cbarCOS.set_range(-1 * np.nanmax(np.absolute(cosmat)), np.nanmax(np.absolute(cosmat)))
             self.cbarCOS.set_colors(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
             for s in leftSP:
