@@ -487,4 +487,3 @@ if __name__ == "__main__":  # pragma: no cover
     from Orange.widgets.utils.widgetpreview import WidgetPreview
 
     WidgetPreview(OWCos).run(set_data1=Orange.data.Table("collagen"), set_data2=None)
-    # WidgetPreview(OWCos).run(set_data1=Orange.data.Table("/Users/borondics/2dcos-test-lShift2b_large.dat"), set_data2=None)
