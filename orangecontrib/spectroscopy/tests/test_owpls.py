@@ -59,6 +59,23 @@ class TestPLS(TestCase):
         model = PLSRegressionLearner(n_components=6)(d)
         self.assertEqual(model.skl_model.n_components, 4)
 
+    def test_scores(self):
+        d = table(10, 5, 1)
+        orange_model = PLSRegressionLearner()(d)
+        scikit_model = PLSRegression().fit(d.X, d.Y)
+        scores = orange_model.project(d)
+        sx, sy = scikit_model.transform(d.X, d.Y)
+        np.testing.assert_almost_equal(sx, scores.X)
+        np.testing.assert_almost_equal(sy, scores.metas)
+
+    def test_components(self):
+        d = table(10, 5, 1)
+        orange_model = PLSRegressionLearner()(d)
+        scikit_model = PLSRegression().fit(d.X, d.Y)
+        components = orange_model.components()
+        np.testing.assert_almost_equal(scikit_model.x_loadings_, components.X.T)
+        np.testing.assert_almost_equal(scikit_model.y_loadings_, components.Y.reshape(1, -1))
+
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
     def setUp(self):
