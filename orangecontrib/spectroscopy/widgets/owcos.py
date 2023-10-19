@@ -443,7 +443,6 @@ class OWCos(OWWidget):
                                     (topSPwn.max() - topSPwn.min()),
                                     (leftSPwn.max() - leftSPwn.min())))
 
-            print(np.nanmax(np.absolute(cosmat)), np.nanmax(np.absolute(cosmat)))
             self.cbarCOS.set_range(-1 * np.nanmax(np.absolute(cosmat)), np.nanmax(np.absolute(cosmat)))
             self.cbarCOS.set_colors(np.array(colorcet.diverging_bwr_40_95_c42) * 255)
 
