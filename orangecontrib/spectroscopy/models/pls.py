@@ -1,15 +1,11 @@
 import numpy as np
 import sklearn.cross_decomposition as skl_pls
 
-from Orange.data import Variable, ContinuousVariable
+from Orange.data import Table, Domain, Variable, \
+    ContinuousVariable, StringVariable
+from Orange.data.util import get_unique_names, SharedComputeValue
 from Orange.preprocess.score import LearnerScorer
 from Orange.regression import SklLearner, SklModel
-
-# Add any pre-processing of data here
-# Normalization is only needed if and when the data
-# is changing overall shape or the x axis is varying for every data row/instance
-
-pls_pps = SklLearner.preprocessors
 
 
 class _FeatureScorerMixin(LearnerScorer):
@@ -21,7 +17,45 @@ class _FeatureScorerMixin(LearnerScorer):
         return np.abs(model.coefficients), model.domain.attributes
 
 
+class _PLSCommonTransform:
+
+    def __init__(self, pls_model):
+        self.pls_model = pls_model
+
+    def _transform_with_numpy_output(self, X, Y):
+        pls = self.pls_model.skl_model
+        """
+        # the next command does the following
+        x_center = X - pls._x_mean
+        y_center = Y - pls._y_mean
+        t = x_center @ pls.x_rotations_
+        u = y_center @ pls.y_rotations_
+        """
+        t, u = pls.transform(X, Y)
+        return np.hstack((t, u))
+
+    def __call__(self, data):
+        if data.domain != self.pls_model.domain:
+            data = data.transform(self.pls_model.domain)
+        if len(data.Y.shape) == 1:
+            Y = data.Y.reshape(-1, 1)
+        else:
+            Y = data.Y
+        return self._transform_with_numpy_output(data.X, Y)
+
+
+class PLSProjector(SharedComputeValue):
+    def __init__(self, transform, feature):
+        super().__init__(transform)
+        self.feature = feature
+
+    def compute(self, _, space):
+        return space[:, self.feature]
+
+
 class PLSModel(SklModel):
+    var_prefix_X = "PLS T"
+    var_prefix_Y = "PLS U"
 
     @property
     def coefficients(self):
@@ -34,12 +68,61 @@ class PLSModel(SklModel):
     def __str__(self):
         return 'PLSModel {}'.format(self.skl_model)
 
+    def _get_var_names(self, n, prefix):
+        names = [f"{prefix}{postfix}" for postfix in range(1, n + 1)]
+        return get_unique_names([var.name for var in self.domain.metas], names)
+
+    def project(self, data):
+        if not isinstance(data, Table):
+            raise RuntimeError("PLSModel can only project tables")
+
+        transformer = _PLSCommonTransform(self)
+
+        def trvar(i, name):
+            return ContinuousVariable(name, compute_value=PLSProjector(transformer, i))
+
+        n_components = self.skl_model.x_loadings_.shape[1]
+
+        var_names_X = self._get_var_names(n_components, self.var_prefix_X)
+        var_names_Y = self._get_var_names(n_components, self.var_prefix_Y)
+
+        domain = Domain(
+            [trvar(i, var_names_X[i]) for i in range(n_components)],
+            data.domain.class_vars,
+            list(data.domain.metas) +
+            [trvar(n_components + i, var_names_Y[i]) for i in range(n_components)]
+        )
+
+        return data.transform(domain)
+
+    def components(self):
+        orig_domain = self.domain
+        names = [a.name for a in orig_domain.attributes + orig_domain.class_vars]
+        meta_name = get_unique_names(names, 'components')
+
+        n_components = self.skl_model.x_loadings_.shape[1]
+
+        meta_vars = [StringVariable(name=meta_name)]
+        metas = np.array(
+            [[f"Component {i + 1}" for i in range(n_components)]], dtype=object
+        ).T
+        dom = Domain(
+            [ContinuousVariable(a.name) for a in orig_domain.attributes],
+            [ContinuousVariable(a.name) for a in orig_domain.class_vars],
+            metas=meta_vars)
+        components = Table(dom,
+                           self.skl_model.x_loadings_.T,
+                           Y=self.skl_model.y_loadings_.T,
+                           metas=metas)
+        components.name = 'components'
+        return components
+
 
 class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
     __wraps__ = skl_pls.PLSRegression
     __returns__ = PLSModel
 
-    preprocessors = pls_pps
+    preprocessors = SklLearner.preprocessors
 
     # this learner enforces a single class because multitarget is not
     # explicitly allowed
