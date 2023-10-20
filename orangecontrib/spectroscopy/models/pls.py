@@ -1,4 +1,6 @@
 import numpy as np
+import pkg_resources
+import sklearn
 import sklearn.cross_decomposition as skl_pls
 
 from Orange.data import Table, Domain, Variable, \
@@ -59,7 +61,11 @@ class PLSModel(SklModel):
 
     @property
     def coefficients(self):
-        return self.skl_model.coef_
+        coef = self.skl_model.coef_
+        # 1.3 has transposed coef_
+        if pkg_resources.parse_version(sklearn.__version__) < pkg_resources.parse_version("1.3.0"):
+            coef = coef.T
+        return coef
 
     def predict(self, X):
         vals = self.skl_model.predict(X)

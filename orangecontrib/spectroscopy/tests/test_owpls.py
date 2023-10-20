@@ -2,6 +2,8 @@ from unittest import TestCase, skipIf
 
 import numpy as np
 
+import pkg_resources
+import sklearn
 from sklearn.cross_decomposition import PLSRegression
 
 from Orange.data import Table, Domain, ContinuousVariable
@@ -19,6 +21,14 @@ def table(rows, attr, vars):
     X = np.random.RandomState(0).random((rows, attr))
     Y = np.random.RandomState(1).random((rows, vars))
     return Table.from_numpy(domain, X=X, Y=Y)
+
+
+def coefficients(sklmodel):
+    coef = sklmodel.coef_
+    # 1.3 has transposed coef_
+    if pkg_resources.parse_version(sklearn.__version__) < pkg_resources.parse_version("1.3.0"):
+        coef = coef.T
+    return coef
 
 
 class TestPLS(TestCase):
@@ -39,7 +49,7 @@ class TestPLS(TestCase):
         scikit_model = PLSRegression().fit(d.X, d.Y)
         np.testing.assert_almost_equal(scikit_model.predict(d.X).ravel(),
                                        orange_model(d))
-        np.testing.assert_almost_equal(scikit_model.coef_,
+        np.testing.assert_almost_equal(coefficients(scikit_model),
                                        orange_model.coefficients)
 
     def test_compare_to_sklearn_multid(self):
@@ -48,7 +58,7 @@ class TestPLS(TestCase):
         scikit_model = PLSRegression().fit(d.X, d.Y)
         np.testing.assert_almost_equal(scikit_model.predict(d.X),
                                        orange_model(d))
-        np.testing.assert_almost_equal(scikit_model.coef_,
+        np.testing.assert_almost_equal(coefficients(scikit_model),
                                        orange_model.coefficients)
 
     def test_too_many_components(self):
@@ -89,7 +99,7 @@ class TestPLS(TestCase):
             orange_model = PLSRegressionLearner()(d)
             scikit_model = PLSRegression().fit(d.X, d.Y)
             coef_table = orange_model.coefficients_table()
-            np.testing.assert_almost_equal(scikit_model.coef_.T, coef_table.X)
+            np.testing.assert_almost_equal(coefficients(scikit_model).T, coef_table.X)
 
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
