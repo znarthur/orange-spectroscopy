@@ -25,22 +25,28 @@ class TestPLS(TestCase):
 
     def test_allow_y_dim(self):
         """ The current PLS version allows only a single Y dimension. """
-        d = table(10, 5, 1)
         learner = PLSRegressionLearner(n_components=2)
-        learner(d)
-        for n_class_vars in [0, 2]:
+        d = table(10, 5, 0)
+        with self.assertRaises(ValueError):
+            learner(d)
+        for n_class_vars in [1, 2, 3]:
             d = table(10, 5, n_class_vars)
-            with self.assertRaises(ValueError):
-                learner(d)
+            learner(d)  # no exception
 
     def test_compare_to_sklearn(self):
         d = table(10, 5, 1)
-        with d.unlocked():
-            d.X = np.random.RandomState(0).rand(*d.X.shape)
-            d.Y = np.random.RandomState(0).rand(*d.Y.shape)
         orange_model = PLSRegressionLearner()(d)
         scikit_model = PLSRegression().fit(d.X, d.Y)
         np.testing.assert_almost_equal(scikit_model.predict(d.X).ravel(),
+                                       orange_model(d))
+        np.testing.assert_almost_equal(scikit_model.coef_,
+                                       orange_model.coefficients)
+
+    def test_compare_to_sklearn_multid(self):
+        d = table(10, 5, 3)
+        orange_model = PLSRegressionLearner()(d)
+        scikit_model = PLSRegression().fit(d.X, d.Y)
+        np.testing.assert_almost_equal(scikit_model.predict(d.X),
                                        orange_model(d))
         np.testing.assert_almost_equal(scikit_model.coef_,
                                        orange_model.coefficients)
@@ -60,21 +66,30 @@ class TestPLS(TestCase):
         self.assertEqual(model.skl_model.n_components, 4)
 
     def test_scores(self):
-        d = table(10, 5, 1)
-        orange_model = PLSRegressionLearner()(d)
-        scikit_model = PLSRegression().fit(d.X, d.Y)
-        scores = orange_model.project(d)
-        sx, sy = scikit_model.transform(d.X, d.Y)
-        np.testing.assert_almost_equal(sx, scores.X)
-        np.testing.assert_almost_equal(sy, scores.metas)
+        for d in [table(10, 5, 1), table(10, 5, 3)]:
+            orange_model = PLSRegressionLearner()(d)
+            scikit_model = PLSRegression().fit(d.X, d.Y)
+            scores = orange_model.project(d)
+            sx, sy = scikit_model.transform(d.X, d.Y)
+            np.testing.assert_almost_equal(sx, scores.X)
+            np.testing.assert_almost_equal(sy, scores.metas)
 
     def test_components(self):
-        d = table(10, 5, 1)
-        orange_model = PLSRegressionLearner()(d)
-        scikit_model = PLSRegression().fit(d.X, d.Y)
-        components = orange_model.components()
-        np.testing.assert_almost_equal(scikit_model.x_loadings_, components.X.T)
-        np.testing.assert_almost_equal(scikit_model.y_loadings_, components.Y.reshape(1, -1))
+        def t2d(m):
+            return m.reshape(-1, 1) if len(m.shape) == 1 else m
+        for d in [table(10, 5, 1), table(10, 5, 3)]:
+            orange_model = PLSRegressionLearner()(d)
+            scikit_model = PLSRegression().fit(d.X, d.Y)
+            components = orange_model.components()
+            np.testing.assert_almost_equal(scikit_model.x_loadings_, components.X.T)
+            np.testing.assert_almost_equal(scikit_model.y_loadings_, t2d(components.Y).T)
+
+    def test_coefficients(self):
+        for d in [table(10, 5, 1), table(10, 5, 3)]:
+            orange_model = PLSRegressionLearner()(d)
+            scikit_model = PLSRegression().fit(d.X, d.Y)
+            coef_table = orange_model.coefficients_table()
+            np.testing.assert_almost_equal(scikit_model.coef_.T, coef_table.X)
 
 
 class TestOWPLS(WidgetTest, WidgetLearnerTestMixin):
