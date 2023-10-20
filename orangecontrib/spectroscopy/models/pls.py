@@ -1,4 +1,6 @@
 import numpy as np
+import pkg_resources
+import sklearn
 import sklearn.cross_decomposition as skl_pls
 
 from Orange.data import Table, Domain, Variable, \
@@ -59,11 +61,17 @@ class PLSModel(SklModel):
 
     @property
     def coefficients(self):
-        return self.skl_model.coef_
+        coef = self.skl_model.coef_
+        # 1.3 has transposed coef_
+        if pkg_resources.parse_version(sklearn.__version__) < pkg_resources.parse_version("1.3.0"):
+            coef = coef.T
+        return coef
 
     def predict(self, X):
         vals = self.skl_model.predict(X)
-        return vals.ravel()
+        if len(self.domain.class_vars) == 1:
+            vals = vals.ravel()
+        return vals
 
     def __str__(self):
         return 'PLSModel {}'.format(self.skl_model)
@@ -117,15 +125,23 @@ class PLSModel(SklModel):
         components.name = 'components'
         return components
 
+    def coefficients_table(self):
+        coeffs = self.coefficients.T
+        domain = Domain(
+            [ContinuousVariable(f"coef {i}") for i in range(coeffs.shape[1])],
+            metas=[StringVariable("name")]
+        )
+        waves = [[attr.name] for attr in self.domain.attributes]
+        coef_table = Table.from_numpy(domain, X=coeffs, metas=waves)
+        coef_table.name = "coefficients"
+        return coef_table
+
 
 class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
     __wraps__ = skl_pls.PLSRegression
     __returns__ = PLSModel
-
+    supports_multiclass = True
     preprocessors = SklLearner.preprocessors
-
-    # this learner enforces a single class because multitarget is not
-    # explicitly allowed
 
     def fit(self, X, Y, W=None):
         params = self.params.copy()
@@ -140,6 +156,15 @@ class PLSRegressionLearner(SklLearner, _FeatureScorerMixin):
         super().__init__(preprocessors=preprocessors)
         self.params = vars()
 
+    def incompatibility_reason(self, domain):
+        reason = None
+        if not domain.class_vars:
+            reason = "Numeric targets expected."
+        else:
+            for cv in domain.class_vars:
+                if not cv.is_continuous:
+                    reason = "Only numeric target variables expected."
+        return reason
 
 if __name__ == '__main__':
     import Orange
