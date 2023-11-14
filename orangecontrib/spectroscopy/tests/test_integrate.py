@@ -148,3 +148,24 @@ class TestIntegrate(unittest.TestCase):
         self.assertTrue("0 - 5" in metavars and "0 - 6" in metavars)
         self.assertEqual(i[0]["0 - 5"], 8)
         self.assertEqual(i[0]["0 - 6"], 3)
+
+    def test_eq(self):
+        data = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1]])
+        i1 = Integrate(methods=Integrate.Simple, limits=[[0, 5]])(data)
+        i2 = Integrate(methods=Integrate.Simple, limits=[[0, 6]])(data)
+        self.assertNotEqual(i1.domain[0], i2.domain[0])
+        i3 = Integrate(methods=Integrate.Simple, limits=[[0, 6], [0, 5]])(data)
+        self.assertNotEqual(i1.domain[0], i3.domain[0])
+        self.assertEqual(i1.domain[0], i3.domain[1])
+        i4 = Integrate(methods=Integrate.Baseline, limits=[[0, 5]])(data)
+        self.assertNotEqual(i1.domain[0], i4.domain[0])
+
+        # different domain should mean different integrals
+        data2 = Table.from_numpy(None, [[1, 2, 3, 1, 1, 1, 1]])
+        ii1 = Integrate(methods=Integrate.Simple, limits=[[0, 5]])(data2)
+        self.assertNotEqual(i1.domain[0], ii1.domain[0])
+
+        # same domain -> same integrals
+        data3 = Table.from_numpy(None, [[1, 2, 3, 22, 1, 2]])
+        iii1 = Integrate(methods=Integrate.Simple, limits=[[0, 5]])(data3)
+        self.assertEqual(i1.domain[0], iii1.domain[0])

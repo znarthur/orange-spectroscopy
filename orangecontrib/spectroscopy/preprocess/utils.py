@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from Orange.data import Table, Domain
 from Orange.data.util import SharedComputeValue
@@ -52,13 +54,20 @@ class SelectColumn(SharedComputeValue):
     def compute(self, data, common):
         return common[:, self.feature]
 
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.feature == other.feature
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.feature))
+
 
 class CommonDomain:
     """A utility class that helps constructing common transformation for
     SharedComputeValue features. It does the domain transformation
     (input domain needs to be the same as it was with training data).
     """
-    def __init__(self, domain):
+    def __init__(self, domain: Domain):
         self.domain = domain
 
     def __call__(self, data):
@@ -73,14 +82,21 @@ class CommonDomain:
     def transformed(self, data):
         raise NotImplemented
 
+    def __eq__(self, other):
+        return type(self) is type(other) \
+               and self.domain == other.domain
+
+    def __hash__(self):
+        return hash((type(self), self.domain))
+
 
 class CommonDomainRef(CommonDomain):
     """CommonDomain which also ensures reference domain transformation"""
-    def __init__(self, reference, domain):
+    def __init__(self, reference: Table, domain: Domain):
         super().__init__(domain)
         self.reference = reference
 
-    def interpolate_extend_to(self, interpolate, wavenumbers):
+    def interpolate_extend_to(self, interpolate: Table, wavenumbers):
         """
         Interpolate data to given wavenumbers and extend the possibly
         nan-edges with the nearest values.
@@ -90,6 +106,14 @@ class CommonDomainRef(CommonDomain):
         # we know that X is not NaN. same handling of reference as of X
         X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
         return X
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and reference_eq_X(self.reference, other.reference)
+
+    def __hash__(self):
+        domain = self.reference.domain if self.reference is not None else None
+        return hash((super().__hash__(), domain))
 
 
 class CommonDomainOrder(CommonDomain):
@@ -115,6 +139,14 @@ class CommonDomainOrder(CommonDomain):
 
     def transformed(self, X, wavenumbers):
         raise NotImplemented
+
+    def __eq__(self, other):
+        # pylint: disable=useless-parent-delegation
+        return super().__eq__(other)
+
+    def __hash__(self):
+        # pylint: disable=useless-parent-delegation
+        return super().__hash__()
 
 
 class CommonDomainOrderUnknowns(CommonDomainOrder):
@@ -151,6 +183,24 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
 
         # restore order
         return self._restore_order(X, mon, xsind, xc)
+
+    def __eq__(self, other):
+        # pylint: disable=useless-parent-delegation
+        return super().__eq__(other)
+
+    def __hash__(self):
+        # pylint: disable=useless-parent-delegation
+        return super().__hash__()
+
+
+def reference_eq_X(first: Optional[Table], second: Optional[Table]):
+    if first is second:
+        return True
+    elif first is None or second is None:
+        return False
+    else:
+        return first.domain.attributes == second.domain.attributes \
+               and np.array_equal(first.X, second.X)
 
 
 def nan_extend_edges_and_interpolate(xs, X):

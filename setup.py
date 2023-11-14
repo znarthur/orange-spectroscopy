@@ -128,15 +128,15 @@ if __name__ == '__main__':
             'setuptools>=36.3',  # same as for Orange 3.28
             'pip>=9.0',  # same as for Orange 3.28
             'numpy>=1.20.0',
-            'Orange3>=3.32.0',
-            'orange-canvas-core>=0.1.24',
-            'orange-widget-base>=4.16.1',
-            'scipy>=1.4.0',
+            'Orange3>=3.34.0',
+            'orange-canvas-core>=0.1.28',
+            'orange-widget-base>=4.19.0',
+            'scipy>=1.9.0',
             'scikit-learn>=1.0.1',
             'spectral>=0.22.3,!=0.23',
             'serverfiles>=0.2',
-            'AnyQt>=0.0.6',
-            'pyqtgraph>=0.11.1,!=0.12.4',  # https://github.com/pyqtgraph/pyqtgraph/issues/2237
+            'AnyQt>=0.1.0',
+            'pyqtgraph>=0.12.2,!=0.12.4',  # https://github.com/pyqtgraph/pyqtgraph/issues/2237
             'colorcet',
             'h5py',
             'extranormal3 >=0.0.3',

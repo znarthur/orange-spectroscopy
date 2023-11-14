@@ -72,17 +72,25 @@ class IntegrateFeature(SharedComputeValue):
         x_s, y_s = self.extract_data(data, common)
         return self.compute_integral(x_s, y_s)
 
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.limits == other.limits
+
+    def __hash__(self):
+        return hash((super().__hash__(), tuple(self.limits)))
+
 
 class IntegrateFeatureEdgeBaseline(IntegrateFeature):
     """ A linear edge-to-edge baseline subtraction. """
 
     name = "Integral from baseline"
+    InheritEq = True
 
     @staticmethod
     def parameters():
         return (("Low limit", "Low limit for integration (inclusive)"),
                 ("High limit", "High limit for integration (inclusive)"),
-            )
+                )
 
     def compute_baseline(self, x, y):
         if np.any(np.isnan(y)):
@@ -105,6 +113,7 @@ class IntegrateFeatureEdgeBaseline(IntegrateFeature):
 class IntegrateFeatureSeparateBaseline(IntegrateFeature):
 
     name = "Integral from separate baseline"
+    InheritEq = True
 
     @staticmethod
     def parameters():
@@ -148,6 +157,7 @@ class IntegrateFeatureSimple(IntegrateFeatureEdgeBaseline):
     """ A simple y=0 integration on the provided data window. """
 
     name = "Integral from 0"
+    InheritEq = True
 
     def compute_baseline(self, x_s, y_s):
         return np.zeros(y_s.shape)
@@ -157,12 +167,13 @@ class IntegrateFeaturePeakEdgeBaseline(IntegrateFeature):
     """ The maximum baseline-subtracted peak height in the provided window. """
 
     name = "Peak from baseline"
+    InheritEq = True
 
     @staticmethod
     def parameters():
         return (("Low limit", "Low limit for integration (inclusive)"),
                 ("High limit", "High limit for integration (inclusive)"),
-            )
+                )
 
     def compute_baseline(self, x, y):
         return edge_baseline(x, y)
@@ -186,6 +197,7 @@ class IntegrateFeaturePeakSimple(IntegrateFeaturePeakEdgeBaseline):
     """ The maximum peak height in the provided data window. """
 
     name = "Peak from 0"
+    InheritEq = True
 
     def compute_baseline(self, x_s, y_s):
         return np.zeros(y_s.shape)
@@ -195,12 +207,13 @@ class IntegrateFeaturePeakXEdgeBaseline(IntegrateFeature):
     """ The X-value of the maximum baseline-subtracted peak height in the provided window. """
 
     name = "X-value of maximum from baseline"
+    InheritEq = True
 
     @staticmethod
     def parameters():
         return (("Low limit", "Low limit for integration (inclusive)"),
                 ("High limit", "High limit for integration (inclusive)"),
-            )
+                )
 
     def compute_baseline(self, x, y):
         return edge_baseline(x, y)
@@ -231,6 +244,7 @@ class IntegrateFeaturePeakXSimple(IntegrateFeaturePeakXEdgeBaseline):
     """ The X-value of the maximum peak height in the provided data window. """
 
     name = "X-value of maximum from 0"
+    InheritEq = True
 
     def compute_baseline(self, x_s, y_s):
         return np.zeros(y_s.shape)
@@ -240,11 +254,12 @@ class IntegrateFeatureAtPeak(IntegrateFeature):
     """ Find the closest x and return the value there. """
 
     name = "Closest value"
+    InheritEq = True
 
     @staticmethod
     def parameters():
         return (("Closest to", "Nearest value"),
-            )
+                )
 
     def extract_data(self, data, common):
         data, x, x_sorter = common
@@ -274,6 +289,14 @@ class _IntegrateCommon(CommonDomain):
         x = getx(data)
         x_sorter = np.argsort(x)
         return data, x, x_sorter
+
+    def __eq__(self, other):
+        # pylint: disable=useless-parent-delegation
+        return super().__eq__(other)
+
+    def __hash__(self):
+        # pylint: disable=useless-parent-delegation
+        return super().__hash__()
 
 
 class Integrate(Preprocess):
