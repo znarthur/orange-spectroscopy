@@ -88,11 +88,11 @@ def cal_ncomp(reference, wavenumbers,  explainedVarLim, alpha0, gamma):
 
 
 class ME_EMSCFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class ME_EMSCModel(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _ME_EMSC(CommonDomainOrderUnknowns):

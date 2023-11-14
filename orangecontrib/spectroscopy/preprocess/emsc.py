@@ -54,11 +54,11 @@ def weighted_wavenumbers(weights, wavenumbers):
 
 
 class EMSCFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class EMSCModel(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _EMSC(CommonDomainOrderUnknowns):

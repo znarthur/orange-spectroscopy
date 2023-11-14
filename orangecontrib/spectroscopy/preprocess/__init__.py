@@ -29,7 +29,7 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
 
 
 class PCADenoisingFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _PCAReconstructCommon(CommonDomain):
@@ -79,7 +79,7 @@ class PCADenoising(Preprocess):
 
 
 class GaussianFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _GaussianCommon(CommonDomainOrderUnknowns):
@@ -178,7 +178,7 @@ class SavitzkyGolayFiltering(Preprocess):
 
 
 class RubberbandBaselineFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _RubberbandBaselineCommon(CommonDomainOrder):
@@ -242,7 +242,7 @@ class RubberbandBaseline(Preprocess):
 
 
 class LinearBaselineFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _LinearBaselineCommon(CommonDomainOrderUnknowns):
@@ -545,7 +545,7 @@ class InterpolateToDomain(Preprocess):
 
 ######################################### XAS normalization ##########
 class XASnormalizationFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _XASnormalizationCommon(CommonDomainOrderUnknowns):
@@ -607,7 +607,7 @@ class NoEdgejumpProvidedException(PreprocessException):
 
 
 class ExtractEXAFSFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class EdgeJumpException(PreprocessException):
@@ -731,7 +731,7 @@ class ExtractEXAFS(Preprocess):
 
 
 class CurveShiftFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _CurveShiftCommon(CommonDomain):
@@ -759,7 +759,7 @@ class CurveShift(Preprocess):
 
 
 class DespikeFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _DespikeCommon(CommonDomainOrderUnknowns):
@@ -837,7 +837,7 @@ class Despike(Preprocess):
 
 
 class SpSubtractFeature(SelectColumn):
-    pass
+    InheritEq = True
 
 
 class _SpSubtractCommon(CommonDomainRef):
