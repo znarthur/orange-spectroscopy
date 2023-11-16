@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from Orange.data import Table
 
-from orangecontrib.spectroscopy.preprocess.utils import reference_eq_X
+from orangecontrib.spectroscopy.preprocess.utils import table_eq_x
 
 
 class TestEq(TestCase):
@@ -17,11 +17,11 @@ class TestEq(TestCase):
 
     def test_reference_eq_X_none(self):
         data = self.iris
-        self.assertTrue(reference_eq_X(None, None))
-        self.assertFalse(reference_eq_X(data, None))
-        self.assertFalse(reference_eq_X(None, data))
+        self.assertTrue(table_eq_x(None, None))
+        self.assertFalse(table_eq_x(data, None))
+        self.assertFalse(table_eq_x(None, data))
 
     def test_reference_eq_X_same(self):
-        self.assertTrue(reference_eq_X(self.iris, self.iris))
-        self.assertTrue(reference_eq_X(self.iris, self.iris2))
-        self.assertFalse(reference_eq_X(self.iris, self.iris_changed))
+        self.assertTrue(table_eq_x(self.iris, self.iris))
+        self.assertTrue(table_eq_x(self.iris, self.iris2))
+        self.assertFalse(table_eq_x(self.iris, self.iris_changed))

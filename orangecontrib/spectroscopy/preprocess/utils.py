@@ -101,11 +101,12 @@ class CommonDomainRef(CommonDomain):
 
     def __eq__(self, other):
         return super().__eq__(other) \
-               and reference_eq_X(self.reference, other.reference)
+               and table_eq_x(self.reference, other.reference)
 
     def __hash__(self):
         domain = self.reference.domain if self.reference is not None else None
-        return hash((super().__hash__(), domain))
+        fv = tuple(self.reference.X[0][:10]) if self.reference is not None else None
+        return hash((super().__hash__(), domain, fv))
 
 
 class CommonDomainOrder(CommonDomain):
@@ -185,7 +186,7 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
         return super().__hash__()
 
 
-def reference_eq_X(first: Optional[Table], second: Optional[Table]):
+def table_eq_x(first: Optional[Table], second: Optional[Table]):
     if first is second:
         return True
     elif first is None or second is None:

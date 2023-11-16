@@ -1,12 +1,14 @@
 import numpy as np
 
 import Orange
+from Orange.data import Table
 from Orange.preprocess.preprocess import Preprocess
 from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, MissingReferenceException, interpolate_extend_to
+    interp1d_with_unknowns_numpy, MissingReferenceException, interpolate_extend_to, \
+    CommonDomainRef, table_eq_x
 from orangecontrib.spectroscopy.preprocess.npfunc import Function, Segments
 
 
@@ -61,12 +63,12 @@ class EMSCModel(SelectColumn):
     InheritEq = True
 
 
-class _EMSC(CommonDomainOrderUnknowns):
+class _EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
 
     def __init__(self, reference, badspectra, weights, order, scaling, domain):
-        super().__init__(domain)
-        assert len(reference) == 1
-        self.reference = reference
+        CommonDomainOrderUnknowns.__init__(self, domain)
+        CommonDomainRef.__init__(self, reference, domain)
+        assert len(self.reference) == 1
         self.badspectra = badspectra
         self.weights = weights
         self.order = order
@@ -112,6 +114,21 @@ class _EMSC(CommonDomainOrderUnknowns):
             newspectra[i] = corrected
 
         return newspectra
+
+    def __eq__(self, other):
+        return CommonDomainRef.__eq__(self, other) \
+            and table_eq_x(self.badspectra, other.badspectra) \
+            and self.order == other.order \
+            and self.scaling == other.scaling \
+            and (self.weights == other.weights
+                 if not isinstance(self.weights, Table)
+                 else table_eq_x(self.weights, other.weights))
+
+    def __hash__(self):
+        domain = self.badspectra.domain if self.badspectra is not None else None
+        fv = tuple(self.badspectra.X[0][:10]) if self.badspectra is not None else None
+        weights = self.weights if not isinstance(self.weights, Table) else tuple(self.weights.X[0][:10])
+        return hash((CommonDomainRef.__hash__(self), domain, fv, weights, self.order, self.scaling))
 
 
 def average_table_x(data):
