@@ -97,15 +97,7 @@ class CommonDomainRef(CommonDomain):
         self.reference = reference
 
     def interpolate_extend_to(self, interpolate: Table, wavenumbers):
-        """
-        Interpolate data to given wavenumbers and extend the possibly
-        nan-edges with the nearest values.
-        """
-        # interpolate reference to the given wavenumbers
-        X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
-        # we know that X is not NaN. same handling of reference as of X
-        X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
-        return X
+        return interpolate_extend_to(interpolate, wavenumbers)
 
     def __eq__(self, other):
         return super().__eq__(other) \
@@ -329,3 +321,15 @@ def replacex(data: Table, replacement: list):
     natts = [at.renamed(str(n)) for n, at in zip(replacement, data.domain.attributes)]
     ndom = Domain(natts, data.domain.class_vars, data.domain.metas)
     return data.transform(ndom)
+
+
+def interpolate_extend_to(interpolate: Table, wavenumbers):
+    """
+    Interpolate data to given wavenumbers and extend the possibly
+    nan-edges with the nearest values.
+    """
+    # interpolate reference to the given wavenumbers
+    X = interp1d_with_unknowns_numpy(getx(interpolate), interpolate.X, wavenumbers)
+    # we know that X is not NaN. same handling of reference as of X
+    X, _ = nan_extend_edges_and_interpolate(wavenumbers, X)
+    return X

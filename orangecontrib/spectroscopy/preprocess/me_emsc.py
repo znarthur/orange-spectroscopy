@@ -6,18 +6,10 @@ import Orange
 from Orange.preprocess.preprocess import Preprocess
 from Orange.data.util import get_unique_names
 
-from orangecontrib.spectroscopy.data import getx, spectra_mean
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate
-from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers
-
-
-def interpolate_to_data(other_xs, other_data, wavenumbers):
-    # all input data needs to be interpolated (and NaNs removed)
-    interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
-    # we know that X is not NaN. same handling of reference as of X
-    interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
-    return interpolated
+    interpolate_extend_to
+from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers, average_table_x
 
 
 def calculate_complex_n(ref_X,wavenumbers):
@@ -99,6 +91,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
 
     def __init__(self, reference, weights, ncomp, alpha0, gamma, maxNiter, fixedNiter, positiveRef, domain):
         super().__init__(domain)
+        assert len(reference) == 1
         self.reference = reference
         self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
         self.ncomp = ncomp
@@ -234,8 +227,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
                             break
             return newspectra, RMSEall, numberOfIterations
 
-        ref_X = np.atleast_2d(spectra_mean(self.reference.X))
-        ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers)
+        ref_X = interpolate_extend_to(self.reference, wavenumbers)
         ref_X = ref_X[0]
 
         wei_X = weighted_wavenumbers(self.weights, wavenumbers)
@@ -298,6 +290,8 @@ class ME_EMSC(Preprocess):
         if reference is None:
             raise MissingReferenceException()
         self.reference = reference
+        if len(self.reference) > 1:
+            self.reference = average_table_x(self.reference)
         self.weights = weights
         self.ncomp = ncomp
         self.output_model = output_model
@@ -315,10 +309,8 @@ class ME_EMSC(Preprocess):
         self.gamma = self.h * np.log(10) / (4 * np.pi * 0.5 * np.pi * (self.n0 - 1) * self.a * 1e-6)
 
         if not self.ncomp:
-            ref_X = np.atleast_2d(spectra_mean(self.reference.X))
             wavenumbers_ref = np.array(sorted(getx(self.reference)))
-            ref_X = interpolate_to_data(getx(self.reference), ref_X, wavenumbers_ref)
-            ref_X = ref_X[0]
+            ref_X = interpolate_extend_to(self.reference, wavenumbers_ref)[0]
             self.ncomp = cal_ncomp(ref_X, wavenumbers_ref, explainedVariance, self.alpha0, self.gamma)
         else:
             self.explainedVariance = False

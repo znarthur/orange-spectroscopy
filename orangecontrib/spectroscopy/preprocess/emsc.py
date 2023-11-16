@@ -4,9 +4,9 @@ import Orange
 from Orange.preprocess.preprocess import Preprocess
 from Orange.data.util import get_unique_names
 
-from orangecontrib.spectroscopy.data import getx, spectra_mean
+from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interp1d_with_unknowns_numpy, nan_extend_edges_and_interpolate, MissingReferenceException
+    interp1d_with_unknowns_numpy, MissingReferenceException, interpolate_extend_to
 from orangecontrib.spectroscopy.preprocess.npfunc import Function, Segments
 
 
@@ -65,6 +65,7 @@ class _EMSC(CommonDomainOrderUnknowns):
 
     def __init__(self, reference, badspectra, weights, order, scaling, domain):
         super().__init__(domain)
+        assert len(reference) == 1
         self.reference = reference
         self.badspectra = badspectra
         self.weights = weights
@@ -74,17 +75,7 @@ class _EMSC(CommonDomainOrderUnknowns):
     def transformed(self, X, wavenumbers):
         # wavenumber have to be input as sorted
         # about 85% of time in __call__ function is spent is lstsq
-        # compute average spectrum from the reference
-        ref_X = np.atleast_2d(spectra_mean(self.reference.X))
-
-        def interpolate_to_data(other_xs, other_data):
-            # all input data needs to be interpolated (and NaNs removed)
-            interpolated = interp1d_with_unknowns_numpy(other_xs, other_data, wavenumbers)
-            # we know that X is not NaN. same handling of reference as of X
-            interpolated, _ = nan_extend_edges_and_interpolate(wavenumbers, interpolated)
-            return interpolated
-
-        ref_X = interpolate_to_data(getx(self.reference), ref_X)
+        ref_X = interpolate_extend_to(self.reference, wavenumbers)
         wei_X = weighted_wavenumbers(self.weights, wavenumbers)
 
         N = wavenumbers.shape[0]
@@ -93,7 +84,7 @@ class _EMSC(CommonDomainOrderUnknowns):
 
         n_badspec = len(self.badspectra) if self.badspectra is not None else 0
         if self.badspectra:
-            badspectra_X = interpolate_to_data(getx(self.badspectra), self.badspectra.X)
+            badspectra_X = interpolate_extend_to(self.badspectra, wavenumbers)
 
         M = []
         for x in range(0, self.order+1):
@@ -123,6 +114,11 @@ class _EMSC(CommonDomainOrderUnknowns):
         return newspectra
 
 
+def average_table_x(data):
+    return Orange.data.Table.from_numpy(Orange.data.Domain(data.domain.attributes),
+                                        X=data.X.mean(axis=0, keepdims=True))
+
+
 class EMSC(Preprocess):
 
     def __init__(self, reference=None, badspectra=None, weights=None, order=2, scaling=True,
@@ -132,6 +128,8 @@ class EMSC(Preprocess):
         if reference is None:
             raise MissingReferenceException()
         self.reference = reference
+        if len(self.reference) > 1:
+            self.reference = average_table_x(self.reference)
         self.badspectra = badspectra
         self.weights = weights
         self.order = order
