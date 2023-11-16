@@ -80,7 +80,7 @@ class CommonDomain:
         return data
 
     def transformed(self, data):
-        raise NotImplemented
+        raise NotImplementedError
 
     def __eq__(self, other):
         return type(self) is type(other) \
@@ -131,7 +131,7 @@ class CommonDomainOrder(CommonDomain):
         return np.hstack((restored, X[:, xc:]))
 
     def transformed(self, X, wavenumbers):
-        raise NotImplemented
+        raise NotImplementedError
 
     def __eq__(self, other):
         # pylint: disable=useless-parent-delegation
