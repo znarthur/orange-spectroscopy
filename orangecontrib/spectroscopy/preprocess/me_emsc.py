@@ -3,12 +3,13 @@ from scipy.signal import hilbert
 from sklearn.decomposition import TruncatedSVD
 
 import Orange
+from Orange.data import Table
 from Orange.preprocess.preprocess import Preprocess
 from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interpolate_extend_to
+    interpolate_extend_to, CommonDomainRef, table_eq_x
 from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers, average_table_x
 
 
@@ -87,13 +88,13 @@ class ME_EMSCModel(SelectColumn):
     InheritEq = True
 
 
-class _ME_EMSC(CommonDomainOrderUnknowns):
+class _ME_EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
 
     def __init__(self, reference, weights, ncomp, alpha0, gamma, maxNiter, fixedNiter, positiveRef, domain):
-        super().__init__(domain)
+        CommonDomainOrderUnknowns.__init__(self, domain)
+        CommonDomainRef.__init__(self, reference, domain)
         assert len(reference) == 1
-        self.reference = reference
-        self.weights = weights  # !!! THIS SHOULD BE A NP ARRAY (or similar) with inflection points
+        self.weights = weights
         self.ncomp = ncomp
         self.alpha0 = alpha0
         self.gamma = gamma
@@ -275,6 +276,24 @@ class _ME_EMSC(CommonDomainOrderUnknowns):
         newspectra, RMSEall, numberOfIterations = iterate(X, newspectra, res, wavenumbers, M_basic, self.alpha0, self.gamma)
         newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1),RMSEall.reshape(-1, 1)))
         return newspectra
+
+    def __eq__(self, other):
+        return CommonDomainRef.__eq__(self, other) \
+            and self.ncomp == other.ncomp \
+            and np.array_equal(self.alpha0, other.alpha0) \
+            and np.array_equal(self.gamma, other.gamma) \
+            and self.maxNiter == other.maxNiter \
+            and self.fixedNiter == other.fixedNiter \
+            and self.positiveRef == other.positiveRef \
+            and (self.weights == other.weights
+                 if not isinstance(self.weights, Table)
+                 else table_eq_x(self.weights, other.weights))
+
+    def __hash__(self):
+        weights = self.weights \
+            if not isinstance(self.weights, Table) else tuple(self.weights.X[0][:10])
+        return hash((CommonDomainRef.__hash__(self), weights, self.ncomp, tuple(self.alpha0),
+                     tuple(self.gamma), self.maxNiter, self.fixedNiter, self.positiveRef))
 
 
 class MissingReferenceException(Exception):
