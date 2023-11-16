@@ -12,28 +12,57 @@ from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDoma
 from orangecontrib.spectroscopy.preprocess.npfunc import Function, Segments
 
 
-class SelectionFunction(Segments):
+class SelectionFunction(Function):
     """
     Weighted selection function. Includes min and max.
     """
     def __init__(self, min_, max_, w):
-        super().__init__((lambda x: True,
-                          lambda x: 0),
-                         (lambda x: np.logical_and(x >= min_, x <= max_),
-                          lambda x: w))
+        super().__init__(None)
+        self.min_ = min_
+        self.max_ = max_
+        self.w = w
+
+    def __call__(self, x):
+        seg = Segments((lambda x: True, lambda x: 0),
+                       (lambda x: np.logical_and(x >= self.min_, x <= self.max_),
+                        lambda x: self.w)
+                       )
+        return seg(x)
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.min_ == other.min_ \
+               and self.max_ == other.max_ \
+               and self.w == other.w
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.min_, self.max_, self.w))
 
 
-class SmoothedSelectionFunction(Segments):
+class SmoothedSelectionFunction(SelectionFunction):
     """
     Weighted selection function. Min and max points are middle
     points of smoothing with hyperbolic tangent.
     """
     def __init__(self, min_, max_, s, w):
-        middle = (min_ + max_) / 2
-        super().__init__((lambda x: x < middle,
-                          lambda x: (np.tanh((x - min_) / s) + 1) / 2 * w),
-                         (lambda x: x >= middle,
-                          lambda x: (-np.tanh((x - max_) / s) + 1) / 2 * w))
+        super().__init__(min_, max_, w)
+        self.s = s
+
+    def __call__(self, x):
+        middle = (self.min_ + self.max_) / 2
+        seg = Segments((lambda x: x < middle,
+                        lambda x: (np.tanh((x - self.min_) / self.s) + 1) / 2 * self.w),
+                       (lambda x: x >= middle,
+                        lambda x: (-np.tanh((x - self.max_) / self.s) + 1) / 2 * self.w)
+                       )
+        return seg(x)
+
+    def __eq__(self, other):
+        return super().__eq__(other) \
+               and self.s == other.s
+
+    def __hash__(self):
+        return hash((super().__hash__(), self.s))
 
 
 def weighted_wavenumbers(weights, wavenumbers):

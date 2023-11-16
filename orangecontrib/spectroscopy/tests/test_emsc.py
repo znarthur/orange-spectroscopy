@@ -181,9 +181,13 @@ class TestEMSC(unittest.TestCase):
         self.assertNotEqual(d1.domain, d2.domain)
         self.assertNotEqual(hash(d1.domain), hash(d2.domain))
 
-        # these two are not the same because SelectionFunction does not define __eq__ and __hash__
         d3 = EMSC(reference=data_ref[0:1], badspectra=badspec, order=1, output_model=True,
                   weights=SelectionFunction(0, 3, 1))(data)
+        self.assertEqual(d3.domain, d2.domain)
+        self.assertEqual(hash(d3.domain), hash(d2.domain))
+
+        d3 = EMSC(reference=data_ref[0:1], badspectra=badspec, order=1, output_model=True,
+                  weights=SmoothedSelectionFunction(0, 3, 1, 0.5))(data)
         self.assertNotEqual(d3.domain, d2.domain)
         self.assertNotEqual(hash(d3.domain), hash(d2.domain))
 
