@@ -70,6 +70,8 @@ class CutEditor(BaseEditorOrange):
     qualname = "orangecontrib.spectroscopy.cut"
     #name = "Cut (keep)"
     #qualname = "orangecontrib.infrared.cut"
+    replaces = ["orangecontrib.infrared.cut",
+                "orangecontrib.infrared.cutinverse"]
 
     class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("Limits are out of range.")
@@ -79,15 +81,21 @@ class CutEditor(BaseEditorOrange):
 
         self.lowlim = 0.
         self.highlim = 1.
+        self.inverse = False
 
         layout = QFormLayout()
         self.controlArea.setLayout(layout)
 
         self._lowlime = lineEditFloatRange(self, self, "lowlim", callback=self.edited.emit)
         self._highlime = lineEditFloatRange(self, self, "highlim", callback=self.edited.emit)
+        self._inverse = gui.radioButtons(self, self, "inverse", orientation=Qt.Horizontal, callback=self.edited.emit)
+
+        gui.appendRadioButton(self._inverse, "Keep")
+        gui.appendRadioButton(self._inverse, "Remove")
 
         layout.addRow("Low limit", self._lowlime)
         layout.addRow("High limit", self._highlime)
+        layout.addRow(None, self._inverse)
 
         self._lowlime.focusIn.connect(self.activateOptions)
         self._highlime.focusIn.connect(self.activateOptions)
@@ -113,13 +121,15 @@ class CutEditor(BaseEditorOrange):
             self.user_changed = True
         self.lowlim = params.get("lowlim", 0.)
         self.highlim = params.get("highlim", 1.)
+        self.inverse = params.get("inverse", False)
 
     @staticmethod
     def createinstance(params):
         params = dict(params)
         lowlim = params.get("lowlim", None)
         highlim = params.get("highlim", None)
-        return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim))
+        inverse = params.get("inverse", None)
+        return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim), inverse=inverse)
 
     def set_preview_data(self, data):
         self.Warning.out_of_range.clear()
