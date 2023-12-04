@@ -66,8 +66,10 @@ class CutEditor(BaseEditorOrange):
     """
     Editor for Cut
     """
-    name = "Cut (keep)"
-    qualname = "orangecontrib.infrared.cut"
+    name = "Cut"
+    qualname = "orangecontrib.spectroscopy.cut"
+    #name = "Cut (keep)"
+    #qualname = "orangecontrib.infrared.cut"
 
     class Warning(BaseEditorOrange.Warning):
         out_of_range = Msg("Limits are out of range.")
@@ -144,16 +146,16 @@ class CutEditor(BaseEditorOrange):
                 self.Warning.out_of_range()
 
 
-class CutEditorInverse(CutEditor):
-    name = "Cut (remove)"
-    qualname = "orangecontrib.infrared.cutinverse"
+# class CutEditorInverse(CutEditor):
+#     name = "Cut (remove)"
+#     qualname = "orangecontrib.infrared.cutinverse"
 
-    @staticmethod
-    def createinstance(params):
-        params = dict(params)
-        lowlim = params.get("lowlim", None)
-        highlim = params.get("highlim", None)
-        return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim), inverse=True)
+#     @staticmethod
+#     def createinstance(params):
+#         params = dict(params)
+#         lowlim = params.get("lowlim", None)
+#         highlim = params.get("highlim", None)
+#         return Cut(lowlim=floatornone(lowlim), highlim=floatornone(highlim), inverse=True)
 
 
 class SpSubtractEditor(BaseEditorOrange):
@@ -460,7 +462,7 @@ class SpectralTransformEditor(BaseEditorOrange):
 
 
 preprocess_editors.register(CutEditor, 25)
-preprocess_editors.register(CutEditorInverse, 50)
+# preprocess_editors.register(CutEditorInverse, 50)
 preprocess_editors.register(GaussianSmoothingEditor, 75)
 preprocess_editors.register(SavitzkyGolayFilteringEditor, 100)
 preprocess_editors.register(PCADenoisingEditor, 200)
