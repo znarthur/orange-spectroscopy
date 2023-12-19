@@ -1,6 +1,8 @@
 from collections.abc import Iterable
 import random
 import time
+import traceback
+import sys
 
 import numpy as np
 
@@ -446,6 +448,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
     _max_preview_spectra = 10
 
     class Error(OWWidget.Error):
+        loading = Msg("Error when loading preprocessors. {}")
         applying = Msg("Preprocessing error. {}")
         preview = Msg("Preview error. {}")
         preprocessor = Msg("Preprocessor error: see the widget for details.")
@@ -640,7 +643,12 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
 
         try:
             model = self.load(self.storedsettings)
-        except Exception:
+        except Exception as ex:
+            # open Orange's report window so that users can report the problem
+            sys.excepthook(type(ex), ex, ex.__traceback__)
+            # show an error with the same content
+            self.Error.loading(traceback.format_exc())
+            # allow the widget to work
             model = self.load({})
 
         self.set_model(model)
@@ -729,6 +737,7 @@ class SpectralPreprocess(OWWidget, ConcurrentWidgetMixin, openclass=True):
         self.commit.now()
 
     def add_preprocessor(self, action):
+        self.Error.loading.clear()
         item = QStandardItem()
         item.setData({}, ParametersRole)
         item.setData(action.description.title, Qt.DisplayRole)
