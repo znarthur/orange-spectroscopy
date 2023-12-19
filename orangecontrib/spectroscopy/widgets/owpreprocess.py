@@ -946,6 +946,12 @@ class OWPreprocess(SpectralPreprocessReference):
             new_ranges = [[l, r, w, 0.0] for l, r, w in ranges]
             settings["ranges"] = new_ranges
             version = 7
+        if name == "orangecontrib.infrared.cut":
+            name = "orangecontrib.spectroscopy.cut"
+            settings["inverse"] = False
+        if name == "orangecontrib.infrared.cutinverse":
+            name = "orangecontrib.spectroscopy.cut"
+            settings["inverse"] = True
         return [((name, settings), version)]
 
     @classmethod
