@@ -863,7 +863,7 @@ class OWPreprocess(SpectralPreprocessReference):
     replaces = ["orangecontrib.infrared.widgets.owpreproc.OWPreprocess",
                 "orangecontrib.infrared.widgets.owpreprocess.OWPreprocess"]
 
-    settings_version = 8
+    settings_version = 9
 
     BUTTON_ADD_LABEL = "Add preprocessor..."
     editor_registry = preprocess_editors
