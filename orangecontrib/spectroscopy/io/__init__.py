@@ -22,3 +22,4 @@ from .wire import WiREReaders
 from .diamond import NXS_STXM_Diamond_I08
 from .maxiv import HDRReader_STXM
 from .soleil import SelectColumnReader, HDF5Reader_HERMES, HDF5Reader_ROCK
+from .cls import HDF5Reader_SGM
