@@ -9,7 +9,7 @@ from Orange.data.util import get_unique_names
 
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
-    interpolate_extend_to, CommonDomainRef, table_eq_x
+    interpolate_extend_to, CommonDomainRef, table_eq_x, subset_for_hash
 from orangecontrib.spectroscopy.preprocess.emsc import weighted_wavenumbers, average_table_x
 
 
@@ -290,8 +290,8 @@ class _ME_EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
                  else table_eq_x(self.weights, other.weights))
 
     def __hash__(self):
-        weights = self.weights \
-            if not isinstance(self.weights, Table) else tuple(self.weights.X[0][:10])
+        weights = self.weights if not isinstance(self.weights, Table) \
+            else subset_for_hash(self.weights.X)
         return hash((CommonDomainRef.__hash__(self), weights, self.ncomp, tuple(self.alpha0),
                      tuple(self.gamma), self.maxNiter, self.fixedNiter, self.positiveRef))
 

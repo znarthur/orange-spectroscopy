@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 import numpy as np
@@ -105,7 +106,7 @@ class CommonDomainRef(CommonDomain):
 
     def __hash__(self):
         domain = self.reference.domain if self.reference is not None else None
-        fv = tuple(self.reference.X[0][:10]) if self.reference is not None else None
+        fv = subset_for_hash(self.reference.X) if self.reference is not None else None
         return hash((super().__hash__(), domain, fv))
 
 
@@ -194,6 +195,14 @@ def table_eq_x(first: Optional[Table], second: Optional[Table]):
     else:
         return first.domain.attributes == second.domain.attributes \
                and np.array_equal(first.X, second.X)
+
+
+def subset_for_hash(array, size=10):
+    if array is None:
+        return tuple()
+    else:
+        vals = list(array.ravel()[:size])
+        return tuple(v if not math.isnan(v) else None for v in vals)
 
 
 def nan_extend_edges_and_interpolate(xs, X):
