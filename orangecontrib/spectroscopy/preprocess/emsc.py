@@ -8,7 +8,7 @@ from Orange.data.util import get_unique_names
 from orangecontrib.spectroscopy.data import getx
 from orangecontrib.spectroscopy.preprocess.utils import SelectColumn, CommonDomainOrderUnknowns, \
     interp1d_with_unknowns_numpy, MissingReferenceException, interpolate_extend_to, \
-    CommonDomainRef, table_eq_x
+    CommonDomainRef, table_eq_x, subset_for_hash
 from orangecontrib.spectroscopy.preprocess.npfunc import Function, Segments
 
 
@@ -155,8 +155,9 @@ class _EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
 
     def __hash__(self):
         domain = self.badspectra.domain if self.badspectra is not None else None
-        fv = tuple(self.badspectra.X[0][:10]) if self.badspectra is not None else None
-        weights = self.weights if not isinstance(self.weights, Table) else tuple(self.weights.X[0][:10])
+        fv = subset_for_hash(self.badspectra.X) if self.badspectra is not None else None
+        weights = self.weights if not isinstance(self.weights, Table) \
+            else subset_for_hash(self.weights.X)
         return hash((CommonDomainRef.__hash__(self), domain, fv, weights, self.order, self.scaling))
 
 
