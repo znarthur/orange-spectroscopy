@@ -1,11 +1,12 @@
 import spectral.io
 from Orange.data import FileFormat
 
-from orangecontrib.spectroscopy.io import HDF5Reader_ROCK, HDF5Reader_SGM
 from orangecontrib.spectroscopy.io.agilent import AgilentImageReader
 from orangecontrib.spectroscopy.io.ascii import AsciiColReader
+from orangecontrib.spectroscopy.io.cls import HDF5Reader_SGM
 from orangecontrib.spectroscopy.io.envi import EnviMapReader
 from orangecontrib.spectroscopy.io.maxiv import HDRReader_STXM
+from orangecontrib.spectroscopy.io.soleil import HDF5Reader_ROCK
 
 
 class DatMetaReader(FileFormat):

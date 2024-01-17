@@ -1,7 +1,7 @@
 # FileFormat readers must be imported here
 
 # Meta-readers to handle extension conflicts
-from .meta import DatMetaReader, HDRMetaReader
+from .meta import DatMetaReader, HDRMetaReader, HDF5MetaReader
 
 # General readers
 from .ascii import AsciiColReader, AsciiMapReader
