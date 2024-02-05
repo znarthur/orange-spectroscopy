@@ -141,8 +141,8 @@ class OWStackAlign(OWWidget):
     settingsHandler = DomainContextHandler()
 
     sobel_filter = settings.Setting(False)
-    attr_x = ContextSetting(None)
-    attr_y = ContextSetting(None)
+    attr_x = ContextSetting(None, exclude_attributes=True)
+    attr_y = ContextSetting(None, exclude_attributes=True)
     ref_frame_num = settings.Setting(0)
 
     def __init__(self):

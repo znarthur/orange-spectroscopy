@@ -569,12 +569,14 @@ class TestOWSpectra(WidgetTest):
         self.assertTrue(vb.targetRect().bottom() > 800)
 
     def test_migrate_context_feature_color(self):
-        c = self.widget.settingsHandler.new_context(self.iris.domain,
-                                                    None, self.iris.domain.class_vars)
+        # avoid class_vars in tests, because the setting does not allow them
+        iris = self.iris.transform(
+            Domain(self.iris.domain.attributes, None, self.iris.domain.class_vars))
+        c = self.widget.settingsHandler.new_context(iris.domain, None, iris.domain.metas)
         c.values["curveplot"] = {"feature_color": ("iris", 1)}
         self.widget = self.create_widget(OWSpectra,
                                          stored_settings={"context_settings": [c]})
-        self.send_signal("Data", self.iris)
+        self.send_signal("Data", iris)
         self.assertIsInstance(self.widget.curveplot.feature_color, DiscreteVariable)
 
     def test_compat_no_group(self):

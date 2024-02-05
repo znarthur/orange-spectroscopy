@@ -33,7 +33,7 @@ from orangecontrib.spectroscopy.widgets.utils import \
 class LineScanPlot(QWidget, OWComponent, SelectionGroupMixin,
                    ImageColorSettingMixin, ImageZoomMixin):
 
-    attr_x = ContextSetting(None)
+    attr_x = ContextSetting(None, exclude_attributes=True)
     gamma = Setting(0)
 
     selection_changed = Signal()
