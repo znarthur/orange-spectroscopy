@@ -623,8 +623,8 @@ class ImagePlot(QWidget, OWComponent, SelectionGroupMixin,
                 ImageColorSettingMixin, ImageRGBSettingMixin,
                 ImageZoomMixin, ConcurrentMixin):
 
-    attr_x = ContextSetting(None)
-    attr_y = ContextSetting(None)
+    attr_x = ContextSetting(None, exclude_attributes=True)
+    attr_y = ContextSetting(None, exclude_attributes=True)
     gamma = Setting(0)
 
     selection_changed = Signal()

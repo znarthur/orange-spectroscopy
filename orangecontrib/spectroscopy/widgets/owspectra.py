@@ -892,7 +892,7 @@ class CurvePlot(QWidget, OWComponent, SelectionGroupMixin):
 
     sample_seed = Setting(0, schema_only=True)
     peak_labels_saved = Setting([], schema_only=True)
-    feature_color = ContextSetting(None)
+    feature_color = ContextSetting(None, exclude_attributes=True)
     color_individual = Setting(False)  # color individual curves (in a cycle) if no feature_color
     invertX = Setting(False)
     viewtype = Setting(INDIVIDUAL)
