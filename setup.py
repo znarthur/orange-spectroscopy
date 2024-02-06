@@ -12,7 +12,7 @@ PACKAGES = find_packages()
 PACKAGE_DATA = {}
 
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
-LONG_DESCRIPTION = open(README_FILE).read()
+LONG_DESCRIPTION = open(README_FILE, "rt", encoding="utf8").read()
 
 DATA_FILES = [
     # Data files that will be installed outside site-packages folder
