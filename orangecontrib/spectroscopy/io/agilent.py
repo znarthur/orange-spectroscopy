@@ -205,6 +205,9 @@ class agilentMosaicTileReader(FileFormat, TileFileFormat):
             # the not-tiled reader
             for y in range(ytiles - 1, -1, -1):
                 tile = tiles[x, y]()
+                if np.isnan(tile).all():
+                    # Return an empty Table if tile doesn't exist (instead of storing a tile of nans)
+                    yield Orange.data.Table.from_domain(domain)
                 x_size, y_size = tile.shape[1], tile.shape[0]
                 x_locs = np.linspace(x*x_size*px_size, (x+1)*x_size*px_size, num=x_size, endpoint=False)
                 y_locs = np.linspace((ytiles-y-1)*y_size*px_size, (ytiles-y)*y_size*px_size, num=y_size, endpoint=False)
