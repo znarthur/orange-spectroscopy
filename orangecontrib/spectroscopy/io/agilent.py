@@ -2,7 +2,7 @@ import Orange
 import numpy as np
 from Orange.data import FileFormat, ContinuousVariable, Domain
 
-from orangecontrib.spectroscopy.utils.agilent import agilentImage, agilentImageIFG, agilentMosaic, agilentMosaicIFG, \
+from agilent_format import agilentImage, agilentImageIFG, agilentMosaic, agilentMosaicIFG, \
     agilentMosaicTiles
 from orangecontrib.spectroscopy.io.util import SpectralFileFormat, _spectra_from_image, TileFileFormat
 

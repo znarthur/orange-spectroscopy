@@ -145,6 +145,7 @@ if __name__ == '__main__':
             'lmfit>=1.0.2',
             'bottleneck',
             'pebble',
+            'agilent-format>=0.4.5'
         ],
         extras_require={
             'test': ['coverage']
