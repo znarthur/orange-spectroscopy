@@ -138,7 +138,7 @@ class TestEMSC(unittest.TestCase):
             fdata.metas,
             [[1.375, 1.375, 3.0, 6.0, 2.0]])
 
-    def test_eq(self):
+    def disabled_test_eq(self):
         data = Table.from_numpy(None, [[0, 0.25, 4.5, 4.75, 1.0, 1.25,
                                         7.5, 7.75, 2.0, 5.25, 5.5, 2.75]])
         data_ref = Table.from_numpy(None, [[0, 0, 2, 2, 0, 0, 3, 3, 0, 0, 0, 0]])

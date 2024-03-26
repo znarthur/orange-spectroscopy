@@ -55,11 +55,11 @@ class SelectColumn(SharedComputeValue):
     def compute(self, data, common):
         return common[:, self.feature]
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.feature == other.feature
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), self.feature))
 
 
@@ -83,11 +83,11 @@ class CommonDomain:
     def transformed(self, data):
         raise NotImplementedError
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return type(self) is type(other) \
                and self.domain == other.domain
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((type(self), self.domain))
 
 
@@ -100,11 +100,11 @@ class CommonDomainRef(CommonDomain):
     def interpolate_extend_to(self, interpolate: Table, wavenumbers):
         return interpolate_extend_to(interpolate, wavenumbers)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and table_eq_x(self.reference, other.reference)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         domain = self.reference.domain if self.reference is not None else None
         fv = subset_for_hash(self.reference.X) if self.reference is not None else None
         return hash((super().__hash__(), domain, fv))
@@ -134,11 +134,11 @@ class CommonDomainOrder(CommonDomain):
     def transformed(self, X, wavenumbers):
         raise NotImplementedError
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         # pylint: disable=useless-parent-delegation
         return super().__eq__(other)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
 
@@ -178,11 +178,11 @@ class CommonDomainOrderUnknowns(CommonDomainOrder):
         # restore order
         return self._restore_order(X, mon, xsind, xc)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         # pylint: disable=useless-parent-delegation
         return super().__eq__(other)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
 

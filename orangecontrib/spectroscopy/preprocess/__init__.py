@@ -147,13 +147,13 @@ class _SavitzkyGolayCommon(CommonDomainOrderUnknowns):
                              polyorder=self.polyorder,
                              deriv=self.deriv, mode="nearest")
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.window == other.window \
                and self.polyorder == other.polyorder \
                and self.deriv == other.deriv
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), self.window, self.polyorder, self.deriv))
 
 
@@ -342,7 +342,7 @@ class _NormalizeCommon(CommonDomain):
                 replace_infs(data.X)
         return data.X
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.method == other.method \
                and self.lower == other.lower \
@@ -350,7 +350,7 @@ class _NormalizeCommon(CommonDomain):
                and self.int_method == other.int_method \
                and self.attr == other.attr
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), self.method, self.lower,
                      self.upper, self.int_method, self.attr))
 
@@ -470,7 +470,7 @@ class _InterpolateCommon:
                 interpfn = interp1d_wo_unknowns_scipy
         return interpfn(x, ys, self.points, kind=self.kind)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return type(self) is type(other) \
                and np.all(self.points == other.points) \
                and self.kind == other.kind \
@@ -478,7 +478,7 @@ class _InterpolateCommon:
                and self.handle_nans == other.handle_nans \
                and self.interpfn == other.interpfn
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((type(self), tuple(self.points[:5]), self.kind,
                      self.domain, self.handle_nans, self.interpfn))
 

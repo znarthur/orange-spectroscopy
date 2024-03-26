@@ -72,11 +72,11 @@ class IntegrateFeature(SharedComputeValue):
         x_s, y_s = self.extract_data(data, common)
         return self.compute_integral(x_s, y_s)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.limits == other.limits
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), tuple(self.limits)))
 
 
@@ -290,11 +290,11 @@ class _IntegrateCommon(CommonDomain):
         x_sorter = np.argsort(x)
         return data, x, x_sorter
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         # pylint: disable=useless-parent-delegation
         return super().__eq__(other)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
 

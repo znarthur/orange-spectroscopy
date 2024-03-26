@@ -29,13 +29,13 @@ class SelectionFunction(Function):
                        )
         return seg(x)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.min_ == other.min_ \
                and self.max_ == other.max_ \
                and self.w == other.w
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), self.min_, self.max_, self.w))
 
 
@@ -57,11 +57,11 @@ class SmoothedSelectionFunction(SelectionFunction):
                        )
         return seg(x)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return super().__eq__(other) \
                and self.s == other.s
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         return hash((super().__hash__(), self.s))
 
 
@@ -144,7 +144,7 @@ class _EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
 
         return newspectra
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return CommonDomainRef.__eq__(self, other) \
             and table_eq_x(self.badspectra, other.badspectra) \
             and self.order == other.order \
@@ -153,7 +153,7 @@ class _EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
                  if not isinstance(self.weights, Table)
                  else table_eq_x(self.weights, other.weights))
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         domain = self.badspectra.domain if self.badspectra is not None else None
         fv = subset_for_hash(self.badspectra.X) if self.badspectra is not None else None
         weights = self.weights if not isinstance(self.weights, Table) \
