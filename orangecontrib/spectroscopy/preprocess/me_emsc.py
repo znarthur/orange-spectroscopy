@@ -277,7 +277,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
         newspectra = np.hstack((newspectra, numberOfIterations.reshape(-1, 1),RMSEall.reshape(-1, 1)))
         return newspectra
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         return CommonDomainRef.__eq__(self, other) \
             and self.ncomp == other.ncomp \
             and np.array_equal(self.alpha0, other.alpha0) \
@@ -289,7 +289,7 @@ class _ME_EMSC(CommonDomainOrderUnknowns, CommonDomainRef):
                  if not isinstance(self.weights, Table)
                  else table_eq_x(self.weights, other.weights))
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         weights = self.weights if not isinstance(self.weights, Table) \
             else subset_for_hash(self.weights.X)
         return hash((CommonDomainRef.__hash__(self), weights, self.ncomp, tuple(self.alpha0),

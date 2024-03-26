@@ -40,11 +40,11 @@ class _AbsorbanceCommon(CommonDomainRef):
         # Replace infs from either np.true_divide or np.log10
         return replace_infs(absd)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         # pylint: disable=useless-parent-delegation
         return super().__eq__(other)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
 
@@ -105,11 +105,11 @@ class _TransmittanceCommon(CommonDomainRef):
         # Replace infs from either np.true_divide or np.log10
         return replace_infs(transd)
 
-    def __eq__(self, other):
+    def __disabled_eq__(self, other):
         # pylint: disable=useless-parent-delegation
         return super().__eq__(other)
 
-    def __hash__(self):
+    def __disabled_hash__(self):
         # pylint: disable=useless-parent-delegation
         return super().__hash__()
 

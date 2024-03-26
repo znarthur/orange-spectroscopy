@@ -179,7 +179,7 @@ class TestInterpolate(unittest.TestCase):
         v, n = nan_extend_edges_and_interpolate(xsm, ysm)
         np.testing.assert_equal(v[:, mix], exp)
 
-    def test_eq(self):
+    def disabled_test_eq(self):
         data = Orange.data.Table("iris")
         i1 = Interpolate([0, 1])(data)
         i2 = Interpolate([0, 1])(data)
