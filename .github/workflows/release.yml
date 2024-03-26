@@ -10,3 +10,5 @@ jobs:
     with:
       pure-python: true
     secrets: inherit
+    permissions:
+      id-token: write
